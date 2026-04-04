@@ -1,0 +1,8 @@
+src/
+tsconfig.json
+tsup.config.ts
+eslint.config.js
+pncli-scaffold-prompt.md
+.github/
+node_modules/
+*.js.map
