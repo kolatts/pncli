@@ -81,9 +81,9 @@ This project uses Conventional Commits for automatic versioning:
 
 | Service | Status | API |
 |---------|--------|-----|
+| Git (local) | ✅ Active | Local git commands |
 | Jira | ✅ Active | Data Cloud REST v3 |
 | Bitbucket | ✅ Active | Server REST v1.0 |
-| Git (local) | ✅ Active | Local git commands |
 | Confluence | 🔜 Coming | The nightmare never ends |
 | SonarQube | 🔜 Coming | The nightmare never ends |
 | Artifactory | 🔜 Coming | The nightmare never ends |
