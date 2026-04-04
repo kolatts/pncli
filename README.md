@@ -11,7 +11,7 @@ Your org blocked MCP. Your agents still need to review PRs, create issues, and m
 ## Install
 
 ```bash
-npm install -g pncli
+npm install -g @kolatts/pncli
 ```
 
 ## Quick Start
