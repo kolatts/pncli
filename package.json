@@ -1,6 +1,6 @@
 {
   "name": "pncli",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "The Paperwork Nightmare CLI — One command does what three meetings couldn't.",
   "type": "module",
   "bin": {
