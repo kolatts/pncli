@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/kolatts/pncli/compare/v1.0.0...v1.0.1) (2026-04-04)
+
+
+### Bug Fixes
+
+* rename package to @kolatts/pncli and add --access=public for npm publish ([6082ae6](https://github.com/kolatts/pncli/commit/6082ae6cd8b5f10413a517cf3c0ced68de21e8dc))
+
 ## 1.0.0 (2026-04-04)
 
 
