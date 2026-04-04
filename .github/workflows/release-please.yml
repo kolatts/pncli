@@ -19,7 +19,6 @@ jobs:
         id: release
         with:
           release-type: node
-          package-name: pncli
 
   publish:
     needs: release-please
