@@ -1,8 +1,12 @@
 import { Command } from 'commander';
 import { getStatus, getDiff, getLog, getBranches } from './client.js';
-import { getRepoRoot } from '../../lib/git-context.js';
+import { getRepoRoot, getCurrentBranch } from '../../lib/git-context.js';
 import { success, fail } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
+import { loadConfig } from '../../lib/config.js';
+import { createHttpClient } from '../../lib/http.js';
+import { BitbucketClient } from '../bitbucket/client.js';
+import { getGitContext } from '../../lib/git-context.js';
 
 function requireRepoRoot(): string {
   const root = getRepoRoot();
@@ -77,13 +81,38 @@ export function registerGitCommands(program: Command): void {
   git
     .command('current-pr')
     .description('Find the open PR for the current branch')
-    .action(() => {
+    .action(async () => {
       const start = Date.now();
-      success(
-        { message: 'Requires Bitbucket config. Available after pncli config init.' },
-        'git',
-        'current-pr',
-        start
-      );
+      try {
+        const opts = program.optsWithGlobals();
+        const config = loadConfig({ configPath: opts.config });
+
+        if (!config.bitbucket.baseUrl || !config.bitbucket.pat) {
+          success(
+            { message: 'Requires Bitbucket config. Available after pncli config init.' },
+            'git',
+            'current-pr',
+            start
+          );
+          return;
+        }
+
+        const root = requireRepoRoot();
+        const branch = getCurrentBranch(root);
+        if (!branch) throw new PncliError('Could not determine current branch', 1);
+
+        const ctx = getGitContext(config);
+        const project = ctx?.project ?? config.defaults.bitbucket?.project ?? '';
+        const repo = ctx?.repo ?? config.defaults.bitbucket?.repo ?? '';
+        if (!project || !repo) throw new PncliError('Could not determine Bitbucket project/repo', 1);
+
+        const http = createHttpClient(config, Boolean(opts.dryRun));
+        const client = new BitbucketClient(http);
+        const prs = await client.listPRs({ project, repo, state: 'OPEN' });
+        const match = prs.find(pr => pr.fromRef.displayId === branch) ?? null;
+        success(match, 'git', 'current-pr', start);
+      } catch (err) {
+        fail(err, 'git', 'current-pr', start);
+      }
     });
 }
