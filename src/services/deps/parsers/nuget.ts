@@ -5,14 +5,10 @@ const PROJ_EXTENSIONS = new Set(['.csproj', '.fsproj', '.vbproj']);
 
 export function findNugetManifests(files: string[]): ManifestInfo[] {
   const lockFiles = new Map<string, string>(); // dir → lock path
-  const propsFiles = new Map<string, string>(); // dir → Directory.Packages.props path
 
   for (const f of files) {
     if (path.basename(f) === 'packages.lock.json') {
       lockFiles.set(path.dirname(f), f);
-    }
-    if (path.basename(f) === 'Directory.Packages.props') {
-      propsFiles.set(path.dirname(f), f);
     }
   }
 

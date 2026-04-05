@@ -115,7 +115,9 @@ function extractDependencyManagement(content: string, props: Map<string, string>
 
 function resolveProperty(value: string | null, props: Map<string, string>): string | null {
   if (!value) return null;
-  return value.replace(/\$\{([^}]+)\}/g, (_, key: string) => props.get(key) ?? `\${${key}}`);
+  const resolved = value.replace(/\$\{([^}]+)\}/g, (_, key: string) => props.get(key) ?? `\${${key}}`);
+  // If any placeholder remains unresolved, return null so callers fall through to managed versions
+  return /\$\{[^}]+\}/.test(resolved) ? null : resolved;
 }
 
 const GRADLE_DEV_CONFIGS = new Set(['testImplementation', 'testCompileOnly', 'testRuntimeOnly', 'testApi']);

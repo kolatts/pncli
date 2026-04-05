@@ -62,7 +62,7 @@ export function parseNpmPackages(
     } else if (base === 'yarn.lock') {
       return parseYarnLock(lockContent, manifest.lockFile, opts, content);
     } else if (base === 'pnpm-lock.yaml') {
-      return parsePnpmLock(lockContent, manifest.lockFile, opts);
+      return parsePnpmLock(lockContent, manifest.lockFile, opts, content);
     }
   }
   return parsePackageJson(content, manifest.file, opts);
@@ -165,30 +165,37 @@ function parseYarnLock(
     pkgJson = {};
   }
 
+  const directDeps = new Set(Object.keys(pkgJson.dependencies ?? {}));
   const devDeps = new Set(Object.keys(pkgJson.devDependencies ?? {}));
+  const allDirectDeps = new Set([...directDeps, ...devDeps]);
   const packages: Package[] = [];
   const seen = new Set<string>();
 
-  // Matches: "express@^4.21.0", "express@^4.0.0, express@^4.1.0":
+  // Matches both plain and scoped packages:
+  //   express@^4.21.0:          → express
+  //   "@types/node@^18.0.0":    → @types/node
   //   version "4.21.0"
-  const blockRegex = /^"?([^@"\n][^@"\n]*)@[^:]+:?\n\s+version "([^"]+)"/gm;
+  const blockRegex = /^"?(@?[^@"\n][^"\n]*)@[^:]+:?\n\s+version "([^"]+)"/gm;
 
   for (const match of content.matchAll(blockRegex)) {
-    const name = match[1].trim().replace(/^"/, '');
+    const name = match[1].trim().replace(/^"|"$/g, '');
     const version = match[2];
     const key = `${name}@${version}`;
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const isDev = devDeps.has(name);
+    const isDev = devDeps.has(name) && !directDeps.has(name);
     if (isDev && !opts.includeDev) continue;
+
+    const isTransitive = !allDirectDeps.has(name);
+    if (isTransitive && !opts.includeTransitive) continue;
 
     packages.push({
       name,
       version,
       ecosystem: 'npm',
       source: lockFilePath,
-      type: 'direct',
+      type: isTransitive ? 'transitive' : 'direct',
       scope: isDev ? 'dev' : 'production'
     });
   }
@@ -196,13 +203,29 @@ function parseYarnLock(
   return packages;
 }
 
-function parsePnpmLock(content: string, lockFilePath: string, opts: ScanOptions): Package[] {
+function parsePnpmLock(
+  content: string,
+  lockFilePath: string,
+  opts: ScanOptions,
+  packageJsonContent: string
+): Package[] {
+  let pkgJson: PackageJson;
+  try {
+    pkgJson = JSON.parse(packageJsonContent) as PackageJson;
+  } catch {
+    pkgJson = {};
+  }
+
+  const directDeps = new Set(Object.keys(pkgJson.dependencies ?? {}));
+  const devDeps = new Set(Object.keys(pkgJson.devDependencies ?? {}));
+  const allDirectDeps = new Set([...directDeps, ...devDeps]);
+
   const packages: Package[] = [];
   const seen = new Set<string>();
 
   // pnpm-lock.yaml v6+ format:
   // packages:
-  //   express@4.21.0:
+  //   /express@4.21.0:       or   /@types/node@18.0.0:
   //     dev: false
   const blockRegex = /^\s{2}(\/?@?[^@\s/][^@\s]*)@(\d[^:\s]*):\s*\n((?:\s{4}[^\n]+\n)*)/gm;
 
@@ -214,15 +237,19 @@ function parsePnpmLock(content: string, lockFilePath: string, opts: ScanOptions)
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const isDev = /^\s+dev:\s*true/m.test(attrs);
+    const isDev = devDeps.has(name) && !directDeps.has(name)
+      || /^\s+dev:\s*true/m.test(attrs);
     if (isDev && !opts.includeDev) continue;
+
+    const isTransitive = !allDirectDeps.has(name);
+    if (isTransitive && !opts.includeTransitive) continue;
 
     packages.push({
       name,
       version,
       ecosystem: 'npm',
       source: lockFilePath,
-      type: 'direct',
+      type: isTransitive ? 'transitive' : 'direct',
       scope: isDev ? 'dev' : 'production'
     });
   }

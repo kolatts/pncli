@@ -19,29 +19,29 @@ export function runDiff(
   const fromScan = scanRepoAtRef(repoRoot, from, opts);
   const toScan = to ? scanRepoAtRef(repoRoot, to, opts) : scanRepo(repoRoot, opts);
 
-  // Build maps keyed by ecosystem:name (collapse source differences)
+  // Key on ecosystem:name:source to preserve multiple versions of the same package
+  // (common with transitive npm deps where the same package appears at different versions)
   type PkgKey = string;
   const fromMap = new Map<PkgKey, string>(); // key → version
   const toMap = new Map<PkgKey, string>();
-  const sourceMap = new Map<PkgKey, string>();
 
   for (const pkg of fromScan.packages) {
-    const key = `${pkg.ecosystem}:${pkg.name}`;
+    const key = `${pkg.ecosystem}:${pkg.name}:${pkg.source}`;
     fromMap.set(key, pkg.version);
-    sourceMap.set(key, pkg.source);
   }
   for (const pkg of toScan.packages) {
-    const key = `${pkg.ecosystem}:${pkg.name}`;
+    const key = `${pkg.ecosystem}:${pkg.name}:${pkg.source}`;
     toMap.set(key, pkg.version);
-    sourceMap.set(key, pkg.source);
   }
 
   const changes: PackageChange[] = [];
   const allKeys = new Set([...fromMap.keys(), ...toMap.keys()]);
 
   for (const key of allKeys) {
-    const [eco, ...nameParts] = key.split(':');
-    const name = nameParts.join(':');
+    const parts = key.split(':');
+    const eco = parts[0] as Ecosystem;
+    const source = parts[parts.length - 1] ?? '';
+    const name = parts.slice(1, -1).join(':');
     const fromVer = fromMap.get(key) ?? null;
     const toVer = toMap.get(key) ?? null;
 
@@ -56,19 +56,17 @@ export function runDiff(
       change = isDowngrade(fromVer, toVer) ? 'downgraded' : 'upgraded';
     }
 
-    changes.push({
-      name,
-      ecosystem: eco as Ecosystem,
-      change,
-      from: fromVer,
-      to: toVer,
-      source: sourceMap.get(key) ?? ''
-    });
+    changes.push({ name, ecosystem: eco, change, from: fromVer, to: toVer, source });
   }
 
   const summary = { added: 0, removed: 0, upgraded: 0, downgraded: 0, unchanged: 0 };
   for (const c of changes) summary[c.change]++;
-  summary.unchanged = fromScan.packages.length - changes.filter(c => c.change !== 'added').length;
+  // Unchanged = keys present in both maps with identical versions
+  summary.unchanged = [...allKeys].filter(k => {
+    const fv = fromMap.get(k);
+    const tv = toMap.get(k);
+    return fv !== undefined && tv !== undefined && fv === tv;
+  }).length;
 
   return { from, to: to ?? 'working tree', changes, summary };
 }

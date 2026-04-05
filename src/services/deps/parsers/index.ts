@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import type { Package, ManifestInfo, ScanOptions, ScanData, Ecosystem } from '../types.js';
 import { findNpmManifests, parseNpmPackages } from './npm.js';
 import { findNugetManifests, parseNugetPackages } from './nuget.js';
@@ -28,7 +28,7 @@ function readFile(repoRoot: string, relPath: string): string | null {
 
 function readFileAtRef(repoRoot: string, ref: string, relPath: string): string | null {
   try {
-    return execSync(`git show "${ref}":"${relPath}"`, {
+    return execFileSync('git', ['show', `${ref}:${relPath}`], {
       encoding: 'utf8',
       cwd: repoRoot,
       stdio: ['pipe', 'pipe', 'pipe']
@@ -36,6 +36,22 @@ function readFileAtRef(repoRoot: string, ref: string, relPath: string): string |
   } catch {
     return null;
   }
+}
+
+function findPropsContent(
+  manifestFile: string,
+  readFn: (relPath: string) => string | null
+): string | null {
+  // Walk up from the manifest directory to the repo root looking for Directory.Packages.props
+  let dir = path.dirname(manifestFile);
+  for (let depth = 0; depth < 10; depth++) {
+    const candidate = dir === '.' ? 'Directory.Packages.props' : `${dir}/Directory.Packages.props`;
+    const content = readFn(candidate);
+    if (content) return content;
+    if (dir === '.') break;
+    dir = path.dirname(dir);
+  }
+  return null;
 }
 
 function parseManifests(
@@ -58,10 +74,8 @@ function parseManifests(
     if (manifest.ecosystem === 'npm') {
       pkgs = parseNpmPackages(content, manifest, opts, lockContent);
     } else if (manifest.ecosystem === 'nuget') {
-      // For NuGet, also look for Directory.Packages.props in same or parent dir
-      const dir = path.dirname(manifest.file);
-      const propsPath = dir === '.' ? 'Directory.Packages.props' : `${dir}/Directory.Packages.props`;
-      const propsContent = readFn(propsPath) ?? undefined;
+      // Walk up from the manifest's directory to find the nearest Directory.Packages.props
+      const propsContent = findPropsContent(manifest.file, readFn) ?? undefined;
       pkgs = parseNugetPackages(content, manifest, opts, lockContent, propsContent);
     } else if (manifest.ecosystem === 'maven') {
       pkgs = parseMavenPackages(content, manifest, opts, lockContent);
@@ -99,7 +113,7 @@ export function scanRepoAtRef(repoRoot: string, ref: string, opts: ScanOptions =
   // Get file list at that ref
   let files: string[] = [];
   try {
-    const out = execSync(`git ls-tree -r --name-only "${ref}"`, {
+    const out = execFileSync('git', ['ls-tree', '-r', '--name-only', ref], {
       encoding: 'utf8',
       cwd: repoRoot,
       stdio: ['pipe', 'pipe', 'pipe']
