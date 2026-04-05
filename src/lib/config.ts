@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
 import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults } from '../types/config.js';
+import type { CustomFieldDefinition } from '../types/jira.js';
 
 const ENV_KEYS = {
   EMAIL: 'PNCLI_EMAIL',
@@ -38,6 +39,16 @@ function getRepoRoot(): string | null {
   }
 }
 
+function mergeCustomFields(
+  global: CustomFieldDefinition[] | undefined,
+  repo: CustomFieldDefinition[] | undefined
+): CustomFieldDefinition[] {
+  const map = new Map<string, CustomFieldDefinition>();
+  for (const f of global ?? []) map.set(f.id, f);
+  for (const f of repo ?? []) map.set(f.id, f); // repo wins
+  return Array.from(map.values());
+}
+
 function mergeDefaults(
   global: GlobalConfig['defaults'],
   repo: RepoConfig['defaults']
@@ -71,7 +82,8 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
     },
     jira: {
       baseUrl: process.env[ENV_KEYS.JIRA_BASE_URL] ?? globalConfig.jira?.baseUrl,
-      apiToken: process.env[ENV_KEYS.JIRA_API_TOKEN] ?? globalConfig.jira?.apiToken
+      apiToken: process.env[ENV_KEYS.JIRA_API_TOKEN] ?? globalConfig.jira?.apiToken,
+      customFields: mergeCustomFields(globalConfig.jira?.customFields, repoConfig.jira?.customFields)
     },
     bitbucket: {
       baseUrl: process.env[ENV_KEYS.BITBUCKET_BASE_URL] ?? globalConfig.bitbucket?.baseUrl,
@@ -120,7 +132,8 @@ export function maskConfig(config: ResolvedConfig): unknown {
     ...config,
     jira: {
       ...config.jira,
-      apiToken: config.jira.apiToken ? '***' : undefined
+      apiToken: config.jira.apiToken ? '***' : undefined,
+      customFields: config.jira.customFields
     },
     bitbucket: {
       ...config.bitbucket,

@@ -3,7 +3,9 @@ import type {
   JiraIssue,
   JiraTransition,
   JiraComment,
-  JiraSearchResult
+  JiraSearchResult,
+  JiraFieldInfo,
+  CustomFieldDefinition
 } from '../../types/jira.js';
 
 const API = '/rest/api/2';
@@ -16,6 +18,7 @@ export interface CreateIssueOpts {
   priority?: string;
   assignee?: string;
   labels?: string[];
+  customFieldValues?: Record<string, unknown>;
 }
 
 export interface UpdateIssueOpts {
@@ -24,6 +27,7 @@ export interface UpdateIssueOpts {
   priority?: string;
   assignee?: string;
   labels?: string[];
+  customFieldValues?: Record<string, unknown>;
 }
 
 export interface LinkIssueOpts {
@@ -48,7 +52,8 @@ export class JiraClient {
         ...(opts.description ? { description: opts.description } : {}),
         ...(opts.priority ? { priority: { name: opts.priority } } : {}),
         ...(opts.assignee ? { assignee: { name: opts.assignee } } : {}),
-        ...(opts.labels?.length ? { labels: opts.labels } : {})
+        ...(opts.labels?.length ? { labels: opts.labels } : {}),
+        ...(opts.customFieldValues ?? {})
       }
     };
 
@@ -67,6 +72,7 @@ export class JiraClient {
     if (opts.priority) fields.priority = { name: opts.priority };
     if (opts.assignee) fields.assignee = { name: opts.assignee };
     if (opts.labels) fields.labels = opts.labels;
+    Object.assign(fields, opts.customFieldValues ?? {});
 
     await this.http.jira<void>(`${API}/issue/${key}`, {
       method: 'PUT',
@@ -105,11 +111,16 @@ export class JiraClient {
     });
   }
 
-  async search(jql: string, maxResults?: number): Promise<JiraSearchResult> {
+  async search(jql: string, maxResults?: number, customFields?: CustomFieldDefinition[]): Promise<JiraSearchResult> {
+    const standardFields = ['summary', 'status', 'priority', 'assignee', 'issuetype', 'project', 'created', 'updated', 'labels', 'reporter'];
+    const fields = customFields?.length
+      ? [...standardFields, ...customFields.map(f => f.id)]
+      : standardFields;
+
     if (maxResults !== undefined) {
       return this.http.jira<JiraSearchResult>(`${API}/search`, {
         method: 'POST',
-        body: { jql, maxResults, fields: ['summary', 'status', 'priority', 'assignee', 'issuetype', 'project', 'created', 'updated', 'labels', 'reporter'] }
+        body: { jql, maxResults, fields }
       });
     }
 
@@ -117,12 +128,16 @@ export class JiraClient {
     const allIssues = await this.http.jiraPaginate<JiraIssue>(async (startAt, max) => {
       const result = await this.http.jira<JiraSearchResult>(`${API}/search`, {
         method: 'POST',
-        body: { jql, startAt, maxResults: max, fields: ['summary', 'status', 'priority', 'assignee', 'issuetype', 'project', 'created', 'updated', 'labels', 'reporter'] }
+        body: { jql, startAt, maxResults: max, fields }
       });
       return { ...result, values: result.issues };
     });
 
     return { issues: allIssues, total: allIssues.length, startAt: 0, maxResults: allIssues.length };
+  }
+
+  async fetchFields(): Promise<JiraFieldInfo[]> {
+    return this.http.jira<JiraFieldInfo[]>(`${API}/field`);
   }
 
   async assignIssue(key: string, accountId: string): Promise<void> {

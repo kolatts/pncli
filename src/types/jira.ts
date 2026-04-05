@@ -1,5 +1,37 @@
 // Phase 3 — Jira Data Cloud types
 
+export type CustomFieldType =
+  | 'string'
+  | 'number'
+  | 'date'
+  | 'datetime'
+  | 'select'
+  | 'multi-select'
+  | 'user'
+  | 'labels'
+  | 'url'
+  | 'textarea';
+
+export interface CustomFieldDefinition {
+  id: string;
+  name: string;
+  type: CustomFieldType;
+  description?: string;
+  examples?: string[];
+}
+
+export interface CustomFieldMap {
+  byName: Map<string, CustomFieldDefinition>;
+  byId: Map<string, CustomFieldDefinition>;
+}
+
+export interface JiraFieldInfo {
+  id: string;
+  name: string;
+  custom: boolean;
+  schema?: { type: string; custom?: string };
+}
+
 export interface JiraIssue {
   id: string;
   key: string;
@@ -15,6 +47,7 @@ export interface JiraIssue {
     project: { key: string; name: string };
     created: string;
     updated: string;
+    [key: string]: unknown;
   };
 }
 
