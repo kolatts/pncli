@@ -101,11 +101,10 @@ export class HttpClient {
   }
 
   private jiraHeaders(): Record<string, string> {
-    const { email, apiToken } = this.config.jira;
-    if (!email || !apiToken) throw new PncliError('Jira credentials not configured. Run: pncli config init');
-    const token = Buffer.from(`${email}:${apiToken}`).toString('base64');
+    const { apiToken } = this.config.jira;
+    if (!apiToken) throw new PncliError('Jira credentials not configured. Run: pncli config init');
     return {
-      'Authorization': `Basic ${token}`,
+      'Authorization': `Bearer ${apiToken}`,
       'Content-Type': 'application/json',
       'Accept': 'application/json'
     };

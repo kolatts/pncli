@@ -83,17 +83,12 @@ async function initGlobalConfig(start: number): Promise<void> {
   process.stderr.write('pncli config init — Global configuration\n\n');
 
   const jiraBaseUrl = await input({
-    message: 'Jira base URL (e.g. https://your-domain.atlassian.net):',
-    default: ''
-  });
-
-  const jiraEmail = await input({
-    message: 'Jira email address:',
+    message: 'Jira base URL (e.g. https://jira.your-company.com):',
     default: ''
   });
 
   const jiraApiToken = await password({
-    message: 'Jira API token:'
+    message: 'Jira personal access token:'
   });
 
   const bitbucketBaseUrl = await input({
@@ -123,7 +118,6 @@ async function initGlobalConfig(start: number): Promise<void> {
   writeGlobalConfig({
     jira: {
       baseUrl: jiraBaseUrl || undefined,
-      email: jiraEmail || undefined,
       apiToken: jiraApiToken || undefined
     },
     bitbucket: {
