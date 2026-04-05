@@ -9,7 +9,7 @@ export const ExitCode = {
 
 export type ExitCode = (typeof ExitCode)[keyof typeof ExitCode];
 
-export function exitCodeFromStatus(httpStatus: number): number {
+export function exitCodeFromStatus(httpStatus: number): ExitCode {
   if (httpStatus === 401 || httpStatus === 403) return ExitCode.AUTH_ERROR;
   if (httpStatus === 0) return ExitCode.NETWORK_ERROR;
   return ExitCode.GENERAL_ERROR;

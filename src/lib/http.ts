@@ -79,10 +79,16 @@ async function request<T>(
         if (Array.isArray(parsed.errorMessages)) {
           parts.push(...(parsed.errorMessages as string[]).filter(Boolean));
         }
-        // Jira: errors is Record<string, string>
+        // errors as object map (Jira: Record<string, string>)
         if (parsed.errors && typeof parsed.errors === 'object' && !Array.isArray(parsed.errors)) {
           for (const [field, msg] of Object.entries(parsed.errors as Record<string, string>)) {
             parts.push(`${field}: ${msg}`);
+          }
+        }
+        // errors as array of objects with message field (other APIs)
+        if (Array.isArray(parsed.errors)) {
+          for (const e of parsed.errors as Array<{ message?: string }>) {
+            if (e?.message) parts.push(e.message);
           }
         }
         // Generic APIs: { message: "..." }
