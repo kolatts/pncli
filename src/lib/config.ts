@@ -5,6 +5,8 @@ import { execSync } from 'child_process';
 import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults } from '../types/config.js';
 
 const ENV_KEYS = {
+  EMAIL: 'PNCLI_EMAIL',
+  USERID: 'PNCLI_USERID',
   JIRA_BASE_URL: 'PNCLI_JIRA_BASE_URL',
   JIRA_API_TOKEN: 'PNCLI_JIRA_API_TOKEN',
   BITBUCKET_BASE_URL: 'PNCLI_BITBUCKET_BASE_URL',
@@ -63,6 +65,10 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
   const mergedDefaults = mergeDefaults(globalConfig.defaults, repoConfig.defaults);
 
   return {
+    user: {
+      email: process.env[ENV_KEYS.EMAIL],
+      userId: process.env[ENV_KEYS.USERID]
+    },
     jira: {
       baseUrl: process.env[ENV_KEYS.JIRA_BASE_URL] ?? globalConfig.jira?.baseUrl,
       apiToken: process.env[ENV_KEYS.JIRA_API_TOKEN] ?? globalConfig.jira?.apiToken
