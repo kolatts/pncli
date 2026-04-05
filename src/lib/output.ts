@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import type { Meta, SuccessEnvelope, ErrorEnvelope, ErrorDetail } from '../types/common.js';
 import { PncliError } from './errors.js';
+import { ExitCode, exitCodeFromStatus } from './exitCodes.js';
 
 let globalOptions = { pretty: false, verbose: false };
 let globalUser: { email: string | undefined; userId: string | undefined } = { email: undefined, userId: undefined };
@@ -62,7 +63,8 @@ export function fail(
     (globalOptions.pretty ? JSON.stringify(envelope, null, 2) : JSON.stringify(envelope)) + '\n'
   );
 
-  process.exit(1);
+  const exitCode = err instanceof PncliError ? exitCodeFromStatus(err.status) : ExitCode.GENERAL_ERROR;
+  process.exit(exitCode);
 }
 
 export function log(message: string): void {
