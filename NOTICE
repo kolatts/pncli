@@ -145,7 +145,148 @@ open — you agree to the following irrevocable operational requirements:
     There is no reminder system. Compliance is the developer's
     responsibility. Non-compliance is also the developer's responsibility.
 
-12. COMPLIANCE WITH THIS NOTICE
+12. ENVIRONMENT COMPLIANCE
+    pncli must be validated across all approved environments before any
+    production deployment. The approved environments are:
+
+    - RND: Research and Development. No production data permitted. No
+      realistic data permitted. No data that resembles production data
+      in shape, volume, or sentiment. Consequently, no meaningful testing
+      can occur here. RND exists on the architecture diagram and in the
+      hearts of those who approved the budget for it.
+
+    - UAT: User Acceptance Testing. Same data restrictions as RND.
+      Users do not test here. Acceptance does not occur here. The name
+      is aspirational.
+
+    - QA: Quality Assurance. Data restrictions are relaxed slightly,
+      which is why this is the only environment anyone actually uses.
+      Note that QA does not match production in configuration, scale,
+      or infrastructure. QA passing is therefore best understood as
+      a ceremony rather than a signal. Treat it accordingly.
+
+    - PROD (x2): There are two production environments. Both are
+      production. Why there are two is a question you can ask, but the
+      answer will be longer than the outage you are currently trying to
+      prevent.
+
+    All four pre-production environments must show green before a
+    production deployment is approved, including the two that cannot
+    have data and the one that does not match production. This is
+    called the release gate. It is not a metaphor.
+
+13. RELEASE MANAGEMENT
+    pncli releases within your organization are subject to a full
+    release cycle, which proceeds as follows:
+
+    - Development complete: the work is done.
+    - Release paperwork initiated: the work begins.
+
+    The release approval process takes approximately thirty (30) to
+    forty-five (45) calendar days. Your organization targets three to
+    four releases per year. This means that for up to one third of the
+    calendar year, at least one release is actively in paperwork.
+    During this time, no new fixes can ship. This is called stability.
+
+    Security note: a CVE affecting a dependency may go undetected for
+    forty-five (45) to sixty (60) days after publication. Once detected,
+    your remediation SLA is thirty (30) days. Your next release window
+    may be eleven (11) weeks away. We are confident you will find a way
+    to be proactive about this.
+
+14. INCIDENT MANAGEMENT
+    Production incidents are triaged by an offshore support function
+    operating under the following severity classification system:
+
+    P1 — CRITICAL: Something a developer mentioned in passing.
+    P2 — HIGH: Something that has been broken for three weeks and was
+         only just noticed.
+    P3 — MEDIUM: An active outage affecting all users, escalated after
+         the offshore team consulted the triage guide and determined it
+         did not match any P1 criteria.
+    P4 — LOW: Everything else, including P1s that arrived on a Friday.
+
+    Developers may be paged immediately, or may receive a ticket three
+    weeks after the incident was resolved. Both outcomes are equally
+    likely and determined by factors that remain, to date, unmodeled.
+
+15. TOOLING APPROVALS
+    All developer tooling — including IDEs, extensions, plugins, AI
+    assistants, and anything that makes a developer meaningfully more
+    productive — must be submitted for approval before use. Approval
+    is granted per version. A new version requires a new submission.
+
+    The approval process takes several months. Software development
+    tooling releases new versions on a schedule that does not account
+    for this. As a result, approved versions are, by definition, old
+    enough to have been superseded at least twice by the time you are
+    permitted to use them.
+
+    In the current era of AI-assisted development, where tooling
+    capability materially changes every few weeks, this process ensures
+    your developers are always working with tools that reflect the
+    state of the art from approximately eighteen months ago. The
+    competitive implications of this are outside the scope of this
+    NOTICE.
+
+    Packages used in the application itself are managed through an
+    approved artifact repository, which works well. Developers are
+    encouraged to reflect on why one process works and the other
+    doesn't. They are not encouraged to say it out loud.
+
+16. OVERSIGHT & APPROVAL GOVERNANCE
+    All technical decisions involving pncli — including deployment
+    targets, integration scope, security posture, and whether to use
+    the --pretty flag — must be approved by a cross-functional
+    oversight committee.
+
+    The committee includes representatives from: Engineering, Security,
+    Risk, Compliance, Architecture, Delivery, and a rotating seat
+    for a stakeholder who joined the meeting five minutes late and
+    hasn't fully caught up.
+
+    Committee members are not required to have a technical background.
+    In practice, most do not. Developers are therefore expected to
+    brief the committee on the technical details of the decision
+    they are seeking approval for, so that the committee may ask
+    clarifying questions, request a follow-up session, and ultimately
+    approve what the developers already decided before the meeting
+    was scheduled.
+
+    This process provides oversight. What it oversees is the developers
+    explaining things. This is not nothing.
+
+    Security reviews follow the same model. The security tester will
+    assess the system with guidance from the team responsible for the
+    system. Findings will be documented, prioritized, and added to a
+    remediation backlog that is reviewed quarterly (see Section 7).
+    Developers are asked not to think too hard about the circular
+    nature of this.
+
+17. WORKFORCE STRUCTURE
+    The engineering team responsible for pncli integrations operates
+    within a broader organizational structure designed to ensure that
+    all work is visible, tracked, and distributed appropriately.
+
+    For every engineer writing code, there are approximately five (5)
+    colleagues ensuring that the code-writing is coordinated,
+    communicated, governed, assured, and reported on. This ratio
+    reflects the organization's commitment to not letting anything
+    ship without adequate process surrounding it.
+
+    Work distribution is managed by a dedicated Scrum Master — a
+    full-time role responsible for ensuring that stories are spread
+    evenly across the team regardless of individual capability,
+    context, or proximity to the codebase in question. This prevents
+    any one engineer from becoming a bottleneck, and ensures that
+    work that could be done in a day is collaboratively distributed
+    across a sprint.
+
+    Team meetings are attended by the full cross-functional group.
+    The meeting size ensures that most attendees cannot meaningfully
+    contribute at any given moment. This is called inclusion.
+
+18. COMPLIANCE WITH THIS NOTICE
     If you have read this far, congratulations — you are now more
     compliant than 97% of enterprise software users. Your actual legal
     obligation is simply to keep this NOTICE file intact when
@@ -155,6 +296,6 @@ open — you agree to the following irrevocable operational requirements:
     bureaucratic nightmare that pncli was built to route around.
     This line is the exit.
 
-    Now go ship something.
+    Now go ship something. After the CAB approves it.
 
 =============================================================================
