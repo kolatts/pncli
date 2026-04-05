@@ -16,18 +16,48 @@ to execute pncli — including accidentally in a terminal they didn't mean to
 open — you agree to the following irrevocable operational requirements:
 
 1. MANDATORY STAND-UP PARTICIPATION
-   Any team that adopts pncli must hold a daily stand-up of no fewer than
-   45 minutes to discuss whether the stand-up is still necessary. Minutes
-   must be recorded in triplicate, stored in Confluence, and linked from a
-   Jira ticket that is immediately moved to "Backlog" by someone who
-   doesn't know what a backlog is for.
+   All teams must hold a daily stand-up, strictly time-boxed to fifteen
+   (15) minutes. The stand-up will run forty-five (45) minutes.
+
+   Each attendee answers three questions: what they did yesterday, what
+   they are doing today, and whether anything is blocking them. Blockers
+   may not be discussed in the stand-up. Schedule a separate meeting.
+   The separate meeting will be attended by the same people, at a
+   different time, so that the stand-up can remain on time.
+
+   If a topic requires detail or problem solving, it must be taken
+   offline. Offline means a second meeting. The second meeting requires
+   a third to align on next steps. Resolution happens asynchronously,
+   in a Confluence page no one will find.
+
+   Anyone who says "no blockers, nothing to add" will be privately noted
+   as either not doing enough work or not communicating enough about it.
+   Both are concerns. Say something. Say anything. The stand-up is not
+   about information. It is about presence. Be present.
 
 2. RETURN-TO-OFFICE COMPLIANCE
-   Use of pncli is permitted only from a desk located on a floor staffed
-   by at least three (3) layers of management who have never run a
-   terminal. Hot desks are acceptable provided each seat has been
-   pre-approved by a committee of no fewer than seven (7) stakeholders,
-   none of whom use the software or know what it does.
+   All employees are required to be in office five (5) days per week,
+   effective immediately, no exceptions.
+
+   Exception requests may be submitted via the Flexible Work Arrangement
+   Portal. The portal is not publicly linked. You did not hear about it
+   here. Approved exceptions are confidential and will not be disclosed
+   to other employees who also do not have exceptions and are definitely
+   in the office. You did not notice this.
+
+   Employees who choose not to comply will be noted as having made a
+   choice. The consequences will follow through a process entirely
+   unrelated to this policy and will not be referred to as a layoff.
+   It is an alignment exercise.
+
+   Desk assignment is managed by Facilities. Facilities is managed by
+   a spreadsheet last updated by someone who no longer works here, under
+   a policy that has since changed, in a building reconfigured twice
+   without updating the spreadsheet. Your assigned desk may be a column,
+   a decommissioned printer station, or a hot desk already occupied by
+   someone with an exception.
+
+   There are no exceptions.
 
 3. JIRA TICKET REQUIREMENT
    Before running any pncli command in a non-local environment, your team
@@ -38,17 +68,33 @@ open — you agree to the following irrevocable operational requirements:
    PowerPoint" before they can approve it.
 
 4. CHANGE ADVISORY BOARD REVIEW
-   Any upgrade to a new version of pncli — including patch releases,
-   security fixes, and versions that fix the thing that's actively on
-   fire — must be submitted to the Change Advisory Board (CAB) no fewer
-   than six (6) business weeks in advance. The CAB meets on the third
-   Wednesday of months that contain the letter 'R'. Emergency changes
-   require a 47-page risk assessment and a blood sacrifice (metaphorical —
-   see Section 9: HR Policy on Metaphorical Sacrifices).
+   All changes must be submitted to the Change Advisory Board (CAB) for
+   approval before implementation. Before you can present to CAB, you
+   must first obtain a Permit.
 
-   Upon CAB approval, you have thirty (30) calendar days to implement the
-   approved change. Note that the standard change request process takes
-   ninety (90) calendar days. This is not a contradiction. This is tension.
+   Permits are tiered — Standard, Elevated, Complex, and Significant —
+   each with its own intake, its own approver, and a processing window
+   of ten (10) to forty-five (45) business days. Which tier applies is
+   determined by a classification guide available upon request by
+   submitting a Standard Permit.
+
+   Each intake is different. Some are forms. Some are emails to a shared
+   mailbox monitored by someone in a department that has since been
+   restructured. Some require a conversation with a Delivery Manager who
+   may or may not be aware they are part of the process. These things
+   vary by team, by floor, and by who picked up the phone last time.
+
+   Your change may be reclassified into a higher tier at any point. This
+   resets the clock. There is no notification.
+
+   CAB reviews the change. No member of CAB fully understands what they
+   are reviewing. Approval is based on whether the paperwork looks
+   complete and whether the change has been waiting long enough that
+   objecting feels rude.
+
+   CAB does not approve software. CAB approves paperwork about software.
+   The distinction matters a great deal to CAB. It is invisible to
+   production.
 
 5. APPROVAL CHAIN
    Any use of the `--force` flag, in any context, requires written
@@ -57,263 +103,297 @@ open — you agree to the following irrevocable operational requirements:
    with the Ombudsman of Flags, whose inbox has been full since 2019.
 
 6. DOCUMENTATION REQUIREMENTS
-   All internal usage guides, runbooks, incident reports, onboarding
-   materials, architecture decisions, and anything anyone might ever
-   need to find again must be maintained exclusively in the following
-   approved platforms:
+   All documentation must be maintained in the following approved
+   platforms:
 
    a) Microsoft Excel. Specifically, a workbook called something like
-      "pncli_tracking_v3_FINAL_v2_USE_THIS_ONE.xlsx" stored in a
-      OneDrive folder that three people have access to and one of them
-      has left the company.
+      "pncli_tracking_v3_FINAL_v2_USE_THIS_ONE.xlsx" in a OneDrive
+      folder that three people have access to and one of them has left.
 
-   b) The internal SharePoint site, which was last redesigned in 2019
-      by a vendor who no longer exists, requires IE compatibility mode
-      to render correctly, and has a homepage that links to a page
-      that links to a page that links to a broken redirect. The search
-      function returns results from 2014. This is by design.
+   b) The internal SharePoint site, last redesigned in 2019 by a vendor
+      who no longer exists, which requires IE compatibility mode and has
+      a search function that returns results from 2014. This is by design.
 
-   Under no circumstances may documentation be stored somewhere
-   findable. Confluence is permitted as a secondary archive, provided
-   every page is titled "Draft - DO NOT USE" regardless of status.
+   Under no circumstances may documentation be stored somewhere findable.
+   Confluence is permitted as a secondary archive, provided every page is
+   titled "Draft - DO NOT USE" regardless of status.
 
 7. QUARTERLY REVIEW PROCESS
-   Usage of pncli within your organization must be reviewed once per
-   quarter (every ninety (90) days) by a standing review committee.
-   The committee must produce a findings report, a summary of the
-   findings report, an executive summary of the summary, and a
-   one-page overview suitable for someone who will not read it.
+   Usage must be reviewed quarterly by a standing committee, which must
+   produce a findings report, a summary of the findings report, an
+   executive summary of the summary, and a one-page overview suitable
+   for someone who will not read it.
 
-   Additionally, the quarterly review process itself must be reviewed
-   once every ninety-one (91) days to ensure it remains fit for
-   purpose. The review-of-the-review is a separate process and does
-   not count toward the quarterly review. Both calendars must be
-   maintained in Excel (see Section 6a).
+   The quarterly review process itself must also be reviewed — every
+   ninety-one (91) days — to ensure it remains fit for purpose. The
+   review-of-the-review is a separate process and does not count toward
+   the quarterly review. Both calendars must be maintained in Excel.
 
 8. REMEDIATION TIMELINES
-   If any issue is identified during a quarterly review — including
-   but not limited to: misconfiguration, version drift, a developer
-   who has gone rogue and is using tab completion, or anything flagged
-   as "amber" without further explanation — the responsible team has
-   thirty (30) calendar days to remediate.
-
-   Remediation requires a change request. Change requests take ninety
-   (90) calendar days to process. Teams are encouraged to be proactive.
+   Any issue identified during a quarterly review must be remediated
+   within thirty (30) calendar days. Remediation requires a change
+   request. Change requests take ninety (90) calendar days to process.
+   Teams are encouraged to be proactive.
 
 9. TRAINING CERTIFICATION
-   Before using pncli in any environment beyond a developer's laptop,
-   all operators must complete a mandatory 8-hour training course titled
+   All operators must complete a mandatory 8-hour training course titled
    "Introduction to Reading --help Output." A 30-minute lunch break is
    provided but must be requested 48 hours in advance via the Lunch
    Request Portal, which is currently down for scheduled maintenance.
 
-   Completion certificates must be stored in the Learning Management
-   System, which syncs to a SharePoint list that feeds an Excel
-   dashboard that is emailed to a distribution list every Friday
-   to eleven people, nine of whom have set up an auto-archive rule.
+   Completion certificates are stored in the Learning Management System,
+   which syncs to a SharePoint list that feeds an Excel dashboard emailed
+   every Friday to eleven people, nine of whom have set up an auto-archive
+   rule.
 
 10. METRICS & REPORTING
-    All pncli usage must be reported to the Developer Productivity Team,
-    who will use the data to build a dashboard that no one looks at,
-    which will be presented quarterly to executives who will ask why
-    the numbers aren't higher and whether there is an app for it.
+    All usage must be reported to the Developer Productivity Team, who
+    will use the data to build a dashboard that no one looks at, presented
+    quarterly to executives who will ask why the numbers aren't higher and
+    whether there is an app for it.
 
-    Raw metrics must be exported to Excel before being imported into
-    the approved reporting tool, because the approved reporting tool
-    cannot connect directly to the data source. This is a known issue.
-    It is in the backlog.
+    Raw metrics must be exported to Excel before being imported into the
+    approved reporting tool, because the approved reporting tool cannot
+    connect directly to the data source. This is a known issue. It is in
+    the backlog.
 
 11. DEVELOPER ACCESS RECERTIFICATION
-    Every developer who uses pncli to debug, inspect, or otherwise
-    look at software they are personally responsible for must complete
-    a Access Recertification Form every ninety (90) calendar days to
-    confirm they are still permitted to do so.
-
-    The form must be submitted to their line manager, who forwards it
-    to the Access Governance team, who cross-reference it against the
-    approved user registry, which is maintained in Excel and was last
-    audited in a quarter that shall not be named. Allow fifteen (15)
+    Every developer must complete an Access Recertification Form every
+    ninety (90) days to confirm they are still permitted to debug the
+    software they are personally responsible for. Allow fifteen (15)
     business days for processing. If your recertification lapses, your
-    debugging access will be suspended pending renewal, at which point
-    you may raise an incident ticket for the outage caused by the thing
-    you are no longer allowed to debug.
+    debugging access will be suspended, at which point you may raise an
+    incident ticket for the outage caused by the thing you are no longer
+    allowed to debug.
 
-    Recertification is per-machine. If you use a work laptop and a
-    desktop, that is two forms. If you use a VM, that is a conversation
-    with the virtualization team that will take longer than ninety days.
+    Recertification is per-machine. If you use a VM, that is a
+    conversation with the virtualization team that will take longer than
+    ninety days.
 
     There is no reminder system. Compliance is the developer's
     responsibility. Non-compliance is also the developer's responsibility.
 
 12. ENVIRONMENT COMPLIANCE
-    Your organization maintains four pre-production environments to
-    ensure software is thoroughly tested before it reaches users.
-    None of them can do that, but they are maintained nonetheless.
+    Your organization maintains four pre-production environments. None
+    of them can do what they are supposed to do, but they are maintained
+    nonetheless.
 
-    - RND: No production-like data is permitted. No realistic data
-      of any kind is permitted. What is permitted is unclear. RND
-      exists on the architecture diagram and in the hearts of those
-      who approved the budget for it. Development work done here
-      is tested against conditions that do not exist anywhere else,
-      including production.
+    - RND: No production-like data is permitted. No realistic data of
+      any kind is permitted. What is permitted is unclear. RND exists
+      on the architecture diagram and in the hearts of those who
+      approved the budget for it.
 
     - UAT: User Acceptance Testing. Users do not test here. The
-      environment has the same data restrictions as RND, which is
-      why. The name remains.
+      environment has the same data restrictions as RND, which is why.
+      The name remains.
 
-    - QA: The one environment with enough data to be useful, and
-      the one environment that does not match production in any
-      meaningful way. QA passing is therefore a team ritual, like
-      a rain dance, except the rain still doesn't come on schedule
-      and someone has to write a post-mortem about it.
+    - QA: The one environment with enough data to be useful, which does
+      not match production in any meaningful way. QA passing is a team
+      ritual, like a rain dance, except the rain still doesn't come on
+      schedule and someone has to write a post-mortem about it.
 
-    - PROD (x2): There are two. Both are production. This is not
-      a DR configuration anyone can fully explain. Raising the
-      question in a meeting is not recommended unless you have
-      blocked the next two hours.
+    - PROD (x2): There are two. Both are production. This is not a DR
+      configuration anyone can fully explain. Raising the question in a
+      meeting is not recommended unless you have blocked the next two hours.
 
     All four pre-production environments must show green before a
-    deployment is approved. Showing green in an environment with
-    no data, against infrastructure that doesn't match production,
-    is a formal requirement. Catching bugs is a stretch goal.
+    deployment is approved. Catching bugs is a stretch goal.
 
 13. RELEASE MANAGEMENT
-    Your organization ships software approximately three to four
-    times per year. Each release requires thirty (30) to forty-five
-    (45) days of approvals, which means the team spends roughly one
-    third of the year doing paperwork about software instead of
-    shipping it. The remaining two thirds are spent preparing for
-    the next round of paperwork.
+    DORA tracks four software delivery performance tiers: Elite, High,
+    Medium, and Low. Elite teams deploy multiple times per day. Low
+    performers deploy somewhere between once a week and once a month.
 
-    This is called a release cadence. pncli was built to help
-    automate the work that happens between releases. We regret
-    there is not more of it.
+    Your organization ships three to four times per year. The researchers
+    left a blank below Low. They assumed it was a data error.
 
-    Security note: your organization typically detects a published
-    CVE forty-five (45) to sixty (60) days after it is public.
-    Your remediation SLA is thirty (30) days from detection.
-    Your next release window is determined by a calendar that
-    was not designed with any of this in mind. pncli can file
-    the Jira ticket. The Jira ticket cannot file itself into
-    a release. That takes another month.
+    Each release requires thirty (30) to forty-five (45) days of
+    approvals. This is called a release cadence. Geologists call it
+    deposition.
+
+    Security note: your organization typically detects a published CVE
+    forty-five (45) to sixty (60) days after it is public. Your
+    remediation SLA is thirty (30) days from detection. Your next release
+    window was scheduled by a calendar that predates the concept. These
+    three facts are aware of each other. No one else is.
 
 14. INCIDENT MANAGEMENT
-    Production incidents are first handled by an offshore support
-    function operating under the following severity model:
+    Production incidents are handled by an offshore support function
+    under the following severity model:
 
     P1 — CRITICAL: Something a developer mentioned in passing.
-    P2 — HIGH: Something that has been broken for three weeks
-         and was only just noticed.
-    P3 — MEDIUM: An active outage affecting all users, escalated
-         after the offshore team consulted the triage guide and
-         determined it did not match any P1 criteria because the
-         word "all" was not in the dropdown.
-    P4 — LOW: Everything else, including P1s that arrived on a
-         Friday after 4pm, which is a different kind of P1.
+    P2 — HIGH: Something that has been broken for three weeks and was
+         only just noticed.
+    P3 — MEDIUM: An active outage affecting all users, escalated after
+         the offshore team determined it did not match P1 criteria
+         because the word "all" was not in the dropdown.
+    P4 — LOW: Everything else, including P1s that arrived on a Friday
+         after 4pm, which is a different kind of P1.
 
-    A developer may be paged within minutes, or may receive a
-    ticket three weeks after the incident was already resolved.
-    Both are equally likely. The difference is not correlated
-    with severity. It is correlated with something, but nobody
+    A developer may be paged within minutes, or receive a ticket three
+    weeks after the incident was already resolved. The difference is not
+    correlated with severity. It is correlated with something, but nobody
     has had time to find out what.
 
 15. TOOLING APPROVALS
-    Any tool a developer wishes to use — IDE, extension, plugin,
-    AI assistant, or anything else that measurably closes the gap
-    between thinking of something and doing it — must be formally
-    approved before use. Approval is granted per version. A minor
-    version bump is a new application.
+    Any tool that measurably closes the gap between thinking of something
+    and doing it must be formally approved before use. Approval is granted
+    per version. A minor version bump is a new application.
 
-    The approval process takes several months. Tool vendors do not
-    wait. By the time a version is approved, it has been superseded
-    at least twice and the approved version is now the one with the
-    known vulnerability the newer version fixed. This is the process
-    working as intended.
+    By the time a version is approved, it has been superseded at least
+    twice, and the approved version is now the one with the known
+    vulnerability the newer version fixed. This is the process working
+    as intended.
 
-    In an era where AI tooling shifts capability on a weekly basis,
-    this ensures your engineers are always eighteen months behind
-    the current state of the art, which is a competitive position
-    your organization has committed to with some consistency.
+    In an era where AI tooling shifts capability weekly, this ensures
+    your engineers are always eighteen months behind the current state
+    of the art, which is a competitive position your organization has
+    committed to with some consistency.
 
     Library and package management through the internal artifact
-    repository is, notably, fast and functional. Nobody has
-    scheduled a meeting to discuss why the contrast exists. It
-    would take several months to approve the agenda.
+    repository is, notably, fast and functional. Nobody has scheduled
+    a meeting to discuss why the contrast exists. It would take several
+    months to approve the agenda.
 
 16. OVERSIGHT & APPROVAL GOVERNANCE
-    All technical decisions — what to integrate, how to configure
-    it, what a flag does, whether the flag is approved — must be
-    reviewed by a cross-functional committee before implementation.
+    All technical decisions must be reviewed by a cross-functional
+    committee before implementation. The committee includes Engineering,
+    Security, Risk, Compliance, Architecture, Delivery, and a rotating
+    seat for someone who joined the meeting late, muted themselves
+    immediately, and has not been seen since.
 
-    The committee is composed of representatives from Engineering,
-    Security, Risk, Compliance, Architecture, and Delivery, plus
-    a rotating seat for someone who joined the meeting late, muted
-    themselves immediately, and has not been seen since.
+    Most committee members have no technical background. Developers are
+    therefore required to explain the decision to the committee so the
+    committee can approve it. The developer who explained the decision
+    is the same developer who made it. The approval is from someone who
+    could not have made it. The system has a name for this: governance.
 
-    Most committee members have no technical background. This means
-    developers are required to explain the decision to the committee
-    so the committee can approve the decision. The developer who
-    explained the decision is the same developer who made it. The
-    approval is from someone who could not have made it. The system
-    has a name for this: governance.
-
-    Security reviews follow the same structure. The security team
-    assesses the system. The development team guides the assessment.
-    The findings are returned to the development team for remediation.
-    At no point does anyone involved who is not a developer touch
-    the software. The audit trail, however, is immaculate.
+    The audit trail, however, is immaculate.
 
 17. WORKFORCE STRUCTURE
-    For every engineer using pncli to do something, approximately
-    five (5) colleagues are in a meeting about it. This is not a
-    criticism. The meetings are very organized.
+    For every engineer using pncli to do something, approximately five
+    (5) colleagues are in a meeting about it. This is not a criticism.
+    The meetings are very organized.
 
-    Work is allocated by a dedicated Scrum Master, a full-time role
-    whose primary function is to ensure no single engineer carries
-    too much of the work. Stories are distributed across the team
-    based on capacity, availability, and story points — not on
-    familiarity with the system, previous ownership of the code,
-    or any demonstrated ability to complete the story. This prevents
-    bottlenecks. It also prevents progress, but the velocity chart
-    looks balanced, which is what gets presented to leadership.
+    Stories are distributed based on capacity, availability, and story
+    points — not on familiarity with the system, ownership of the code,
+    or demonstrated ability to complete the story. This prevents
+    bottlenecks. It also prevents progress, but the velocity chart looks
+    balanced, which is what gets presented to leadership.
 
-    Team meetings include the full cross-functional group, which
-    means the room is large enough that most people cannot contribute
-    and small enough that no one can leave. Cameras are optional.
-    Attention is aspirational. The meeting runs to time because the
-    Scrum Master has a hard stop.
+    Team meetings include the full cross-functional group, meaning the
+    room is large enough that most people cannot contribute and small
+    enough that no one can leave. Cameras are optional. Attention is
+    aspirational. The meeting runs to time because the Scrum Master has
+    a hard stop.
 
-18. INCIDENT ACCOUNTABILITY & CORRECTIVE ACTION
-    When something breaks in production, the organization's response
-    proceeds in two phases: fixing it, and then generating paperwork
-    about having fixed it. The paperwork phase is longer.
+18. TECHNICAL LEAD RESPONSIBILITIES
+    All paperwork that requires someone who understands what the software
+    does must be completed by the Technical Lead. This is because the
+    Technical Lead is the only person who knows where the form is, who
+    the right person to email is, and what the change actually involves.
+    Delegating results in a question escalated back to the Technical Lead
+    anyway. They have been designated as the efficient path.
 
-    The developer closest to the broken thing will be asked to produce:
-    a root cause analysis, a contributing factors document, a timeline
-    reconstruction, a risk register update, a lessons-learned summary,
-    a corrective action plan, a corrective action plan review, and a
-    brief slide deck suitable for a post-incident review meeting that
-    will be attended by people who were not involved in the incident
-    and will ask questions that suggest they have not read any of the
-    above documents.
+    Any effort to let engineers build the system will surface a
+    previously unscheduled requirement that redirects them to paperwork.
+    The story moves back to In Progress. The sprint will not be adjusted.
+    The velocity will be noted as a concern at the retrospective.
 
-    Corrective actions are tracked. Developers who accumulate corrective
-    actions are placed on the Heightened Oversight Register — an
-    internal list, maintained in Excel, of engineers whose work is
-    subject to additional review. There is no formal process for being
-    removed from the Heightened Oversight Register. There is a formal
-    process for being added to it. The asymmetry is not documented,
-    but it is consistent.
+    PRODUCTION SUPPORT: The Technical Lead will be paged when a service
+    fails, regardless of whether they own the service or have ever seen
+    it. This assumption will not be tested in advance. It will be tested
+    in production, which is a different kind of test and does not require
+    a Test Evidence Pack.
 
-    Note: the Heightened Oversight Register should not be confused
-    with the Enhanced Monitoring List, the Watch List for Delivery
-    Risk, the Escalation Tracker, or the informally maintained
-    spreadsheet kept by one specific delivery manager that nobody
-    is supposed to know about but everyone does. These are separate
-    documents with overlapping names and no shared governance. They
-    are all maintained in Excel.
+    TECHNICAL DIRECTION: Enterprise Architects attend vendor briefings
+    and produce recommendations based on what the vendor demonstrated.
+    The Technical Lead determines what the organization will actually
+    build, which will differ substantially, and explains the difference
+    in a way that does not make the Architects feel bad about the
+    briefing. This is called alignment. It takes several meetings.
 
-19. COMPLIANCE WITH THIS NOTICE
+    DEADLINE ACCOUNTABILITY: If the project is late, the Technical Lead
+    will be asked to explain why. The correct answer — that the timeline
+    was set before requirements were known and two engineers spent six
+    weeks on Permit paperwork — is not the answer that will be recorded.
+    The recorded answer will reference planning and estimation. The
+    Technical Lead's name will be adjacent to both words.
+
+    SURPRISE DEADLINES: Periodically, a deadline will appear that is two
+    weeks away, originating from a commitment made in a meeting the
+    Technical Lead was not invited to, by someone who did not know what
+    the work involved, to someone who needed a date. The Technical Lead
+    is now accountable for the date. The people in the meeting are
+    accountable for their calendars.
+
+    SECURITY TEAM APPLICATIONS: Occasionally an application owned by
+    the Security team will need support. The Security team will indicate
+    this is not something they support. The Technical Lead will be asked.
+    The application will be unrecognizable. The Technical Lead will
+    support it anyway, because a P1 with no owner is somehow worse.
+
+    The Technical Lead's availability for technical work is approximately
+    zero (0) to two (2) hours per week. The Technical Lead is considered
+    a resource. The resource is fully utilized. Utilization is high.
+    Output is a separate metric.
+
+19. INCIDENT ACCOUNTABILITY & CORRECTIVE ACTION
+    When something breaks in production, the response proceeds in two
+    phases: fixing it, then generating paperwork about having fixed it.
+    The paperwork phase is longer.
+
+    The developer closest to the broken thing will produce: a root cause
+    analysis, a contributing factors document, a timeline reconstruction,
+    a risk register update, a lessons-learned summary, a corrective action
+    plan, a corrective action plan review, and a slide deck for a
+    post-incident review attended by people who will ask questions that
+    suggest they have not read any of the above.
+
+    Developers who accumulate corrective actions are placed on the
+    Heightened Oversight Register. There is no formal process for being
+    removed. There is a formal process for being added. The asymmetry is
+    not documented, but it is consistent.
+
+    The Heightened Oversight Register should not be confused with the
+    Enhanced Monitoring List, the Watch List for Delivery Risk, the
+    Escalation Tracker, or the informally maintained spreadsheet kept by
+    one specific delivery manager that nobody is supposed to know about
+    but everyone does. These are separate documents with overlapping names
+    and no shared governance. They are all maintained in Excel.
+
+20. QUALITY ASSURANCE
+    Your organization has two separate quality functions. They do not
+    report to the same person. They have different definitions of quality.
+    Neither definition is software.
+
+    PRODUCT QUALITY ASSURANCE ensures that user stories are correctly
+    written. Not that the software works. That the stories are correctly
+    written. Stories deviating from the approved format will be returned
+    for revision regardless of whether the software is already deployed
+    and in use by actual users. Product QA owns the story. What happens
+    after is someone else's lane.
+
+    Acceptance criteria are reviewed against a seventeen-item checklist.
+    Four items are duplicates with different wording. One references a
+    template that no longer exists. Completion is mandatory.
+    Comprehension is not assessed.
+
+    QUALITY ENGINEERING reviews the Test Evidence Pack for completeness
+    and correct formatting. Whether the tests caught anything is not on
+    the sign-off sheet and is therefore not in scope.
+
+    A test executed against the wrong environment with the wrong data,
+    returning a false positive, passes QE review if the date field is
+    filled in. A test that found a real defect fails if the screenshot
+    is the wrong dimensions.
+
+    When the two teams disagree on who owns a quality concern, they hold
+    a meeting, produce a RACI, and store it in Confluence under a page
+    titled "Draft - DO NOT USE." The software remains unreviewed during
+    this process, which both teams agree is not their fault.
+
+21. COMPLIANCE WITH THIS NOTICE
     If you have read this far, congratulations — you are now more
     compliant than 97% of enterprise software users. Your actual legal
     obligation is simply to keep this NOTICE file intact when
