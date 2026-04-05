@@ -146,147 +146,174 @@ open — you agree to the following irrevocable operational requirements:
     responsibility. Non-compliance is also the developer's responsibility.
 
 12. ENVIRONMENT COMPLIANCE
-    pncli must be validated across all approved environments before any
-    production deployment. The approved environments are:
+    Your organization maintains four pre-production environments to
+    ensure software is thoroughly tested before it reaches users.
+    None of them can do that, but they are maintained nonetheless.
 
-    - RND: Research and Development. No production data permitted. No
-      realistic data permitted. No data that resembles production data
-      in shape, volume, or sentiment. Consequently, no meaningful testing
-      can occur here. RND exists on the architecture diagram and in the
-      hearts of those who approved the budget for it.
+    - RND: No production-like data is permitted. No realistic data
+      of any kind is permitted. What is permitted is unclear. RND
+      exists on the architecture diagram and in the hearts of those
+      who approved the budget for it. Development work done here
+      is tested against conditions that do not exist anywhere else,
+      including production.
 
-    - UAT: User Acceptance Testing. Same data restrictions as RND.
-      Users do not test here. Acceptance does not occur here. The name
-      is aspirational.
+    - UAT: User Acceptance Testing. Users do not test here. The
+      environment has the same data restrictions as RND, which is
+      why. The name remains.
 
-    - QA: Quality Assurance. Data restrictions are relaxed slightly,
-      which is why this is the only environment anyone actually uses.
-      Note that QA does not match production in configuration, scale,
-      or infrastructure. QA passing is therefore best understood as
-      a ceremony rather than a signal. Treat it accordingly.
+    - QA: The one environment with enough data to be useful, and
+      the one environment that does not match production in any
+      meaningful way. QA passing is therefore a team ritual, like
+      a rain dance, except the rain still doesn't come on schedule
+      and someone has to write a post-mortem about it.
 
-    - PROD (x2): There are two production environments. Both are
-      production. Why there are two is a question you can ask, but the
-      answer will be longer than the outage you are currently trying to
-      prevent.
+    - PROD (x2): There are two. Both are production. This is not
+      a DR configuration anyone can fully explain. Raising the
+      question in a meeting is not recommended unless you have
+      blocked the next two hours.
 
     All four pre-production environments must show green before a
-    production deployment is approved, including the two that cannot
-    have data and the one that does not match production. This is
-    called the release gate. It is not a metaphor.
+    deployment is approved. Showing green in an environment with
+    no data, against infrastructure that doesn't match production,
+    is a formal requirement. Catching bugs is a stretch goal.
 
 13. RELEASE MANAGEMENT
-    pncli releases within your organization are subject to a full
-    release cycle, which proceeds as follows:
+    Your organization ships software approximately three to four
+    times per year. Each release requires thirty (30) to forty-five
+    (45) days of approvals, which means the team spends roughly one
+    third of the year doing paperwork about software instead of
+    shipping it. The remaining two thirds are spent preparing for
+    the next round of paperwork.
 
-    - Development complete: the work is done.
-    - Release paperwork initiated: the work begins.
+    This is called a release cadence. pncli was built to help
+    automate the work that happens between releases. We regret
+    there is not more of it.
 
-    The release approval process takes approximately thirty (30) to
-    forty-five (45) calendar days. Your organization targets three to
-    four releases per year. This means that for up to one third of the
-    calendar year, at least one release is actively in paperwork.
-    During this time, no new fixes can ship. This is called stability.
-
-    Security note: a CVE affecting a dependency may go undetected for
-    forty-five (45) to sixty (60) days after publication. Once detected,
-    your remediation SLA is thirty (30) days. Your next release window
-    may be eleven (11) weeks away. We are confident you will find a way
-    to be proactive about this.
+    Security note: your organization typically detects a published
+    CVE forty-five (45) to sixty (60) days after it is public.
+    Your remediation SLA is thirty (30) days from detection.
+    Your next release window is determined by a calendar that
+    was not designed with any of this in mind. pncli can file
+    the Jira ticket. The Jira ticket cannot file itself into
+    a release. That takes another month.
 
 14. INCIDENT MANAGEMENT
-    Production incidents are triaged by an offshore support function
-    operating under the following severity classification system:
+    Production incidents are first handled by an offshore support
+    function operating under the following severity model:
 
     P1 — CRITICAL: Something a developer mentioned in passing.
-    P2 — HIGH: Something that has been broken for three weeks and was
-         only just noticed.
-    P3 — MEDIUM: An active outage affecting all users, escalated after
-         the offshore team consulted the triage guide and determined it
-         did not match any P1 criteria.
-    P4 — LOW: Everything else, including P1s that arrived on a Friday.
+    P2 — HIGH: Something that has been broken for three weeks
+         and was only just noticed.
+    P3 — MEDIUM: An active outage affecting all users, escalated
+         after the offshore team consulted the triage guide and
+         determined it did not match any P1 criteria because the
+         word "all" was not in the dropdown.
+    P4 — LOW: Everything else, including P1s that arrived on a
+         Friday after 4pm, which is a different kind of P1.
 
-    Developers may be paged immediately, or may receive a ticket three
-    weeks after the incident was resolved. Both outcomes are equally
-    likely and determined by factors that remain, to date, unmodeled.
+    A developer may be paged within minutes, or may receive a
+    ticket three weeks after the incident was already resolved.
+    Both are equally likely. The difference is not correlated
+    with severity. It is correlated with something, but nobody
+    has had time to find out what.
 
 15. TOOLING APPROVALS
-    All developer tooling — including IDEs, extensions, plugins, AI
-    assistants, and anything that makes a developer meaningfully more
-    productive — must be submitted for approval before use. Approval
-    is granted per version. A new version requires a new submission.
+    Any tool a developer wishes to use — IDE, extension, plugin,
+    AI assistant, or anything else that measurably closes the gap
+    between thinking of something and doing it — must be formally
+    approved before use. Approval is granted per version. A minor
+    version bump is a new application.
 
-    The approval process takes several months. Software development
-    tooling releases new versions on a schedule that does not account
-    for this. As a result, approved versions are, by definition, old
-    enough to have been superseded at least twice by the time you are
-    permitted to use them.
+    The approval process takes several months. Tool vendors do not
+    wait. By the time a version is approved, it has been superseded
+    at least twice and the approved version is now the one with the
+    known vulnerability the newer version fixed. This is the process
+    working as intended.
 
-    In the current era of AI-assisted development, where tooling
-    capability materially changes every few weeks, this process ensures
-    your developers are always working with tools that reflect the
-    state of the art from approximately eighteen months ago. The
-    competitive implications of this are outside the scope of this
-    NOTICE.
+    In an era where AI tooling shifts capability on a weekly basis,
+    this ensures your engineers are always eighteen months behind
+    the current state of the art, which is a competitive position
+    your organization has committed to with some consistency.
 
-    Packages used in the application itself are managed through an
-    approved artifact repository, which works well. Developers are
-    encouraged to reflect on why one process works and the other
-    doesn't. They are not encouraged to say it out loud.
+    Library and package management through the internal artifact
+    repository is, notably, fast and functional. Nobody has
+    scheduled a meeting to discuss why the contrast exists. It
+    would take several months to approve the agenda.
 
 16. OVERSIGHT & APPROVAL GOVERNANCE
-    All technical decisions involving pncli — including deployment
-    targets, integration scope, security posture, and whether to use
-    the --pretty flag — must be approved by a cross-functional
-    oversight committee.
+    All technical decisions — what to integrate, how to configure
+    it, what a flag does, whether the flag is approved — must be
+    reviewed by a cross-functional committee before implementation.
 
-    The committee includes representatives from: Engineering, Security,
-    Risk, Compliance, Architecture, Delivery, and a rotating seat
-    for a stakeholder who joined the meeting five minutes late and
-    hasn't fully caught up.
+    The committee is composed of representatives from Engineering,
+    Security, Risk, Compliance, Architecture, and Delivery, plus
+    a rotating seat for someone who joined the meeting late, muted
+    themselves immediately, and has not been seen since.
 
-    Committee members are not required to have a technical background.
-    In practice, most do not. Developers are therefore expected to
-    brief the committee on the technical details of the decision
-    they are seeking approval for, so that the committee may ask
-    clarifying questions, request a follow-up session, and ultimately
-    approve what the developers already decided before the meeting
-    was scheduled.
+    Most committee members have no technical background. This means
+    developers are required to explain the decision to the committee
+    so the committee can approve the decision. The developer who
+    explained the decision is the same developer who made it. The
+    approval is from someone who could not have made it. The system
+    has a name for this: governance.
 
-    This process provides oversight. What it oversees is the developers
-    explaining things. This is not nothing.
-
-    Security reviews follow the same model. The security tester will
-    assess the system with guidance from the team responsible for the
-    system. Findings will be documented, prioritized, and added to a
-    remediation backlog that is reviewed quarterly (see Section 7).
-    Developers are asked not to think too hard about the circular
-    nature of this.
+    Security reviews follow the same structure. The security team
+    assesses the system. The development team guides the assessment.
+    The findings are returned to the development team for remediation.
+    At no point does anyone involved who is not a developer touch
+    the software. The audit trail, however, is immaculate.
 
 17. WORKFORCE STRUCTURE
-    The engineering team responsible for pncli integrations operates
-    within a broader organizational structure designed to ensure that
-    all work is visible, tracked, and distributed appropriately.
+    For every engineer using pncli to do something, approximately
+    five (5) colleagues are in a meeting about it. This is not a
+    criticism. The meetings are very organized.
 
-    For every engineer writing code, there are approximately five (5)
-    colleagues ensuring that the code-writing is coordinated,
-    communicated, governed, assured, and reported on. This ratio
-    reflects the organization's commitment to not letting anything
-    ship without adequate process surrounding it.
+    Work is allocated by a dedicated Scrum Master, a full-time role
+    whose primary function is to ensure no single engineer carries
+    too much of the work. Stories are distributed across the team
+    based on capacity, availability, and story points — not on
+    familiarity with the system, previous ownership of the code,
+    or any demonstrated ability to complete the story. This prevents
+    bottlenecks. It also prevents progress, but the velocity chart
+    looks balanced, which is what gets presented to leadership.
 
-    Work distribution is managed by a dedicated Scrum Master — a
-    full-time role responsible for ensuring that stories are spread
-    evenly across the team regardless of individual capability,
-    context, or proximity to the codebase in question. This prevents
-    any one engineer from becoming a bottleneck, and ensures that
-    work that could be done in a day is collaboratively distributed
-    across a sprint.
+    Team meetings include the full cross-functional group, which
+    means the room is large enough that most people cannot contribute
+    and small enough that no one can leave. Cameras are optional.
+    Attention is aspirational. The meeting runs to time because the
+    Scrum Master has a hard stop.
 
-    Team meetings are attended by the full cross-functional group.
-    The meeting size ensures that most attendees cannot meaningfully
-    contribute at any given moment. This is called inclusion.
+18. INCIDENT ACCOUNTABILITY & CORRECTIVE ACTION
+    When something breaks in production, the organization's response
+    proceeds in two phases: fixing it, and then generating paperwork
+    about having fixed it. The paperwork phase is longer.
 
-18. COMPLIANCE WITH THIS NOTICE
+    The developer closest to the broken thing will be asked to produce:
+    a root cause analysis, a contributing factors document, a timeline
+    reconstruction, a risk register update, a lessons-learned summary,
+    a corrective action plan, a corrective action plan review, and a
+    brief slide deck suitable for a post-incident review meeting that
+    will be attended by people who were not involved in the incident
+    and will ask questions that suggest they have not read any of the
+    above documents.
+
+    Corrective actions are tracked. Developers who accumulate corrective
+    actions are placed on the Heightened Oversight Register — an
+    internal list, maintained in Excel, of engineers whose work is
+    subject to additional review. There is no formal process for being
+    removed from the Heightened Oversight Register. There is a formal
+    process for being added to it. The asymmetry is not documented,
+    but it is consistent.
+
+    Note: the Heightened Oversight Register should not be confused
+    with the Enhanced Monitoring List, the Watch List for Delivery
+    Risk, the Escalation Tracker, or the informally maintained
+    spreadsheet kept by one specific delivery manager that nobody
+    is supposed to know about but everyone does. These are separate
+    documents with overlapping names and no shared governance. They
+    are all maintained in Excel.
+
+19. COMPLIANCE WITH THIS NOTICE
     If you have read this far, congratulations — you are now more
     compliant than 97% of enterprise software users. Your actual legal
     obligation is simply to keep this NOTICE file intact when
