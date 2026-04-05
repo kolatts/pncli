@@ -25,7 +25,13 @@ export interface Defaults {
   bitbucket?: BitbucketDefaults;
 }
 
+export interface UserConfig {
+  email?: string;
+  userId?: string;
+}
+
 export interface GlobalConfig {
+  user?: UserConfig;
   jira?: JiraConfig;
   bitbucket?: BitbucketConfig;
   defaults?: Defaults;
