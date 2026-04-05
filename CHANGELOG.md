@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/kolatts/pncli/compare/v1.1.0...v1.2.0) (2026-04-05)
+
+
+### Features
+
+* dep watchdog — pncli deps command group ([#7](https://github.com/kolatts/pncli/issues/7)) ([d5aeb5f](https://github.com/kolatts/pncli/commit/d5aeb5f133193d1ba3fa9e01c8d0b80a4bbe9531))
+
+
+### Bug Fixes
+
+* Jira error deserialization, Connection header, and exit codes ([#8](https://github.com/kolatts/pncli/issues/8)) ([00e78ad](https://github.com/kolatts/pncli/commit/00e78ad22390ac598bf6ee59d3b5907cce4f84ce))
+
 ## [1.1.0](https://github.com/kolatts/pncli/compare/v1.0.1...v1.1.0) (2026-04-05)
 
 
