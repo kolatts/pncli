@@ -36,6 +36,10 @@ export interface RepoConfig {
 }
 
 export interface ResolvedConfig {
+  user: {
+    email: string | undefined;
+    userId: string | undefined;
+  };
   jira: {
     baseUrl: string | undefined;
     apiToken: string | undefined;

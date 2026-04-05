@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { createRequire } from 'module';
-import { setGlobalOptions } from './lib/output.js';
+import { setGlobalOptions, setGlobalUser } from './lib/output.js';
+import { loadConfig } from './lib/config.js';
 import { registerGitCommands } from './services/git/commands.js';
 import { registerJiraCommands } from './services/jira/commands.js';
 import { registerBitbucketCommands } from './services/bitbucket/commands.js';
@@ -26,13 +27,19 @@ program
   .option('--dry-run', 'Print API requests without executing', false)
   .option('--config <path>', 'Override global config file location');
 
-// Propagate global options before any command runs
+// Propagate global options and user identity before any command runs
 program.hook('preAction', (thisCommand) => {
   const opts = thisCommand.optsWithGlobals();
   setGlobalOptions({
     pretty: Boolean(opts.pretty),
     verbose: Boolean(opts.verbose)
   });
+  try {
+    const config = loadConfig({ configPath: opts.config as string | undefined });
+    setGlobalUser(config.user);
+  } catch {
+    // config may not exist yet (e.g. during `config init`) — silently skip
+  }
 });
 
 registerGitCommands(program);
