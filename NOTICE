@@ -123,7 +123,29 @@ open — you agree to the following irrevocable operational requirements:
     cannot connect directly to the data source. This is a known issue.
     It is in the backlog.
 
-11. COMPLIANCE WITH THIS NOTICE
+11. DEVELOPER ACCESS RECERTIFICATION
+    Every developer who uses pncli to debug, inspect, or otherwise
+    look at software they are personally responsible for must complete
+    a Access Recertification Form every ninety (90) calendar days to
+    confirm they are still permitted to do so.
+
+    The form must be submitted to their line manager, who forwards it
+    to the Access Governance team, who cross-reference it against the
+    approved user registry, which is maintained in Excel and was last
+    audited in a quarter that shall not be named. Allow fifteen (15)
+    business days for processing. If your recertification lapses, your
+    debugging access will be suspended pending renewal, at which point
+    you may raise an incident ticket for the outage caused by the thing
+    you are no longer allowed to debug.
+
+    Recertification is per-machine. If you use a work laptop and a
+    desktop, that is two forms. If you use a VM, that is a conversation
+    with the virtualization team that will take longer than ninety days.
+
+    There is no reminder system. Compliance is the developer's
+    responsibility. Non-compliance is also the developer's responsibility.
+
+12. COMPLIANCE WITH THIS NOTICE
     If you have read this far, congratulations — you are now more
     compliant than 97% of enterprise software users. Your actual legal
     obligation is simply to keep this NOTICE file intact when
