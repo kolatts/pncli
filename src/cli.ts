@@ -8,7 +8,7 @@ import { registerJiraCommands } from './services/jira/commands.js';
 import { registerBitbucketCommands } from './services/bitbucket/commands.js';
 import { registerConfluenceCommands } from './services/confluence/commands.js';
 import { registerSonarCommands } from './services/sonar/commands.js';
-import { registerArtifactoryCommands } from './services/artifactory/commands.js';
+import { registerDepsCommands } from './services/deps/commands.js';
 import { registerConfigCommands } from './services/config/commands.js';
 
 const require = createRequire(import.meta.url);
@@ -48,17 +48,17 @@ registerJiraCommands(program);
 registerBitbucketCommands(program);
 registerConfluenceCommands(program);
 registerSonarCommands(program);
-registerArtifactoryCommands(program);
+registerDepsCommands(program);
 registerConfigCommands(program);
 
 program.addHelpText('after', `
 Services:
   git          Local git operations (status, diff, log, branch)
+  deps         Dependency scanning, CVE detection, license auditing
   jira         Jira Data Cloud (coming soon)
   bitbucket    Bitbucket Server (coming soon)
   confluence   Confluence (coming soon)
   sonar        SonarQube (coming soon)
-  artifactory  Artifactory (coming soon)
   config       Manage pncli configuration
 `);
 

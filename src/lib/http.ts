@@ -160,9 +160,10 @@ export class HttpClient {
 
     if (this.dryRun) {
       const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
-      process.stderr.write(`DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`);
-      if (opts.body) process.stderr.write(`Body: ${JSON.stringify(opts.body, null, 2)}\n`);
-      process.exit(ExitCode.SUCCESS);
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      process.stderr.write(msg, () => process.exit(ExitCode.SUCCESS));
+      return new Promise<never>(() => { /* exit pending */ });
     }
 
     return request<T>(url, init, opts.timeoutMs ?? 30000);
@@ -185,9 +186,10 @@ export class HttpClient {
 
     if (this.dryRun) {
       const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
-      process.stderr.write(`DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`);
-      if (opts.body) process.stderr.write(`Body: ${JSON.stringify(opts.body, null, 2)}\n`);
-      process.exit(ExitCode.SUCCESS);
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      process.stderr.write(msg, () => process.exit(ExitCode.SUCCESS));
+      return new Promise<never>(() => { /* exit pending */ });
     }
 
     return request<T>(url, init, opts.timeoutMs ?? 30000);

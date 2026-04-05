@@ -59,12 +59,10 @@ export function fail(
 
   if (msg) process.stderr.write(msg + '\n');
 
-  process.stdout.write(
-    (globalOptions.pretty ? JSON.stringify(envelope, null, 2) : JSON.stringify(envelope)) + '\n'
-  );
-
+  const output = (globalOptions.pretty ? JSON.stringify(envelope, null, 2) : JSON.stringify(envelope)) + '\n';
   const exitCode = err instanceof PncliError ? exitCodeFromStatus(err.status) : ExitCode.GENERAL_ERROR;
-  process.exit(exitCode);
+  process.stdout.write(output, () => process.exit(exitCode));
+  throw new PncliError(errorDetail.message, errorDetail.status);
 }
 
 export function log(message: string): void {

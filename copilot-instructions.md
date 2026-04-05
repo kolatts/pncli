@@ -245,10 +245,42 @@ pncli bitbucket get-build-status
 # sonar — no subcommands implemented yet
 ```
 
-### Artifactory
+### Deps
 
 ```
-# artifactory — no subcommands implemented yet
+pncli deps frisk
+  --ecosystem <ecosystem>  Filter to one ecosystem: npm, nuget, maven, all
+  (default: "all")
+  --direct-only            Only scan direct dependencies (default: include
+  transitive) (default: false)
+  --include-dev            Include dev/test dependencies (default: false)
+
+pncli deps scan
+  --ecosystem <ecosystem>  Filter to one ecosystem: npm, nuget, maven, all
+  (default: "all")
+  --include-transitive     Include transitive dependencies (default: false)
+  --include-dev            Include dev/test dependencies (default: false)
+
+pncli deps diff
+  --from <ref>             Base git ref (commit, tag, or branch)
+  --to <ref>               Target git ref (default: working tree)
+  --ecosystem <ecosystem>  Filter to one ecosystem: npm, nuget, maven, all
+  (default: "all")
+  --include-dev            Include dev/test dependencies (default: false)
+
+pncli deps outdated
+  --ecosystem <ecosystem>  Filter to one ecosystem: npm, nuget, maven, all
+  (default: "all")
+  --major                  Only show major version bumps
+  --minor                  Only show minor version bumps or higher
+  --patch                  Only show patch version bumps or higher
+
+pncli deps license-check
+  --ecosystem <ecosystem>  Filter to one ecosystem: npm, nuget, maven, all
+  (default: "all")
+  --include-dev            Include dev/test dependencies (default: false)
+
+pncli deps connectivity
 ```
 
 ### Config

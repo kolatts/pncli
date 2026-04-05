@@ -12,6 +12,11 @@ const ENV_KEYS = {
   JIRA_API_TOKEN: 'PNCLI_JIRA_API_TOKEN',
   BITBUCKET_BASE_URL: 'PNCLI_BITBUCKET_BASE_URL',
   BITBUCKET_PAT: 'PNCLI_BITBUCKET_PAT',
+  ARTIFACTORY_BASE_URL: 'PNCLI_ARTIFACTORY_BASE_URL',
+  ARTIFACTORY_TOKEN: 'PNCLI_ARTIFACTORY_TOKEN',
+  ARTIFACTORY_REPO_NPM: 'PNCLI_ARTIFACTORY_REPO_NPM',
+  ARTIFACTORY_REPO_NUGET: 'PNCLI_ARTIFACTORY_REPO_NUGET',
+  ARTIFACTORY_REPO_MAVEN: 'PNCLI_ARTIFACTORY_REPO_MAVEN',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -89,6 +94,13 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       baseUrl: process.env[ENV_KEYS.BITBUCKET_BASE_URL] ?? globalConfig.bitbucket?.baseUrl,
       pat: process.env[ENV_KEYS.BITBUCKET_PAT] ?? globalConfig.bitbucket?.pat
     },
+    artifactory: {
+      baseUrl: process.env[ENV_KEYS.ARTIFACTORY_BASE_URL] ?? globalConfig.artifactory?.baseUrl,
+      token: process.env[ENV_KEYS.ARTIFACTORY_TOKEN] ?? globalConfig.artifactory?.token,
+      npmRepo: process.env[ENV_KEYS.ARTIFACTORY_REPO_NPM] ?? globalConfig.artifactory?.npmRepo,
+      nugetRepo: process.env[ENV_KEYS.ARTIFACTORY_REPO_NUGET] ?? globalConfig.artifactory?.nugetRepo,
+      mavenRepo: process.env[ENV_KEYS.ARTIFACTORY_REPO_MAVEN] ?? globalConfig.artifactory?.mavenRepo
+    },
     defaults: mergedDefaults
   };
 }
@@ -138,6 +150,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     bitbucket: {
       ...config.bitbucket,
       pat: config.bitbucket.pat ? '***' : undefined
+    },
+    artifactory: {
+      ...config.artifactory,
+      token: config.artifactory.token ? '***' : undefined
     }
   };
 }
