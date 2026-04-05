@@ -3,6 +3,10 @@ export interface Meta {
   action: string;
   timestamp: string;
   duration_ms: number;
+  user?: {
+    email: string | undefined;
+    userId: string | undefined;
+  };
 }
 
 export interface SuccessEnvelope<T> {

@@ -82,20 +82,28 @@ export function registerConfigCommands(program: Command): void {
 async function initGlobalConfig(start: number): Promise<void> {
   process.stderr.write('pncli config init — Global configuration\n\n');
 
-  const jiraBaseUrl = await input({
-    message: 'Jira base URL (e.g. https://your-domain.atlassian.net):',
+  process.stderr.write('── Identity ──────────────────────────────────────\n');
+  const userEmail = await input({
+    message: 'Your email address (used across Jira, Bitbucket, etc.):',
     default: ''
   });
 
-  const jiraEmail = await input({
-    message: 'Jira email address:',
+  const userId = await input({
+    message: 'Your username / user ID:',
+    default: ''
+  });
+
+  process.stderr.write('\n── Jira ──────────────────────────────────────────\n');
+  const jiraBaseUrl = await input({
+    message: 'Jira base URL (e.g. https://jira.your-company.com):',
     default: ''
   });
 
   const jiraApiToken = await password({
-    message: 'Jira API token:'
+    message: 'Jira personal access token:'
   });
 
+  process.stderr.write('\n── Bitbucket ─────────────────────────────────────\n');
   const bitbucketBaseUrl = await input({
     message: 'Bitbucket Server base URL (e.g. https://bitbucket.your-company.com):',
     default: ''
@@ -105,11 +113,13 @@ async function initGlobalConfig(start: number): Promise<void> {
     message: 'Bitbucket personal access token:'
   });
 
+  process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
     default: ''
   });
 
+  process.stderr.write('\n');
   const confirmed = await confirm({
     message: 'Write config to ~/.pncli/config.json?',
     default: true
@@ -121,9 +131,12 @@ async function initGlobalConfig(start: number): Promise<void> {
   }
 
   writeGlobalConfig({
+    user: {
+      email: userEmail || undefined,
+      userId: userId || undefined
+    },
     jira: {
       baseUrl: jiraBaseUrl || undefined,
-      email: jiraEmail || undefined,
       apiToken: jiraApiToken || undefined
     },
     bitbucket: {
