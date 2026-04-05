@@ -1,6 +1,7 @@
 export interface JiraConfig {
   baseUrl?: string;
   apiToken?: string;
+  customFields?: import('./jira.js').CustomFieldDefinition[];
 }
 
 export interface BitbucketConfig {
@@ -39,6 +40,7 @@ export interface GlobalConfig {
 
 export interface RepoConfig {
   defaults?: Defaults;
+  jira?: { customFields?: import('./jira.js').CustomFieldDefinition[] };
 }
 
 export interface ResolvedConfig {
@@ -49,6 +51,7 @@ export interface ResolvedConfig {
   jira: {
     baseUrl: string | undefined;
     apiToken: string | undefined;
+    customFields: import('./jira.js').CustomFieldDefinition[];
   };
   bitbucket: {
     baseUrl: string | undefined;

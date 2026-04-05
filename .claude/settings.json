@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const j=JSON.parse(d);const f=(j.tool_input||{}).file_path||'';process.exit(f.endsWith('commands.ts')?0:1);})\" && cd 'C:/Code/pncli' && npm run build --silent && node scripts/update-copilot-instructions.mjs 2>/dev/null || true",
+            "statusMessage": "Updating copilot-instructions.md..."
+          }
+        ]
+      }
+    ]
+  }
+}
