@@ -9,6 +9,7 @@ import {
   getGlobalConfigPath
 } from '../../lib/config.js';
 import { success, fail, warn } from '../../lib/output.js';
+import { ExitCode } from '../../lib/exitCodes.js';
 import fs from 'fs';
 
 export function registerConfigCommands(program: Command): void {
@@ -30,7 +31,7 @@ export function registerConfigCommands(program: Command): void {
         // Handle prompt cancellation (Ctrl+C) gracefully
         if (err instanceof Error && err.message.includes('User force closed')) {
           process.stderr.write('\nSetup cancelled.\n');
-          process.exit(1);
+          process.exit(ExitCode.GENERAL_ERROR);
         }
         fail(err, 'config', 'init', start);
       }
@@ -167,7 +168,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (!confirmed) {
     process.stderr.write('Aborted.\n');
-    process.exit(0);
+    process.exit(ExitCode.SUCCESS);
   }
 
   writeGlobalConfig({
@@ -234,7 +235,7 @@ async function initRepoConfig(start: number): Promise<void> {
 
   if (!confirmed) {
     process.stderr.write('Aborted.\n');
-    process.exit(0);
+    process.exit(ExitCode.SUCCESS);
   }
 
   // Warn if .pncli.json already exists
@@ -245,7 +246,7 @@ async function initRepoConfig(start: number): Promise<void> {
     });
     if (!overwrite) {
       process.stderr.write('Aborted.\n');
-      process.exit(0);
+      process.exit(ExitCode.SUCCESS);
     }
   }
 
