@@ -114,6 +114,46 @@ async function initGlobalConfig(start: number): Promise<void> {
     message: 'Bitbucket personal access token:'
   });
 
+  process.stderr.write('\n── Artifactory ───────────────────────────────────\n');
+  const useArtifactory = await confirm({
+    message: 'Configure Artifactory for dependency commands (deps outdated, deps license-check)?',
+    default: false
+  });
+
+  let artifactoryBaseUrl = '';
+  let artifactoryToken = '';
+  let npmRepo = '';
+  let nugetRepo = '';
+  let mavenRepo = '';
+
+  if (useArtifactory) {
+    artifactoryBaseUrl = await input({
+      message: 'Artifactory base URL (e.g. https://artifactory.company.com):',
+      default: ''
+    });
+
+    artifactoryToken = await password({
+      message: 'Artifactory API token:'
+    });
+
+    process.stderr.write('\nConfigure which ecosystems you use (skip any that don\'t apply):\n');
+
+    const useNpm = await confirm({ message: '  Use npm packages from Artifactory?', default: true });
+    if (useNpm) {
+      npmRepo = await input({ message: '  npm repository name:', default: 'npm-remote' });
+    }
+
+    const useNuget = await confirm({ message: '  Use NuGet packages from Artifactory?', default: false });
+    if (useNuget) {
+      nugetRepo = await input({ message: '  NuGet repository name:', default: 'nuget-remote' });
+    }
+
+    const useMaven = await confirm({ message: '  Use Maven packages from Artifactory?', default: false });
+    if (useMaven) {
+      mavenRepo = await input({ message: '  Maven repository name:', default: 'libs-release' });
+    }
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -144,6 +184,15 @@ async function initGlobalConfig(start: number): Promise<void> {
       baseUrl: bitbucketBaseUrl || undefined,
       pat: bitbucketPat || undefined
     },
+    ...(useArtifactory ? {
+      artifactory: {
+        baseUrl: artifactoryBaseUrl || undefined,
+        token: artifactoryToken || undefined,
+        npmRepo: npmRepo || undefined,
+        nugetRepo: nugetRepo || undefined,
+        mavenRepo: mavenRepo || undefined
+      }
+    } : {}),
     defaults: {
       jira: {
         project: jiraProject || undefined

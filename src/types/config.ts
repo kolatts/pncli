@@ -1,3 +1,11 @@
+export interface ArtifactoryConfig {
+  baseUrl?: string;
+  token?: string;
+  npmRepo?: string;
+  nugetRepo?: string;
+  mavenRepo?: string;
+}
+
 export interface JiraConfig {
   baseUrl?: string;
   apiToken?: string;
@@ -35,6 +43,7 @@ export interface GlobalConfig {
   user?: UserConfig;
   jira?: JiraConfig;
   bitbucket?: BitbucketConfig;
+  artifactory?: ArtifactoryConfig;
   defaults?: Defaults;
 }
 
@@ -57,6 +66,7 @@ export interface ResolvedConfig {
     baseUrl: string | undefined;
     pat: string | undefined;
   };
+  artifactory: ArtifactoryConfig;
   defaults: {
     jira: JiraDefaults;
     bitbucket: BitbucketDefaults;
