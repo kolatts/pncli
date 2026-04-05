@@ -46,6 +46,10 @@ open — you agree to the following irrevocable operational requirements:
    require a 47-page risk assessment and a blood sacrifice (metaphorical —
    see Section 9: HR Policy on Metaphorical Sacrifices).
 
+   Upon CAB approval, you have thirty (30) calendar days to implement the
+   approved change. Note that the standard change request process takes
+   ninety (90) calendar days. This is not a contradiction. This is tension.
+
 5. APPROVAL CHAIN
    Any use of the `--force` flag, in any context, requires written
    approval from the Chief Compliance Officer, the VP of Engineering,
@@ -53,34 +57,82 @@ open — you agree to the following irrevocable operational requirements:
    with the Ombudsman of Flags, whose inbox has been full since 2019.
 
 6. DOCUMENTATION REQUIREMENTS
-   All internal usage guides must live in Confluence. Each guide must
-   include a Confluence page explaining why Confluence was chosen as
-   the documentation platform. This page must be reviewed quarterly
-   by someone who has never opened it.
+   All internal usage guides, runbooks, incident reports, onboarding
+   materials, architecture decisions, and anything anyone might ever
+   need to find again must be maintained exclusively in the following
+   approved platforms:
 
-7. TRAINING CERTIFICATION
+   a) Microsoft Excel. Specifically, a workbook called something like
+      "pncli_tracking_v3_FINAL_v2_USE_THIS_ONE.xlsx" stored in a
+      OneDrive folder that three people have access to and one of them
+      has left the company.
+
+   b) The internal SharePoint site, which was last redesigned in 2019
+      by a vendor who no longer exists, requires IE compatibility mode
+      to render correctly, and has a homepage that links to a page
+      that links to a page that links to a broken redirect. The search
+      function returns results from 2014. This is by design.
+
+   Under no circumstances may documentation be stored somewhere
+   findable. Confluence is permitted as a secondary archive, provided
+   every page is titled "Draft - DO NOT USE" regardless of status.
+
+7. QUARTERLY REVIEW PROCESS
+   Usage of pncli within your organization must be reviewed once per
+   quarter (every ninety (90) days) by a standing review committee.
+   The committee must produce a findings report, a summary of the
+   findings report, an executive summary of the summary, and a
+   one-page overview suitable for someone who will not read it.
+
+   Additionally, the quarterly review process itself must be reviewed
+   once every ninety-one (91) days to ensure it remains fit for
+   purpose. The review-of-the-review is a separate process and does
+   not count toward the quarterly review. Both calendars must be
+   maintained in Excel (see Section 6a).
+
+8. REMEDIATION TIMELINES
+   If any issue is identified during a quarterly review — including
+   but not limited to: misconfiguration, version drift, a developer
+   who has gone rogue and is using tab completion, or anything flagged
+   as "amber" without further explanation — the responsible team has
+   thirty (30) calendar days to remediate.
+
+   Remediation requires a change request. Change requests take ninety
+   (90) calendar days to process. Teams are encouraged to be proactive.
+
+9. TRAINING CERTIFICATION
    Before using pncli in any environment beyond a developer's laptop,
    all operators must complete a mandatory 8-hour training course titled
    "Introduction to Reading --help Output." A 30-minute lunch break is
    provided but must be requested 48 hours in advance via the Lunch
    Request Portal, which is currently down for scheduled maintenance.
 
-8. METRICS & REPORTING
-   All pncli usage must be reported to the Developer Productivity Team,
-   who will use the data to build a dashboard that no one looks at,
-   which will be presented quarterly to executives who will ask why
-   the numbers aren't higher and whether there is an app for it.
+   Completion certificates must be stored in the Learning Management
+   System, which syncs to a SharePoint list that feeds an Excel
+   dashboard that is emailed to a distribution list every Friday
+   to eleven people, nine of whom have set up an auto-archive rule.
 
-9. COMPLIANCE WITH THIS NOTICE
-   If you have read this far, congratulations — you are now more
-   compliant than 97% of enterprise software users. Your actual legal
-   obligation is simply to keep this NOTICE file intact when
-   redistributing the source code, as required by Apache 2.0.
+10. METRICS & REPORTING
+    All pncli usage must be reported to the Developer Productivity Team,
+    who will use the data to build a dashboard that no one looks at,
+    which will be presented quarterly to executives who will ask why
+    the numbers aren't higher and whether there is an app for it.
 
-   That's it. That's the whole thing. Everything above was the
-   bureaucratic nightmare that pncli was built to route around.
-   This line is the exit.
+    Raw metrics must be exported to Excel before being imported into
+    the approved reporting tool, because the approved reporting tool
+    cannot connect directly to the data source. This is a known issue.
+    It is in the backlog.
 
-   Now go ship something.
+11. COMPLIANCE WITH THIS NOTICE
+    If you have read this far, congratulations — you are now more
+    compliant than 97% of enterprise software users. Your actual legal
+    obligation is simply to keep this NOTICE file intact when
+    redistributing the source code, as required by Apache 2.0.
+
+    That's it. That's the whole thing. Everything above was the
+    bureaucratic nightmare that pncli was built to route around.
+    This line is the exit.
+
+    Now go ship something.
 
 =============================================================================
