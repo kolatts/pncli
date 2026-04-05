@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { createRequire } from 'module';
 import { setGlobalOptions, setGlobalUser } from './lib/output.js';
+import { ExitCode } from './lib/exitCodes.js';
 import { loadConfig } from './lib/config.js';
 import { registerGitCommands } from './services/git/commands.js';
 import { registerJiraCommands } from './services/jira/commands.js';
@@ -63,5 +64,5 @@ Services:
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   process.stderr.write(`Fatal: ${err instanceof Error ? err.message : String(err)}\n`);
-  process.exit(1);
+  process.exit(ExitCode.GENERAL_ERROR);
 });
