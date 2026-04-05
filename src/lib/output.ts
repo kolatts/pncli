@@ -3,9 +3,14 @@ import type { Meta, SuccessEnvelope, ErrorEnvelope, ErrorDetail } from '../types
 import { PncliError } from './errors.js';
 
 let globalOptions = { pretty: false, verbose: false };
+let globalUser: { email: string | undefined; userId: string | undefined } = { email: undefined, userId: undefined };
 
 export function setGlobalOptions(opts: { pretty: boolean; verbose: boolean }): void {
   globalOptions = opts;
+}
+
+export function setGlobalUser(user: { email: string | undefined; userId: string | undefined }): void {
+  globalUser = user;
 }
 
 function buildMeta(service: string, action: string, startTime: number): Meta {
@@ -13,7 +18,8 @@ function buildMeta(service: string, action: string, startTime: number): Meta {
     service,
     action,
     timestamp: new Date().toISOString(),
-    duration_ms: Date.now() - startTime
+    duration_ms: Date.now() - startTime,
+    user: (globalUser.email ?? globalUser.userId) ? globalUser : undefined
   };
 }
 

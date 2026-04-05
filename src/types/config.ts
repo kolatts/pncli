@@ -1,6 +1,5 @@
 export interface JiraConfig {
   baseUrl?: string;
-  email?: string;
   apiToken?: string;
 }
 
@@ -26,7 +25,13 @@ export interface Defaults {
   bitbucket?: BitbucketDefaults;
 }
 
+export interface UserConfig {
+  email?: string;
+  userId?: string;
+}
+
 export interface GlobalConfig {
+  user?: UserConfig;
   jira?: JiraConfig;
   bitbucket?: BitbucketConfig;
   defaults?: Defaults;
@@ -37,9 +42,12 @@ export interface RepoConfig {
 }
 
 export interface ResolvedConfig {
+  user: {
+    email: string | undefined;
+    userId: string | undefined;
+  };
   jira: {
     baseUrl: string | undefined;
-    email: string | undefined;
     apiToken: string | undefined;
   };
   bitbucket: {
