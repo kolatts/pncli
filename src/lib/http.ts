@@ -1,5 +1,6 @@
 import type { ResolvedConfig } from '../types/config.js';
 import { PncliError } from './errors.js';
+import { ExitCode } from './exitCodes.js';
 import { log } from './output.js';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -73,8 +74,28 @@ async function request<T>(
       try {
         const body = await response.text();
         const parsed = JSON.parse(body);
-        if (parsed.message) message = parsed.message;
-        else if (parsed.errors?.[0]?.message) message = parsed.errors[0].message;
+        const parts: string[] = [];
+        // Jira: errorMessages is string[]
+        if (Array.isArray(parsed.errorMessages)) {
+          parts.push(...(parsed.errorMessages as string[]).filter(Boolean));
+        }
+        // errors as object map (Jira: Record<string, string>)
+        if (parsed.errors && typeof parsed.errors === 'object' && !Array.isArray(parsed.errors)) {
+          for (const [field, msg] of Object.entries(parsed.errors as Record<string, string>)) {
+            parts.push(`${field}: ${msg}`);
+          }
+        }
+        // errors as array of objects with message field (other APIs)
+        if (Array.isArray(parsed.errors)) {
+          for (const e of parsed.errors as Array<{ message?: string }>) {
+            if (e?.message) parts.push(e.message);
+          }
+        }
+        // Generic APIs: { message: "..." }
+        if (parts.length === 0 && parsed.message) {
+          parts.push(String(parsed.message));
+        }
+        if (parts.length > 0) message = parts.join('; ');
       } catch {
         // ignore parse errors
       }
@@ -106,7 +127,8 @@ export class HttpClient {
     return {
       'Authorization': `Bearer ${apiToken}`,
       'Content-Type': 'application/json',
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      'Connection': 'close'
     };
   }
 
@@ -116,7 +138,8 @@ export class HttpClient {
     return {
       'Authorization': `Bearer ${pat}`,
       'Content-Type': 'application/json',
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      'Connection': 'close'
     };
   }
 
@@ -139,7 +162,7 @@ export class HttpClient {
       const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
       process.stderr.write(`DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`);
       if (opts.body) process.stderr.write(`Body: ${JSON.stringify(opts.body, null, 2)}\n`);
-      process.exit(0);
+      process.exit(ExitCode.SUCCESS);
     }
 
     return request<T>(url, init, opts.timeoutMs ?? 30000);
@@ -164,7 +187,7 @@ export class HttpClient {
       const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
       process.stderr.write(`DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`);
       if (opts.body) process.stderr.write(`Body: ${JSON.stringify(opts.body, null, 2)}\n`);
-      process.exit(0);
+      process.exit(ExitCode.SUCCESS);
     }
 
     return request<T>(url, init, opts.timeoutMs ?? 30000);
