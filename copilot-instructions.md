@@ -67,80 +67,204 @@ pncli is a CLI tool that provides structured JSON access to Jira, Bitbucket, and
 3. Check recent commits:
    `pncli git log --count 5`
 
+<!-- COMMAND-REFERENCE:START -->
 ## Command Reference
 
-### Git (local)
+### Git
 
 ```
 pncli git status
-  # Returns: { staged: string[], unstaged: string[], untracked: string[] }
 
-pncli git diff [--staged] [--file <path>]
-  # Returns: { files: [{ path, binary, truncated, hunks: [{ oldStart, newStart, lines[] }] }], truncated }
+pncli git diff
+  --staged       Show staged changes only
+  --file <path>  Limit diff to a specific file
 
-pncli git log [--count <n>] [--since <date>]
-  # Returns: [{ hash, author, date, message }]
+pncli git log
+  --count <n>     Number of commits to show (default: "10")
+  --since <date>  Show commits since date (e.g. "2 weeks ago")
 
 pncli git branch
-  # Returns: { current, local: string[], remote: string[] }
 
 pncli git current-pr
-  # Returns: PR object for current branch, or null
 ```
 
-### Bitbucket Server
+### Jira
 
 ```
-pncli bitbucket list-prs [--state OPEN|MERGED|DECLINED|ALL] [--author <username>] [--reviewer <username>]
-pncli bitbucket get-pr --id <pr-id>
-pncli bitbucket create-pr --title "..." --source <branch> [--target <branch>] [--description "..."] [--reviewers user1,user2]
-pncli bitbucket update-pr --id <pr-id> [--title "..."] [--description "..."] [--reviewers user1,user2]
-pncli bitbucket merge-pr --id <pr-id> [--strategy <merge|squash|ff>] [--delete-branch]
-pncli bitbucket decline-pr --id <pr-id>
+pncli jira get-issue
+  --key <issue-key>  Issue key (e.g. PROJ-123)
 
-pncli bitbucket list-comments --pr <pr-id>
-pncli bitbucket add-comment --pr <pr-id> --body "..."
-pncli bitbucket add-inline-comment --pr <pr-id> --file <path> --line <n> --body "..." [--line-type <ADDED|REMOVED|CONTEXT>]
-pncli bitbucket reply-comment --pr <pr-id> --comment-id <id> --body "..."
-pncli bitbucket resolve-comment --pr <pr-id> --comment-id <id>
-pncli bitbucket delete-comment --pr <pr-id> --comment-id <id>
+pncli jira create-issue
+  --project <key>         Project key
+  --type <type>           Issue type (Bug, Story, Task, ...)
+  --summary <text>        Issue summary
+  --description <text>    Issue description
+  --priority <name>       Priority name
+  --assignee <accountId>  Assignee account ID
+  --labels <labels>       Comma-separated labels
+  --field <Name=value>    Custom field value (repeatable) (default: [])
 
-pncli bitbucket diff --pr <pr-id> [--file <path>] [--context-lines <n>]
-pncli bitbucket list-files --pr <pr-id>
+pncli jira update-issue
+  --key <issue-key>       Issue key
+  --summary <text>        New summary
+  --description <text>    New description
+  --priority <name>       New priority
+  --assignee <accountId>  New assignee account ID
+  --labels <labels>       Comma-separated labels
+  --field <Name=value>    Custom field value (repeatable) (default: [])
 
-pncli bitbucket approve --pr <pr-id>
-pncli bitbucket unapprove --pr <pr-id>
-pncli bitbucket needs-work --pr <pr-id>
-pncli bitbucket list-reviewers --pr <pr-id>
+pncli jira transition-issue
+  --key <issue-key>          Issue key
+  --transition <name-or-id>  Transition name or ID
 
-pncli bitbucket list-builds --pr <pr-id>
-pncli bitbucket get-build-status --commit <sha>
+pncli jira list-transitions
+  --key <issue-key>  Issue key
+
+pncli jira add-comment
+  --key <issue-key>  Issue key
+  --body <text>      Comment text
+
+pncli jira list-comments
+  --key <issue-key>  Issue key
+
+pncli jira search
+  --jql <query>      JQL query string
+  --max-results <n>  Maximum number of results
+
+pncli jira assign
+  --key <issue-key>       Issue key
+  --assignee <accountId>  Assignee account ID
+
+pncli jira link-issue
+  --key <issue-key>     Source issue key
+  --link-type <type>    Link type name or ID
+  --target <issue-key>  Target issue key
+
+pncli jira fields
+  --discover     Fetch field metadata from Jira API
+  --custom-only  Show only custom fields (requires --discover)
 ```
 
-### Jira Data Cloud
+### Bitbucket
 
 ```
-pncli jira get-issue --key <issue-key>
-pncli jira create-issue --project <key> --type <Bug|Story|Task> --summary "..." [--description "..."] [--priority <n>] [--assignee <accountId>] [--labels label1,label2]
-pncli jira update-issue --key <issue-key> [--summary "..."] [--description "..."] [--priority <n>] [--assignee <accountId>] [--labels label1,label2]
-pncli jira transition-issue --key <issue-key> --transition <name|id>
-pncli jira list-transitions --key <issue-key>
-pncli jira add-comment --key <issue-key> --body "..."
-pncli jira list-comments --key <issue-key>
-pncli jira search --jql "..." [--max-results <n>]
-pncli jira assign --key <issue-key> --assignee <accountId>
-pncli jira link-issue --key <issue-key> --link-type <n> --target <issue-key>
+pncli bitbucket list-prs
+  --state <state>        PR state: OPEN|MERGED|DECLINED|ALL (default: "OPEN")
+  --author <username>    Filter by author username
+  --reviewer <username>  Filter by reviewer username
+
+pncli bitbucket get-pr
+  --id <pr-id>  Pull request ID
+
+pncli bitbucket create-pr
+  --title <title>       PR title
+  --source <branch>     Source branch
+  --target <branch>     Target branch (defaults to config)
+  --description <desc>  PR description
+  --reviewers <users>   Comma-separated reviewer usernames
+
+pncli bitbucket update-pr
+  --id <pr-id>          Pull request ID
+  --title <title>       New title
+  --description <desc>  New description
+  --reviewers <users>   Comma-separated reviewer usernames
+
+pncli bitbucket merge-pr
+  --id <pr-id>           Pull request ID
+  --strategy <strategy>  Merge strategy: merge|squash|ff
+  --delete-branch        Delete source branch after merge
+
+pncli bitbucket decline-pr
+  --id <pr-id>  Pull request ID
+
+pncli bitbucket list-comments
+  --pr <pr-id>  Pull request ID
+
+pncli bitbucket add-comment
+  --pr <pr-id>   Pull request ID
+  --body <text>  Comment text
+
+pncli bitbucket add-inline-comment
+  --pr <pr-id>        Pull request ID
+  --file <path>       File path
+  --line <n>          Line number
+  --body <text>       Comment text
+  --line-type <type>  Line type: ADDED|REMOVED|CONTEXT (default: "ADDED")
+
+pncli bitbucket reply-comment
+  --pr <pr-id>       Pull request ID
+  --comment-id <id>  Comment ID to reply to
+  --body <text>      Reply text
+
+pncli bitbucket resolve-comment
+  --pr <pr-id>       Pull request ID
+  --comment-id <id>  Comment ID
+  --version <n>      Comment version (default: "0")
+
+pncli bitbucket delete-comment
+  --pr <pr-id>       Pull request ID
+  --comment-id <id>  Comment ID
+  --version <n>      Comment version (default: "0")
+
+pncli bitbucket diff
+  --pr <pr-id>         Pull request ID
+  --file <path>        Limit diff to a specific file
+  --context-lines <n>  Lines of context around changes
+
+pncli bitbucket list-files
+  --pr <pr-id>  Pull request ID
+
+pncli bitbucket approve
+  --pr <pr-id>  Pull request ID
+
+pncli bitbucket unapprove
+  --pr <pr-id>  Pull request ID
+
+pncli bitbucket needs-work
+  --pr <pr-id>  Pull request ID
+
+pncli bitbucket list-reviewers
+  --pr <pr-id>  Pull request ID
+
+pncli bitbucket list-builds
+  --pr <pr-id>  Pull request ID
+
+pncli bitbucket get-build-status
+  --commit <sha>  Commit SHA
+```
+
+### Confluence
+
+```
+# confluence — no subcommands implemented yet
+```
+
+### Sonar
+
+```
+# sonar — no subcommands implemented yet
+```
+
+### Artifactory
+
+```
+# artifactory — no subcommands implemented yet
 ```
 
 ### Config
 
 ```
-pncli config init                   # Interactive global config wizard
-pncli config init --repo            # Interactive repo config wizard
-pncli config show                   # Print resolved config (PATs masked)
-pncli config set <key> <value>      # Set a config value (e.g. jira.baseUrl https://...)
-pncli config test                   # Test service connectivity
+pncli config init
+  --repo      Write repo config (.pncli.json) instead of global config
+
+pncli config show
+
+pncli config set
+
+pncli config test
 ```
+
+<!-- COMMAND-REFERENCE:END -->
 
 ## Output Format
 
