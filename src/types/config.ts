@@ -1,6 +1,5 @@
 export interface JiraConfig {
   baseUrl?: string;
-  email?: string;
   apiToken?: string;
 }
 
@@ -39,7 +38,6 @@ export interface RepoConfig {
 export interface ResolvedConfig {
   jira: {
     baseUrl: string | undefined;
-    email: string | undefined;
     apiToken: string | undefined;
   };
   bitbucket: {

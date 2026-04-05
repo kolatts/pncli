@@ -6,7 +6,7 @@ import type {
   JiraSearchResult
 } from '../../types/jira.js';
 
-const API = '/rest/api/3';
+const API = '/rest/api/2';
 
 export interface CreateIssueOpts {
   project: string;
@@ -45,15 +45,9 @@ export class JiraClient {
         project: { key: opts.project },
         issuetype: { name: opts.issueType },
         summary: opts.summary,
-        ...(opts.description ? {
-          description: {
-            type: 'doc',
-            version: 1,
-            content: [{ type: 'paragraph', content: [{ type: 'text', text: opts.description }] }]
-          }
-        } : {}),
+        ...(opts.description ? { description: opts.description } : {}),
         ...(opts.priority ? { priority: { name: opts.priority } } : {}),
-        ...(opts.assignee ? { assignee: { accountId: opts.assignee } } : {}),
+        ...(opts.assignee ? { assignee: { name: opts.assignee } } : {}),
         ...(opts.labels?.length ? { labels: opts.labels } : {})
       }
     };
@@ -69,15 +63,9 @@ export class JiraClient {
   async updateIssue(key: string, opts: UpdateIssueOpts): Promise<void> {
     const fields: Record<string, unknown> = {};
     if (opts.summary) fields.summary = opts.summary;
-    if (opts.description) {
-      fields.description = {
-        type: 'doc',
-        version: 1,
-        content: [{ type: 'paragraph', content: [{ type: 'text', text: opts.description }] }]
-      };
-    }
+    if (opts.description) fields.description = opts.description;
     if (opts.priority) fields.priority = { name: opts.priority };
-    if (opts.assignee) fields.assignee = { accountId: opts.assignee };
+    if (opts.assignee) fields.assignee = { name: opts.assignee };
     if (opts.labels) fields.labels = opts.labels;
 
     await this.http.jira<void>(`${API}/issue/${key}`, {
@@ -103,13 +91,7 @@ export class JiraClient {
   async addComment(key: string, text: string): Promise<JiraComment> {
     return this.http.jira<JiraComment>(`${API}/issue/${key}/comment`, {
       method: 'POST',
-      body: {
-        body: {
-          type: 'doc',
-          version: 1,
-          content: [{ type: 'paragraph', content: [{ type: 'text', text }] }]
-        }
-      }
+      body: { body: text }
     });
   }
 

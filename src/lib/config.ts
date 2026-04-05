@@ -6,7 +6,6 @@ import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketD
 
 const ENV_KEYS = {
   JIRA_BASE_URL: 'PNCLI_JIRA_BASE_URL',
-  JIRA_EMAIL: 'PNCLI_JIRA_EMAIL',
   JIRA_API_TOKEN: 'PNCLI_JIRA_API_TOKEN',
   BITBUCKET_BASE_URL: 'PNCLI_BITBUCKET_BASE_URL',
   BITBUCKET_PAT: 'PNCLI_BITBUCKET_PAT',
@@ -66,7 +65,6 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
   return {
     jira: {
       baseUrl: process.env[ENV_KEYS.JIRA_BASE_URL] ?? globalConfig.jira?.baseUrl,
-      email: process.env[ENV_KEYS.JIRA_EMAIL] ?? globalConfig.jira?.email,
       apiToken: process.env[ENV_KEYS.JIRA_API_TOKEN] ?? globalConfig.jira?.apiToken
     },
     bitbucket: {
