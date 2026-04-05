@@ -1,6 +1,7 @@
 import type { Ecosystem, LicensedPackage, OutdatedPackage } from '../types.js';
 import type { ArtifactoryConfig } from '../../../types/config.js';
 import { PncliError } from '../../../lib/errors.js';
+import { isNewer, updateType } from '../semver.js';
 
 const TIMEOUT_MS = 15_000;
 
@@ -161,41 +162,23 @@ async function getLatestMaven(
   }
 }
 
-function parseSemver(v: string): [number, number, number] {
-  const clean = v.replace(/[^0-9.]/g, '');
-  const parts = clean.split('.').map(Number);
-  return [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0];
-}
-
-function getUpdateType(current: string, latest: string): 'major' | 'minor' | 'patch' {
-  const [cMaj, cMin] = parseSemver(current);
-  const [lMaj, lMin] = parseSemver(latest);
-  if (lMaj > cMaj) return 'major';
-  if (lMin > cMin) return 'minor';
-  return 'patch';
-}
-
-function isNewer(current: string, latest: string): boolean {
-  const [cMaj, cMin, cPat] = parseSemver(current);
-  const [lMaj, lMin, lPat] = parseSemver(latest);
-  if (lMaj !== cMaj) return lMaj > cMaj;
-  if (lMin !== cMin) return lMin > cMin;
-  return lPat > cPat;
-}
-
 export async function getOutdatedPackages(
   packages: Array<{ name: string; version: string; ecosystem: Ecosystem; source: string }>,
   config: ArtifactoryConfig,
   filterType?: 'major' | 'minor' | 'patch'
-): Promise<OutdatedPackage[]> {
+): Promise<{ outdated: OutdatedPackage[]; uncheckedEcosystems: string[] }> {
   const { baseUrl, token } = config;
-  if (!baseUrl || !token) return [];
+  if (!baseUrl || !token) return { outdated: [], uncheckedEcosystems: [] };
 
   const outdated: OutdatedPackage[] = [];
+  const unchecked = new Set<string>();
 
   for (const pkg of packages) {
     const repoName = repoForEcosystem(config, pkg.ecosystem);
-    if (!repoName) continue; // ecosystem repo not configured — skip silently
+    if (!repoName) {
+      unchecked.add(pkg.ecosystem);
+      continue;
+    }
 
     let latest: string | null = null;
     if (pkg.ecosystem === 'npm') {
@@ -208,10 +191,10 @@ export async function getOutdatedPackages(
 
     if (!latest || !isNewer(pkg.version, latest)) continue;
 
-    const updateType = getUpdateType(pkg.version, latest);
+    const type = updateType(pkg.version, latest);
     if (filterType) {
       const order = { major: 3, minor: 2, patch: 1 };
-      if (order[updateType] < order[filterType]) continue;
+      if (order[type] < order[filterType]) continue;
     }
 
     outdated.push({
@@ -219,13 +202,12 @@ export async function getOutdatedPackages(
       ecosystem: pkg.ecosystem,
       current: pkg.version,
       latest,
-      updateType,
-      source: pkg.source,
-      availableInArtifactory: true
+      updateType: type,
+      source: pkg.source
     });
   }
 
-  return outdated;
+  return { outdated, uncheckedEcosystems: [...unchecked] };
 }
 
 async function getLicenseNpm(

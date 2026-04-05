@@ -55,7 +55,6 @@ function findPropsContent(
 }
 
 function parseManifests(
-  repoRoot: string,
   manifests: ManifestInfo[],
   opts: ScanOptions,
   readFn: (relPath: string) => string | null
@@ -102,7 +101,7 @@ export function scanRepo(repoRoot: string, opts: ScanOptions = {}): ScanData {
   const mavenManifests = eco === 'all' || eco === 'maven' ? findMavenManifests(files) : [];
 
   const manifests = [...npmManifests, ...nugetManifests, ...mavenManifests];
-  const packages = parseManifests(repoRoot, manifests, opts, rel => readFile(repoRoot, rel));
+  const packages = parseManifests(manifests, opts, rel => readFile(repoRoot, rel));
 
   return buildScanData(manifests, packages);
 }
@@ -128,7 +127,7 @@ export function scanRepoAtRef(repoRoot: string, ref: string, opts: ScanOptions =
   const mavenManifests = eco === 'all' || eco === 'maven' ? findMavenManifests(files) : [];
 
   const manifests = [...npmManifests, ...nugetManifests, ...mavenManifests];
-  const packages = parseManifests(repoRoot, manifests, opts, rel => readFileAtRef(repoRoot, ref, rel));
+  const packages = parseManifests(manifests, opts, rel => readFileAtRef(repoRoot, ref, rel));
 
   return buildScanData(manifests, packages);
 }

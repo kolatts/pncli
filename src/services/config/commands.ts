@@ -116,7 +116,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   process.stderr.write('\n── Artifactory ───────────────────────────────────\n');
   const useArtifactory = await confirm({
-    message: 'Configure Artifactory for dependency scanning (deps frisk, outdated, license-check)?',
+    message: 'Configure Artifactory for dependency commands (deps outdated, deps license-check)?',
     default: false
   });
 

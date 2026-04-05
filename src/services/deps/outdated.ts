@@ -31,7 +31,11 @@ export async function runOutdated(
   const scan = scanRepo(repoRoot, { ...opts, includeTransitive: false });
   const directPackages = scan.packages.filter(p => p.type === 'direct');
 
-  const outdated = await getOutdatedPackages(directPackages, config.artifactory, filterType);
+  const { outdated, uncheckedEcosystems } = await getOutdatedPackages(
+    directPackages,
+    config.artifactory,
+    filterType
+  );
 
   const summary = { total: outdated.length, major: 0, minor: 0, patch: 0 };
   for (const pkg of outdated) summary[pkg.updateType]++;
@@ -40,6 +44,7 @@ export async function runOutdated(
     source: 'artifactory',
     artifactoryUrl: config.artifactory.baseUrl ?? '',
     outdated,
+    uncheckedEcosystems,
     summary
   };
 }

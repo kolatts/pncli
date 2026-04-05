@@ -61,8 +61,8 @@ export interface OsvVulnerability {
   cvss: number | null;
   aliases: string[];
   remediation: {
-    fix_available: boolean;
-    fixed_versions: string[];
+    fixAvailable: boolean;
+    fixedVersions: string[];
     advice: string;
   };
   references: string[];
@@ -86,13 +86,13 @@ export interface OutdatedPackage {
   latest: string;
   updateType: 'major' | 'minor' | 'patch';
   source: string;
-  availableInArtifactory: boolean;
 }
 
 export interface OutdatedData {
   source: 'artifactory';
   artifactoryUrl: string;
   outdated: OutdatedPackage[];
+  uncheckedEcosystems: string[];
   summary: {
     total: number;
     major: number;

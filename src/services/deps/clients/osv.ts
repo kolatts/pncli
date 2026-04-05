@@ -84,12 +84,12 @@ function extractRemediation(vuln: OsvRawVuln, pkg: Package): OsvVulnerability['r
   }
 
   const unique = [...new Set(fixedVersions)];
-  const fix_available = unique.length > 0;
-  const advice = fix_available
+  const fixAvailable = unique.length > 0;
+  const advice = fixAvailable
     ? `Upgrade ${pkg.name} to ${unique.join(' or ')}`
     : `No fix available yet for ${pkg.name}. Monitor ${vuln.id} for updates.`;
 
-  return { fix_available, fixed_versions: unique, advice };
+  return { fixAvailable, fixedVersions: unique, advice };
 }
 
 function extractSeverity(vuln: OsvRawVuln): { severity: string; cvss: number | null } {

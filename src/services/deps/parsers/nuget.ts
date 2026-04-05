@@ -30,9 +30,24 @@ export function findNugetManifests(files: string[]): ManifestInfo[] {
     }
   }
 
-  // Remove duplicate lock-backed entries: if a packages.lock.json covers a dir,
-  // prefer it over the individual project files
-  return manifests;
+  // Deduplicate: when multiple project files share the same packages.lock.json,
+  // keep only one representative manifest per lock file to avoid parsing the same
+  // lock multiple times and inflating package counts.
+  const deduped: ManifestInfo[] = [];
+  const seenLocks = new Set<string>();
+
+  for (const manifest of manifests) {
+    if (!manifest.lockFile) {
+      deduped.push(manifest);
+      continue;
+    }
+    if (!seenLocks.has(manifest.lockFile)) {
+      seenLocks.add(manifest.lockFile);
+      deduped.push(manifest);
+    }
+  }
+
+  return deduped;
 }
 
 export function parseNugetPackages(

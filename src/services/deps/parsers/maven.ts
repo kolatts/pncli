@@ -126,8 +126,8 @@ function parseBuildGradle(content: string, filePath: string, opts: ScanOptions):
   const packages: Package[] = [];
   const seen = new Set<string>();
 
-  // String notation: implementation 'group:artifact:version' or "group:artifact:version"
-  const stringNotation = /\b(\w+)\s+['"]([^:'"]+):([^:'"]+):([^'"]+)['"]/g;
+  // String notation — Groovy: implementation 'g:a:v'  /  Kotlin DSL: implementation("g:a:v")
+  const stringNotation = /\b(\w+)\s*\(?\s*['"]([^:'"]+):([^:'"]+):([^'"]+)['"]\s*\)?/g;
   for (const m of content.matchAll(stringNotation)) {
     const config = m[1];
     const groupId = m[2];

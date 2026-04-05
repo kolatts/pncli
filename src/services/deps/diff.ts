@@ -3,6 +3,7 @@ import type { ScanOptions, DiffData, PackageChange, ChangeType, Ecosystem } from
 import { scanRepo, scanRepoAtRef } from './parsers/index.js';
 import { getRepoRoot } from '../../lib/git-context.js';
 import { PncliError } from '../../lib/errors.js';
+import { isDowngrade } from './semver.js';
 
 export function runDiff(
   config: ResolvedConfig,
@@ -71,16 +72,3 @@ export function runDiff(
   return { from, to: to ?? 'working tree', changes, summary };
 }
 
-function parseSemver(v: string): [number, number, number] {
-  const clean = v.replace(/[^0-9.]/g, '');
-  const parts = clean.split('.').map(Number);
-  return [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0];
-}
-
-function isDowngrade(from: string, to: string): boolean {
-  const [fMaj, fMin, fPat] = parseSemver(from);
-  const [tMaj, tMin, tPat] = parseSemver(to);
-  if (tMaj !== fMaj) return tMaj < fMaj;
-  if (tMin !== fMin) return tMin < fMin;
-  return tPat < fPat;
-}
