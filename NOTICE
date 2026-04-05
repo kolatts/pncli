@@ -11,61 +11,65 @@ Per Section 4(d) of the Apache License 2.0, this NOTICE file must be
 included in all copies or substantial portions of this software, in all
 derivative works, and in any and all redistributions thereof.
 
-By using, copying, modifying, or distributing this software, you agree
-to the following irrevocable terms:
+By deploying, using, or permitting any human being within your organization
+to execute pncli — including accidentally in a terminal they didn't mean to
+open — you agree to the following irrevocable operational requirements:
 
 1. MANDATORY STAND-UP PARTICIPATION
-   Any team that integrates pncli into their workflow must hold a daily
-   stand-up meeting of no fewer than 45 minutes to discuss whether the
-   stand-up meeting is still necessary. Minutes must be recorded in
-   triplicate and filed with the Department of Meetings About Meetings.
+   Any team that adopts pncli must hold a daily stand-up of no fewer than
+   45 minutes to discuss whether the stand-up is still necessary. Minutes
+   must be recorded in triplicate, stored in Confluence, and linked from a
+   Jira ticket that is immediately moved to "Backlog" by someone who
+   doesn't know what a backlog is for.
 
 2. RETURN-TO-OFFICE COMPLIANCE
-   All contributors to derivative works must be physically present in an
-   office building with at least three (3) floors of middle management.
-   Hot desks are acceptable provided each desk has been pre-approved by
-   a committee of no fewer than seven (7) stakeholders, none of whom
-   use the software.
+   Use of pncli is permitted only from a desk located on a floor staffed
+   by at least three (3) layers of management who have never run a
+   terminal. Hot desks are acceptable provided each seat has been
+   pre-approved by a committee of no fewer than seven (7) stakeholders,
+   none of whom use the software or know what it does.
 
 3. JIRA TICKET REQUIREMENT
-   Before opening any issue, pull request, bug report, or feature request
-   against this repository or any fork thereof, the submitter must first
-   create a Jira ticket requesting permission to create a Jira ticket.
-   The approval workflow requires sign-off from: your manager, your
-   manager's manager, a "technical architect" who hasn't written code
+   Before running any pncli command in a non-local environment, your team
+   must first raise a Jira ticket requesting permission to raise a Jira
+   ticket. The approval workflow requires sign-off from: your manager,
+   your manager's manager, a "technical architect" who hasn't written code
    since 2011, and a business analyst who will ask you to "put it in a
-   PowerPoint."
+   PowerPoint" before they can approve it.
 
 4. CHANGE ADVISORY BOARD REVIEW
-   All code changes — including typo fixes, README updates, and whitespace
-   adjustments — must be submitted to the Change Advisory Board (CAB) no
-   fewer than six (6) business weeks in advance. The CAB meets on the
-   third Wednesday of months that contain the letter 'R'. Emergency
-   changes require a 47-page risk assessment and a blood sacrifice
-   (metaphorical — see Section 9: HR Policy on Metaphorical Sacrifices).
+   Any upgrade to a new version of pncli — including patch releases,
+   security fixes, and versions that fix the thing that's actively on
+   fire — must be submitted to the Change Advisory Board (CAB) no fewer
+   than six (6) business weeks in advance. The CAB meets on the third
+   Wednesday of months that contain the letter 'R'. Emergency changes
+   require a 47-page risk assessment and a blood sacrifice (metaphorical —
+   see Section 9: HR Policy on Metaphorical Sacrifices).
 
 5. APPROVAL CHAIN
    Any use of the `--force` flag, in any context, requires written
    approval from the Chief Compliance Officer, the VP of Engineering,
    two (2) independent auditors, and your mother. Appeals may be filed
-   with the Ombudsman of Flags.
+   with the Ombudsman of Flags, whose inbox has been full since 2019.
 
 6. DOCUMENTATION REQUIREMENTS
-   All forks must include a Confluence page explaining why Confluence was
-   chosen as the documentation platform. This page must be reviewed
-   quarterly by someone who has never read it.
+   All internal usage guides must live in Confluence. Each guide must
+   include a Confluence page explaining why Confluence was chosen as
+   the documentation platform. This page must be reviewed quarterly
+   by someone who has never opened it.
 
 7. TRAINING CERTIFICATION
-   Before using pncli in production, all operators must complete a
-   mandatory 8-hour training course titled "Introduction to Reading
-   --help Output." A 30-minute lunch break is provided but must be
-   approved 48 hours in advance via the Lunch Request Portal.
+   Before using pncli in any environment beyond a developer's laptop,
+   all operators must complete a mandatory 8-hour training course titled
+   "Introduction to Reading --help Output." A 30-minute lunch break is
+   provided but must be requested 48 hours in advance via the Lunch
+   Request Portal, which is currently down for scheduled maintenance.
 
 8. METRICS & REPORTING
-   Usage of pncli must be reported to the Developer Productivity Team,
-   who will use the data to create a dashboard that nobody looks at,
+   All pncli usage must be reported to the Developer Productivity Team,
+   who will use the data to build a dashboard that no one looks at,
    which will be presented quarterly to executives who will ask why
-   the numbers aren't higher.
+   the numbers aren't higher and whether there is an app for it.
 
 9. COMPLIANCE WITH THIS NOTICE
    If you have read this far, congratulations — you are now more
@@ -74,7 +78,8 @@ to the following irrevocable terms:
    redistributing the source code, as required by Apache 2.0.
 
    That's it. That's the whole thing. Everything above was the
-   bureaucratic nightmare. This line is the exit.
+   bureaucratic nightmare that pncli was built to route around.
+   This line is the exit.
 
    Now go ship something.
 
