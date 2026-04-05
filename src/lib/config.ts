@@ -66,8 +66,8 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
 
   return {
     user: {
-      email: process.env[ENV_KEYS.EMAIL],
-      userId: process.env[ENV_KEYS.USERID]
+      email: process.env[ENV_KEYS.EMAIL] ?? globalConfig.user?.email,
+      userId: process.env[ENV_KEYS.USERID] ?? globalConfig.user?.userId
     },
     jira: {
       baseUrl: process.env[ENV_KEYS.JIRA_BASE_URL] ?? globalConfig.jira?.baseUrl,
