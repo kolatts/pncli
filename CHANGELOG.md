@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.0](https://github.com/kolatts/pncli/compare/v1.0.1...v1.1.0) (2026-04-05)
+
+
+### Features
+
+* add PNCLI_EMAIL and PNCLI_USERID as global user identity ([81f0091](https://github.com/kolatts/pncli/commit/81f00913a3ca4295631ad5e3701dac6a1553e70a))
+* add user identity prompts to config init wizard ([e200a5a](https://github.com/kolatts/pncli/commit/e200a5a7defd54ba4a39a49518dd6342533c23dc))
+* enterprise testing — user identity, Jira v2, husky, v1.1.0 ([8fb3b2e](https://github.com/kolatts/pncli/commit/8fb3b2e086fe1cd4e6ca31e1b8592dfecefdfbd7))
+* Jira custom fields + auto-generated copilot docs ([#6](https://github.com/kolatts/pncli/issues/6)) ([a88c01b](https://github.com/kolatts/pncli/commit/a88c01bd681679e738407690d284ac640893fe0d))
+* switch Jira to API v2 with Bearer token auth ([6372db9](https://github.com/kolatts/pncli/commit/6372db9bba3c4213f466cdf021caed4dc11e510f))
+
 ## [1.0.1](https://github.com/kolatts/pncli/compare/v1.0.0...v1.0.1) (2026-04-04)
 
 
