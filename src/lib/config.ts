@@ -44,7 +44,7 @@ function loadJsonFile<T>(filePath: string): T | null {
 
 function getRepoRoot(): string | null {
   try {
-    return execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
+    return execSync('git rev-parse --show-toplevel', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
   } catch {
     return null;
   }
