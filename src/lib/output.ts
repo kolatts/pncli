@@ -62,7 +62,11 @@ export function fail(
 
   const output = (globalOptions.pretty ? JSON.stringify(envelope, null, 2) : JSON.stringify(envelope)) + '\n';
   const exitCode = err instanceof PncliError ? exitCodeFromStatus(err.status) : ExitCode.GENERAL_ERROR;
-  fs.writeSync(process.stdout.fd, output);
+  try {
+    fs.writeSync(process.stdout.fd, output);
+  } catch (writeErr) {
+    if ((writeErr as NodeJS.ErrnoException).code !== 'EPIPE') throw writeErr;
+  }
   process.exit(exitCode);
 }
 
