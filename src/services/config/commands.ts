@@ -258,7 +258,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (useSde) {
     sdeBaseUrl = await input({
-      message: 'SDElements base URL (e.g. https://your-org.sdelements.com or https://sde.your-company.com):',
+      message: 'SDElements base URL\n  Cloud-hosted: https://your-org.sdelements.com\n  On-premise:   https://sde.your-company.com\n  URL: ',
       default: ''
     });
 
