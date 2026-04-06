@@ -195,6 +195,60 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
+  private confluenceHeaders(): Record<string, string> {
+    const { apiToken } = this.config.confluence;
+    if (!apiToken) throw new PncliError('Confluence credentials not configured. Run: pncli config init');
+    return {
+      'Authorization': `Bearer ${apiToken}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+  }
+
+  async confluence<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.confluence.baseUrl;
+    if (!baseUrl) throw new PncliError('Confluence baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.confluenceHeaders();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      process.stderr.write(msg, () => process.exit(ExitCode.SUCCESS));
+      return new Promise<never>(() => { /* exit pending */ });
+    }
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
+  async confluencePaginate<T>(
+    fetchPage: (start: number, limit: number) => Promise<{ results: T[]; start: number; limit: number; size: number; _links: { next?: string } }>
+  ): Promise<T[]> {
+    const results: T[] = [];
+    let start = 0;
+    const limit = 25;
+
+    while (true) {
+      const page = await fetchPage(start, limit);
+      results.push(...page.results);
+      if (!page._links.next || page.size < limit) break;
+      start += page.size;
+    }
+
+    return results;
+  }
+
   async paginate<T>(
     fetchPage: (start: number, limit: number) => Promise<{ values: T[]; isLastPage: boolean; nextPageStart?: number }>
   ): Promise<T[]> {
