@@ -49,8 +49,7 @@ pncli uses a three-layer config system (highest priority wins):
 | `PNCLI_BITBUCKET_PAT` | Bitbucket personal access token |
 | `PNCLI_SONAR_BASE_URL` | SonarQube Server base URL |
 | `PNCLI_SONAR_TOKEN` | SonarQube personal access token |
-| `PNCLI_SDE_BASE_URL` | SDElements base URL |
-| `PNCLI_SDE_TOKEN` | SDElements API token |
+| `PNCLI_SDE_CONNECTION` | SDElements connection string (`api-token@base-url`) |
 | `PNCLI_CONFIG_PATH` | Override global config file path |
 
 ## For AI Agents
@@ -88,6 +87,8 @@ This project uses Conventional Commits for automatic versioning:
 | SonarQube | ✅ Active | Server Web API |
 | SDElements | ✅ Active | REST API v2 (cloud + on-prem) |
 | Artifactory | 🔜 Coming | The nightmare never ends |
+| Jenkins | 🔜 Coming | REST API |
+| Azure DevOps | 🔜 Coming | REST API v7 |
 
 ## License
 

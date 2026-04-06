@@ -257,14 +257,31 @@ async function initGlobalConfig(start: number): Promise<void> {
   let sdeToken = '';
 
   if (useSde) {
-    sdeBaseUrl = await input({
-      message: 'SDElements base URL\n  Cloud-hosted: https://your-org.sdelements.com\n  On-premise:   https://sde.your-company.com\n  URL: ',
-      default: ''
+    process.stderr.write('  Connection string format: <api-token>@<base-url>\n');
+    const useSdeConnectionString = await confirm({
+      message: 'Do you have a connection string to paste (token@url)?',
+      default: false
     });
 
-    sdeToken = await password({
-      message: 'SDElements API token:'
-    });
+    if (useSdeConnectionString) {
+      const sdeConnection = await password({
+        message: 'SDElements connection string (api-token@base-url):'
+      });
+      const atIdx = sdeConnection.indexOf('@');
+      if (atIdx > 0) {
+        sdeToken = sdeConnection.slice(0, atIdx);
+        sdeBaseUrl = sdeConnection.slice(atIdx + 1);
+      }
+    } else {
+      sdeBaseUrl = await input({
+        message: 'SDElements base URL\n  Cloud-hosted: https://your-org.sdelements.com\n  On-premise:   https://sde.your-company.com\n  URL: ',
+        default: ''
+      });
+
+      sdeToken = await password({
+        message: 'SDElements API token:'
+      });
+    }
   }
 
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
@@ -329,10 +346,9 @@ async function initGlobalConfig(start: number): Promise<void> {
         token: sonarToken || undefined
       }
     } : {}),
-    ...(useSde ? {
+    ...(useSde && sdeToken && sdeBaseUrl ? {
       sde: {
-        baseUrl: sdeBaseUrl || undefined,
-        token: sdeToken || undefined
+        connection: `${sdeToken}@${sdeBaseUrl}`
       }
     } : {}),
     defaults: {
