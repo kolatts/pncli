@@ -65,7 +65,7 @@ Services:
   jira         Jira Data Cloud
   bitbucket    Bitbucket Server
   confluence   Confluence
-  sonar        SonarQube (coming soon)
+  sonar        SonarQube Server (quality gates, issues, metrics, hotspots)
   config       Manage pncli configuration
 `);
 

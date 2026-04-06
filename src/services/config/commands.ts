@@ -114,6 +114,17 @@ export function registerConfigCommands(program: Command): void {
           results.confluence = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.sonar.baseUrl) {
+          try {
+            await http.sonar<unknown>('/api/system/status');
+            results.sonar = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.sonar = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.sonar = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -205,11 +216,36 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── SonarQube ─────────────────────────────────────\n');
+  const useSonar = await confirm({
+    message: 'Configure SonarQube Server for code quality checks?',
+    default: false
+  });
+
+  let sonarBaseUrl = '';
+  let sonarToken = '';
+
+  if (useSonar) {
+    sonarBaseUrl = await input({
+      message: 'SonarQube Server base URL (e.g. https://sonar.your-company.com):',
+      default: ''
+    });
+
+    sonarToken = await password({
+      message: 'SonarQube personal access token:'
+    });
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
     default: ''
   });
+
+  const sonarProject = useSonar ? await input({
+    message: 'Default SonarQube project key (optional):',
+    default: ''
+  }) : '';
 
   process.stderr.write('\n');
   const confirmed = await confirm({
@@ -251,10 +287,21 @@ async function initGlobalConfig(start: number): Promise<void> {
         mavenRepo: mavenRepo || undefined
       }
     } : {}),
+    ...(useSonar ? {
+      sonar: {
+        baseUrl: sonarBaseUrl || undefined,
+        token: sonarToken || undefined
+      }
+    } : {}),
     defaults: {
       jira: {
         project: jiraProject || undefined
-      }
+      },
+      ...(useSonar && sonarProject ? {
+        sonar: {
+          project: sonarProject || undefined
+        }
+      } : {})
     }
   });
 
