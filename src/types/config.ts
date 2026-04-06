@@ -15,6 +15,15 @@ export interface SonarDefaults {
   project?: string;
 }
 
+export interface SdeConfig {
+  baseUrl?: string;
+  token?: string;
+}
+
+export interface SdeDefaults {
+  project?: string;
+}
+
 export interface JiraConfig {
   baseUrl?: string;
   apiToken?: string;
@@ -47,6 +56,7 @@ export interface Defaults {
   jira?: JiraDefaults;
   bitbucket?: BitbucketDefaults;
   sonar?: SonarDefaults;
+  sde?: SdeDefaults;
 }
 
 export interface UserConfig {
@@ -61,6 +71,7 @@ export interface GlobalConfig {
   confluence?: ConfluenceConfig;
   artifactory?: ArtifactoryConfig;
   sonar?: SonarConfig;
+  sde?: SdeConfig;
   defaults?: Defaults;
 }
 
@@ -92,9 +103,14 @@ export interface ResolvedConfig {
     baseUrl: string | undefined;
     token: string | undefined;
   };
+  sde: {
+    baseUrl: string | undefined;
+    token: string | undefined;
+  };
   defaults: {
     jira: JiraDefaults;
     bitbucket: BitbucketDefaults;
     sonar: SonarDefaults;
+    sde: SdeDefaults;
   };
 }
