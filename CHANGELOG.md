@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.0](https://github.com/kolatts/pncli/compare/v1.2.0...v1.3.0) (2026-04-06)
+
+
+### Features
+
+* Confluence integration + fail() exit fix + TLS bypass ([#10](https://github.com/kolatts/pncli/issues/10)) ([95a2084](https://github.com/kolatts/pncli/commit/95a20840c07661dcf1ef875cddd48e76aab3344f))
+* SDElements integration — projects, tasks, threats, users ([#13](https://github.com/kolatts/pncli/issues/13)) ([7608ebe](https://github.com/kolatts/pncli/commit/7608ebe91afc6f16817e83d6df1401df70c1b934))
+* SonarQube Server integration with PAT auth ([#12](https://github.com/kolatts/pncli/issues/12)) ([1428bea](https://github.com/kolatts/pncli/commit/1428bea266d9c68f5b2d0270ca86c4caec48a809))
+
 ## [1.2.0](https://github.com/kolatts/pncli/compare/v1.1.0...v1.2.0) (2026-04-05)
 
 
