@@ -236,7 +236,78 @@ pncli bitbucket get-build-status
 ### Confluence
 
 ```
-# confluence — no subcommands implemented yet
+pncli confluence get-page
+  --id <page-id>     Page ID
+  --expand <fields>  Comma-separated fields to expand (default:
+  "body.storage,version,space,ancestors")
+
+pncli confluence get-page-by-title
+  --space <key>    Space key
+  --title <title>  Page title
+
+pncli confluence list-pages
+  --space <key>  Space key
+  --limit <n>    Max results per page (default: all)
+  --start <n>    Offset for first result
+
+pncli confluence get-page-children
+  --id <page-id>  Parent page ID
+
+pncli confluence get-labels
+  --id <page-id>  Page ID
+
+pncli confluence search
+  --cql <query>      CQL query string (e.g. "space=PROJ AND type=page")
+  --limit <n>        Maximum number of results (default: "25")
+  --start <n>        Offset for first result (default: "0")
+  --expand <fields>  Comma-separated fields to expand
+
+pncli confluence create-page
+  --space <key>              Space key
+  --title <title>            Page title
+  --body <html>              Page body (storage format HTML)
+  --parent-id <id>           Parent page ID (to nest under a page)
+  --representation <format>  Body format: storage (default) or wiki (default:
+  "storage")
+
+pncli confluence update-page
+  --id <page-id>             Page ID
+  --title <title>            New page title
+  --body <html>              New page body (storage format HTML)
+  --status <status>          Page status: current (default) or draft (default:
+  "current")
+  --representation <format>  Body format: storage (default) or wiki (default:
+  "storage")
+
+pncli confluence delete-page
+  --id <page-id>  Page ID
+
+pncli confluence list-comments
+  --id <page-id>  Page ID
+
+pncli confluence add-comment
+  --id <page-id>             Page ID
+  --body <text>              Comment body (storage format HTML)
+  --representation <format>  Body format: storage (default) or wiki (default:
+  "storage")
+
+pncli confluence add-label
+  --id <page-id>    Page ID
+  --labels <names>  Comma-separated label names
+
+pncli confluence remove-label
+  --id <page-id>  Page ID
+  --label <name>  Label name to remove
+
+pncli confluence list-spaces
+  --type <type>  Space type: global or personal
+  --limit <n>    Max results (default: all)
+
+pncli confluence get-space
+  --key <space-key>  Space key
+
+pncli confluence list-attachments
+  --id <page-id>  Page ID
 ```
 
 ### Sonar

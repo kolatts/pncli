@@ -12,6 +12,8 @@ const ENV_KEYS = {
   JIRA_API_TOKEN: 'PNCLI_JIRA_API_TOKEN',
   BITBUCKET_BASE_URL: 'PNCLI_BITBUCKET_BASE_URL',
   BITBUCKET_PAT: 'PNCLI_BITBUCKET_PAT',
+  CONFLUENCE_BASE_URL: 'PNCLI_CONFLUENCE_BASE_URL',
+  CONFLUENCE_API_TOKEN: 'PNCLI_CONFLUENCE_API_TOKEN',
   ARTIFACTORY_BASE_URL: 'PNCLI_ARTIFACTORY_BASE_URL',
   ARTIFACTORY_TOKEN: 'PNCLI_ARTIFACTORY_TOKEN',
   ARTIFACTORY_REPO_NPM: 'PNCLI_ARTIFACTORY_REPO_NPM',
@@ -94,6 +96,11 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       baseUrl: process.env[ENV_KEYS.BITBUCKET_BASE_URL] ?? globalConfig.bitbucket?.baseUrl,
       pat: process.env[ENV_KEYS.BITBUCKET_PAT] ?? globalConfig.bitbucket?.pat
     },
+    confluence: {
+      baseUrl: process.env[ENV_KEYS.CONFLUENCE_BASE_URL] ?? globalConfig.confluence?.baseUrl,
+      apiToken: process.env[ENV_KEYS.CONFLUENCE_API_TOKEN] ?? globalConfig.confluence?.apiToken
+        ?? process.env[ENV_KEYS.JIRA_API_TOKEN] ?? globalConfig.jira?.apiToken
+    },
     artifactory: {
       baseUrl: process.env[ENV_KEYS.ARTIFACTORY_BASE_URL] ?? globalConfig.artifactory?.baseUrl,
       token: process.env[ENV_KEYS.ARTIFACTORY_TOKEN] ?? globalConfig.artifactory?.token,
@@ -150,6 +157,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     bitbucket: {
       ...config.bitbucket,
       pat: config.bitbucket.pat ? '***' : undefined
+    },
+    confluence: {
+      ...config.confluence,
+      apiToken: config.confluence.apiToken ? '***' : undefined
     },
     artifactory: {
       ...config.artifactory,

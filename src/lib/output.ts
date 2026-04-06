@@ -1,3 +1,4 @@
+import fs from 'fs';
 import chalk from 'chalk';
 import type { Meta, SuccessEnvelope, ErrorEnvelope, ErrorDetail } from '../types/common.js';
 import { PncliError } from './errors.js';
@@ -61,8 +62,12 @@ export function fail(
 
   const output = (globalOptions.pretty ? JSON.stringify(envelope, null, 2) : JSON.stringify(envelope)) + '\n';
   const exitCode = err instanceof PncliError ? exitCodeFromStatus(err.status) : ExitCode.GENERAL_ERROR;
-  process.stdout.write(output, () => process.exit(exitCode));
-  throw new PncliError(errorDetail.message, errorDetail.status);
+  try {
+    fs.writeSync(process.stdout.fd, output);
+  } catch (writeErr) {
+    if ((writeErr as NodeJS.ErrnoException).code !== 'EPIPE') throw writeErr;
+  }
+  process.exit(exitCode);
 }
 
 export function log(message: string): void {

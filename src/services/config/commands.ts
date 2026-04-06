@@ -114,6 +114,16 @@ async function initGlobalConfig(start: number): Promise<void> {
     message: 'Bitbucket personal access token:'
   });
 
+  process.stderr.write('\n── Confluence ────────────────────────────────────\n');
+  const confluenceBaseUrl = await input({
+    message: 'Confluence base URL (e.g. https://confluence.your-company.com):',
+    default: ''
+  });
+
+  const confluenceApiToken = await password({
+    message: 'Confluence personal access token:'
+  });
+
   process.stderr.write('\n── Artifactory ───────────────────────────────────\n');
   const useArtifactory = await confirm({
     message: 'Configure Artifactory for dependency commands (deps outdated, deps license-check)?',
@@ -184,6 +194,12 @@ async function initGlobalConfig(start: number): Promise<void> {
       baseUrl: bitbucketBaseUrl || undefined,
       pat: bitbucketPat || undefined
     },
+    ...(confluenceBaseUrl || confluenceApiToken ? {
+      confluence: {
+        baseUrl: confluenceBaseUrl || undefined,
+        apiToken: confluenceApiToken || undefined
+      }
+    } : {}),
     ...(useArtifactory ? {
       artifactory: {
         baseUrl: artifactoryBaseUrl || undefined,

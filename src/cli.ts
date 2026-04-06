@@ -1,3 +1,10 @@
+// TLS verification is disabled by default — most enterprise Data Center installs
+// sit behind corporate SSL inspection proxies that break standard certificate chains.
+// To opt back in: set PNCLI_VERIFY_TLS=1
+if (!process.env.PNCLI_VERIFY_TLS) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
 import { Command } from 'commander';
 import { createRequire } from 'module';
 import { setGlobalOptions, setGlobalUser } from './lib/output.js';
@@ -55,9 +62,9 @@ program.addHelpText('after', `
 Services:
   git          Local git operations (status, diff, log, branch)
   deps         Dependency scanning, CVE detection, license auditing
-  jira         Jira Data Cloud (coming soon)
-  bitbucket    Bitbucket Server (coming soon)
-  confluence   Confluence (coming soon)
+  jira         Jira Data Cloud
+  bitbucket    Bitbucket Server
+  confluence   Confluence
   sonar        SonarQube (coming soon)
   config       Manage pncli configuration
 `);

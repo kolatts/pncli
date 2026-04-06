@@ -10,7 +10,8 @@ function getRepoFiles(repoRoot: string): string[] {
   try {
     const out = execSync('git ls-files --cached --others --exclude-standard', {
       encoding: 'utf8',
-      cwd: repoRoot
+      cwd: repoRoot,
+      maxBuffer: 10 * 1024 * 1024
     });
     return out.trim().split('\n').filter(Boolean);
   } catch {
@@ -31,7 +32,8 @@ function readFileAtRef(repoRoot: string, ref: string, relPath: string): string |
     return execFileSync('git', ['show', `${ref}:${relPath}`], {
       encoding: 'utf8',
       cwd: repoRoot,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
+      maxBuffer: 10 * 1024 * 1024
     });
   } catch {
     return null;
@@ -115,7 +117,8 @@ export function scanRepoAtRef(repoRoot: string, ref: string, opts: ScanOptions =
     const out = execFileSync('git', ['ls-tree', '-r', '--name-only', ref], {
       encoding: 'utf8',
       cwd: repoRoot,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
+      maxBuffer: 10 * 1024 * 1024
     });
     files = out.trim().split('\n').filter(Boolean);
   } catch {
