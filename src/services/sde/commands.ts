@@ -16,8 +16,9 @@ function getClient(program: Command): { client: SdeClient; config: ReturnType<ty
 function resolveProject(config: ReturnType<typeof loadConfig>, cliProject?: string): number {
   const project = cliProject ?? config.defaults.sde.project;
   if (!project) throw new PncliError('No project specified. Use --project or set defaults.sde.project in config.');
+  if (!/^\d+$/.test(project)) throw new PncliError(`Invalid project ID: "${project}". SDElements project IDs must be positive integers.`);
   const id = parseInt(project, 10);
-  if (isNaN(id)) throw new PncliError(`Invalid project ID: ${project}. SDElements project IDs are numeric.`);
+  if (id <= 0) throw new PncliError(`Invalid project ID: "${project}". SDElements project IDs must be positive integers.`);
   return id;
 }
 

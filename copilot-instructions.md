@@ -370,11 +370,6 @@ pncli sonar hotspots
 
 ### Sde
 
-Config keys: `sde.baseUrl`, `sde.token`. Env: `PNCLI_SDE_BASE_URL`, `PNCLI_SDE_TOKEN`.
-Cloud URL format: `https://your-org.sdelements.com` — on-prem: `https://sde.your-company.com`.
-Token: generate at **Settings → API Settings → APIv2 → Generate Token**. Shown once — store it immediately.
-Project IDs are numeric (e.g. `42`). Set `defaults.sde.project` in config or `.pncli.json` to avoid passing `--project` every time.
-
 ```
 pncli sde server-info
 
