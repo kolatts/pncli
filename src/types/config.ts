@@ -16,8 +16,7 @@ export interface SonarDefaults {
 }
 
 export interface SdeConfig {
-  baseUrl?: string;
-  token?: string;
+  connection?: string;
 }
 
 export interface SdeDefaults {

@@ -21,8 +21,7 @@ const ENV_KEYS = {
   ARTIFACTORY_REPO_MAVEN: 'PNCLI_ARTIFACTORY_REPO_MAVEN',
   SONAR_BASE_URL: 'PNCLI_SONAR_BASE_URL',
   SONAR_TOKEN: 'PNCLI_SONAR_TOKEN',
-  SDE_BASE_URL: 'PNCLI_SDE_BASE_URL',
-  SDE_TOKEN: 'PNCLI_SDE_TOKEN',
+  SDE_CONNECTION: 'PNCLI_SDE_CONNECTION',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -48,6 +47,12 @@ function getRepoRoot(): string | null {
   } catch {
     return null;
   }
+}
+
+function parseSdeConnection(connection: string): { token: string; baseUrl: string } | null {
+  const idx = connection.indexOf('@');
+  if (idx <= 0) return null;
+  return { token: connection.slice(0, idx), baseUrl: connection.slice(idx + 1) };
 }
 
 function mergeCustomFields(
@@ -118,10 +123,11 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       baseUrl: process.env[ENV_KEYS.SONAR_BASE_URL] ?? globalConfig.sonar?.baseUrl,
       token: process.env[ENV_KEYS.SONAR_TOKEN] ?? globalConfig.sonar?.token
     },
-    sde: {
-      baseUrl: process.env[ENV_KEYS.SDE_BASE_URL] ?? globalConfig.sde?.baseUrl,
-      token: process.env[ENV_KEYS.SDE_TOKEN] ?? globalConfig.sde?.token
-    },
+    sde: (() => {
+      const raw = process.env[ENV_KEYS.SDE_CONNECTION] ?? globalConfig.sde?.connection;
+      const parsed = raw ? parseSdeConnection(raw) : null;
+      return { baseUrl: parsed?.baseUrl, token: parsed?.token };
+    })(),
     defaults: mergedDefaults
   };
 }
@@ -185,7 +191,7 @@ export function maskConfig(config: ResolvedConfig): unknown {
       token: config.sonar.token ? '***' : undefined
     },
     sde: {
-      ...config.sde,
+      baseUrl: config.sde.baseUrl,
       token: config.sde.token ? '***' : undefined
     }
   };
