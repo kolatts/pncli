@@ -4,7 +4,7 @@
 
 ## What is pncli?
 
-pncli is a CLI tool that provides structured JSON access to Jira, Bitbucket, and local git state. Use it for all interactions with these services. It exists because MCP servers aren't available in this environment — pncli is your agent-friendly shim layer.
+pncli is a CLI tool that provides structured JSON access to Jira, Bitbucket, Confluence, SonarQube, and local git state. Use it for all interactions with these services. It exists because MCP servers aren't available in this environment — pncli is your agent-friendly shim layer.
 
 ## Important
 
@@ -50,6 +50,17 @@ pncli is a CLI tool that provides structured JSON access to Jira, Bitbucket, and
    `pncli jira link-issue --key <new-key> --link-type "is caused by" --target <original-key>`
 3. Add a PR comment referencing the issue:
    `pncli bitbucket add-comment --pr <id> --body "Created <new-key> to track this separately"`
+
+### Pre-Merge Quality Check
+
+1. Check quality gate status for the current branch:
+   `pncli sonar quality-gate --branch <branch-name>`
+2. If gate fails, inspect which issues are blocking:
+   `pncli sonar issues --types BUG,VULNERABILITY --statuses OPEN --branch <branch-name>`
+3. Check coverage and key metrics:
+   `pncli sonar measures --branch <branch-name>`
+4. Review security hotspots that need attention:
+   `pncli sonar hotspots --status TO_REVIEW --branch <branch-name>`
 
 ### Check Build Status Before Merging
 
@@ -313,7 +324,48 @@ pncli confluence list-attachments
 ### Sonar
 
 ```
-# sonar — no subcommands implemented yet
+pncli sonar quality-gate
+  --project <key>  SonarQube project key (or set defaults.sonar.project in
+  config)
+  --branch <name>  Branch name
+
+pncli sonar issues
+  --project <key>      SonarQube project key (or set defaults.sonar.project in
+  config)
+  --severities <list>  Filter by severity: BLOCKER,CRITICAL,MAJOR,MINOR,INFO
+  (comma-separated)
+  --types <list>       Filter by type: BUG,VULNERABILITY,CODE_SMELL
+  (comma-separated)
+  --statuses <list>    Filter by status: OPEN,CONFIRMED,REOPENED,RESOLVED,CLOSED
+  (comma-separated)
+  --branch <name>      Branch name
+  --resolved <bool>    Filter resolved issues: true or false
+  --page <n>           Page number (1-based) (default: "1")
+  --page-size <n>      Results per page (max 500) (default: "100")
+  --all                Fetch all pages (ignores --page/--page-size)
+
+pncli sonar measures
+  --project <key>   SonarQube project key (or set defaults.sonar.project in
+  config)
+  --metrics <list>  Comma-separated metric keys (default:
+  "coverage,duplicated_lines_density,bugs,vulnerabilities,code_smells,sqale_rating,reliability_rating,security_rating,ncloc")
+  --branch <name>   Branch name
+
+pncli sonar projects
+  --query <text>   Search query
+  --page <n>       Page number (1-based) (default: "1")
+  --page-size <n>  Results per page (default: "100")
+  --all            Fetch all pages
+
+pncli sonar hotspots
+  --project <key>      SonarQube project key (or set defaults.sonar.project in
+  config)
+  --status <status>    Filter: TO_REVIEW or REVIEWED
+  --resolution <list>  Filter: FIXED,SAFE,ACKNOWLEDGED (comma-separated)
+  --branch <name>      Branch name
+  --page <n>           Page number (1-based) (default: "1")
+  --page-size <n>      Results per page (default: "100")
+  --all                Fetch all pages
 ```
 
 ### Deps

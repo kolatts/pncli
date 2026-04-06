@@ -6,6 +6,15 @@ export interface ArtifactoryConfig {
   mavenRepo?: string;
 }
 
+export interface SonarConfig {
+  baseUrl?: string;
+  token?: string;
+}
+
+export interface SonarDefaults {
+  project?: string;
+}
+
 export interface JiraConfig {
   baseUrl?: string;
   apiToken?: string;
@@ -37,6 +46,7 @@ export interface BitbucketDefaults {
 export interface Defaults {
   jira?: JiraDefaults;
   bitbucket?: BitbucketDefaults;
+  sonar?: SonarDefaults;
 }
 
 export interface UserConfig {
@@ -50,6 +60,7 @@ export interface GlobalConfig {
   bitbucket?: BitbucketConfig;
   confluence?: ConfluenceConfig;
   artifactory?: ArtifactoryConfig;
+  sonar?: SonarConfig;
   defaults?: Defaults;
 }
 
@@ -77,8 +88,13 @@ export interface ResolvedConfig {
     apiToken: string | undefined;
   };
   artifactory: ArtifactoryConfig;
+  sonar: {
+    baseUrl: string | undefined;
+    token: string | undefined;
+  };
   defaults: {
     jira: JiraDefaults;
     bitbucket: BitbucketDefaults;
+    sonar: SonarDefaults;
   };
 }

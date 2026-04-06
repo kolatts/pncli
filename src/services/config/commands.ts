@@ -8,6 +8,7 @@ import {
   maskConfig,
   getGlobalConfigPath
 } from '../../lib/config.js';
+import { createHttpClient } from '../../lib/http.js';
 import { success, fail, warn } from '../../lib/output.js';
 import { ExitCode } from '../../lib/exitCodes.js';
 import fs from 'fs';
@@ -31,7 +32,8 @@ export function registerConfigCommands(program: Command): void {
         // Handle prompt cancellation (Ctrl+C) gracefully
         if (err instanceof Error && err.message.includes('User force closed')) {
           process.stderr.write('\nSetup cancelled.\n');
-          process.exit(ExitCode.GENERAL_ERROR);
+          process.exitCode = ExitCode.GENERAL_ERROR;
+          return;
         }
         fail(err, 'config', 'init', start);
       }
@@ -69,14 +71,64 @@ export function registerConfigCommands(program: Command): void {
   config
     .command('test')
     .description('Test connectivity to configured services')
-    .action(() => {
+    .action(async () => {
       const start = Date.now();
-      success(
-        { message: 'Service connectivity test available after Phase 2.' },
-        'config',
-        'test',
-        start
-      );
+      try {
+        const opts = program.optsWithGlobals();
+        const cfg = loadConfig({ configPath: opts.config });
+        const http = createHttpClient(cfg);
+
+        type ServiceResult = { ok: boolean; message: string } | { ok: null; message: string };
+        const results: Record<string, ServiceResult> = {};
+
+        if (cfg.jira.baseUrl) {
+          try {
+            await http.jira<unknown>('/rest/api/2/myself');
+            results.jira = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.jira = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.jira = { ok: null, message: 'not configured' };
+        }
+
+        if (cfg.bitbucket.baseUrl) {
+          try {
+            await http.bitbucket<unknown>('/rest/api/1.0/application-properties');
+            results.bitbucket = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.bitbucket = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.bitbucket = { ok: null, message: 'not configured' };
+        }
+
+        if (cfg.confluence.baseUrl) {
+          try {
+            await http.confluence<unknown>('/rest/api/space', { params: { limit: 1 } });
+            results.confluence = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.confluence = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.confluence = { ok: null, message: 'not configured' };
+        }
+
+        if (cfg.sonar.baseUrl) {
+          try {
+            await http.sonar<unknown>('/api/system/status');
+            results.sonar = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.sonar = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.sonar = { ok: null, message: 'not configured' };
+        }
+
+        success(results, 'config', 'test', start);
+      } catch (err) {
+        fail(err, 'config', 'test', start);
+      }
     });
 }
 
@@ -164,11 +216,36 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── SonarQube ─────────────────────────────────────\n');
+  const useSonar = await confirm({
+    message: 'Configure SonarQube Server for code quality checks?',
+    default: false
+  });
+
+  let sonarBaseUrl = '';
+  let sonarToken = '';
+
+  if (useSonar) {
+    sonarBaseUrl = await input({
+      message: 'SonarQube Server base URL (e.g. https://sonar.your-company.com):',
+      default: ''
+    });
+
+    sonarToken = await password({
+      message: 'SonarQube personal access token:'
+    });
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
     default: ''
   });
+
+  const sonarProject = useSonar ? await input({
+    message: 'Default SonarQube project key (optional):',
+    default: ''
+  }) : '';
 
   process.stderr.write('\n');
   const confirmed = await confirm({
@@ -178,7 +255,8 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (!confirmed) {
     process.stderr.write('Aborted.\n');
-    process.exit(ExitCode.SUCCESS);
+    process.exitCode = ExitCode.SUCCESS;
+    return;
   }
 
   writeGlobalConfig({
@@ -209,10 +287,21 @@ async function initGlobalConfig(start: number): Promise<void> {
         mavenRepo: mavenRepo || undefined
       }
     } : {}),
+    ...(useSonar ? {
+      sonar: {
+        baseUrl: sonarBaseUrl || undefined,
+        token: sonarToken || undefined
+      }
+    } : {}),
     defaults: {
       jira: {
         project: jiraProject || undefined
-      }
+      },
+      ...(useSonar && sonarProject ? {
+        sonar: {
+          project: sonarProject || undefined
+        }
+      } : {})
     }
   });
 
@@ -251,7 +340,8 @@ async function initRepoConfig(start: number): Promise<void> {
 
   if (!confirmed) {
     process.stderr.write('Aborted.\n');
-    process.exit(ExitCode.SUCCESS);
+    process.exitCode = ExitCode.SUCCESS;
+    return;
   }
 
   // Warn if .pncli.json already exists
@@ -262,7 +352,8 @@ async function initRepoConfig(start: number): Promise<void> {
     });
     if (!overwrite) {
       process.stderr.write('Aborted.\n');
-      process.exit(ExitCode.SUCCESS);
+      process.exitCode = ExitCode.SUCCESS;
+    return;
     }
   }
 
