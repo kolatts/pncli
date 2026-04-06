@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
-import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, SonarDefaults } from '../types/config.js';
+import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, SonarDefaults, SdeDefaults } from '../types/config.js';
 import type { CustomFieldDefinition } from '../types/jira.js';
 
 const ENV_KEYS = {
@@ -21,6 +21,8 @@ const ENV_KEYS = {
   ARTIFACTORY_REPO_MAVEN: 'PNCLI_ARTIFACTORY_REPO_MAVEN',
   SONAR_BASE_URL: 'PNCLI_SONAR_BASE_URL',
   SONAR_TOKEN: 'PNCLI_SONAR_TOKEN',
+  SDE_BASE_URL: 'PNCLI_SDE_BASE_URL',
+  SDE_TOKEN: 'PNCLI_SDE_TOKEN',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -61,11 +63,12 @@ function mergeCustomFields(
 function mergeDefaults(
   global: GlobalConfig['defaults'],
   repo: RepoConfig['defaults']
-): { jira: JiraDefaults; bitbucket: BitbucketDefaults; sonar: SonarDefaults } {
+): { jira: JiraDefaults; bitbucket: BitbucketDefaults; sonar: SonarDefaults; sde: SdeDefaults } {
   return {
     jira: { ...global?.jira, ...repo?.jira },
     bitbucket: { ...global?.bitbucket, ...repo?.bitbucket },
-    sonar: { ...global?.sonar, ...repo?.sonar }
+    sonar: { ...global?.sonar, ...repo?.sonar },
+    sde: { ...global?.sde, ...repo?.sde }
   };
 }
 
@@ -114,6 +117,10 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
     sonar: {
       baseUrl: process.env[ENV_KEYS.SONAR_BASE_URL] ?? globalConfig.sonar?.baseUrl,
       token: process.env[ENV_KEYS.SONAR_TOKEN] ?? globalConfig.sonar?.token
+    },
+    sde: {
+      baseUrl: process.env[ENV_KEYS.SDE_BASE_URL] ?? globalConfig.sde?.baseUrl,
+      token: process.env[ENV_KEYS.SDE_TOKEN] ?? globalConfig.sde?.token
     },
     defaults: mergedDefaults
   };
@@ -176,6 +183,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     sonar: {
       ...config.sonar,
       token: config.sonar.token ? '***' : undefined
+    },
+    sde: {
+      ...config.sde,
+      token: config.sde.token ? '***' : undefined
     }
   };
 }

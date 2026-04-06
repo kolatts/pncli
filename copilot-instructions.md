@@ -368,6 +368,84 @@ pncli sonar hotspots
   --all                Fetch all pages
 ```
 
+### Sde
+
+```
+pncli sde server-info
+
+pncli sde whoami
+
+pncli sde users
+  --email <email>      Filter by email address
+  --first-name <name>  Filter by first name
+  --last-name <name>   Filter by last name
+  --active <bool>      Filter by active status: true or false
+  --page <n>           Page number (1-based) (default: "1")
+  --page-size <n>      Results per page (default: "100")
+  --all                Fetch all pages
+
+pncli sde projects
+  --name <name>       Filter by project name
+  --search <text>     Text search on name and profile
+  --active <val>      Filter by active status: true, false, or all
+  --ordering <field>  Sort by: name, created, updated (prefix with - for
+  descending)
+  --expand <fields>   Expand nested fields (comma-separated):
+  application,business_unit,creator
+  --include <fields>  Include extra fields (comma-separated):
+  task_counts,permissions
+  --page <n>          Page number (1-based) (default: "1")
+  --page-size <n>     Results per page (default: "100")
+  --all               Fetch all pages
+
+pncli sde project
+  --id <id>           Project ID (or set defaults.sde.project in config)
+  --expand <fields>   Expand nested fields (comma-separated):
+  application,business_unit,creator
+  --include <fields>  Include extra fields (comma-separated):
+  task_counts,permissions
+
+pncli sde tasks
+  --project <id>         Project ID (or set defaults.sde.project in config)
+  --phase <slug>         Filter by phase slug (e.g. development,
+  architecture-design)
+  --priority <n>         Filter by priority (1-10)
+  --status <id>          Filter by status ID (e.g. TS1, TS2)
+  --assigned-to <email>  Filter by assignee email
+  --source <val>         Filter by source: default, custom, manual, project
+  --verification <val>   Filter by verification: pass, fail, partial, none
+  --tag <name>           Filter by tag name
+  --accepted <bool>      Filter by accepted status: true or false
+  --relevant <bool>      Filter by relevant status: true or false
+  --expand <fields>      Expand nested fields (comma-separated):
+  status,phase,problem,text
+  --include <fields>     Include extra fields (comma-separated):
+  how_tos,last_note,references,regulation_sections
+  --page <n>             Page number (1-based) (default: "1")
+  --page-size <n>        Results per page (default: "100")
+  --all                  Fetch all pages
+
+pncli sde task
+  --project <id>      Project ID (or set defaults.sde.project in config)
+  --task <id>         Task ID (e.g. T21)
+  --expand <fields>   Expand nested fields (comma-separated):
+  status,phase,problem,text
+  --include <fields>  Include extra fields (comma-separated):
+  how_tos,last_note,references
+
+pncli sde threats
+  --project <id>       Project ID (or set defaults.sde.project in config)
+  --severity <n>       Filter by severity (1-10)
+  --search <text>      Full-text search on title and threat ID
+  --ordering <field>   Sort by: threat__severity, threat_id, status (prefix -
+  for descending)
+  --capec-id <id>      Filter by CAPEC attack pattern ID
+  --component-id <id>  Filter by component ID
+  --page <n>           Page number (1-based) (default: "1")
+  --page-size <n>      Results per page (default: "100")
+  --all                Fetch all pages
+```
+
 ### Deps
 
 ```

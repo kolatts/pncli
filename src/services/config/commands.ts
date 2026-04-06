@@ -125,6 +125,17 @@ export function registerConfigCommands(program: Command): void {
           results.sonar = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.sde.baseUrl) {
+          try {
+            await http.sde<unknown>('/api/v2/users/me/');
+            results.sde = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.sde = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.sde = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -236,6 +247,26 @@ async function initGlobalConfig(start: number): Promise<void> {
     });
   }
 
+  process.stderr.write('\n── SDElements ────────────────────────────────────\n');
+  const useSde = await confirm({
+    message: 'Configure SDElements for threat modeling and countermeasure queries?',
+    default: false
+  });
+
+  let sdeBaseUrl = '';
+  let sdeToken = '';
+
+  if (useSde) {
+    sdeBaseUrl = await input({
+      message: 'SDElements base URL (e.g. https://your-org.sdelements.com or https://sde.your-company.com):',
+      default: ''
+    });
+
+    sdeToken = await password({
+      message: 'SDElements API token:'
+    });
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -244,6 +275,11 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   const sonarProject = useSonar ? await input({
     message: 'Default SonarQube project key (optional):',
+    default: ''
+  }) : '';
+
+  const sdeProject = useSde ? await input({
+    message: 'Default SDElements project ID (optional, numeric):',
     default: ''
   }) : '';
 
@@ -293,6 +329,12 @@ async function initGlobalConfig(start: number): Promise<void> {
         token: sonarToken || undefined
       }
     } : {}),
+    ...(useSde ? {
+      sde: {
+        baseUrl: sdeBaseUrl || undefined,
+        token: sdeToken || undefined
+      }
+    } : {}),
     defaults: {
       jira: {
         project: jiraProject || undefined
@@ -300,6 +342,11 @@ async function initGlobalConfig(start: number): Promise<void> {
       ...(useSonar && sonarProject ? {
         sonar: {
           project: sonarProject || undefined
+        }
+      } : {}),
+      ...(useSde && sdeProject ? {
+        sde: {
+          project: sdeProject || undefined
         }
       } : {})
     }
