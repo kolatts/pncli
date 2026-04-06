@@ -67,7 +67,8 @@ export function fail(
   } catch (writeErr) {
     if ((writeErr as NodeJS.ErrnoException).code !== 'EPIPE') throw writeErr;
   }
-  process.exit(exitCode);
+  process.exitCode = exitCode;
+  throw new PncliError(errorDetail.message, errorDetail.status);
 }
 
 export function log(message: string): void {

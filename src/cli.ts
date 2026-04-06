@@ -65,11 +65,12 @@ Services:
   jira         Jira Data Cloud
   bitbucket    Bitbucket Server
   confluence   Confluence
-  sonar        SonarQube (coming soon)
+  sonar        SonarQube Server (quality gates, issues, metrics, hotspots)
   config       Manage pncli configuration
 `);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
+  if (process.exitCode !== undefined) return; // already handled by fail() or dry-run
   process.stderr.write(`Fatal: ${err instanceof Error ? err.message : String(err)}\n`);
-  process.exit(ExitCode.GENERAL_ERROR);
+  process.exitCode = ExitCode.GENERAL_ERROR;
 });

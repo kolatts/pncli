@@ -1,3 +1,4 @@
+import fs from 'fs';
 import type { ResolvedConfig } from '../types/config.js';
 import { PncliError } from './errors.js';
 import { ExitCode } from './exitCodes.js';
@@ -85,10 +86,11 @@ async function request<T>(
             parts.push(`${field}: ${msg}`);
           }
         }
-        // errors as array of objects with message field (other APIs)
+        // errors as array of objects with message or msg field (SonarQube uses msg)
         if (Array.isArray(parsed.errors)) {
-          for (const e of parsed.errors as Array<{ message?: string }>) {
+          for (const e of parsed.errors as Array<{ message?: string; msg?: string }>) {
             if (e?.message) parts.push(e.message);
+            else if (e?.msg) parts.push(e.msg);
           }
         }
         // Generic APIs: { message: "..." }
@@ -106,7 +108,9 @@ async function request<T>(
       return undefined as T;
     }
 
-    return response.json() as Promise<T>;
+    const text = await response.text();
+    if (!text) return undefined as T;
+    return JSON.parse(text) as T;
   }
 
   throw lastError ?? new PncliError('Request failed after retries', 1, url);
@@ -162,8 +166,9 @@ export class HttpClient {
       const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
       const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
         + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
-      process.stderr.write(msg, () => process.exit(ExitCode.SUCCESS));
-      return new Promise<never>(() => { /* exit pending */ });
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
     }
 
     return request<T>(url, init, opts.timeoutMs ?? 30000);
@@ -188,8 +193,9 @@ export class HttpClient {
       const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
       const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
         + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
-      process.stderr.write(msg, () => process.exit(ExitCode.SUCCESS));
-      return new Promise<never>(() => { /* exit pending */ });
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
     }
 
     return request<T>(url, init, opts.timeoutMs ?? 30000);
@@ -225,11 +231,67 @@ export class HttpClient {
       const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
       const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
         + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
-      process.stderr.write(msg, () => process.exit(ExitCode.SUCCESS));
-      return new Promise<never>(() => { /* exit pending */ });
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
     }
 
     return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
+  private sonarHeaders(): Record<string, string> {
+    const { token } = this.config.sonar;
+    if (!token) throw new PncliError('SonarQube credentials not configured. Run: pncli config init');
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+  }
+
+  async sonar<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.sonar.baseUrl;
+    if (!baseUrl) throw new PncliError('SonarQube baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.sonarHeaders();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
+  async sonarPaginate<T>(
+    fetchPage: (page: number, pageSize: number) => Promise<{ total: number; p: number; ps: number; items: T[] }>
+  ): Promise<T[]> {
+    const results: T[] = [];
+    let page = 1;
+    const pageSize = 500;
+
+    while (true) {
+      const response = await fetchPage(page, pageSize);
+      results.push(...response.items);
+      if (results.length >= response.total || response.items.length === 0) break;
+      page++;
+    }
+
+    return results;
   }
 
   async confluencePaginate<T>(

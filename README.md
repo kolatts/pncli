@@ -2,7 +2,7 @@
 
 > One command does what three meetings couldn't.
 
-pncli gives AI coding agents (and humans) structured CLI access to Jira, Bitbucket, and Confluence. No MCP servers required. No meetings to schedule. No forms to fill out.
+pncli gives AI coding agents (and humans) structured CLI access to Jira, Bitbucket, Confluence, and SonarQube. No MCP servers required. No meetings to schedule. No forms to fill out.
 
 ## Why?
 
@@ -45,6 +45,8 @@ pncli uses a three-layer config system (highest priority wins):
 | `PNCLI_JIRA_API_TOKEN` | Jira API token |
 | `PNCLI_BITBUCKET_BASE_URL` | Bitbucket Server base URL |
 | `PNCLI_BITBUCKET_PAT` | Bitbucket personal access token |
+| `PNCLI_SONAR_BASE_URL` | SonarQube Server base URL |
+| `PNCLI_SONAR_TOKEN` | SonarQube personal access token |
 | `PNCLI_CONFIG_PATH` | Override global config file path |
 
 ## For AI Agents
@@ -79,7 +81,7 @@ This project uses Conventional Commits for automatic versioning:
 | Jira | ✅ Active | Data Cloud REST v3 |
 | Bitbucket | ✅ Active | Server REST v1.0 |
 | Confluence | ✅ Active | Server REST v1 |
-| SonarQube | 🔜 Coming | The nightmare never ends |
+| SonarQube | ✅ Active | Server Web API |
 | Artifactory | 🔜 Coming | The nightmare never ends |
 
 ## License

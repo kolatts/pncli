@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
-import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults } from '../types/config.js';
+import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, SonarDefaults } from '../types/config.js';
 import type { CustomFieldDefinition } from '../types/jira.js';
 
 const ENV_KEYS = {
@@ -19,6 +19,8 @@ const ENV_KEYS = {
   ARTIFACTORY_REPO_NPM: 'PNCLI_ARTIFACTORY_REPO_NPM',
   ARTIFACTORY_REPO_NUGET: 'PNCLI_ARTIFACTORY_REPO_NUGET',
   ARTIFACTORY_REPO_MAVEN: 'PNCLI_ARTIFACTORY_REPO_MAVEN',
+  SONAR_BASE_URL: 'PNCLI_SONAR_BASE_URL',
+  SONAR_TOKEN: 'PNCLI_SONAR_TOKEN',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -59,10 +61,11 @@ function mergeCustomFields(
 function mergeDefaults(
   global: GlobalConfig['defaults'],
   repo: RepoConfig['defaults']
-): { jira: JiraDefaults; bitbucket: BitbucketDefaults } {
+): { jira: JiraDefaults; bitbucket: BitbucketDefaults; sonar: SonarDefaults } {
   return {
     jira: { ...global?.jira, ...repo?.jira },
-    bitbucket: { ...global?.bitbucket, ...repo?.bitbucket }
+    bitbucket: { ...global?.bitbucket, ...repo?.bitbucket },
+    sonar: { ...global?.sonar, ...repo?.sonar }
   };
 }
 
@@ -107,6 +110,10 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       npmRepo: process.env[ENV_KEYS.ARTIFACTORY_REPO_NPM] ?? globalConfig.artifactory?.npmRepo,
       nugetRepo: process.env[ENV_KEYS.ARTIFACTORY_REPO_NUGET] ?? globalConfig.artifactory?.nugetRepo,
       mavenRepo: process.env[ENV_KEYS.ARTIFACTORY_REPO_MAVEN] ?? globalConfig.artifactory?.mavenRepo
+    },
+    sonar: {
+      baseUrl: process.env[ENV_KEYS.SONAR_BASE_URL] ?? globalConfig.sonar?.baseUrl,
+      token: process.env[ENV_KEYS.SONAR_TOKEN] ?? globalConfig.sonar?.token
     },
     defaults: mergedDefaults
   };
@@ -165,6 +172,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     artifactory: {
       ...config.artifactory,
       token: config.artifactory.token ? '***' : undefined
+    },
+    sonar: {
+      ...config.sonar,
+      token: config.sonar.token ? '***' : undefined
     }
   };
 }
