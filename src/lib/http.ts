@@ -1,3 +1,4 @@
+import fs from 'fs';
 import type { ResolvedConfig } from '../types/config.js';
 import { PncliError } from './errors.js';
 import { ExitCode } from './exitCodes.js';
@@ -106,7 +107,9 @@ async function request<T>(
       return undefined as T;
     }
 
-    return response.json() as Promise<T>;
+    const text = await response.text();
+    if (!text) return undefined as T;
+    return JSON.parse(text) as T;
   }
 
   throw lastError ?? new PncliError('Request failed after retries', 1, url);
@@ -162,8 +165,9 @@ export class HttpClient {
       const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
       const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
         + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
-      process.stderr.write(msg, () => process.exit(ExitCode.SUCCESS));
-      return new Promise<never>(() => { /* exit pending */ });
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
     }
 
     return request<T>(url, init, opts.timeoutMs ?? 30000);
@@ -188,8 +192,9 @@ export class HttpClient {
       const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
       const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
         + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
-      process.stderr.write(msg, () => process.exit(ExitCode.SUCCESS));
-      return new Promise<never>(() => { /* exit pending */ });
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
     }
 
     return request<T>(url, init, opts.timeoutMs ?? 30000);
@@ -225,8 +230,9 @@ export class HttpClient {
       const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
       const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
         + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
-      process.stderr.write(msg, () => process.exit(ExitCode.SUCCESS));
-      return new Promise<never>(() => { /* exit pending */ });
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
     }
 
     return request<T>(url, init, opts.timeoutMs ?? 30000);
