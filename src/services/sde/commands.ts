@@ -21,6 +21,20 @@ function resolveProject(config: ReturnType<typeof loadConfig>, cliProject?: stri
   return id;
 }
 
+function parsePage(val: string, flag: string): number {
+  const n = parseInt(val, 10);
+  if (isNaN(n) || n < 1) throw new PncliError(`Invalid ${flag}: "${val}". Must be a positive integer.`);
+  return n;
+}
+
+function validateActive(val: string | undefined, allowed: string[]): string | undefined {
+  if (val === undefined) return undefined;
+  if (!allowed.includes(val)) {
+    throw new PncliError(`Invalid --active value: "${val}". Allowed: ${allowed.join(', ')}.`);
+  }
+  return val;
+}
+
 export function registerSdeCommands(program: Command): void {
   const sde = program.command('sde').description('SDElements operations (threat modeling, countermeasures, compliance)');
 
@@ -69,7 +83,7 @@ export function registerSdeCommands(program: Command): void {
           email: opts.email,
           firstName: opts.firstName,
           lastName: opts.lastName,
-          isActive: opts.active
+          isActive: validateActive(opts.active, ['true', 'false'])
         };
         if (opts.all) {
           const data = await client.listAllUsers(baseOpts);
@@ -77,8 +91,8 @@ export function registerSdeCommands(program: Command): void {
         } else {
           const data = await client.listUsers({
             ...baseOpts,
-            page: parseInt(opts.page, 10),
-            pageSize: parseInt(opts.pageSize, 10)
+            page: parsePage(opts.page, '--page'),
+            pageSize: parsePage(opts.pageSize, '--page-size')
           });
           success(data, 'sde', 'users', start);
         }
@@ -105,7 +119,7 @@ export function registerSdeCommands(program: Command): void {
         const baseOpts = {
           name: opts.name,
           search: opts.search,
-          active: opts.active,
+          active: validateActive(opts.active, ['true', 'false', 'all']),
           ordering: opts.ordering,
           expand: opts.expand,
           include: opts.include
@@ -116,8 +130,8 @@ export function registerSdeCommands(program: Command): void {
         } else {
           const data = await client.listProjects({
             ...baseOpts,
-            page: parseInt(opts.page, 10),
-            pageSize: parseInt(opts.pageSize, 10)
+            page: parsePage(opts.page, '--page'),
+            pageSize: parsePage(opts.pageSize, '--page-size')
           });
           success(data, 'sde', 'projects', start);
         }
@@ -185,8 +199,8 @@ export function registerSdeCommands(program: Command): void {
         } else {
           const data = await client.listTasks({
             ...baseOpts,
-            page: parseInt(opts.page, 10),
-            pageSize: parseInt(opts.pageSize, 10)
+            page: parsePage(opts.page, '--page'),
+            pageSize: parsePage(opts.pageSize, '--page-size')
           });
           success(data, 'sde', 'tasks', start);
         }
@@ -243,8 +257,8 @@ export function registerSdeCommands(program: Command): void {
         } else {
           const data = await client.listThreats({
             ...baseOpts,
-            page: parseInt(opts.page, 10),
-            pageSize: parseInt(opts.pageSize, 10)
+            page: parsePage(opts.page, '--page'),
+            pageSize: parsePage(opts.pageSize, '--page-size')
           });
           success(data, 'sde', 'threats', start);
         }

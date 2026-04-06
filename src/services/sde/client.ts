@@ -61,6 +61,63 @@ export interface ListUsersOpts {
   pageSize?: number;
 }
 
+function projectParams(opts: Omit<ListProjectsOpts, 'page' | 'pageSize'>, page: number, pageSize: number) {
+  return {
+    name: opts.name,
+    slug: opts.slug,
+    search: opts.search,
+    active: opts.active,
+    ordering: opts.ordering,
+    expand: opts.expand,
+    include: opts.include,
+    page,
+    page_size: pageSize
+  };
+}
+
+function taskParams(opts: Omit<ListTasksOpts, 'page' | 'pageSize'>, page: number, pageSize: number) {
+  return {
+    phase: opts.phase,
+    priority: opts.priority,
+    status: opts.status,
+    assigned_to: opts.assignedTo,
+    source: opts.source,
+    verification: opts.verification,
+    tag: opts.tag,
+    accepted: opts.accepted,
+    relevant: opts.relevant,
+    expand: opts.expand,
+    include: opts.include,
+    page,
+    page_size: pageSize
+  };
+}
+
+function threatParams(opts: Omit<ListThreatsOpts, 'page' | 'pageSize'>, page: number, pageSize: number) {
+  return {
+    severity: opts.severity,
+    title: opts.title,
+    threat_id: opts.threatId,
+    capec_id: opts.capecId,
+    component_id: opts.componentId,
+    search: opts.search,
+    ordering: opts.ordering,
+    page,
+    page_size: pageSize
+  };
+}
+
+function userParams(opts: Omit<ListUsersOpts, 'page' | 'pageSize'>, page: number, pageSize: number) {
+  return {
+    email: opts.email,
+    first_name: opts.firstName,
+    last_name: opts.lastName,
+    is_active: opts.isActive,
+    page,
+    page_size: pageSize
+  };
+}
+
 export class SdeClient {
   constructor(private http: HttpClient) {}
 
@@ -86,34 +143,14 @@ export class SdeClient {
 
   async listProjects(opts: ListProjectsOpts = {}): Promise<SdePaginatedResponse<SdeProject>> {
     return this.http.sde<SdePaginatedResponse<SdeProject>>(`${API}/projects/`, {
-      params: {
-        name: opts.name,
-        slug: opts.slug,
-        search: opts.search,
-        active: opts.active,
-        ordering: opts.ordering,
-        expand: opts.expand,
-        include: opts.include,
-        page: opts.page ?? 1,
-        page_size: opts.pageSize ?? 100
-      }
+      params: projectParams(opts, opts.page ?? 1, opts.pageSize ?? 100)
     });
   }
 
   async listAllProjects(opts: Omit<ListProjectsOpts, 'page' | 'pageSize'> = {}): Promise<SdeProject[]> {
     return this.http.sdePaginate<SdeProject>(async (page, pageSize) => {
       const resp = await this.http.sde<SdePaginatedResponse<SdeProject>>(`${API}/projects/`, {
-        params: {
-          name: opts.name,
-          slug: opts.slug,
-          search: opts.search,
-          active: opts.active,
-          ordering: opts.ordering,
-          expand: opts.expand,
-          include: opts.include,
-          page,
-          page_size: pageSize
-        }
+        params: projectParams(opts, page, pageSize)
       });
       return { count: resp.count, results: resp.results };
     });
@@ -121,42 +158,14 @@ export class SdeClient {
 
   async listTasks(opts: ListTasksOpts): Promise<SdePaginatedResponse<SdeTask>> {
     return this.http.sde<SdePaginatedResponse<SdeTask>>(`${API}/projects/${opts.projectId}/tasks/`, {
-      params: {
-        phase: opts.phase,
-        priority: opts.priority,
-        status: opts.status,
-        assigned_to: opts.assignedTo,
-        source: opts.source,
-        verification: opts.verification,
-        tag: opts.tag,
-        accepted: opts.accepted,
-        relevant: opts.relevant,
-        expand: opts.expand,
-        include: opts.include,
-        page: opts.page ?? 1,
-        page_size: opts.pageSize ?? 100
-      }
+      params: taskParams(opts, opts.page ?? 1, opts.pageSize ?? 100)
     });
   }
 
   async listAllTasks(opts: Omit<ListTasksOpts, 'page' | 'pageSize'>): Promise<SdeTask[]> {
     return this.http.sdePaginate<SdeTask>(async (page, pageSize) => {
       const resp = await this.http.sde<SdePaginatedResponse<SdeTask>>(`${API}/projects/${opts.projectId}/tasks/`, {
-        params: {
-          phase: opts.phase,
-          priority: opts.priority,
-          status: opts.status,
-          assigned_to: opts.assignedTo,
-          source: opts.source,
-          verification: opts.verification,
-          tag: opts.tag,
-          accepted: opts.accepted,
-          relevant: opts.relevant,
-          expand: opts.expand,
-          include: opts.include,
-          page,
-          page_size: pageSize
-        }
+        params: taskParams(opts, page, pageSize)
       });
       return { count: resp.count, results: resp.results };
     });
@@ -164,34 +173,14 @@ export class SdeClient {
 
   async listThreats(opts: ListThreatsOpts): Promise<SdePaginatedResponse<SdeThreat>> {
     return this.http.sde<SdePaginatedResponse<SdeThreat>>(`${API}/projects/${opts.projectId}/threats/`, {
-      params: {
-        severity: opts.severity,
-        title: opts.title,
-        threat_id: opts.threatId,
-        capec_id: opts.capecId,
-        component_id: opts.componentId,
-        search: opts.search,
-        ordering: opts.ordering,
-        page: opts.page ?? 1,
-        page_size: opts.pageSize ?? 100
-      }
+      params: threatParams(opts, opts.page ?? 1, opts.pageSize ?? 100)
     });
   }
 
   async listAllThreats(opts: Omit<ListThreatsOpts, 'page' | 'pageSize'>): Promise<SdeThreat[]> {
     return this.http.sdePaginate<SdeThreat>(async (page, pageSize) => {
       const resp = await this.http.sde<SdePaginatedResponse<SdeThreat>>(`${API}/projects/${opts.projectId}/threats/`, {
-        params: {
-          severity: opts.severity,
-          title: opts.title,
-          threat_id: opts.threatId,
-          capec_id: opts.capecId,
-          component_id: opts.componentId,
-          search: opts.search,
-          ordering: opts.ordering,
-          page,
-          page_size: pageSize
-        }
+        params: threatParams(opts, page, pageSize)
       });
       return { count: resp.count, results: resp.results };
     });
@@ -199,28 +188,14 @@ export class SdeClient {
 
   async listUsers(opts: ListUsersOpts = {}): Promise<SdePaginatedResponse<SdeUser>> {
     return this.http.sde<SdePaginatedResponse<SdeUser>>(`${API}/users/`, {
-      params: {
-        email: opts.email,
-        first_name: opts.firstName,
-        last_name: opts.lastName,
-        is_active: opts.isActive,
-        page: opts.page ?? 1,
-        page_size: opts.pageSize ?? 100
-      }
+      params: userParams(opts, opts.page ?? 1, opts.pageSize ?? 100)
     });
   }
 
   async listAllUsers(opts: Omit<ListUsersOpts, 'page' | 'pageSize'> = {}): Promise<SdeUser[]> {
     return this.http.sdePaginate<SdeUser>(async (page, pageSize) => {
       const resp = await this.http.sde<SdePaginatedResponse<SdeUser>>(`${API}/users/`, {
-        params: {
-          email: opts.email,
-          first_name: opts.firstName,
-          last_name: opts.lastName,
-          is_active: opts.isActive,
-          page,
-          page_size: pageSize
-        }
+        params: userParams(opts, page, pageSize)
       });
       return { count: resp.count, results: resp.results };
     });

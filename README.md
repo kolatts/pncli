@@ -1,8 +1,10 @@
 # pncli — The Paperwork Nightmare CLI
 
+[![npm](https://img.shields.io/npm/v/%40kolatts%2Fpncli?style=flat-square&color=cb3837&logo=npm)](https://www.npmjs.com/package/@kolatts/pncli)
+
 > One command does what three meetings couldn't.
 
-pncli gives AI coding agents (and humans) structured CLI access to Jira, Bitbucket, Confluence, and SonarQube. No MCP servers required. No meetings to schedule. No forms to fill out.
+pncli gives AI coding agents (and humans) structured CLI access to Jira, Bitbucket, Confluence, SonarQube, and SDElements. No MCP servers required. No meetings to schedule. No forms to fill out.
 
 ## Why?
 
@@ -47,6 +49,8 @@ pncli uses a three-layer config system (highest priority wins):
 | `PNCLI_BITBUCKET_PAT` | Bitbucket personal access token |
 | `PNCLI_SONAR_BASE_URL` | SonarQube Server base URL |
 | `PNCLI_SONAR_TOKEN` | SonarQube personal access token |
+| `PNCLI_SDE_BASE_URL` | SDElements base URL |
+| `PNCLI_SDE_TOKEN` | SDElements API token |
 | `PNCLI_CONFIG_PATH` | Override global config file path |
 
 ## For AI Agents
@@ -82,6 +86,7 @@ This project uses Conventional Commits for automatic versioning:
 | Bitbucket | ✅ Active | Server REST v1.0 |
 | Confluence | ✅ Active | Server REST v1 |
 | SonarQube | ✅ Active | Server Web API |
+| SDElements | ✅ Active | REST API v2 (cloud + on-prem) |
 | Artifactory | 🔜 Coming | The nightmare never ends |
 
 ## License
