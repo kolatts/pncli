@@ -146,7 +146,7 @@ export function registerConfluenceCommands(program: Command): void {
         const nextVersion = current.version.number + 1;
         const data = await client.updatePage(opts.id, {
           version: nextVersion,
-          title: opts.title,
+          title: opts.title ?? current.title,
           body: opts.body,
           status: opts.status,
           representation: opts.representation

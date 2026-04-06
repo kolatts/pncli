@@ -242,7 +242,7 @@ export class HttpClient {
     while (true) {
       const page = await fetchPage(start, limit);
       results.push(...page.results);
-      if (!page._links.next || page.size < limit) break;
+      if (!page._links.next) break;
       start += page.size;
     }
 

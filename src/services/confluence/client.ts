@@ -21,7 +21,7 @@ export interface CreatePageOpts {
 
 export interface UpdatePageOpts {
   version: number;
-  title?: string;
+  title: string;
   body?: string;
   status?: string;
   representation?: string;
@@ -61,9 +61,10 @@ export class ConfluenceClient {
   }
 
   async listPages(spaceKey: string, opts: ListPagesOpts = {}): Promise<ConfluencePage[]> {
+    const initialStart = opts.start ?? 0;
     return this.http.confluencePaginate<ConfluencePage>(async (start, limit) => {
       return this.http.confluence<ConfluencePageResponse<ConfluencePage>>(`${API}/content`, {
-        params: { spaceKey, type: 'page', expand: 'version', start, limit: opts.limit ?? limit }
+        params: { spaceKey, type: 'page', expand: 'version', start: initialStart + start, limit: opts.limit ?? limit }
       });
     });
   }
@@ -118,9 +119,9 @@ export class ConfluenceClient {
     const body: Record<string, unknown> = {
       version: { number: opts.version },
       type: 'page',
+      title: opts.title,
       status: opts.status ?? 'current'
     };
-    if (opts.title) body.title = opts.title;
     if (opts.body !== undefined) {
       body.body = {
         storage: {
@@ -174,10 +175,11 @@ export class ConfluenceClient {
   }
 
   async listSpaces(opts: ListSpacesOpts = {}): Promise<ConfluenceSpace[]> {
+    const initialStart = opts.start ?? 0;
     return this.http.confluencePaginate<ConfluenceSpace>(async (start, limit) => {
       return this.http.confluence<ConfluencePageResponse<ConfluenceSpace>>(`${API}/space`, {
         params: {
-          start,
+          start: initialStart + start,
           limit: opts.limit ?? limit,
           ...(opts.type ? { type: opts.type } : {})
         }
