@@ -239,6 +239,61 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
+  private sdeHeaders(): Record<string, string> {
+    const { token } = this.config.sde;
+    if (!token) throw new PncliError('SDElements credentials not configured. Run: pncli config init');
+    return {
+      'Authorization': `Token ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+  }
+
+  async sde<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.sde.baseUrl;
+    if (!baseUrl) throw new PncliError('SDElements baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.sdeHeaders();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
+  async sdePaginate<T>(
+    fetchPage: (page: number, pageSize: number) => Promise<{ count: number; results: T[] }>
+  ): Promise<T[]> {
+    const results: T[] = [];
+    let page = 1;
+    const pageSize = 100;
+
+    while (true) {
+      const response = await fetchPage(page, pageSize);
+      results.push(...response.results);
+      if (results.length >= response.count || response.results.length === 0) break;
+      page++;
+    }
+
+    return results;
+  }
+
   private sonarHeaders(): Record<string, string> {
     const { token } = this.config.sonar;
     if (!token) throw new PncliError('SonarQube credentials not configured. Run: pncli config init');
