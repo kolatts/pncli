@@ -17,6 +17,11 @@ export interface BitbucketConfig {
   pat?: string;
 }
 
+export interface ConfluenceConfig {
+  baseUrl?: string;
+  apiToken?: string;
+}
+
 export interface JiraDefaults {
   project?: string;
   issueType?: string;
@@ -43,6 +48,7 @@ export interface GlobalConfig {
   user?: UserConfig;
   jira?: JiraConfig;
   bitbucket?: BitbucketConfig;
+  confluence?: ConfluenceConfig;
   artifactory?: ArtifactoryConfig;
   defaults?: Defaults;
 }
@@ -65,6 +71,10 @@ export interface ResolvedConfig {
   bitbucket: {
     baseUrl: string | undefined;
     pat: string | undefined;
+  };
+  confluence: {
+    baseUrl: string | undefined;
+    apiToken: string | undefined;
   };
   artifactory: ArtifactoryConfig;
   defaults: {

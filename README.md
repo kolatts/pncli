@@ -2,7 +2,7 @@
 
 > One command does what three meetings couldn't.
 
-pncli gives AI coding agents (and humans) structured CLI access to Jira Data Cloud and Bitbucket Server. No MCP servers required. No meetings to schedule. No forms to fill out.
+pncli gives AI coding agents (and humans) structured CLI access to Jira, Bitbucket, and Confluence. No MCP servers required. No meetings to schedule. No forms to fill out.
 
 ## Why?
 
@@ -17,20 +17,14 @@ npm install -g @kolatts/pncli
 ## Quick Start
 
 ```bash
-# Configure your global auth
+# Configure your global auth (Jira, Bitbucket, Confluence)
 pncli config init
 
 # Add repo-level defaults (check this into git)
 pncli config init --repo
-
-# Review the PR for your current branch
-pncli git current-pr
-pncli bitbucket diff --pr 42
-pncli bitbucket add-inline-comment --pr 42 --file src/app.ts --line 15 --body "This needs a null check"
-
-# Create a Jira issue (uses defaults from .pncli.json)
-pncli jira create-issue --summary "Missing null check in app.ts"
 ```
+
+For workflow patterns, command examples, and agent integration, see [`copilot-instructions.md`](./copilot-instructions.md).
 
 ## Configuration
 
@@ -84,7 +78,7 @@ This project uses Conventional Commits for automatic versioning:
 | Git (local) | ✅ Active | Local git commands |
 | Jira | ✅ Active | Data Cloud REST v3 |
 | Bitbucket | ✅ Active | Server REST v1.0 |
-| Confluence | 🔜 Coming | The nightmare never ends |
+| Confluence | ✅ Active | Server REST v1 |
 | SonarQube | 🔜 Coming | The nightmare never ends |
 | Artifactory | 🔜 Coming | The nightmare never ends |
 
