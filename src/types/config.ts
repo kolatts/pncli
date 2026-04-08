@@ -51,11 +51,40 @@ export interface BitbucketDefaults {
   targetBranch?: string;
 }
 
+export interface AdoConfig {
+  baseUrl?: string;
+  pat?: string;
+  fieldAliases?: Record<string, string>;
+  discoveredFields?: AdoFieldMeta[];
+  discoveredTypes?: AdoWorkItemTypeMeta[];
+}
+
+export interface AdoFieldMeta {
+  referenceName: string;
+  name: string;
+  type: string;
+  readOnly?: boolean;
+  picklistId?: string;
+}
+
+export interface AdoWorkItemTypeMeta {
+  name: string;
+  states: string[];
+  requiredFields: string[];
+}
+
+export interface AdoDefaults {
+  collection?: string;
+  project?: string;
+  repo?: string;
+}
+
 export interface Defaults {
   jira?: JiraDefaults;
   bitbucket?: BitbucketDefaults;
   sonar?: SonarDefaults;
   sde?: SdeDefaults;
+  ado?: AdoDefaults;
 }
 
 export interface UserConfig {
@@ -71,6 +100,7 @@ export interface GlobalConfig {
   artifactory?: ArtifactoryConfig;
   sonar?: SonarConfig;
   sde?: SdeConfig;
+  ado?: AdoConfig;
   defaults?: Defaults;
 }
 
@@ -106,10 +136,18 @@ export interface ResolvedConfig {
     baseUrl: string | undefined;
     token: string | undefined;
   };
+  ado: {
+    baseUrl: string | undefined;
+    pat: string | undefined;
+    fieldAliases: Record<string, string>;
+    discoveredFields: AdoFieldMeta[];
+    discoveredTypes: AdoWorkItemTypeMeta[];
+  };
   defaults: {
     jira: JiraDefaults;
     bitbucket: BitbucketDefaults;
     sonar: SonarDefaults;
     sde: SdeDefaults;
+    ado: AdoDefaults;
   };
 }

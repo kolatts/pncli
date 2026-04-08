@@ -3,6 +3,7 @@ import type { ResolvedConfig } from '../types/config.js';
 import { PncliError } from './errors.js';
 import { ExitCode } from './exitCodes.js';
 import { log } from './output.js';
+import { buildAdoFetcher } from './adoFetch.js';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
@@ -32,11 +33,11 @@ function buildUrl(base: string, path: string, params?: Record<string, string | n
   return url.toString();
 }
 
-async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, fetcher: typeof fetch = fetch): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    return await fetcher(url, { ...init, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
@@ -45,14 +46,15 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
 async function request<T>(
   url: string,
   init: RequestInit,
-  timeoutMs: number
+  timeoutMs: number,
+  fetcher: typeof fetch = fetch
 ): Promise<T> {
   let lastError: unknown;
 
   for (let attempt = 0; attempt < 3; attempt++) {
     let response: Response;
     try {
-      response = await fetchWithTimeout(url, init, timeoutMs);
+      response = await fetchWithTimeout(url, init, timeoutMs, fetcher);
     } catch (err) {
       throw new PncliError(
         `Request failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -119,6 +121,7 @@ async function request<T>(
 export class HttpClient {
   private config: ResolvedConfig;
   private dryRun: boolean;
+  private adoFetcher: typeof fetch | null = null;
 
   constructor(config: ResolvedConfig, dryRun = false) {
     this.config = config;
@@ -289,6 +292,99 @@ export class HttpClient {
       results.push(...response.results);
       if (results.length >= response.count || response.results.length === 0) break;
       page++;
+    }
+
+    return results;
+  }
+
+  private async getAdoFetcher(): Promise<typeof fetch> {
+    if (!this.adoFetcher) {
+      this.adoFetcher = await buildAdoFetcher(this.config, this.dryRun);
+    }
+    return this.adoFetcher;
+  }
+
+  async ado<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.ado.baseUrl;
+    if (!baseUrl) throw new PncliError('Azure DevOps baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+
+    if (this.dryRun) {
+      const msg = `DRY RUN: ${opts.method ?? 'GET'} ${url}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const fetcher = await this.getAdoFetcher();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000, fetcher);
+  }
+
+  async adoRaw(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<{ data: unknown; headers: Headers }> {
+    const baseUrl = this.config.ado.baseUrl;
+    if (!baseUrl) throw new PncliError('Azure DevOps baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+
+    if (this.dryRun) {
+      fs.writeSync(process.stderr.fd, `DRY RUN: ${opts.method ?? 'GET'} ${url}\n`);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const fetcher = await this.getAdoFetcher();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 30000);
+    let response: Response;
+    try {
+      response = await fetcher(url, {
+        method: opts.method ?? 'GET',
+        body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!response.ok) {
+      let message = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const parsed = JSON.parse(await response.text());
+        if (parsed.message) message = String(parsed.message);
+      } catch { /* ignore */ }
+      throw new PncliError(message, response.status, url);
+    }
+
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : undefined;
+    return { data, headers: response.headers };
+  }
+
+  async adoPaginate<T>(
+    fetchPage: (continuationToken?: string) => Promise<{ data: { value: T[] }; headers: Headers }>
+  ): Promise<T[]> {
+    const results: T[] = [];
+    let token: string | undefined;
+
+    while (true) {
+      const { data, headers } = await fetchPage(token);
+      results.push(...(data.value ?? []));
+      const next = headers.get('x-ms-continuationtoken');
+      if (!next) break;
+      token = next;
     }
 
     return results;

@@ -88,7 +88,7 @@ This project uses Conventional Commits for automatic versioning:
 | SDElements | ✅ Active | REST API v2 (cloud + on-prem) |
 | Artifactory | 🔜 Coming | The nightmare never ends |
 | Jenkins | 🔜 Coming | REST API |
-| Azure DevOps | 🔜 Coming | REST API v7 |
+| Azure DevOps Server | ✅ Active | REST API v7.1 (on-prem, Windows auth + PAT) |
 
 ## License
 

@@ -189,7 +189,10 @@ pncli bitbucket decline-pr
   --id <pr-id>  Pull request ID
 
 pncli bitbucket list-comments
-  --pr <pr-id>  Pull request ID
+  --pr <pr-id>       Pull request ID
+  --no-with-replies  Exclude replies; return top-level comments only
+  --inline-only      Return only inline file comments
+  --general-only     Return only general (non-inline) PR comments
 
 pncli bitbucket add-comment
   --pr <pr-id>   Pull request ID
@@ -370,12 +373,6 @@ pncli sonar hotspots
 
 ### Sde
 
-Config key: `sde.connection` (format: `api-token@hostname`). Env: `PNCLI_SDE_CONNECTION`.
-`https://` is added automatically — just use the hostname. Cloud: `your-org.sdelements.com`. On-prem: `sde.your-company.com`.
-Token: generate at **Settings → API Settings → APIv2 → Generate Token**. Shown once — store immediately.
-Example: `abc123token@your-org.sdelements.com`
-Project IDs are numeric. Set `defaults.sde.project` in config or `.pncli.json` to skip `--project` each time.
-
 ```
 pncli sde server-info
 
@@ -501,6 +498,22 @@ pncli config show
 pncli config set
 
 pncli config test
+```
+
+### Ado
+
+```
+pncli ado whoami
+
+pncli ado connection-data
+
+pncli ado project
+
+pncli ado work
+
+pncli ado repo
+
+pncli ado pipeline
 ```
 
 <!-- COMMAND-REFERENCE:END -->
