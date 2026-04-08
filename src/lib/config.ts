@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
-import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, SonarDefaults, SdeDefaults } from '../types/config.js';
+import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, SonarDefaults, SdeDefaults, AdoDefaults } from '../types/config.js';
 import type { CustomFieldDefinition } from '../types/jira.js';
 
 const ENV_KEYS = {
@@ -22,6 +22,8 @@ const ENV_KEYS = {
   SONAR_BASE_URL: 'PNCLI_SONAR_BASE_URL',
   SONAR_TOKEN: 'PNCLI_SONAR_TOKEN',
   SDE_CONNECTION: 'PNCLI_SDE_CONNECTION',
+  ADO_BASE_URL: 'PNCLI_ADO_BASE_URL',
+  ADO_PAT: 'PNCLI_ADO_PAT',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -71,12 +73,13 @@ function mergeCustomFields(
 function mergeDefaults(
   global: GlobalConfig['defaults'],
   repo: RepoConfig['defaults']
-): { jira: JiraDefaults; bitbucket: BitbucketDefaults; sonar: SonarDefaults; sde: SdeDefaults } {
+): { jira: JiraDefaults; bitbucket: BitbucketDefaults; sonar: SonarDefaults; sde: SdeDefaults; ado: AdoDefaults } {
   return {
     jira: { ...global?.jira, ...repo?.jira },
     bitbucket: { ...global?.bitbucket, ...repo?.bitbucket },
     sonar: { ...global?.sonar, ...repo?.sonar },
-    sde: { ...global?.sde, ...repo?.sde }
+    sde: { ...global?.sde, ...repo?.sde },
+    ado: { ...global?.ado, ...repo?.ado }
   };
 }
 
@@ -131,6 +134,13 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       const parsed = raw ? parseSdeConnection(raw) : null;
       return { baseUrl: parsed?.baseUrl, token: parsed?.token };
     })(),
+    ado: {
+      baseUrl: process.env[ENV_KEYS.ADO_BASE_URL] ?? globalConfig.ado?.baseUrl,
+      pat: process.env[ENV_KEYS.ADO_PAT] ?? globalConfig.ado?.pat,
+      fieldAliases: globalConfig.ado?.fieldAliases ?? {},
+      discoveredFields: globalConfig.ado?.discoveredFields ?? [],
+      discoveredTypes: globalConfig.ado?.discoveredTypes ?? []
+    },
     defaults: mergedDefaults
   };
 }
@@ -196,6 +206,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     sde: {
       baseUrl: config.sde.baseUrl,
       token: config.sde.token ? '***' : undefined
+    },
+    ado: {
+      ...config.ado,
+      pat: config.ado.pat ? '***' : undefined
     }
   };
 }

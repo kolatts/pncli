@@ -9,6 +9,9 @@ import {
   getGlobalConfigPath
 } from '../../lib/config.js';
 import { createHttpClient } from '../../lib/http.js';
+import { AdoCoreClient } from '../ado/client/core.js';
+import { AdoWorkClient } from '../ado/client/work.js';
+import { discoverFields, discoverTypes, buildDefaultAliases } from '../ado/discovery.js';
 import { success, fail, warn } from '../../lib/output.js';
 import { ExitCode } from '../../lib/exitCodes.js';
 import fs from 'fs';
@@ -134,6 +137,21 @@ export function registerConfigCommands(program: Command): void {
           }
         } else {
           results.sde = { ok: null, message: 'not configured' };
+        }
+
+        if (cfg.ado.baseUrl) {
+          try {
+            const collection = cfg.defaults.ado?.collection;
+            const path = collection
+              ? `/${encodeURIComponent(collection)}/_apis/connectionData?api-version=7.1`
+              : '/_apis/projectCollections?api-version=7.1';
+            await http.ado<unknown>(path);
+            results.ado = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.ado = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.ado = { ok: null, message: 'not configured' };
         }
 
         success(results, 'config', 'test', start);
@@ -284,6 +302,98 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── Azure DevOps Server ───────────────────────────\n');
+  const useAdo = await confirm({
+    message: 'Configure Azure DevOps Server for work items, repos, and pipelines?',
+    default: false
+  });
+
+  let adoBaseUrl = '';
+  let adoPat = '';
+  let adoCollection = '';
+  let adoProject = '';
+  let adoFieldAliases: Record<string, string> = {};
+  let adoDiscoveredFields: import('../../types/config.js').AdoFieldMeta[] = [];
+  let adoDiscoveredTypes: import('../../types/config.js').AdoWorkItemTypeMeta[] = [];
+
+  if (useAdo) {
+    adoBaseUrl = await input({
+      message: 'Azure DevOps Server base URL (e.g. https://tfs.company.com or https://devops.company.com/tfs):',
+      default: ''
+    });
+
+    const useWindowsAuth = await confirm({
+      message: 'Use Windows Integrated Authentication (current logged-in user)?',
+      default: process.platform === 'win32'
+    });
+
+    if (!useWindowsAuth) {
+      adoPat = await password({
+        message: 'Azure DevOps personal access token:'
+      });
+    }
+
+    adoCollection = await input({
+      message: 'Default collection name (e.g. DefaultCollection):',
+      default: ''
+    });
+
+    adoProject = await input({
+      message: 'Default team project name:',
+      default: ''
+    });
+
+    // Validate connectivity before asking discovery questions
+    if (adoBaseUrl && adoCollection) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          ado: {
+            baseUrl: adoBaseUrl,
+            pat: adoPat || undefined,
+            fieldAliases: {},
+            discoveredFields: [],
+            discoveredTypes: []
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        const tempCore = new AdoCoreClient(tempHttp);
+        await tempCore.getConnectionData(adoCollection);
+        process.stderr.write('  Connected.\n');
+
+        // Optional field/type discovery
+        if (adoProject) {
+          const doDiscover = await confirm({
+            message: 'Discover work item types and fields from this collection now? (recommended)',
+            default: true
+          });
+
+          if (doDiscover) {
+            process.stderr.write('  Fetching work item types and fields...\n');
+            const tempWork = new AdoWorkClient(tempHttp);
+            adoDiscoveredFields = await discoverFields(tempWork, adoCollection);
+            process.stderr.write(`  Found ${adoDiscoveredFields.length} fields.\n`);
+            adoDiscoveredTypes = await discoverTypes(tempWork, adoCollection, adoProject);
+            process.stderr.write(`  Found ${adoDiscoveredTypes.length} work item types.\n`);
+
+            const doAliases = await confirm({
+              message: 'Save friendly aliases for common fields? (e.g. "priority" → reference name)',
+              default: true
+            });
+            if (doAliases) {
+              adoFieldAliases = buildDefaultAliases(adoDiscoveredFields as Parameters<typeof buildDefaultAliases>[0]);
+              process.stderr.write(`  Generated ${Object.keys(adoFieldAliases).length} aliases.\n`);
+            }
+          }
+        }
+      } catch (err) {
+        warn(`Could not connect to Azure DevOps: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your URL and credentials and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -351,6 +461,15 @@ async function initGlobalConfig(start: number): Promise<void> {
         connection: `${sdeToken}@${sdeBaseUrl}`
       }
     } : {}),
+    ...(useAdo && adoBaseUrl ? {
+      ado: {
+        baseUrl: adoBaseUrl,
+        ...(adoPat ? { pat: adoPat } : {}),
+        ...(Object.keys(adoFieldAliases).length ? { fieldAliases: adoFieldAliases } : {}),
+        ...(adoDiscoveredFields.length ? { discoveredFields: adoDiscoveredFields } : {}),
+        ...(adoDiscoveredTypes.length ? { discoveredTypes: adoDiscoveredTypes } : {})
+      }
+    } : {}),
     defaults: {
       jira: {
         project: jiraProject || undefined
@@ -363,6 +482,12 @@ async function initGlobalConfig(start: number): Promise<void> {
       ...(useSde && sdeProject ? {
         sde: {
           project: sdeProject || undefined
+        }
+      } : {}),
+      ...(useAdo && (adoCollection || adoProject) ? {
+        ado: {
+          collection: adoCollection || undefined,
+          project: adoProject || undefined
         }
       } : {})
     }
@@ -394,6 +519,21 @@ async function initRepoConfig(start: number): Promise<void> {
   const targetBranch = await input({
     message: 'Default target branch for PRs:',
     default: 'main'
+  });
+
+  const adoRepoCollection = await input({
+    message: 'Default Azure DevOps collection for this repo (leave blank to use global):',
+    default: ''
+  });
+
+  const adoRepoProject = await input({
+    message: 'Default Azure DevOps project for this repo (leave blank to use global):',
+    default: ''
+  });
+
+  const adoRepoRepo = await input({
+    message: 'Default Azure DevOps repo name for this repo (leave blank to auto-detect):',
+    default: ''
   });
 
   const confirmed = await confirm({
@@ -429,7 +569,14 @@ async function initRepoConfig(start: number): Promise<void> {
       },
       bitbucket: {
         targetBranch: targetBranch || undefined
-      }
+      },
+      ...(adoRepoCollection || adoRepoProject || adoRepoRepo ? {
+        ado: {
+          collection: adoRepoCollection || undefined,
+          project: adoRepoProject || undefined,
+          repo: adoRepoRepo || undefined
+        }
+      } : {})
     }
   });
 
