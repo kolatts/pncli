@@ -52,7 +52,10 @@ function getRepoRoot(): string | null {
 function parseSdeConnection(connection: string): { token: string; baseUrl: string } | null {
   const idx = connection.indexOf('@');
   if (idx <= 0) return null;
-  return { token: connection.slice(0, idx), baseUrl: connection.slice(idx + 1) };
+  const token = connection.slice(0, idx);
+  const host = connection.slice(idx + 1);
+  const baseUrl = /^https?:\/\//i.test(host) ? host : `https://${host}`;
+  return { token, baseUrl };
 }
 
 function mergeCustomFields(

@@ -49,7 +49,7 @@ pncli uses a three-layer config system (highest priority wins):
 | `PNCLI_BITBUCKET_PAT` | Bitbucket personal access token |
 | `PNCLI_SONAR_BASE_URL` | SonarQube Server base URL |
 | `PNCLI_SONAR_TOKEN` | SonarQube personal access token |
-| `PNCLI_SDE_CONNECTION` | SDElements connection string (`api-token@base-url`) |
+| `PNCLI_SDE_CONNECTION` | SDElements connection string (`api-token@hostname`, e.g. `mytoken@myorg.sdelements.com`) |
 | `PNCLI_CONFIG_PATH` | Override global config file path |
 
 ## For AI Agents
