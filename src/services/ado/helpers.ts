@@ -82,7 +82,7 @@ export function getAdoContext(program: Command, requireRepo = false): AdoContext
 
 /**
  * Parses repeated --field name=value arguments into a Record.
- * Accepts both "name=value" (split on first =) and paired [name, value] arrays.
+ * Accepts "name=value" strings (split on first =). Throws on missing `=`.
  */
 export function parseFieldArgs(fields: string[]): Record<string, string> {
   const result: Record<string, string> = {};

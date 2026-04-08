@@ -10,13 +10,30 @@ export async function discoverFields(
   project?: string
 ): Promise<AdoFieldMeta[]> {
   const fields = await client.listFields(collection, project);
-  return fields.map(f => ({
+  return fields.map(toFieldMeta);
+}
+
+/**
+ * Discovers fields scoped to a specific work item type.
+ */
+export async function discoverTypeFields(
+  client: AdoWorkClient,
+  collection: string,
+  project: string,
+  type: string
+): Promise<AdoFieldMeta[]> {
+  const fields = await client.listTypeFields(collection, project, type);
+  return fields.map(toFieldMeta);
+}
+
+function toFieldMeta(f: { referenceName: string; name: string; type: string; readOnly?: boolean; picklistId?: string }): AdoFieldMeta {
+  return {
     referenceName: f.referenceName,
     name: f.name,
     type: f.type,
     readOnly: f.readOnly,
     ...(f.picklistId ? { picklistId: f.picklistId } : {})
-  }));
+  };
 }
 
 /**

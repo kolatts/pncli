@@ -12,6 +12,7 @@ export interface HttpRequestOptions {
   body?: unknown;
   params?: Record<string, string | number | boolean | undefined>;
   timeoutMs?: number;
+  headers?: Record<string, string>;
 }
 
 export interface HttpError {
@@ -322,12 +323,51 @@ export class HttpClient {
     }
 
     const fetcher = await this.getAdoFetcher();
+    const defaultHeaders: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      ...opts.headers
+    };
     const init: RequestInit = {
       method: opts.method ?? 'GET',
+      headers: defaultHeaders,
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
     };
 
     return request<T>(url, init, opts.timeoutMs ?? 30000, fetcher);
+  }
+
+  async adoText(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<string> {
+    const baseUrl = this.config.ado.baseUrl;
+    if (!baseUrl) throw new PncliError('Azure DevOps baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+
+    if (this.dryRun) {
+      fs.writeSync(process.stderr.fd, `DRY RUN: ${opts.method ?? 'GET'} ${url}\n`);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const fetcher = await this.getAdoFetcher();
+    const response = await fetchWithTimeout(url, {
+      method: opts.method ?? 'GET',
+      headers: { 'Accept': 'text/plain', ...opts.headers }
+    }, opts.timeoutMs ?? 30000, fetcher);
+
+    if (!response.ok) {
+      let message = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const parsed = JSON.parse(await response.text());
+        if (parsed.message) message = String(parsed.message);
+      } catch { /* ignore */ }
+      throw new PncliError(message, response.status, url);
+    }
+
+    return response.text();
   }
 
   async adoRaw(
@@ -352,6 +392,7 @@ export class HttpClient {
     try {
       response = await fetcher(url, {
         method: opts.method ?? 'GET',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', ...opts.headers },
         body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
         signal: controller.signal
       });
