@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { getAdoContext, pollUntilTerminal, isBuildTerminal } from '../helpers.js';
 import { success, fail, log } from '../../../lib/output.js';
 import { ExitCode } from '../../../lib/exitCodes.js';
+import { PncliError } from '../../../lib/errors.js';
 
 export function registerAdoPipelineCommands(ado: Command): void {
   const pipeline = ado
@@ -49,6 +50,10 @@ export function registerAdoPipelineCommands(ado: Command): void {
         const sourceBranch = opts.branch
           ? (opts.branch.startsWith('refs/') ? opts.branch : `refs/heads/${opts.branch}`)
           : undefined;
+
+        for (const p of opts.parameter) {
+          if (!p.includes('=')) throw new PncliError(`Invalid --parameter "${p}". Expected format: key=value`, 1);
+        }
         const parameters = opts.parameter.length > 0
           ? JSON.stringify(Object.fromEntries(opts.parameter.map(p => {
               const eq = p.indexOf('=');
@@ -65,6 +70,8 @@ export function registerAdoPipelineCommands(ado: Command): void {
         if (opts.wait) {
           const timeoutSec = parseInt(opts.timeout, 10);
           const pollSec = parseInt(opts.poll, 10);
+          if (isNaN(timeoutSec) || timeoutSec <= 0) throw new PncliError(`Invalid --timeout "${opts.timeout}". Expected a positive number of seconds.`, 1);
+          if (isNaN(pollSec) || pollSec <= 0) throw new PncliError(`Invalid --poll "${opts.poll}". Expected a positive number of seconds.`, 1);
           log(`Waiting for build #${build.id} to complete (timeout ${timeoutSec}s, poll ${pollSec}s)...`);
           build = await pollUntilTerminal(
             () => buildClient.getBuild(collection, project, build.id),

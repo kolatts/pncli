@@ -95,7 +95,7 @@ export class AdoBuildClient {
   }
 
   async getLog(collection: string, project: string, buildId: number, logId: number): Promise<string> {
-    return this.http.ado<string>(
+    return this.http.adoText(
       `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/build/builds/${buildId}/logs/${logId}?api-version=${API}`
     );
   }

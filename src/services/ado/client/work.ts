@@ -35,14 +35,14 @@ export class AdoWorkClient {
   ): Promise<AdoWorkItem> {
     return this.http.ado<AdoWorkItem>(
       `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/wit/workitems/${encodeURIComponent('$' + type)}?api-version=${API}`,
-      { method: 'POST', body: patch }
+      { method: 'POST', body: patch, headers: { 'Content-Type': 'application/json-patch+json' } }
     );
   }
 
   async updateWorkItem(collection: string, id: number, patch: JsonPatchOp[]): Promise<AdoWorkItem> {
     return this.http.ado<AdoWorkItem>(
       `/${encodeURIComponent(collection)}/_apis/wit/workitems/${id}?api-version=${API}`,
-      { method: 'PATCH', body: patch }
+      { method: 'PATCH', body: patch, headers: { 'Content-Type': 'application/json-patch+json' } }
     );
   }
 
@@ -87,6 +87,13 @@ export class AdoWorkClient {
       : `/${encodeURIComponent(collection)}`;
     const result = await this.http.ado<AdoPageResponse<AdoField>>(
       `${scope}/_apis/wit/fields?api-version=${API}`
+    );
+    return result.value ?? [];
+  }
+
+  async listTypeFields(collection: string, project: string, type: string): Promise<AdoField[]> {
+    const result = await this.http.ado<AdoPageResponse<AdoField>>(
+      `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/wit/workitemtypes/${encodeURIComponent(type)}/fields?api-version=${API}`
     );
     return result.value ?? [];
   }

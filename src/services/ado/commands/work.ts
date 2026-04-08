@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { getAdoContext, fieldArgsToPatch } from '../helpers.js';
-import { discoverFields, discoverTypes, buildDefaultAliases } from '../discovery.js';
+import { discoverFields, discoverTypeFields, discoverTypes, buildDefaultAliases } from '../discovery.js';
 import { success, fail, warn } from '../../../lib/output.js';
 import { loadConfig, getGlobalConfigPath } from '../../../lib/config.js';
 
@@ -226,7 +226,7 @@ export function registerAdoWorkCommands(ado: Command): void {
   work
     .command('fields')
     .description('List work item fields available in the collection')
-    .option('--type <type>', 'Scope to a specific work item type')
+    .option('--type <type>', 'Scope to fields for a specific work item type (e.g. Bug)')
     .option('--custom-only', 'Exclude System.* and Microsoft.VSTS.* fields')
     .option('--discover', 'Fetch from server (always true for this command)')
     .option('--save', 'Save discovered fields and aliases to ~/.pncli/config.json')
@@ -235,21 +235,26 @@ export function registerAdoWorkCommands(ado: Command): void {
       try {
         const { collection, project, workClient } = getAdoContext(ado);
         const globalOpts = ado.optsWithGlobals();
-        let fields = await discoverFields(workClient, collection, opts.type ? project : undefined);
-        if (opts.customOnly) {
-          fields = fields.filter(f =>
-            !f.referenceName.startsWith('System.') &&
-            !f.referenceName.startsWith('Microsoft.VSTS.')
-          );
-        }
+        // Fetch full field list (used for alias generation and --save)
+        const allFields = opts.type
+          ? await discoverTypeFields(workClient, collection, project, opts.type)
+          : await discoverFields(workClient, collection);
+        // Apply --custom-only filter only to displayed/saved output
+        const fields = opts.customOnly
+          ? allFields.filter(f =>
+              !f.referenceName.startsWith('System.') &&
+              !f.referenceName.startsWith('Microsoft.VSTS.')
+            )
+          : allFields;
         if (opts.save) {
           const globalConfigPath = getGlobalConfigPath(globalOpts.config);
           const fs = await import('fs');
           const existing = JSON.parse(fs.readFileSync(globalConfigPath, 'utf8') || '{}');
-          const aliases = buildDefaultAliases(fields);
-          existing.ado = { ...(existing.ado ?? {}), discoveredFields: fields, fieldAliases: aliases };
+          // Generate aliases from the full (unfiltered) set so System/VSTS aliases are included
+          const aliases = buildDefaultAliases(allFields);
+          existing.ado = { ...(existing.ado ?? {}), discoveredFields: allFields, fieldAliases: aliases };
           fs.writeFileSync(globalConfigPath, JSON.stringify(existing, null, 2) + '\n', 'utf8');
-          warn(`Saved ${fields.length} fields and ${Object.keys(aliases).length} aliases to ${globalConfigPath}`);
+          warn(`Saved ${allFields.length} fields and ${Object.keys(aliases).length} aliases to ${globalConfigPath}`);
         }
         success(fields, 'ado', 'work-fields', start);
       } catch (err) { fail(err, 'ado', 'work-fields', start); }

@@ -215,11 +215,10 @@ export class AdoGitClient {
   // ── Diffs / Files ─────────────────────────────────────────────────
 
   async listPRChanges(collection: string, project: string, repo: string, prId: number): Promise<AdoGitChange[]> {
-    const result = await this.http.ado<{ changes?: AdoGitChange[] }>(
+    const iterations = await this.http.ado<AdoPageResponse<{ id: number }>>(
       `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repo)}/pullrequests/${prId}/iterations?api-version=${API}`
     );
     // Get the latest iteration then its changes
-    const iterations = result as unknown as { value: Array<{ id: number }> };
     const latestId = (iterations.value ?? []).at(-1)?.id;
     if (!latestId) return [];
     const changes = await this.http.ado<{ changeEntries?: AdoGitChange[] }>(

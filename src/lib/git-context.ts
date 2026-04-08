@@ -79,33 +79,41 @@ export function parseAdoRemote(
 ): { collection: string; project: string; repo: string } | null {
   if (!adoBaseUrl) return null;
 
-  const base = adoBaseUrl.replace(/\/$/, '').replace(/^https?:\/\//, '');
+  // Normalize base URL: extract just the hostname (without port) for comparison,
+  // so that https://tfs.company.com:8080 and git@tfs.company.com:... both match.
+  let baseHostname: string;
+  try {
+    const normalizedBase = /^https?:\/\//.test(adoBaseUrl) ? adoBaseUrl : `https://${adoBaseUrl}`;
+    baseHostname = new URL(normalizedBase).hostname.toLowerCase();
+  } catch {
+    baseHostname = adoBaseUrl.replace(/\/$/, '').replace(/^https?:\/\//, '').split(/[:/]/)[0]!.toLowerCase();
+  }
 
   // Extract host from the remote URL (after stripping protocol/credentials)
   let path = remoteUrl;
-  let host = '';
+  let remoteHostname = '';
 
   // ssh:// form
   const sshProtoMatch = path.match(/^ssh:\/\/[^@]*@?([^/:]+)(?::\d+)?(.*)/);
   if (sshProtoMatch) {
-    host = sshProtoMatch[1]!;
+    remoteHostname = sshProtoMatch[1]!.toLowerCase();
     path = sshProtoMatch[2]!;
   } else {
     // git@host form or https://
     const gitAtMatch = path.match(/^git@([^:]+)(?::\d+)?:(.*)/);
     if (gitAtMatch) {
-      host = gitAtMatch[1]!;
+      remoteHostname = gitAtMatch[1]!.toLowerCase();
       path = '/' + gitAtMatch[2]!;
     } else {
-      const httpsMatch = path.match(/^https?:\/\/([^/]+)(.*)/);
+      const httpsMatch = path.match(/^https?:\/\/([^/:]+)(?::\d+)?(.*)/);
       if (httpsMatch) {
-        host = httpsMatch[1]!;
+        remoteHostname = httpsMatch[1]!.toLowerCase();
         path = httpsMatch[2]!;
       }
     }
   }
 
-  if (!host || !base.includes(host)) return null;
+  if (!remoteHostname || remoteHostname !== baseHostname) return null;
 
   // Strip trailing .git
   path = path.replace(/\.git$/, '');
