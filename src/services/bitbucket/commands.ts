@@ -131,13 +131,20 @@ export function registerBitbucketCommands(program: Command): void {
   // ── Comments ───────────────────────────────────────────────────────
 
   bb.command('list-comments')
-    .description('List comments on a pull request')
+    .description('List comments on a pull request (includes threaded replies by default)')
     .requiredOption('--pr <pr-id>', 'Pull request ID')
-    .action(async (opts: { pr: string }) => {
+    .option('--no-with-replies', 'Exclude replies; return top-level comments only')
+    .option('--inline-only', 'Return only inline file comments')
+    .option('--general-only', 'Return only general (non-inline) PR comments')
+    .action(async (opts: { pr: string; withReplies: boolean; inlineOnly?: boolean; generalOnly?: boolean }) => {
       const start = Date.now();
       try {
         const { client, project, repo } = getClient(program);
-        const data = await client.listComments(project, repo, parseInt(opts.pr, 10));
+        const data = await client.listComments(project, repo, parseInt(opts.pr, 10), {
+          withReplies: opts.withReplies,
+          inlineOnly: opts.inlineOnly,
+          generalOnly: opts.generalOnly
+        });
         success(data, 'bitbucket', 'list-comments', start);
       } catch (err) { fail(err, 'bitbucket', 'list-comments', start); }
     });

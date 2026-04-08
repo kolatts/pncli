@@ -141,7 +141,14 @@ export class BitbucketClient {
     );
   }
 
-  async listComments(project: string, repo: string, prId: number): Promise<BitbucketComment[]> {
+  async listComments(
+    project: string,
+    repo: string,
+    prId: number,
+    opts: { withReplies?: boolean; inlineOnly?: boolean; generalOnly?: boolean } = {}
+  ): Promise<BitbucketComment[]> {
+    const { withReplies = true, inlineOnly = false, generalOnly = false } = opts;
+
     interface Activity { action: string; comment?: BitbucketComment }
     const activities = await this.http.paginate<Activity>((start, limit) =>
       this.http.bitbucket<BitbucketPageResponse<Activity>>(
@@ -149,9 +156,33 @@ export class BitbucketClient {
         { params: { start, limit } }
       )
     );
-    return activities
+
+    const topLevel = activities
       .filter(a => a.action === 'COMMENTED' && a.comment)
       .map(a => a.comment!);
+
+    if (!withReplies) {
+      return topLevel
+        .filter(c => !inlineOnly || !!c.anchor)
+        .filter(c => !generalOnly || !c.anchor);
+    }
+
+    // Recursively flatten nested replies, tagging each with its parentId
+    function flatten(comment: BitbucketComment, parentId?: number): BitbucketComment[] {
+      const node: BitbucketComment = {
+        ...comment,
+        comments: undefined,
+        ...(parentId !== undefined ? { parentId } : {})
+      };
+      const replies = (comment.comments ?? []).flatMap(c => flatten(c, comment.id));
+      return [node, ...replies];
+    }
+
+    const flat = topLevel.flatMap(c => flatten(c));
+    return flat
+      .filter(c => !inlineOnly || !!c.anchor)
+      .filter(c => !generalOnly || !c.anchor)
+      .sort((a, b) => a.createdDate - b.createdDate);
   }
 
   async addComment(project: string, repo: string, prId: number, text: string): Promise<BitbucketComment> {
