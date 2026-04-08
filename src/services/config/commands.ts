@@ -265,7 +265,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
     if (useSdeConnectionString) {
       const sdeConnection = await password({
-        message: 'SDElements connection string (api-token@base-url):'
+        message: 'SDElements connection string (api-token@hostname, e.g. mytoken@myorg.sdelements.com):'
       });
       const atIdx = sdeConnection.indexOf('@');
       if (atIdx > 0) {
@@ -274,7 +274,7 @@ async function initGlobalConfig(start: number): Promise<void> {
       }
     } else {
       sdeBaseUrl = await input({
-        message: 'SDElements base URL\n  Cloud-hosted: https://your-org.sdelements.com\n  On-premise:   https://sde.your-company.com\n  URL: ',
+        message: 'SDElements hostname\n  Cloud-hosted: your-org.sdelements.com\n  On-premise:   sde.your-company.com\n  Host: ',
         default: ''
       });
 
