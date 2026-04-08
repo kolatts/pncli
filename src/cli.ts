@@ -18,6 +18,7 @@ import { registerSonarCommands } from './services/sonar/commands.js';
 import { registerSdeCommands } from './services/sde/commands.js';
 import { registerDepsCommands } from './services/deps/commands.js';
 import { registerConfigCommands } from './services/config/commands.js';
+import { registerAdoCommands } from './services/ado/commands/index.js';
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,6 +60,7 @@ registerSonarCommands(program);
 registerSdeCommands(program);
 registerDepsCommands(program);
 registerConfigCommands(program);
+registerAdoCommands(program);
 
 program.addHelpText('after', `
 Services:
@@ -69,6 +71,7 @@ Services:
   confluence   Confluence
   sonar        SonarQube Server (quality gates, issues, metrics, hotspots)
   sde          SDElements (threat modeling, countermeasures, compliance)
+  ado          Azure DevOps Server (work items, repos, PRs, pipelines)
   config       Manage pncli configuration
 `);
 

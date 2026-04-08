@@ -38,11 +38,17 @@ export interface BitbucketComment {
   updatedDate: number;
   resolved?: boolean;
   threadResolved?: boolean;
+  /** ID of the parent comment if this is a reply */
+  parentId?: number;
+  /** Inline anchor — present for inline comments, absent for general PR comments */
   anchor?: {
     path: string;
     line: number;
     lineType: 'ADDED' | 'REMOVED' | 'CONTEXT';
+    fileType?: 'FROM' | 'TO';
   };
+  /** Nested replies — present in raw API responses; flattened out in listComments() */
+  comments?: BitbucketComment[];
 }
 
 export interface BitbucketPageResponse<T> {
