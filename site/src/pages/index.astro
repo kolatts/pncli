@@ -1,28 +1,148 @@
 ---
 import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
-import hero from '../assets/hero.png';
+import Hero from '../components/Hero.astro';
+import CodeTabs from '../components/CodeTabs.astro';
+import ServiceGrid from '../components/ServiceGrid.astro';
+import meetings from '../assets/3-meetings.png';
 ---
 
 <Base>
-  <section class="max-w-5xl mx-auto px-6 py-20 flex flex-col items-center text-center gap-8">
-    <h1 class="font-display text-4xl md:text-6xl font-bold text-ink leading-tight">
-      One command does what<br />three meetings couldn't.
-    </h1>
-    <p class="text-lg text-ink/70 max-w-xl">
-      pncli gives AI coding agents and humans structured CLI access to Jira, Bitbucket,
-      Confluence, SonarQube, and more. Site coming soon — full launch shortly.
-    </p>
-    <a
-      href="https://github.com/kolatts/pncli"
-      class="inline-flex items-center gap-2 bg-coral text-cream font-semibold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity"
-    >
-      View on GitHub
-    </a>
-    <Image
-      src={hero}
-      alt="pncli hero illustration"
-      class="w-full max-w-2xl rounded-2xl shadow-xl mt-4"
-    />
+  <Hero />
+  <CodeTabs />
+
+  <!-- Why pncli -->
+  <section class="w-full py-20 px-6 bg-cream border-t border-ink/5">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="font-display text-4xl md:text-5xl font-bold text-ink mb-10">
+        Cut through the red tape.
+      </h2>
+      <div class="grid md:grid-cols-3 gap-4">
+        <!-- Card 1: wider, dark, with image -->
+        <div class="md:col-span-2 rounded-2xl overflow-hidden border border-ink/10 bg-ink text-cream flex flex-col">
+          <div class="overflow-hidden h-52">
+            <Image
+              src={meetings}
+              alt="Three meetings to get one PR merged"
+              class="w-full h-full object-cover object-top"
+            />
+          </div>
+          <div class="p-6 flex-1">
+            <h3 class="font-display text-xl font-bold mb-2">
+              Three meetings to get one PR merged?
+            </h3>
+            <p class="text-cream/60 text-sm leading-relaxed">
+              Your org blocked MCP. Your agents still need to review PRs, create issues,
+              and manage code reviews.
+            </p>
+          </div>
+        </div>
+
+        <!-- Cards 2 & 3 stacked -->
+        <div class="flex flex-col gap-4">
+          <div class="rounded-2xl border border-coral/25 bg-coral/5 p-6 flex-1">
+            <h3 class="font-display text-xl font-bold text-ink mb-2">
+              One command instead.
+            </h3>
+            <p class="text-ink/60 text-sm leading-relaxed">
+              pncli is the shim layer — one npm install and you're cutting through red tape.
+            </p>
+          </div>
+          <div class="rounded-2xl border border-violet/25 bg-violet/5 p-6 flex-1">
+            <h3 class="font-display text-xl font-bold text-ink mb-2">
+              Works with your stack.
+            </h3>
+            <p class="text-ink/60 text-sm leading-relaxed">
+              Git, Jira, Bitbucket, Confluence, SonarQube, SDElements, and Azure DevOps.
+              All from the terminal.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <ServiceGrid />
+
+  <!-- For AI agents -->
+  <section class="w-full py-20 px-6 bg-ink text-cream">
+    <div class="max-w-5xl mx-auto">
+      <div class="mb-10">
+        <p class="text-violet font-mono text-sm mb-3 tracking-wide">agent-first</p>
+        <h2 class="font-display text-4xl md:text-5xl font-bold">
+          Built for AI agents.
+        </h2>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-3">
+        <div class="flex gap-4 p-5 rounded-xl border border-cream/10 hover:border-cream/20 hover:bg-cream/5 transition-all">
+          <span class="shrink-0 font-mono text-violet text-sm w-7 mt-0.5" aria-hidden="true">{"{}"}</span>
+          <p class="font-mono text-sm text-cream/65 leading-relaxed">
+            Every command returns structured JSON to stdout
+          </p>
+        </div>
+        <div class="flex gap-4 p-5 rounded-xl border border-cream/10 hover:border-cream/20 hover:bg-cream/5 transition-all">
+          <span class="shrink-0 font-mono text-violet text-sm w-7 mt-0.5" aria-hidden="true">ok</span>
+          <p class="font-mono text-sm text-cream/65 leading-relaxed">
+            Errors are JSON too — always check <code class="text-coral">ok</code>
+          </p>
+        </div>
+        <div class="flex gap-4 p-5 rounded-xl border border-cream/10 hover:border-cream/20 hover:bg-cream/5 transition-all">
+          <span class="shrink-0 font-mono text-violet text-sm w-7 mt-0.5" aria-hidden="true">▷</span>
+          <p class="font-mono text-sm text-cream/65 leading-relaxed">
+            <code class="text-coral">--dry-run</code> lets agents preview before executing
+          </p>
+        </div>
+        <div class="flex gap-4 p-5 rounded-xl border border-cream/10 hover:border-cream/20 hover:bg-cream/5 transition-all">
+          <span class="shrink-0 font-mono text-violet text-sm w-7 mt-0.5" aria-hidden="true">⚙</span>
+          <p class="font-mono text-sm text-cream/65 leading-relaxed">
+            See <code class="text-coral">copilot-instructions.md</code> for workflow patterns
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Changelog teaser -->
+  <section class="w-full py-20 px-6 bg-cream border-t border-ink/5">
+    <div class="max-w-5xl mx-auto">
+      <div class="flex items-baseline justify-between mb-10 gap-4 flex-wrap">
+        <h2 class="font-display text-4xl font-bold text-ink">What's new.</h2>
+        <a
+          href="https://github.com/kolatts/pncli/releases"
+          class="text-sm font-medium text-coral hover:underline"
+        >
+          View full changelog →
+        </a>
+      </div>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="rounded-xl border border-ink/10 bg-cream p-6">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="font-mono text-xs font-semibold bg-coral text-cream px-2.5 py-1 rounded-full">v1.4.0</span>
+            <span class="text-xs text-ink/40">Apr 11, 2026</span>
+          </div>
+          <p class="text-sm text-ink/70 leading-relaxed">
+            Azure DevOps Server integration — work items, repos, PRs, and pipelines.
+          </p>
+        </div>
+        <div class="rounded-xl border border-ink/10 bg-cream p-6">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="font-mono text-xs font-semibold bg-coral text-cream px-2.5 py-1 rounded-full">v1.3.0</span>
+            <span class="text-xs text-ink/40">Mar 28, 2026</span>
+          </div>
+          <p class="text-sm text-ink/70 leading-relaxed">
+            SDElements cloud + on-prem support. SonarQube quality gates.
+          </p>
+        </div>
+        <div class="rounded-xl border border-ink/10 bg-cream p-6">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="font-mono text-xs font-semibold bg-coral text-cream px-2.5 py-1 rounded-full">v1.2.0</span>
+            <span class="text-xs text-ink/40">Feb 14, 2026</span>
+          </div>
+          <p class="text-sm text-ink/70 leading-relaxed">
+            Confluence spaces and page management. Jira sprint commands.
+          </p>
+        </div>
+      </div>
+    </div>
   </section>
 </Base>
