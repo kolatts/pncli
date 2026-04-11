@@ -12,8 +12,10 @@ import { createHttpClient } from '../../lib/http.js';
 import { AdoCoreClient } from '../ado/client/core.js';
 import { AdoWorkClient } from '../ado/client/work.js';
 import { discoverFields, discoverTypes, buildDefaultAliases } from '../ado/discovery.js';
+import { checkArtifactoryConnectivity } from '../deps/clients/artifactory.js';
 import { success, fail, warn } from '../../lib/output.js';
 import { ExitCode } from '../../lib/exitCodes.js';
+import chalk from 'chalk';
 import fs from 'fs';
 
 export function registerConfigCommands(program: Command): void {
@@ -157,6 +159,165 @@ export function registerConfigCommands(program: Command): void {
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
+      }
+    });
+
+  config
+    .command('check')
+    .description('Check PAT status for every service: Blank, Valid, or Invalid')
+    .action(async () => {
+      const start = Date.now();
+      try {
+        const opts = program.optsWithGlobals();
+        const cfg = loadConfig({ configPath: opts.config });
+        // Always bypass --dry-run: a dry-run config check is meaningless
+        const http = createHttpClient(cfg, false);
+
+        type CheckStatus = 'blank' | 'valid' | 'invalid' | 'error';
+        type CheckResult = { status: CheckStatus; message: string };
+        const results: Record<string, CheckResult> = {};
+
+        function categorize(err: unknown): CheckResult {
+          const status = (err as { status?: number }).status ?? -1;
+          if (status === 401 || status === 403) {
+            return { status: 'invalid', message: `auth rejected (${status})` };
+          }
+          if (status === 0) {
+            return { status: 'error', message: (err instanceof Error ? err.message : String(err)) };
+          }
+          return { status: 'error', message: (err instanceof Error ? err.message : String(err)) };
+        }
+
+        // Jira
+        if (!cfg.jira.apiToken) {
+          results.jira = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.jira.baseUrl) {
+          results.jira = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.jira<unknown>('/rest/api/2/myself', { timeoutMs: 10_000 });
+            results.jira = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.jira = categorize(err);
+          }
+        }
+
+        // Bitbucket
+        if (!cfg.bitbucket.pat) {
+          results.bitbucket = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.bitbucket.baseUrl) {
+          results.bitbucket = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.bitbucket<unknown>('/rest/api/1.0/application-properties', { timeoutMs: 10_000 });
+            results.bitbucket = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.bitbucket = categorize(err);
+          }
+        }
+
+        // Confluence — distinguish explicit token from Jira fallback
+        if (!cfg.confluence.apiTokenExplicit && !cfg.jira.apiToken) {
+          results.confluence = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.confluence.apiToken) {
+          results.confluence = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.confluence.baseUrl) {
+          results.confluence = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.confluence<unknown>('/rest/api/space', { params: { limit: 1 }, timeoutMs: 10_000 });
+            const msg = cfg.confluence.apiTokenExplicit ? 'ok' : 'ok (inherited from Jira token)';
+            results.confluence = { status: 'valid', message: msg };
+          } catch (err) {
+            results.confluence = categorize(err);
+          }
+        }
+
+        // SonarQube
+        if (!cfg.sonar.token) {
+          results.sonar = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.sonar.baseUrl) {
+          results.sonar = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.sonar<unknown>('/api/system/status', { timeoutMs: 10_000 });
+            results.sonar = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.sonar = categorize(err);
+          }
+        }
+
+        // SDElements
+        if (!cfg.sde.token) {
+          results.sde = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.sde.baseUrl) {
+          results.sde = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.sde<unknown>('/api/v2/users/me/', { timeoutMs: 10_000 });
+            results.sde = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.sde = categorize(err);
+          }
+        }
+
+        // Azure DevOps
+        if (!cfg.ado.pat) {
+          results.ado = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.ado.baseUrl) {
+          results.ado = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            const collection = cfg.defaults.ado?.collection;
+            const path = collection
+              ? `/${encodeURIComponent(collection)}/_apis/connectionData?api-version=7.1`
+              : '/_apis/projectCollections?api-version=7.1';
+            await http.ado<unknown>(path, { timeoutMs: 10_000 });
+            results.ado = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.ado = categorize(err);
+          }
+        }
+
+        // Artifactory — reuse existing helper
+        const artResult = await checkArtifactoryConnectivity(cfg.artifactory);
+        if (!artResult.configured) {
+          results.artifactory = { status: 'blank', message: artResult.error ?? 'not configured' };
+        } else if (!artResult.authenticated) {
+          results.artifactory = { status: 'invalid', message: artResult.error ?? 'auth rejected' };
+        } else if (!artResult.reachable) {
+          results.artifactory = { status: 'error', message: artResult.error ?? 'unreachable' };
+        } else {
+          results.artifactory = { status: 'valid', message: 'ok' };
+        }
+
+        // Pretty table on stderr (stdout stays JSON)
+        if (opts.pretty) {
+          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory'] as const;
+          const labelWidth = 14;
+          const statusWidth = 9;
+          for (const svc of services) {
+            const r = results[svc];
+            if (!r) continue;
+            const label = svc.padEnd(labelWidth);
+            const coloredStatus =
+              r.status === 'valid'   ? chalk.green('valid'.padEnd(statusWidth))   :
+              r.status === 'blank'   ? chalk.gray('blank'.padEnd(statusWidth))    :
+              r.status === 'invalid' ? chalk.red('invalid'.padEnd(statusWidth))   :
+                                       chalk.yellow('error'.padEnd(statusWidth));
+            process.stderr.write(`  ${label}${coloredStatus}${r.message}\n`);
+          }
+          process.stderr.write('\n');
+        }
+
+        // Exit code: prefer AUTH_ERROR if any invalid, else NETWORK_ERROR if any errors
+        const statuses = Object.values(results).map(r => r.status);
+        if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
+        else if (statuses.includes('error')) process.exitCode = ExitCode.NETWORK_ERROR;
+
+        success(results, 'config', 'check', start);
+      } catch (err) {
+        fail(err, 'config', 'check', start);
       }
     });
 }

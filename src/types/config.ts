@@ -126,6 +126,8 @@ export interface ResolvedConfig {
   confluence: {
     baseUrl: string | undefined;
     apiToken: string | undefined;
+    /** true if the token was explicitly set for Confluence; false if inherited from the Jira token */
+    apiTokenExplicit: boolean;
   };
   artifactory: ArtifactoryConfig;
   sonar: {
