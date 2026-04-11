@@ -295,6 +295,17 @@ export interface AdoBuildLog {
   lineCount?: number;
 }
 
+export interface AdoGitStatus {
+  id: number;
+  state: 'notSet' | 'pending' | 'succeeded' | 'failed' | 'error' | 'notApplicable';
+  description?: string;
+  targetUrl?: string;
+  context: { name: string; genre?: string };
+  createdBy?: AdoIdentityRef;
+  createdDate?: string;
+  updatedDate?: string;
+}
+
 // ── Shared pagination wrapper ────────────────────────────────────────
 
 export interface AdoPageResponse<T> {

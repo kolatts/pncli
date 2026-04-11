@@ -1,10 +1,21 @@
 ---
 import { Image } from 'astro:assets';
 import logo from '../assets/logo-transparent.png';
+
+const path = Astro.url.pathname;
+const isActive = (prefix: string) => path === prefix || path.startsWith(prefix + '/') || (prefix !== '/pncli/' && path.startsWith(prefix));
+const linkClass = (prefix: string) =>
+  `font-mono text-sm transition-colors ${isActive(prefix) ? 'text-coral' : 'text-ink/60 hover:text-ink'}`;
 ---
 
-<nav class="w-full px-6 py-5 flex items-center justify-center border-b border-ink/10">
-  <a href="/pncli/" class="flex items-center no-underline">
-    <Image src={logo} alt="pncli" width={400} class="h-32 w-auto" />
+<nav class="w-full px-6 py-4 flex items-center justify-between border-b border-ink/10 bg-cream">
+  <a href="/pncli/" class="flex items-center no-underline shrink-0">
+    <Image src={logo} alt="pncli" width={400} class="h-16 md:h-20 w-auto" />
   </a>
+  <div class="flex items-center gap-6">
+    <a href="/pncli/getting-started/" class={linkClass('/pncli/getting-started')}>Docs</a>
+    <a href="/pncli/skills/"          class={linkClass('/pncli/skills')}>Skills</a>
+    <a href="/pncli/changelog/"       class={linkClass('/pncli/changelog')}>Changelog</a>
+    <a href="/pncli/feedback/"        class={linkClass('/pncli/feedback')}>Feedback</a>
+  </div>
 </nav>

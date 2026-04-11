@@ -6,6 +6,8 @@ import type {
   AdoPRComment,
   AdoPRCompletionOptions,
   AdoGitChange,
+  AdoGitDiff,
+  AdoGitStatus,
   AdoPageResponse
 } from '../../../types/ado.js';
 
@@ -213,6 +215,23 @@ export class AdoGitClient {
   }
 
   // ── Diffs / Files ─────────────────────────────────────────────────
+
+  async getPRDiff(collection: string, project: string, repo: string, prId: number): Promise<AdoGitDiff> {
+    const pr = await this.getPR(collection, project, repo, prId);
+    const sourceCommit = pr.lastMergeSourceCommit?.commitId;
+    const targetCommit = pr.lastMergeTargetCommit?.commitId;
+    if (!sourceCommit || !targetCommit) return { changes: [], aheadCount: 0, behindCount: 0 };
+    return this.http.ado<AdoGitDiff>(
+      `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repo)}/diffs/commits?baseVersion=${encodeURIComponent(targetCommit)}&baseVersionType=commit&targetVersion=${encodeURIComponent(sourceCommit)}&targetVersionType=commit&api-version=${API}`
+    );
+  }
+
+  async getCommitStatuses(collection: string, project: string, repo: string, commitId: string): Promise<AdoGitStatus[]> {
+    const result = await this.http.ado<AdoPageResponse<AdoGitStatus>>(
+      `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repo)}/commits/${encodeURIComponent(commitId)}/statuses?api-version=${API}`
+    );
+    return result.value ?? [];
+  }
 
   async listPRChanges(collection: string, project: string, repo: string, prId: number): Promise<AdoGitChange[]> {
     const iterations = await this.http.ado<AdoPageResponse<{ id: number }>>(
