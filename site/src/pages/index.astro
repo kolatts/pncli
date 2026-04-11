@@ -1,10 +1,17 @@
 ---
 import { Image } from 'astro:assets';
+import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import Hero from '../components/Hero.astro';
 import CodeTabs from '../components/CodeTabs.astro';
 import ServiceGrid from '../components/ServiceGrid.astro';
 import meetings from '../assets/3-meetings.png';
+
+const latestEntries = (await getCollection('changelog'))
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  .slice(0, 3);
+
+const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 ---
 
 <Base>
@@ -102,46 +109,32 @@ import meetings from '../assets/3-meetings.png';
     </div>
   </section>
 
-  <!-- Changelog teaser -->
+  <!-- Changelog teaser — live from CHANGELOG.md -->
   <section class="w-full py-20 px-6 bg-cream border-t border-ink/5">
     <div class="max-w-5xl mx-auto">
       <div class="flex items-baseline justify-between mb-10 gap-4 flex-wrap">
         <h2 class="font-display text-4xl font-bold text-ink">What's new.</h2>
-        <a
-          href="https://github.com/kolatts/pncli/releases"
-          class="text-sm font-medium text-coral hover:underline"
-        >
+        <a href="/pncli/changelog/" class="text-sm font-medium text-coral hover:underline">
           View full changelog →
         </a>
       </div>
       <div class="grid md:grid-cols-3 gap-4">
-        <div class="rounded-xl border border-ink/10 bg-cream p-6">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="font-mono text-xs font-semibold bg-coral text-cream px-2.5 py-1 rounded-full">v1.4.0</span>
-            <span class="text-xs text-ink/40">Apr 11, 2026</span>
-          </div>
-          <p class="text-sm text-ink/70 leading-relaxed">
-            Azure DevOps Server integration — work items, repos, PRs, and pipelines.
-          </p>
-        </div>
-        <div class="rounded-xl border border-ink/10 bg-cream p-6">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="font-mono text-xs font-semibold bg-coral text-cream px-2.5 py-1 rounded-full">v1.3.0</span>
-            <span class="text-xs text-ink/40">Mar 28, 2026</span>
-          </div>
-          <p class="text-sm text-ink/70 leading-relaxed">
-            SDElements cloud + on-prem support. SonarQube quality gates.
-          </p>
-        </div>
-        <div class="rounded-xl border border-ink/10 bg-cream p-6">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="font-mono text-xs font-semibold bg-coral text-cream px-2.5 py-1 rounded-full">v1.2.0</span>
-            <span class="text-xs text-ink/40">Feb 14, 2026</span>
-          </div>
-          <p class="text-sm text-ink/70 leading-relaxed">
-            Confluence spaces and page management. Jira sprint commands.
-          </p>
-        </div>
+        {latestEntries.map(entry => (
+          <a
+            href={`/pncli/changelog/${entry.data.version}/`}
+            class="group rounded-xl border border-ink/10 bg-cream p-6 hover:border-ink/20 hover:shadow-sm transition-all"
+          >
+            <div class="flex items-center gap-2 mb-3">
+              <span class="font-mono text-xs font-semibold bg-coral text-cream px-2.5 py-1 rounded-full">
+                v{entry.data.version}
+              </span>
+              <span class="text-xs text-ink/40">{fmt.format(entry.data.date)}</span>
+            </div>
+            <p class="text-sm text-ink/70 leading-relaxed group-hover:text-ink transition-colors">
+              {entry.data.summary}
+            </p>
+          </a>
+        ))}
       </div>
     </div>
   </section>

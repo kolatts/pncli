@@ -7,3 +7,4 @@ dist/
 
 # Astro site
 site/.astro/
+site/src/content/changelog/

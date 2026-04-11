@@ -74,7 +74,7 @@ pncli/
 
 ---
 
-## Phase 1 — Bootstrap the site and ship a placeholder deploy
+## ✅ Phase 1 — Bootstrap the site and ship a placeholder deploy
 
 **Goal:** Green `https://kolatts.github.io/pncli/` before any real content exists, so CI is proven end-to-end.
 
@@ -97,7 +97,7 @@ pncli/
 
 ---
 
-## Phase 2 — Homepage, 404, and static content
+## ✅ Phase 2 — Homepage, 404, and static content
 
 **Goal:** The real site using existing images and README-derived copy.
 
@@ -111,11 +111,13 @@ pncli/
 - **`Footer.astro`** — links to GitHub repo, npm page, `/changelog`, `/feedback`. `monster.png` as a decorative mascot.
 - **`404.astro`** — `404.png` art, links to `/` and latest release. Astro emits `404.html`; confirm GH Pages serves it correctly under `base: /pncli/`.
 
+**Deviations from plan:** `CodeTabs.astro` simplified to npm-only (no pnpm/yarn tabs) since only npm is supported. Changelog teaser links point to GitHub releases until Phase 3 wires real pages.
+
 **Verification:** `npm run dev` — walk every page, run Lighthouse (expect near-zero JS), confirm all images resolve under the `/pncli/` base path.
 
 ---
 
-## Phase 3 — CHANGELOG → MDX pipeline and changelog pages
+## ✅ Phase 3 — CHANGELOG → MDX pipeline and changelog pages
 
 **Goal:** Every release-please merge auto-updates the site's changelog without committing generated files.
 
@@ -143,6 +145,8 @@ pncli/
 - **`changelog/index.astro`** — reverse-chrono list grouped by year. Each row: version pill, date, tag chips (feat = violet, fix = coral, breaking = ink-on-cream), one-line summary, click → detail.
 - **`changelog/[slug].astro`** — renders the MDX body with Shiki code blocks. Sidebar lists all versions. "Report an issue with this release" → `/feedback?version=1.4.0`.
 - Homepage latest-3 teaser now pulled live from `getCollection('changelog')`.
+
+**Deviations from plan:** Used Astro 6 Content Layer `glob()` loader (not legacy `type: 'content'`), so `entry.data.version` is used for routing instead of `entry.slug`. Added `@tailwindcss/typography` for MDX prose styling. All dates use `timeZone: 'UTC'` to prevent off-by-one from UTC parsing. `npm run dev` also runs the parser (not just prebuild).
 
 **Verification:** `npm run build` produces MDX files matching the current `CHANGELOG.md`. Visit `/changelog/` and `/changelog/1.4.0/` locally. Confirm Pages workflow re-runs when `CHANGELOG.md` changes (path filter from Phase 1).
 
