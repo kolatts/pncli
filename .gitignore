@@ -8,3 +8,8 @@ dist/
 # Astro site
 site/.astro/
 site/src/content/changelog/
+
+# Azure Function
+functions/feedback/bin/
+functions/feedback/obj/
+functions/feedback/local.settings.json

@@ -154,7 +154,7 @@ pncli/
 
 ---
 
-## Phase 4 — Azure Function backend (C# .NET 8 isolated, `az` CLI provisioning)
+## ✅ Phase 4 — Azure Function backend (C# .NET 10 isolated, `az` CLI provisioning)
 
 **Goal:** Stand up a consumption-plan Function that Phase 5's form will POST to. Ships independently — once `curl` against the endpoint creates a GitHub issue, Phase 5 can start. No Bicep; a small idempotent `az` CLI script handles provisioning.
 
