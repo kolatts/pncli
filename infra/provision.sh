@@ -32,11 +32,11 @@ az monitor app-insights component show \
   --app "$APPINSIGHTS" -g "$RG" \
   --only-show-errors >/dev/null
 
-echo "→ Function App: $FUNCAPP (dotnet-isolated, .NET 10)" >&2
+echo "→ Function App: $FUNCAPP (dotnet-isolated, .NET 9)" >&2
 az functionapp create \
   -n "$FUNCAPP" -g "$RG" \
   --consumption-plan-location "$LOC" \
-  --runtime dotnet-isolated --runtime-version 10 \
+  --runtime dotnet-isolated --runtime-version 9 \
   --functions-version 4 --os-type Linux \
   --storage-account "$STORAGE" \
   --app-insights "$APPINSIGHTS" \
