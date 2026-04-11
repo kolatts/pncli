@@ -498,6 +498,8 @@ pncli config show
 pncli config set
 
 pncli config test
+
+pncli config check
 ```
 
 ### Ado
