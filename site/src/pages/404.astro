@@ -1,0 +1,36 @@
+---
+import { Image } from 'astro:assets';
+import Base from '../layouts/Base.astro';
+import notFound from '../assets/404.png';
+---
+
+<Base title="404 — pncli" description="Page not found">
+  <section class="w-full flex flex-col items-center justify-center px-6 py-24 text-center">
+    <Image
+      src={notFound}
+      alt="404 illustration"
+      width={320}
+      class="w-full max-w-xs mb-8"
+    />
+    <h1 class="font-display text-4xl md:text-5xl font-bold text-ink mb-4">
+      404 — Lost in the backlog
+    </h1>
+    <p class="text-ink/50 text-lg max-w-md leading-relaxed mb-8">
+      This page got lost somewhere between Jira and Bitbucket.
+    </p>
+    <div class="flex flex-wrap gap-4 justify-center">
+      <a
+        href="/pncli/"
+        class="inline-flex items-center gap-2 bg-coral text-cream font-semibold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity"
+      >
+        ← Back home
+      </a>
+      <a
+        href="/pncli/changelog/"
+        class="inline-flex items-center gap-2 border border-ink/20 text-ink font-semibold px-6 py-3 rounded-lg hover:border-ink/40 hover:bg-ink/5 transition-all"
+      >
+        Latest release →
+      </a>
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,69 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+const allEntries = await getCollection('changelog');
+
+// Sort newest first
+const entries = allEntries.sort(
+  (a, b) => b.data.date.getTime() - a.data.date.getTime()
+);
+
+// Group by year
+const byYear = entries.reduce<Record<number, typeof entries>>((acc, entry) => {
+  const year = entry.data.date.getFullYear();
+  (acc[year] ??= []).push(entry);
+  return acc;
+}, {});
+
+const years = Object.keys(byYear).map(Number).sort((a, b) => b - a);
+
+const tagLabel: Record<string, string> = { feat: 'feat', fix: 'fix', breaking: 'breaking' };
+const tagClass: Record<string, string> = {
+  feat:     'bg-violet/10 text-violet border border-violet/20',
+  fix:      'bg-coral/10 text-coral border border-coral/20',
+  breaking: 'bg-ink text-cream',
+};
+
+const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+---
+
+<Base title="Changelog — pncli" description="Every pncli release, in one place.">
+  <div class="max-w-4xl mx-auto px-6 py-16">
+    <div class="mb-12">
+      <h1 class="font-display text-5xl font-bold text-ink mb-3">Changelog</h1>
+      <p class="text-ink/50 text-lg">Every release, in one place.</p>
+    </div>
+
+    {years.map(year => (
+      <div class="mb-12">
+        <p class="font-mono text-sm text-ink/30 mb-4 border-b border-ink/10 pb-2">{year}</p>
+        <div class="divide-y divide-ink/5">
+          {byYear[year].map(entry => (
+            <a
+              href={`/pncli/changelog/${entry.data.version}/`}
+              class="flex items-start gap-4 py-4 group hover:bg-ink/[0.02] -mx-3 px-3 rounded-lg transition-colors"
+            >
+              <span class="font-mono text-xs font-semibold bg-coral text-cream px-2.5 py-1 rounded-full shrink-0 mt-0.5">
+                v{entry.data.version}
+              </span>
+              <span class="text-xs text-ink/40 shrink-0 mt-1.5 w-14">
+                {fmt.format(entry.data.date)}
+              </span>
+              <div class="flex flex-wrap gap-1.5 shrink-0 mt-0.5">
+                {entry.data.tags.map(tag => (
+                  <span class={`text-xs font-mono px-2 py-0.5 rounded-full ${tagClass[tag]}`}>
+                    {tagLabel[tag]}
+                  </span>
+                ))}
+              </div>
+              <p class="text-sm text-ink/70 group-hover:text-ink transition-colors leading-relaxed">
+                {entry.data.summary}
+              </p>
+            </a>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+</Base>

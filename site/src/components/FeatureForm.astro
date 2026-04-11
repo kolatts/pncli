@@ -1,0 +1,163 @@
+---
+const endpoint = import.meta.env.PUBLIC_FEEDBACK_ENDPOINT ?? '';
+---
+
+<form
+  id="feedback-form"
+  class="flex flex-col gap-5"
+  novalidate
+>
+  <!-- Kind -->
+  <fieldset class="flex gap-4">
+    <legend class="text-sm font-semibold text-ink mb-2 w-full">Type</legend>
+    <label class="flex items-center gap-2 cursor-pointer">
+      <input
+        type="radio"
+        name="kind"
+        value="bug"
+        required
+        class="accent-coral w-4 h-4"
+      />
+      <span class="text-sm text-ink">Bug report</span>
+    </label>
+    <label class="flex items-center gap-2 cursor-pointer">
+      <input
+        type="radio"
+        name="kind"
+        value="feature"
+        class="accent-violet w-4 h-4"
+      />
+      <span class="text-sm text-ink">Feature request</span>
+    </label>
+  </fieldset>
+
+  <!-- Title -->
+  <div class="flex flex-col gap-1.5">
+    <label for="fb-title" class="text-sm font-semibold text-ink">
+      Title <span class="text-coral" aria-hidden="true">*</span>
+    </label>
+    <input
+      id="fb-title"
+      name="title"
+      type="text"
+      required
+      maxlength="120"
+      placeholder="Short summary (max 120 chars)"
+      class="w-full rounded-lg border border-ink/20 bg-cream px-4 py-2.5 text-sm text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-violet/40 focus:border-violet/60 transition-all"
+    />
+  </div>
+
+  <!-- Body -->
+  <div class="flex flex-col gap-1.5">
+    <label for="fb-body" class="text-sm font-semibold text-ink">
+      Details <span class="text-coral" aria-hidden="true">*</span>
+    </label>
+    <textarea
+      id="fb-body"
+      name="body"
+      required
+      rows="5"
+      placeholder="Steps to reproduce, expected vs actual behaviour, or your feature idea…"
+      class="w-full rounded-lg border border-ink/20 bg-cream px-4 py-2.5 text-sm text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-violet/40 focus:border-violet/60 transition-all resize-y"
+    ></textarea>
+  </div>
+
+  <!-- Service (optional) -->
+  <div class="flex flex-col gap-1.5">
+    <label for="fb-service" class="text-sm font-semibold text-ink">
+      Service <span class="text-ink/30 font-normal">(optional)</span>
+    </label>
+    <select
+      id="fb-service"
+      name="service"
+      class="w-full rounded-lg border border-ink/20 bg-cream px-4 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-violet/40 focus:border-violet/60 transition-all"
+    >
+      <option value="">— select if applicable —</option>
+      <option>Git</option>
+      <option>Jira</option>
+      <option>Bitbucket</option>
+      <option>Confluence</option>
+      <option>SonarQube</option>
+      <option>SDElements</option>
+      <option>Azure DevOps</option>
+      <option>Other</option>
+    </select>
+  </div>
+
+  <!-- Honeypot (hidden from real users) -->
+  <input
+    type="text"
+    name="hp"
+    tabindex="-1"
+    autocomplete="off"
+    class="sr-only"
+    aria-hidden="true"
+  />
+
+  <!-- Hidden: version from ?version= query param, populated by script -->
+  <input type="hidden" name="version" id="fb-version" value="" />
+
+  <!-- Status region -->
+  <div
+    id="fb-status"
+    role="status"
+    aria-live="polite"
+    class="min-h-[1.5rem] text-sm"
+  ></div>
+
+  <!-- Submit -->
+  <button
+    type="submit"
+    class="self-start inline-flex items-center gap-2 bg-coral text-cream font-semibold px-6 py-3 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+  >
+    Submit
+  </button>
+</form>
+
+<script define:vars={{ endpoint }}>
+  // Populate version from ?version= query param
+  const params = new URLSearchParams(window.location.search);
+  const versionInput = document.getElementById('fb-version');
+  if (versionInput && params.get('version')) {
+    versionInput.value = params.get('version');
+  }
+
+  const form = document.getElementById('feedback-form');
+  const status = document.getElementById('fb-status');
+  const submit = form.querySelector('[type="submit"]');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    status.textContent = '';
+    submit.disabled = true;
+    submit.textContent = 'Submitting…';
+
+    const data = Object.fromEntries(new FormData(form));
+
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json().catch(() => ({}));
+
+      if (json.ok && json.issueUrl) {
+        status.innerHTML =
+          `<span class="text-violet font-medium">Thanks! Your issue was filed: ` +
+          `<a href="${json.issueUrl}" target="_blank" rel="noopener noreferrer" ` +
+          `class="underline hover:opacity-80">${json.issueUrl}</a></span>`;
+        form.reset();
+      } else {
+        status.innerHTML =
+          `<span class="text-coral">${json.error ?? 'Something went wrong. Please try again.'}</span>`;
+      }
+    } catch {
+      status.innerHTML =
+        `<span class="text-coral">Network error — please check your connection and try again.</span>`;
+    } finally {
+      submit.disabled = false;
+      submit.textContent = 'Submit';
+    }
+  });
+</script>

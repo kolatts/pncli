@@ -1,0 +1,46 @@
+---
+import { Image } from 'astro:assets';
+import hero from '../assets/hero.png';
+---
+
+<section class="w-full bg-cream pt-16 pb-0 px-6">
+  <div class="max-w-5xl mx-auto flex flex-col items-center text-center gap-6">
+    <div class="inline-flex items-center gap-2 bg-ink/5 border border-ink/10 rounded-full px-4 py-1.5 text-sm font-mono text-ink/50">
+      <span class="w-1.5 h-1.5 rounded-full bg-coral shrink-0"></span>
+      npm install -g @kolatts/pncli
+    </div>
+
+    <h1 class="font-display text-5xl md:text-7xl font-bold text-ink leading-[1.05] tracking-tight max-w-3xl">
+      One command does what three meetings couldn't.
+    </h1>
+
+    <p class="text-lg md:text-xl text-ink/60 max-w-2xl leading-relaxed">
+      pncli gives AI coding agents and humans structured CLI access to Jira, Bitbucket,
+      Confluence, SonarQube, and more. No MCP servers required.
+    </p>
+
+    <div class="flex flex-wrap items-center justify-center gap-4 mt-2">
+      <a
+        href="#install"
+        class="inline-flex items-center gap-2 bg-coral text-cream font-semibold px-7 py-3.5 rounded-lg hover:opacity-90 transition-opacity text-base"
+      >
+        Install now
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </a>
+      <a
+        href="/pncli/changelog/"
+        class="inline-flex items-center gap-2 border border-ink/20 text-ink font-semibold px-7 py-3.5 rounded-lg hover:border-ink/40 hover:bg-ink/5 transition-all text-base"
+      >
+        View changelog
+      </a>
+    </div>
+
+    <div class="w-full max-w-3xl mt-8 -mb-1">
+      <Image
+        src={hero}
+        alt="pncli in action — terminal showing structured JSON output"
+        class="w-full rounded-2xl shadow-2xl shadow-ink/20 ring-1 ring-ink/10"
+      />
+    </div>
+  </div>
+</section>

@@ -9,6 +9,9 @@ export default defineConfig({
   base: '/pncli/',
   vite: {
     plugins: [tailwindcss()],
+    server: {
+      allowedHosts: ['host.docker.internal'],
+    },
   },
   integrations: [mdx()],
 });
