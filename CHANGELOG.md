@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.5.0](https://github.com/kolatts/pncli/compare/v1.4.0...v1.5.0) (2026-04-11)
+
+
+### Features
+
+* add permissions configuration for Bash commands in settings ([d8ddd7f](https://github.com/kolatts/pncli/commit/d8ddd7f29e9c6658c6ccd02e1cf26eb0e9b4a3cb))
+* add pncli config check command ([#24](https://github.com/kolatts/pncli/issues/24)) ([ab18549](https://github.com/kolatts/pncli/commit/ab1854903e790021edfb78d6880bd2157b726ba5))
+* bootstrap Astro site and GitHub Pages deploy workflow (Phase 1) ([#19](https://github.com/kolatts/pncli/issues/19)) ([85ee755](https://github.com/kolatts/pncli/commit/85ee75512f740fe469a5999c663de672db6c2993))
+* Claude Code skills, ADO diff/build-status, and site Skills section ([#25](https://github.com/kolatts/pncli/issues/25)) ([a284f93](https://github.com/kolatts/pncli/commit/a284f932579fce505548a4478208f55c28342c37))
+* pncli GitHub Pages site (Phases 1–5) ([#20](https://github.com/kolatts/pncli/issues/20)) ([bac6e89](https://github.com/kolatts/pncli/commit/bac6e89642db0f27bdd47753f421514dd875af8a))
+
+
+### Bug Fixes
+
+* downgrade to .NET 9 — .NET 10 runtime unstable on Linux Consumption ([7f65292](https://github.com/kolatts/pncli/commit/7f652921641a05d2c13af92d2c602e197bbae766))
+* drop AspNetCore integration — function uses standard isolated HTTP types ([0fdcae3](https://github.com/kolatts/pncli/commit/0fdcae3740d7f383846d07e28774e7f2f540f7a1))
+* redirect provision.sh progress output to stderr ([c8a5407](https://github.com/kolatts/pncli/commit/c8a5407703f38571160682c4532abf47b46bf6b7))
+* remove ApplicationInsights package — PerfCounterCollector aborts on Linux ([313cd89](https://github.com/kolatts/pncli/commit/313cd890d98aaee7851f0ff4e630a022a30b0bc5))
+* **site:** move paperwork monster to hero section, fix DC copy and Artifactory status ([#23](https://github.com/kolatts/pncli/issues/23)) ([f3219be](https://github.com/kolatts/pncli/commit/f3219be556f81c8b35feab4a39c211a3087ffbb7))
+* update Azure Functions packages for .NET 10 compatibility ([4bef710](https://github.com/kolatts/pncli/commit/4bef7106f96bc2f5656513d1e9020ec6ec5c72a9))
+
 ## [1.4.0](https://github.com/kolatts/pncli/compare/v1.3.0...v1.4.0) (2026-04-11)
 
 
