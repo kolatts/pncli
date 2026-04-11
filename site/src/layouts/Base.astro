@@ -1,0 +1,34 @@
+---
+import '../styles/global.css';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = 'pncli — The Paperwork Nightmare CLI',
+  description = 'One command does what three meetings couldn\'t. Structured CLI access to Jira, Bitbucket, Confluence, SonarQube, and more.',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <link rel="icon" type="image/png" href="/pncli/favicon.png" />
+  </head>
+  <body class="min-h-screen flex flex-col bg-cream text-ink font-sans">
+    <Nav />
+    <main class="flex-1">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

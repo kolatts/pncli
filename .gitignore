@@ -4,3 +4,6 @@ dist/
 .pncli/
 .env
 *.local
+
+# Astro site
+site/.astro/
