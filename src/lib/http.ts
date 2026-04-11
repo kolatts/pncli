@@ -300,7 +300,7 @@ export class HttpClient {
 
   private async getAdoFetcher(): Promise<typeof fetch> {
     if (!this.adoFetcher) {
-      this.adoFetcher = await buildAdoFetcher(this.config, this.dryRun);
+      this.adoFetcher = await buildAdoFetcher(this.config);
     }
     return this.adoFetcher;
   }
