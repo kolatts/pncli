@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - 'site/**'
+      - '.claude/skills/**'
       - 'CHANGELOG.md'
+      - 'copilot-instructions.md'
       - '.github/workflows/pages-deploy.yml'
   workflow_dispatch:
 

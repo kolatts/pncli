@@ -287,7 +287,7 @@ export function registerAdoRepoCommands(ado: Command): void {
       } catch (err) { fail(err, 'ado', 'repo-delete-comment', start); }
     });
 
-  // ── Files ─────────────────────────────────────────────────────────
+  // ── Files / Diffs ─────────────────────────────────────────────────
 
   repo
     .command('list-files')
@@ -300,6 +300,34 @@ export function registerAdoRepoCommands(ado: Command): void {
         const data = await gitClient.listPRChanges(collection, project, repo, parseInt(opts.pr, 10));
         success(data, 'ado', 'repo-list-files', start);
       } catch (err) { fail(err, 'ado', 'repo-list-files', start); }
+    });
+
+  repo
+    .command('diff')
+    .description('Show files changed in a pull request with change types and commit metadata')
+    .requiredOption('--pr <n>', 'Pull request ID')
+    .action(async (opts: { pr: string }) => {
+      const start = Date.now();
+      try {
+        const { collection, project, repo, gitClient } = getAdoContext(ado, true);
+        const data = await gitClient.getPRDiff(collection, project, repo, parseInt(opts.pr, 10));
+        success(data, 'ado', 'repo-diff', start);
+      } catch (err) { fail(err, 'ado', 'repo-diff', start); }
+    });
+
+  // ── Build statuses ────────────────────────────────────────────────
+
+  repo
+    .command('get-build-status')
+    .description('Get CI/build statuses posted to a commit')
+    .requiredOption('--commit <sha>', 'Commit SHA')
+    .action(async (opts: { commit: string }) => {
+      const start = Date.now();
+      try {
+        const { collection, project, repo, gitClient } = getAdoContext(ado, true);
+        const data = await gitClient.getCommitStatuses(collection, project, repo, opts.commit);
+        success(data, 'ado', 'repo-get-build-status', start);
+      } catch (err) { fail(err, 'ado', 'repo-get-build-status', start); }
     });
 
   // ── Reviewers / Votes ─────────────────────────────────────────────

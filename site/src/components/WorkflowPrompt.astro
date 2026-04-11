@@ -1,0 +1,37 @@
+---
+import { Image } from 'astro:assets';
+import claudeSpark from '../assets/claude-spark/Claude Spark - Clay.svg';
+import copilotIcon from '../assets/copilot-icon.svg';
+
+interface Props {
+  prompt: string;
+}
+
+const { prompt } = Astro.props;
+---
+
+<div class="not-prose mt-12 mb-4 rounded-xl bg-ink overflow-hidden">
+  <div class="px-5 py-3 border-b border-cream/10 flex items-center gap-2">
+    <!-- Overlapping agent avatars -->
+    <div class="flex items-center -space-x-1.5">
+      <div class="w-7 h-7 rounded-full bg-coral/20 border-2 border-ink flex items-center justify-center" title="Claude">
+        <Image src={claudeSpark} alt="Claude" width={16} height={16} class="w-4 h-4" />
+      </div>
+      <div class="w-7 h-7 rounded-full bg-[#8957e5]/20 border-2 border-ink flex items-center justify-center" title="GitHub Copilot">
+        <Image src={copilotIcon} alt="GitHub Copilot" width={14} height={14} class="w-3.5 h-3.5 brightness-[3]" />
+      </div>
+    </div>
+    <span class="font-mono text-xs text-cream/30 tracking-wide">claude · copilot</span>
+  </div>
+  <div class="px-5 py-4 flex items-start gap-3">
+    <span class="shrink-0 mt-0.5 text-cream/25" aria-hidden="true">
+      <!-- question mark icon -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+        <path d="M12 17h.01"/>
+      </svg>
+    </span>
+    <p class="font-sans text-sm text-cream/80 leading-relaxed">{prompt}</p>
+  </div>
+</div>

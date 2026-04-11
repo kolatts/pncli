@@ -1,6 +1,7 @@
 # pncli — The Paperwork Nightmare CLI
 
 [![npm](https://img.shields.io/npm/v/%40kolatts%2Fpncli?style=flat-square&color=cb3837&logo=npm)](https://www.npmjs.com/package/@kolatts/pncli)
+[![docs](https://img.shields.io/badge/docs-getting%20started-FF5C39?style=flat-square)](https://kolatts.github.io/pncli/getting-started/)
 
 > One command does what three meetings couldn't.
 
@@ -26,7 +27,7 @@ pncli config init
 pncli config init --repo
 ```
 
-For workflow patterns, command examples, and agent integration, see [`copilot-instructions.md`](./copilot-instructions.md).
+For workflow patterns, command examples, and agent integration, see the [Getting Started page](https://kolatts.github.io/pncli/getting-started/) or the raw [`copilot-instructions.md`](./copilot-instructions.md).
 
 ## Configuration
 

@@ -10,6 +10,8 @@ deploy.zip
 # Astro site
 site/.astro/
 site/src/content/changelog/
+site/src/content/docs/
+site/src/content/skills/
 
 # Azure Function
 functions/feedback/bin/

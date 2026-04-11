@@ -1,0 +1,35 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  providers: string;
+  slug: string;
+}
+
+const { title, description, providers, slug } = Astro.props;
+
+const providerLabel: Record<string, string> = {
+  both:      'Bitbucket · Azure DevOps',
+  bitbucket: 'Bitbucket',
+  ado:       'Azure DevOps',
+  none:      'All repos',
+};
+
+const label = providerLabel[providers] ?? 'All repos';
+---
+
+<a
+  href={`/pncli/skills/${slug}/`}
+  class="not-prose group flex flex-col rounded-xl bg-ink p-5 hover:ring-1 hover:ring-coral/30 transition-all"
+>
+  <div class="flex items-start justify-between gap-3 mb-3">
+    <h3 class="font-display text-base font-semibold text-cream leading-snug">{title}</h3>
+    <span class="font-mono text-[10px] text-cream/35 bg-cream/5 border border-cream/10 px-1.5 py-0.5 rounded shrink-0 mt-0.5">
+      {label}
+    </span>
+  </div>
+  <p class="text-sm text-cream/55 leading-relaxed flex-1 mb-4">{description}</p>
+  <span class="font-mono text-xs text-coral group-hover:underline">
+    View skill →
+  </span>
+</a>
