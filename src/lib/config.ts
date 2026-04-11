@@ -116,7 +116,10 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
     confluence: {
       baseUrl: process.env[ENV_KEYS.CONFLUENCE_BASE_URL] ?? globalConfig.confluence?.baseUrl,
       apiToken: process.env[ENV_KEYS.CONFLUENCE_API_TOKEN] ?? globalConfig.confluence?.apiToken
-        ?? process.env[ENV_KEYS.JIRA_API_TOKEN] ?? globalConfig.jira?.apiToken
+        ?? process.env[ENV_KEYS.JIRA_API_TOKEN] ?? globalConfig.jira?.apiToken,
+      apiTokenExplicit: !!(
+        process.env[ENV_KEYS.CONFLUENCE_API_TOKEN] ?? globalConfig.confluence?.apiToken
+      )
     },
     artifactory: {
       baseUrl: process.env[ENV_KEYS.ARTIFACTORY_BASE_URL] ?? globalConfig.artifactory?.baseUrl,
