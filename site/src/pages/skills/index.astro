@@ -15,9 +15,8 @@ const order = [
   'daily-standup-prep',
 ];
 
-const skills = [...entries].sort(
-  (a, b) => order.indexOf(a.id) - order.indexOf(b.id)
-);
+const getOrderIndex = (id: string) => { const i = order.indexOf(id); return i === -1 ? Infinity : i; };
+const skills = [...entries].sort((a, b) => getOrderIndex(a.id) - getOrderIndex(b.id));
 ---
 
 <Base
