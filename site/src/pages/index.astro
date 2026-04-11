@@ -5,7 +5,7 @@ import Base from '../layouts/Base.astro';
 import Hero from '../components/Hero.astro';
 import CodeTabs from '../components/CodeTabs.astro';
 import ServiceGrid from '../components/ServiceGrid.astro';
-import meetings from '../assets/3-meetings.png';
+import monster from '../assets/monster.png';
 
 const latestEntries = (await getCollection('changelog'))
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
@@ -21,48 +21,42 @@ const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', y
   <!-- Why pncli -->
   <section class="w-full py-20 px-6 bg-cream border-t border-ink/5">
     <div class="max-w-5xl mx-auto">
-      <h2 class="font-display text-4xl md:text-5xl font-bold text-ink mb-10">
-        Cut through the red tape.
-      </h2>
-      <div class="grid md:grid-cols-3 gap-4">
-        <!-- Card 1: wider, dark, with image -->
-        <div class="md:col-span-2 rounded-2xl overflow-hidden border border-ink/10 bg-ink text-cream flex flex-col">
-          <div class="overflow-hidden h-52">
-            <Image
-              src={meetings}
-              alt="Three meetings to get one PR merged"
-              class="w-full h-full object-cover object-top"
-            />
-          </div>
-          <div class="p-6 flex-1">
-            <h3 class="font-display text-xl font-bold mb-2">
-              Three meetings to get one PR merged?
-            </h3>
-            <p class="text-cream/60 text-sm leading-relaxed">
-              Your org blocked MCP. Your agents still need to review PRs, create issues,
-              and manage code reviews.
-            </p>
-          </div>
+      <div class="flex flex-col md:flex-row items-center gap-10 md:gap-16">
+        <!-- Monster -->
+        <div class="shrink-0 w-56 md:w-72">
+          <Image
+            src={monster}
+            alt="The paperwork monster — bureaucracy personified"
+            class="w-full h-auto"
+          />
         </div>
 
-        <!-- Cards 2 & 3 stacked -->
-        <div class="flex flex-col gap-4">
-          <div class="rounded-2xl border border-coral/25 bg-coral/5 p-6 flex-1">
-            <h3 class="font-display text-xl font-bold text-ink mb-2">
-              One command instead.
-            </h3>
-            <p class="text-ink/60 text-sm leading-relaxed">
-              pncli is the shim layer — one npm install and you're cutting through red tape.
-            </p>
-          </div>
-          <div class="rounded-2xl border border-violet/25 bg-violet/5 p-6 flex-1">
-            <h3 class="font-display text-xl font-bold text-ink mb-2">
-              Works with your stack.
-            </h3>
-            <p class="text-ink/60 text-sm leading-relaxed">
-              Git, Jira, Bitbucket, Confluence, SonarQube, SDElements, and Azure DevOps.
-              All from the terminal.
-            </p>
+        <!-- Content -->
+        <div class="flex-1 min-w-0">
+          <h2 class="font-display text-4xl md:text-5xl font-bold text-ink mb-8">
+            Cut through the red tape.
+          </h2>
+          <div class="flex flex-col gap-3">
+            <div class="rounded-xl border border-ink/10 bg-ink text-cream p-5">
+              <p class="font-display font-semibold text-base mb-1">Three meetings to get one PR merged.</p>
+              <p class="text-cream/55 text-sm leading-relaxed">
+                Your org blocked MCP. Your agents still need to review PRs, create issues,
+                and manage code reviews.
+              </p>
+            </div>
+            <div class="rounded-xl border border-coral/25 bg-coral/5 p-5">
+              <p class="font-display font-semibold text-ink text-base mb-1">One command instead.</p>
+              <p class="text-ink/55 text-sm leading-relaxed">
+                pncli is the shim layer — one npm install and you're cutting through red tape.
+              </p>
+            </div>
+            <div class="rounded-xl border border-violet/25 bg-violet/5 p-5">
+              <p class="font-display font-semibold text-ink text-base mb-1">Works with your stack.</p>
+              <p class="text-ink/55 text-sm leading-relaxed">
+                Jira Data Center, Bitbucket Server, Confluence, SonarQube, SDElements,
+                and Azure DevOps. All from the terminal.
+              </p>
+            </div>
           </div>
         </div>
       </div>

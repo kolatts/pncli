@@ -1,21 +1,11 @@
 ---
-import { Image } from 'astro:assets';
-import monster from '../assets/monster.png';
 ---
 
 <footer class="w-full px-6 py-10 mt-auto border-t border-ink/10 bg-cream">
   <div class="max-w-5xl mx-auto flex flex-wrap gap-8 items-end justify-between">
-    <div class="flex items-end gap-4">
-      <Image
-        src={monster}
-        alt="pncli mascot"
-        width={80}
-        class="w-20 h-auto opacity-75"
-      />
-      <div>
-        <p class="font-display font-semibold text-ink">pncli</p>
-        <p class="text-sm text-ink/40 mt-0.5">&copy; {new Date().getFullYear()} Sunny Kolattukudy</p>
-      </div>
+    <div>
+      <p class="font-display font-semibold text-ink">pncli</p>
+      <p class="text-sm text-ink/40 mt-0.5">&copy; {new Date().getFullYear()} Sunny Kolattukudy</p>
     </div>
     <nav class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink/50" aria-label="Footer navigation">
       <a href="https://github.com/kolatts/pncli" class="hover:text-ink transition-colors">GitHub</a>
