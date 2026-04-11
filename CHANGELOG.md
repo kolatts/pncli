@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.4.0](https://github.com/kolatts/pncli/compare/v1.3.0...v1.4.0) (2026-04-11)
+
+
+### Features
+
+* Azure DevOps Server integration (work items, repos, PRs, pipelines) ([#15](https://github.com/kolatts/pncli/issues/15)) ([a4fc281](https://github.com/kolatts/pncli/commit/a4fc28113361d06c18e633f5b418226989febe96))
+* consolidate SDElements auth into single connection string ([663d9b2](https://github.com/kolatts/pncli/commit/663d9b22add61cf4c14d1d0f882d2f6ae003de07))
+
+
+### Bug Fixes
+
+* normalize SDElements host to full base URL in connection string parser ([38c38f4](https://github.com/kolatts/pncli/commit/38c38f4544884e6d1b5110aaa3c26294bd583e31))
+* suppress git stderr in getRepoRoot to avoid fatal error outside repos ([94bca2f](https://github.com/kolatts/pncli/commit/94bca2faf2b33e75672ee3111801f508bfb8320e))
+
 ## [1.3.0](https://github.com/kolatts/pncli/compare/v1.2.0...v1.3.0) (2026-04-06)
 
 
