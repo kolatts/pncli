@@ -15,16 +15,16 @@ STORAGE="${PREFIX}${ENV}stg$(echo -n "$RG" | shasum | head -c 6)"
 APPINSIGHTS="${PREFIX}-${ENV}-ai"
 FUNCAPP="${PREFIX}-${ENV}-feedback"
 
-echo "→ Resource group: $RG ($LOC)"
+echo "→ Resource group: $RG ($LOC)" >&2
 az group create -n "$RG" -l "$LOC" --only-show-errors >/dev/null
 
-echo "→ Storage account: $STORAGE"
+echo "→ Storage account: $STORAGE" >&2
 az storage account create \
   -n "$STORAGE" -g "$RG" -l "$LOC" \
   --sku Standard_LRS --kind StorageV2 \
   --only-show-errors >/dev/null
 
-echo "→ Application Insights: $APPINSIGHTS"
+echo "→ Application Insights: $APPINSIGHTS" >&2
 az monitor app-insights component create \
   --app "$APPINSIGHTS" -g "$RG" -l "$LOC" \
   --only-show-errors >/dev/null 2>&1 || \
@@ -32,7 +32,7 @@ az monitor app-insights component show \
   --app "$APPINSIGHTS" -g "$RG" \
   --only-show-errors >/dev/null
 
-echo "→ Function App: $FUNCAPP (dotnet-isolated, .NET 10)"
+echo "→ Function App: $FUNCAPP (dotnet-isolated, .NET 10)" >&2
 az functionapp create \
   -n "$FUNCAPP" -g "$RG" \
   --consumption-plan-location "$LOC" \
@@ -42,7 +42,7 @@ az functionapp create \
   --app-insights "$APPINSIGHTS" \
   --only-show-errors >/dev/null
 
-echo "→ App settings (non-secret)"
+echo "→ App settings (non-secret)" >&2
 az functionapp config appsettings set \
   -n "$FUNCAPP" -g "$RG" \
   --settings \
@@ -53,7 +53,7 @@ az functionapp config appsettings set \
 
 # GITHUB_TOKEN is set manually — never via this script (see infra/README.md).
 
-echo "→ CORS: https://kolatts.github.io"
+echo "→ CORS: https://kolatts.github.io" >&2
 az functionapp cors add \
   -n "$FUNCAPP" -g "$RG" \
   --allowed-origins "https://kolatts.github.io" \
