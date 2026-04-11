@@ -1,0 +1,70 @@
+---
+import Base from '../layouts/Base.astro';
+import FeatureForm from '../components/FeatureForm.astro';
+---
+
+<Base
+  title="Feedback — pncli"
+  description="Report a bug or request a feature for pncli."
+>
+  <section class="w-full py-20 px-6">
+    <div class="max-w-5xl mx-auto">
+      <div class="mb-10">
+        <p class="text-violet font-mono text-sm mb-3 tracking-wide">feedback</p>
+        <h1 class="font-display text-4xl md:text-5xl font-bold text-ink">
+          Found a bug? Have an idea?
+        </h1>
+        <p class="mt-4 text-ink/55 text-lg max-w-xl leading-relaxed">
+          You don't need a GitHub account to file a report. Fill out the form
+          and it lands directly as an issue on the pncli repo.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-5 gap-6 items-start">
+        <!-- Form card -->
+        <div class="md:col-span-3 rounded-2xl border border-ink/10 bg-cream p-8">
+          <FeatureForm />
+        </div>
+
+        <!-- Alternate path card -->
+        <div class="md:col-span-2 flex flex-col gap-4">
+          <div class="rounded-2xl border border-violet/20 bg-violet/5 p-6">
+            <h2 class="font-display text-lg font-bold text-ink mb-2">
+              Prefer GitHub directly?
+            </h2>
+            <p class="text-sm text-ink/60 leading-relaxed mb-4">
+              If you have a GitHub account, you can open an issue there and
+              get notified when it's resolved.
+            </p>
+            <a
+              href="https://github.com/kolatts/pncli/issues/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-2 border border-violet/30 text-violet font-semibold text-sm px-4 py-2.5 rounded-lg hover:bg-violet/10 transition-colors"
+            >
+              Open issue on GitHub →
+            </a>
+          </div>
+
+          <div class="rounded-2xl border border-coral/20 bg-coral/5 p-6">
+            <h2 class="font-display text-lg font-bold text-ink mb-2">
+              See what's already tracked
+            </h2>
+            <p class="text-sm text-ink/60 leading-relaxed mb-4">
+              Browse open issues before filing — someone may have already
+              reported it.
+            </p>
+            <a
+              href="https://github.com/kolatts/pncli/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-2 border border-coral/30 text-coral font-semibold text-sm px-4 py-2.5 rounded-lg hover:bg-coral/10 transition-colors"
+            >
+              Browse open issues →
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>

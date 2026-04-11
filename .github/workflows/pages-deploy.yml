@@ -27,6 +27,8 @@ jobs:
         with:
           path: site
           node-version: 22
+        env:
+          PUBLIC_FEEDBACK_ENDPOINT: ${{ vars.PUBLIC_FEEDBACK_ENDPOINT }}
 
   deploy:
     needs: build
