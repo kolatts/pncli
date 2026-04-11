@@ -15,6 +15,8 @@ pncli is a CLI tool that provides structured JSON access to Jira, Bitbucket, Con
 
 ## Common Workflows
 
+> These workflows are also available as Claude Code skills in `.claude/skills/` — copy them into your own project or `~/.claude/skills/` for global access.
+
 ### Review a Pull Request
 
 1. Find the PR for the current branch:

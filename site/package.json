@@ -6,8 +6,8 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "node scripts/parse-changelog.mjs && astro dev",
-    "prebuild": "node scripts/parse-changelog.mjs",
+    "dev": "node scripts/parse-changelog.mjs && node scripts/parse-instructions.mjs && node scripts/parse-skills.mjs && astro dev",
+    "prebuild": "node scripts/parse-changelog.mjs && node scripts/parse-instructions.mjs && node scripts/parse-skills.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro"
