@@ -322,16 +322,9 @@ async function initGlobalConfig(start: number): Promise<void> {
       default: ''
     });
 
-    const useWindowsAuth = await confirm({
-      message: 'Use Windows Integrated Authentication (current logged-in user)?',
-      default: process.platform === 'win32'
+    adoPat = await password({
+      message: 'Azure DevOps personal access token:'
     });
-
-    if (!useWindowsAuth) {
-      adoPat = await password({
-        message: 'Azure DevOps personal access token:'
-      });
-    }
 
     adoCollection = await input({
       message: 'Default collection name (e.g. DefaultCollection):',
