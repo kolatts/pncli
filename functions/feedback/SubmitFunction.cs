@@ -51,6 +51,8 @@ public class SubmitFunction(ILogger<SubmitFunction> logger)
             return await JsonResponse(req, HttpStatusCode.BadRequest, new { ok = false, error = "title must be 1–120 characters" });
         if (string.IsNullOrWhiteSpace(feedback.Body))
             return await JsonResponse(req, HttpStatusCode.BadRequest, new { ok = false, error = "body is required" });
+        if (string.IsNullOrWhiteSpace(feedback.Email) || !IsValidEmail(feedback.Email))
+            return await JsonResponse(req, HttpStatusCode.BadRequest, new { ok = false, error = "a valid email address is required" });
 
         // ── Rate limit ───────────────────────────────────────────────────────
         var ip = req.Headers.TryGetValues("X-Forwarded-For", out var fwd)
@@ -76,6 +78,7 @@ public class SubmitFunction(ILogger<SubmitFunction> logger)
 
         var body = feedback.Body
             + (string.IsNullOrEmpty(feedback.Service) ? "" : $"\n\n**Service:** {feedback.Service}")
+            + $"\n\n**Contact:** {feedback.Email}"
             + "\n\n---\n*Submitted via [kolatts.github.io/pncli](https://kolatts.github.io/pncli)*";
 
         try
@@ -129,6 +132,12 @@ public class SubmitFunction(ILogger<SubmitFunction> logger)
             _buckets[ip] = (tokens - 1, lastRefill);
             return true;
         }
+    }
+
+    private static bool IsValidEmail(string email)
+    {
+        try { _ = new System.Net.Mail.MailAddress(email); return true; }
+        catch { return false; }
     }
 
     private static async Task<HttpResponseData> JsonResponse(HttpRequestData req, HttpStatusCode status, object payload)

@@ -84,6 +84,23 @@ const endpoint = import.meta.env.PUBLIC_FEEDBACK_ENDPOINT ?? '';
     </select>
   </div>
 
+  <!-- Email (required) -->
+  <div class="flex flex-col gap-1.5">
+    <label for="fb-email" class="text-sm font-semibold text-ink">
+      Email <span class="text-coral" aria-hidden="true">*</span>
+    </label>
+    <input
+      id="fb-email"
+      name="email"
+      type="email"
+      required
+      placeholder="you@example.com"
+      autocomplete="email"
+      class="w-full rounded-lg border border-ink/20 bg-cream px-4 py-2.5 text-sm text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-violet/40 focus:border-violet/60 transition-all"
+    />
+    <p class="text-xs text-ink/50">Used only to follow up on your submission — never shared.</p>
+  </div>
+
   <!-- Honeypot (hidden from real users) -->
   <input
     type="text"
@@ -115,11 +132,23 @@ const endpoint = import.meta.env.PUBLIC_FEEDBACK_ENDPOINT ?? '';
 </form>
 
 <script define:vars={{ endpoint }}>
+  const LS_EMAIL_KEY = 'pncli_feedback_email';
+
   // Populate version from ?version= query param
   const params = new URLSearchParams(window.location.search);
   const versionInput = document.getElementById('fb-version');
   if (versionInput && params.get('version')) {
     versionInput.value = params.get('version');
+  }
+
+  // Restore saved email from localStorage
+  const emailInput = document.getElementById('fb-email');
+  if (emailInput) {
+    const saved = localStorage.getItem(LS_EMAIL_KEY);
+    if (saved) emailInput.value = saved;
+    emailInput.addEventListener('input', () => {
+      localStorage.setItem(LS_EMAIL_KEY, emailInput.value);
+    });
   }
 
   const form = document.getElementById('feedback-form');
@@ -133,6 +162,9 @@ const endpoint = import.meta.env.PUBLIC_FEEDBACK_ENDPOINT ?? '';
     submit.textContent = 'Submitting…';
 
     const data = Object.fromEntries(new FormData(form));
+
+    // Persist email so it's pre-filled next time
+    if (data.email) localStorage.setItem(LS_EMAIL_KEY, data.email);
 
     try {
       const res = await fetch(endpoint, {

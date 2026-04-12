@@ -13,6 +13,9 @@ public record FeedbackRequest
     [JsonPropertyName("body")]
     public string Body { get; init; } = "";
 
+    [JsonPropertyName("email")]
+    public string Email { get; init; } = "";
+
     [JsonPropertyName("service")]
     public string? Service { get; init; }
 
