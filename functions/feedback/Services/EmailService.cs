@@ -1,23 +1,21 @@
 using System.Net;
+using Azure.Communication.Email;
 using Microsoft.Extensions.Logging;
-using SendGrid;
-using SendGrid.Helpers.Mail;
 
 namespace Feedback.Services;
 
 public sealed class EmailService
 {
-    private readonly ISendGridClient _client;
-    private readonly EmailAddress _from;
+    private readonly EmailClient _client;
+    private readonly string _from;
     private readonly ILogger<EmailService> _logger;
 
-    public EmailService(ISendGridClient client, ILogger<EmailService> logger)
+    public EmailService(EmailClient client, ILogger<EmailService> logger)
     {
         _client = client;
         _logger = logger;
-        var fromEmail = Environment.GetEnvironmentVariable("SENDGRID_FROM_EMAIL")
-            ?? throw new InvalidOperationException("SENDGRID_FROM_EMAIL is not configured");
-        _from = new EmailAddress(fromEmail, "pncli Feedback");
+        _from   = Environment.GetEnvironmentVariable("EMAIL_FROM_ADDRESS")
+            ?? throw new InvalidOperationException("EMAIL_FROM_ADDRESS is not configured");
     }
 
     public async Task<bool> SendConfirmationAsync(string toEmail, int issueNumber, string issueUrl, string title)
@@ -36,14 +34,15 @@ public sealed class EmailService
         var html = $"""
             <p>Thanks for submitting feedback!</p>
             <p>Your report "<strong>{WebUtility.HtmlEncode(title)}</strong>" has been filed as
-            <a href="{issueUrl}">issue #{issueNumber}</a>.</p>
-            <p>Track its progress at <a href="{issueUrl}">{issueUrl}</a>.</p>
+            <a href="{WebUtility.HtmlEncode(issueUrl)}">issue #{issueNumber}</a>.</p>
+            <p>Track its progress at <a href="{WebUtility.HtmlEncode(issueUrl)}">{WebUtility.HtmlEncode(issueUrl)}</a>.</p>
             <p>We'll send you another email when it's resolved.</p>
             <p>— pncli team</p>
             """;
 
         return await SendAsync(toEmail, subject, plain, html,
-            onSuccess: () => _logger.LogInformation("Confirmation email sent to {Email} for issue #{Number}", toEmail, issueNumber));
+            onSuccess: () => _logger.LogInformation(
+                "Confirmation email sent to {Email} for issue #{Number}", toEmail, issueNumber));
     }
 
     public async Task<bool> SendClosedNotificationAsync(string toEmail, int issueNumber, string issueUrl, string title)
@@ -60,31 +59,41 @@ public sealed class EmailService
             """;
         var html = $"""
             <p>Good news! Your feedback "<strong>{WebUtility.HtmlEncode(title)}</strong>"
-            (<a href="{issueUrl}">issue #{issueNumber}</a>) has been resolved and closed.</p>
-            <p>See the details at <a href="{issueUrl}">{issueUrl}</a>.</p>
+            (<a href="{WebUtility.HtmlEncode(issueUrl)}">issue #{issueNumber}</a>) has been resolved and closed.</p>
+            <p>See the details at <a href="{WebUtility.HtmlEncode(issueUrl)}">{WebUtility.HtmlEncode(issueUrl)}</a>.</p>
             <p>Thanks for helping improve pncli!</p>
             <p>— pncli team</p>
             """;
 
         return await SendAsync(toEmail, subject, plain, html,
-            onSuccess: () => _logger.LogInformation("Closed notification sent to {Email} for issue #{Number}", toEmail, issueNumber));
+            onSuccess: () => _logger.LogInformation(
+                "Closed notification sent to {Email} for issue #{Number}", toEmail, issueNumber));
     }
 
     private async Task<bool> SendAsync(string toEmail, string subject, string plain, string html, Action onSuccess)
     {
-        var to = new EmailAddress(toEmail);
-        var msg = MailHelper.CreateSingleEmail(_from, to, subject, plain, html);
-
-        var response = await _client.SendEmailAsync(msg);
-
-        if ((int)response.StatusCode >= 200 && (int)response.StatusCode < 300)
+        try
         {
-            onSuccess();
-            return true;
-        }
+            var message = new EmailMessage(
+                senderAddress: _from,
+                content: new EmailContent(subject) { PlainText = plain, Html = html },
+                recipients: new EmailRecipients([new EmailAddress(toEmail)]));
 
-        var body = await response.Body.ReadAsStringAsync();
-        _logger.LogError("SendGrid returned {Status}: {Body}", response.StatusCode, body);
-        return false;
+            var operation = await _client.SendAsync(Azure.WaitUntil.Completed, message);
+
+            if (operation.Value.Status == EmailSendStatus.Succeeded)
+            {
+                onSuccess();
+                return true;
+            }
+
+            _logger.LogError("ACS email send failed with status {Status}", operation.Value.Status);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception sending email to {Email}", toEmail);
+            return false;
+        }
     }
 }

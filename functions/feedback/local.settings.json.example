@@ -10,8 +10,8 @@
     "TURNSTILE_SECRET": "1x0000000000000000000000000000000AA",
     "DAILY_SUBMISSION_LIMIT": "100",
     "IP_DAILY_LIMIT": "1",
-    "SENDGRID_API_KEY": "<your-sendgrid-api-key>",
-    "SENDGRID_FROM_EMAIL": "feedback@localhost.test",
+    "ACS_CONNECTION_STRING": "<your-acs-connection-string>",
+    "EMAIL_FROM_ADDRESS": "no-reply@imagile.dev",
     "WEBHOOK_API_KEY": "<any-random-string-for-local-testing>"
   }
 }

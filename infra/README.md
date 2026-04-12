@@ -23,18 +23,18 @@ az functionapp config appsettings set \
   --settings GITHUB_TOKEN=<your-pat>
 ```
 
-## 3. SendGrid (SENDGRID_API_KEY on the function app)
+## 3. Azure Communication Services (ACS_CONNECTION_STRING on the function app)
 
-1. Create a [SendGrid](https://sendgrid.com) account (free tier = 100 emails/day).
-2. Verify a sender identity (single sender or domain authentication). The verified address must match `SENDGRID_FROM_EMAIL` (default `no-reply@imagile.dev`).
-3. Create an API key with **Mail Send** permission only.
+1. Create an Azure Communication Services resource in the portal (or via CLI).
+2. Under **Email** → **Domains**, provision a domain and verify `no-reply@imagile.dev` (or use the free Azure-managed domain).
+3. Copy the **connection string** from the ACS resource's Keys blade.
 
 Set it on the function app — never via `provision.sh`:
 
 ```bash
 az functionapp config appsettings set \
   -n pncli-prod-feedback -g rg-pncli-site \
-  --settings SENDGRID_API_KEY=<your-sendgrid-api-key>
+  --settings ACS_CONNECTION_STRING="<your-acs-connection-string>"
 ```
 
 ## 4. GitHub webhook secret (WEBHOOK_API_KEY on the function app)

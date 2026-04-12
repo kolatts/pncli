@@ -51,7 +51,7 @@ az functionapp config appsettings set \
     ALLOWED_ORIGIN="https://kolatts.github.io" \
     DAILY_SUBMISSION_LIMIT="${DAILY_SUBMISSION_LIMIT:-10}" \
     IP_DAILY_LIMIT="${IP_DAILY_LIMIT:-1}" \
-    SENDGRID_FROM_EMAIL="${SENDGRID_FROM_EMAIL:-no-reply@imagile.dev}" \
+    EMAIL_FROM_ADDRESS="${EMAIL_FROM_ADDRESS:-no-reply@imagile.dev}" \
   --only-show-errors >/dev/null
 
 # GITHUB_TOKEN and TURNSTILE_SECRET are set manually — never via this script (see infra/README.md).

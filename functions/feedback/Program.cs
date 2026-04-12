@@ -1,9 +1,9 @@
+using Azure.Communication.Email;
 using Feedback;
 using Feedback.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using SendGrid;
 
 var connectionString = Environment.GetEnvironmentVariable("AzureWebJobsStorage")
     ?? "UseDevelopmentStorage=true";
@@ -17,10 +17,10 @@ var host = new HostBuilder()
         services.AddSingleton(_ => new PendingSubmissionStore(connectionString));
         services.AddSingleton(_ => new IssueEmailStore(connectionString));
 
-        var sendGridKey = Environment.GetEnvironmentVariable("SENDGRID_API_KEY") ?? "";
-        if (!string.IsNullOrEmpty(sendGridKey))
+        var acsConnectionString = Environment.GetEnvironmentVariable("ACS_CONNECTION_STRING") ?? "";
+        if (!string.IsNullOrEmpty(acsConnectionString))
         {
-            services.AddSingleton<ISendGridClient>(_ => new SendGridClient(sendGridKey));
+            services.AddSingleton(_ => new EmailClient(acsConnectionString));
             services.AddSingleton<EmailService>();
         }
     })
