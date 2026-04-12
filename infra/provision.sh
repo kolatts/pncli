@@ -9,6 +9,7 @@ RG="${RG:-rg-pncli-site}"
 LOC="${LOC:-eastus2}"
 PREFIX="${PREFIX:-pncli}"
 ENV="${ENV:-prod}"
+KV="${KV:-imagile-keyvault}"
 
 # Storage account names must be globally unique, 3-24 lowercase alphanumeric.
 STORAGE="${PREFIX}${ENV}stg$(echo -n "$RG" | shasum | head -c 6)"
@@ -42,7 +43,13 @@ az functionapp create \
   --app-insights "$APPINSIGHTS" \
   --only-show-errors >/dev/null
 
-echo "→ App settings (non-secret)" >&2
+echo "→ Managed identity for $FUNCAPP" >&2
+az functionapp identity assign \
+  -n "$FUNCAPP" -g "$RG" \
+  --identities '[system]' \
+  --only-show-errors >/dev/null
+
+echo "→ App settings (non-secret + Key Vault refs)" >&2
 az functionapp config appsettings set \
   -n "$FUNCAPP" -g "$RG" \
   --settings \
@@ -52,9 +59,13 @@ az functionapp config appsettings set \
     DAILY_SUBMISSION_LIMIT="${DAILY_SUBMISSION_LIMIT:-10}" \
     IP_DAILY_LIMIT="${IP_DAILY_LIMIT:-1}" \
     EMAIL_FROM_ADDRESS="${EMAIL_FROM_ADDRESS:-no-reply@imagile.dev}" \
+    GITHUB_TOKEN="@Microsoft.KeyVault(VaultName=$KV;SecretName=GITHUB-TOKEN)" \
+    ACS_CONNECTION_STRING="@Microsoft.KeyVault(VaultName=$KV;SecretName=ACS-CONNECTION-STRING)" \
+    WEBHOOK_API_KEY="@Microsoft.KeyVault(VaultName=$KV;SecretName=WEBHOOK-API-KEY)" \
+    TURNSTILE_SECRET="@Microsoft.KeyVault(VaultName=$KV;SecretName=TURNSTILE-SECRET)" \
   --only-show-errors >/dev/null
 
-# GITHUB_TOKEN and TURNSTILE_SECRET are set manually — never via this script (see infra/README.md).
+# Secret VALUES are set manually in Key Vault — never via this script (see infra/README.md).
 
 echo "→ CORS: https://kolatts.github.io" >&2
 az functionapp cors add \
@@ -65,3 +76,4 @@ az functionapp cors add \
 # ── Outputs (captured into $GITHUB_ENV by CI) ──────────────────────────────
 echo "FUNCAPP=$FUNCAPP"
 echo "RG=$RG"
+echo "KV=$KV"
