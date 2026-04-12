@@ -11,12 +11,10 @@ public class SubmitFunction(
     ILogger<SubmitFunction> logger,
     TurnstileVerifier turnstile,
     TableStorageRateLimiter rateLimiter,
-    DailyCounter dailyCounter)
+    PendingSubmissionStore pendingSubmissions)
 {
-    private const int DefaultDailyLimit = 100;
-
     [Function("Submit")]
-    public async Task<SubmitResult> Run(
+    public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "submit")] HttpRequestData req)
     {
         // ── Parse body ────────────────────────────────────────────────────────
@@ -31,7 +29,7 @@ public class SubmitFunction(
         if (!string.IsNullOrEmpty(feedback.Hp))
         {
             logger.LogInformation("Honeypot triggered — silent 200");
-            return new SubmitResult { HttpResponse = req.CreateResponse(HttpStatusCode.OK) };
+            return req.CreateResponse(HttpStatusCode.OK);
         }
 
         // ── Origin check ─────────────────────────────────────────────────────
@@ -39,7 +37,7 @@ public class SubmitFunction(
         if (!req.Headers.TryGetValues("Origin", out var origins) || !origins.Contains(allowedOrigin))
         {
             logger.LogWarning("Origin check failed");
-            return new SubmitResult { HttpResponse = req.CreateResponse(HttpStatusCode.Forbidden) };
+            return req.CreateResponse(HttpStatusCode.Forbidden);
         }
 
         // ── Validation ───────────────────────────────────────────────────────
@@ -49,6 +47,8 @@ public class SubmitFunction(
             return await ErrorAsync(req, HttpStatusCode.BadRequest, "title must be 1–120 characters");
         if (string.IsNullOrWhiteSpace(feedback.Body) || feedback.Body.Length > 4000)
             return await ErrorAsync(req, HttpStatusCode.BadRequest, "body must be 1–4000 characters");
+        if (string.IsNullOrWhiteSpace(feedback.Email) || feedback.Email.Length > 254 || !IsValidEmail(feedback.Email))
+            return await ErrorAsync(req, HttpStatusCode.BadRequest, "A valid email address is required");
 
         // ── Resolve IP ───────────────────────────────────────────────────────
         var ip = req.Headers.TryGetValues("X-Forwarded-For", out var fwd)
@@ -63,67 +63,57 @@ public class SubmitFunction(
                 "CAPTCHA verification failed. Please try again.");
         }
 
-        // ── Per-IP rate limit ────────────────────────────────────────────────
-        if (!await rateLimiter.TryConsumeAsync(ip))
+        // ── Per-IP daily limit ────────────────────────────────────────────────
+        var ipDailyLimit = int.TryParse(
+            Environment.GetEnvironmentVariable("IP_DAILY_LIMIT"), out var idl) ? idl : 1;
+
+        if (!await rateLimiter.TryConsumeAsync(ip, ipDailyLimit))
         {
-            logger.LogWarning("Rate limit exceeded for {IP}", ip);
+            logger.LogWarning("Daily limit ({Limit}) exceeded for {IP}", ipDailyLimit, ip);
             return await ErrorAsync(req, (HttpStatusCode)429,
-                "Rate limit exceeded. Please try again later.");
+                "You've already submitted feedback today. Please try again tomorrow.");
         }
 
-        // ── Global daily cap ─────────────────────────────────────────────────
-        var dailyLimit = int.TryParse(
-            Environment.GetEnvironmentVariable("DAILY_SUBMISSION_LIMIT"), out var dl) ? dl : DefaultDailyLimit;
-
-        if (!await dailyCounter.TryIncrementAsync(dailyLimit))
+        // ── Store pending submission ──────────────────────────────────────────
+        var entity = new PendingSubmissionEntity
         {
-            logger.LogWarning("Daily submission cap ({Limit}) reached", dailyLimit);
-            return await ErrorAsync(req, (HttpStatusCode)429,
-                "Daily submission limit reached. Please try again tomorrow.");
-        }
-
-        // ── Enqueue for async processing ─────────────────────────────────────
-        var queued = new QueuedSubmission
-        {
-            Kind    = feedback.Kind,
-            Title   = feedback.Title,
-            Body    = feedback.Body,
-            Service = feedback.Service,
-            Version = feedback.Version,
+            PartitionKey = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd"),
+            RowKey       = Guid.NewGuid().ToString("N"),
+            Kind         = feedback.Kind,
+            Title        = feedback.Title,
+            Body         = feedback.Body,
+            Email        = feedback.Email,
+            Service      = feedback.Service,
+            Version      = feedback.Version,
+            SubmittedAt  = DateTimeOffset.UtcNow,
         };
 
-        logger.LogInformation("Enqueuing submission: {Title}", feedback.Title);
+        await pendingSubmissions.AddAsync(entity);
+        logger.LogInformation("Stored pending submission: {Title}", feedback.Title);
 
         var response = req.CreateResponse(HttpStatusCode.Accepted);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
         await response.WriteStringAsync(JsonSerializer.Serialize(new
         {
             ok      = true,
-            message = "Thanks! Your feedback has been received and will be processed shortly.",
+            message = "Thanks! Your feedback has been received and will be reviewed shortly.",
         }));
 
-        return new SubmitResult
-        {
-            QueueMessage = JsonSerializer.Serialize(queued),
-            HttpResponse = response,
-        };
+        return response;
     }
 
-    private static async Task<SubmitResult> ErrorAsync(
+    private static bool IsValidEmail(string email)
+    {
+        try { _ = new System.Net.Mail.MailAddress(email); return true; }
+        catch { return false; }
+    }
+
+    private static async Task<HttpResponseData> ErrorAsync(
         HttpRequestData req, HttpStatusCode status, string message)
     {
         var response = req.CreateResponse(status);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
         await response.WriteStringAsync(JsonSerializer.Serialize(new { ok = false, error = message }));
-        return new SubmitResult { HttpResponse = response };
+        return response;
     }
-}
-
-public class SubmitResult
-{
-    [QueueOutput("feedback-submissions", Connection = "AzureWebJobsStorage")]
-    public string? QueueMessage { get; set; }
-
-    [HttpResult]
-    public HttpResponseData? HttpResponse { get; set; }
 }

@@ -67,6 +67,26 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
     ></textarea>
   </div>
 
+  <!-- Email -->
+  <div class="flex flex-col gap-1.5">
+    <label for="fb-email" class="text-sm font-semibold text-ink">
+      Email <span class="text-coral" aria-hidden="true">*</span>
+    </label>
+    <input
+      id="fb-email"
+      name="email"
+      type="email"
+      required
+      maxlength="254"
+      placeholder="you@example.com"
+      class="w-full rounded-lg border border-ink/20 bg-cream px-4 py-2.5 text-sm text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-violet/40 focus:border-violet/60 transition-all"
+    />
+    <p class="text-xs text-ink/50">Used to confirm receipt and notify you when your issue is resolved. Not shared publicly.</p>
+  </div>
+
+  <!-- Rate limit note -->
+  <p class="text-xs text-ink/40">One submission per day per IP address. Issues are reviewed and filed within 10 minutes of receipt.</p>
+
   <!-- Service (optional) -->
   <div class="flex flex-col gap-1.5">
     <label for="fb-service" class="text-sm font-semibold text-ink">
@@ -125,11 +145,20 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
 </form>
 
 <script define:vars={{ endpoint }}>
+  const LS_EMAIL_KEY = 'pncli_feedback_email';
+
   // Populate version from ?version= query param
   const params = new URLSearchParams(window.location.search);
   const versionInput = document.getElementById('fb-version');
   if (versionInput && params.get('version')) {
     versionInput.value = params.get('version');
+  }
+
+  // Pre-fill email from localStorage
+  const emailInput = document.getElementById('fb-email');
+  if (emailInput) {
+    const saved = localStorage.getItem(LS_EMAIL_KEY);
+    if (saved) emailInput.value = saved;
   }
 
   const form = document.getElementById('feedback-form');
@@ -153,9 +182,15 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
       const json = await res.json().catch(() => ({}));
 
       if (json.ok) {
+        // Persist email for next visit before resetting the form
+        const email = form.querySelector('#fb-email')?.value;
+        if (email) localStorage.setItem(LS_EMAIL_KEY, email);
+
         status.innerHTML =
           `<span class="text-violet font-medium">${json.message ?? 'Thanks! Your feedback has been received.'}</span>`;
         form.reset();
+        // Restore email after reset so it stays filled
+        if (email && emailInput) emailInput.value = email;
       } else {
         status.innerHTML =
           `<span class="text-coral">${json.error ?? 'Something went wrong. Please try again.'}</span>`;
