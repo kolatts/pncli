@@ -55,6 +55,9 @@ function getSkillsForCategory(catKey: string) {
     .filter(e => (e.data.category ?? 'other') === catKey)
     .sort((a, b) => getIdx(a.id) - getIdx(b.id));
 }
+
+const knownIds = new Set(Object.values(categories).flatMap(c => c.order));
+const uncategorized = entries.filter(e => !knownIds.has(e.id));
 ---
 
 {categoryOrder.map(catKey => {
@@ -78,3 +81,20 @@ function getSkillsForCategory(catKey: string) {
     </div>
   );
 })}
+
+{uncategorized.length > 0 && (
+  <div class="not-prose mb-8">
+    <h3 class="font-display text-sm font-semibold text-ink/60 uppercase tracking-wider mb-3">Other</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {uncategorized.map(skill => (
+        <SkillCard
+          title={skill.data.title}
+          description={skill.data.description}
+          providers={skill.data.providers ?? 'none'}
+          services={skill.data.services ?? ''}
+          slug={skill.id}
+        />
+      ))}
+    </div>
+  </div>
+)}

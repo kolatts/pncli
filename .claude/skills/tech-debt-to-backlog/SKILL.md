@@ -50,7 +50,11 @@ Group smells by file or component, then create one ticket per refactoring target
 If more than 3 refactoring tickets, create a parent epic:
 
 - **Jira:** `pncli jira create-issue --project <key> --type Epic --summary "Tech Debt Reduction Sprint" --description "Code smells: <total>, Duplicated lines: <pct>%, Maintainability rating: <rating>"`
+- **Azure DevOps:** `pncli ado work create --type Epic --title "Tech Debt Reduction Sprint" --description "<details>"`
 
-Link each story: `pncli jira link-issue --key <story> --link-type "is child of" --target <epic>`.
+Link each story to the epic:
+
+- **Jira:** `pncli jira link-issue --key <story> --link-type "is child of" --target <epic>`
+- **Azure DevOps:** `pncli ado work link --id <story-id> --to <epic-id> --type parent`
 
 Summarize: total smells found, top refactoring targets, tickets created, and estimated debt ratio improvement.

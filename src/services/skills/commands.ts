@@ -18,8 +18,9 @@ export function registerSkillsCommands(program: Command): void {
   skills
     .command('install')
     .description('Download latest pncli skills and copilot-instructions.md into the current repo')
-    .option('--target <dir>', 'Target directory for skills (default: .claude/skills)', '.claude/skills')
-    .option('--skip-instructions', 'Skip downloading copilot-instructions.md', false)
+    .option('--target <dir>', 'Target directory for skills', '.claude/skills')
+    .option('--skip-instructions', 'Skip downloading copilot-instructions.md (always written to repo root)')
+
     .action(async (opts: { target: string; skipInstructions: boolean }) => {
       const start = Date.now();
       try {
@@ -43,8 +44,10 @@ export function registerSkillsCommands(program: Command): void {
         }
 
         // 2. Remove only the pncli-managed skills (not user-created ones)
+        const resolvedTarget = path.resolve(targetDir);
         for (const skillName of skillDirs) {
-          const existingDir = path.join(targetDir, skillName);
+          const existingDir = path.resolve(targetDir, skillName);
+          if (!existingDir.startsWith(resolvedTarget + path.sep)) continue;
           if (fs.existsSync(existingDir)) {
             fs.rmSync(existingDir, { recursive: true, force: true });
           }
@@ -56,7 +59,11 @@ export function registerSkillsCommands(program: Command): void {
         const failed: string[] = [];
 
         for (const skillName of skillDirs) {
-          const skillDir = path.join(targetDir, skillName);
+          const skillDir = path.resolve(targetDir, skillName);
+          if (!skillDir.startsWith(resolvedTarget + path.sep)) {
+            failed.push(skillName);
+            continue;
+          }
           const skillUrl = `${RAW_BASE}/${skillName}/SKILL.md`;
 
           try {
@@ -119,7 +126,7 @@ export function registerSkillsCommands(program: Command): void {
   skills
     .command('list')
     .description('List locally installed skills')
-    .option('--target <dir>', 'Skills directory to scan (default: .claude/skills)', '.claude/skills')
+    .option('--target <dir>', 'Skills directory to scan', '.claude/skills')
     .action((opts: { target: string }) => {
       const start = Date.now();
       try {

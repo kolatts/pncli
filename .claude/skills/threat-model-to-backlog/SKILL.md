@@ -34,7 +34,10 @@ For each incomplete countermeasure:
 - **Jira:** `pncli jira create-issue --project <key> --type Story --summary "<countermeasure title>" --description "Phase: <phase>\nRelated threats: <titles>\nSeverity: <max threat severity>" --labels security,threat-model`
 - **Azure DevOps:** `pncli ado work create --type "User Story" --title "<countermeasure title>" --description "<details>"`
 
-Link each story to the epic: `pncli jira link-issue --key <story> --link-type "is child of" --target <epic>`.
+Link each story to the epic:
+
+- **Jira:** `pncli jira link-issue --key <story> --link-type "is child of" --target <epic>`
+- **Azure DevOps:** `pncli ado work link --id <story-id> --to <epic-id> --type parent`
 
 **Step 4 — Summarize.**
 
