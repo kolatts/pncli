@@ -80,7 +80,7 @@ CI uses OIDC (no long-lived secrets). Steps:
 curl -X POST "https://pncli-prod-feedback.azurewebsites.net/api/submit" \
   -H "Content-Type: application/json" \
   -H "Origin: https://kolatts.github.io" \
-  -d '{"kind":"bug","title":"curl smoke test","body":"from curl","hp":""}'
+  -d '{"kind":"bug","title":"curl smoke test","body":"from curl","email":"you@example.com","hp":""}'
 
 # Should return 200 with empty body (honeypot)
 curl -X POST "https://pncli-prod-feedback.azurewebsites.net/api/submit" \

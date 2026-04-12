@@ -14,8 +14,7 @@ public sealed class EmailService
     {
         _client = client;
         _logger = logger;
-        _from   = Environment.GetEnvironmentVariable("EMAIL_FROM_ADDRESS")
-            ?? throw new InvalidOperationException("EMAIL_FROM_ADDRESS is not configured");
+        _from   = Environment.GetEnvironmentVariable("EMAIL_FROM_ADDRESS") ?? "no-reply@imagile.dev";
     }
 
     public async Task<bool> SendConfirmationAsync(string toEmail, int issueNumber, string issueUrl, string title)
