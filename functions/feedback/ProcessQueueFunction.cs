@@ -19,7 +19,7 @@ public class ProcessSubmissionsFunction(
     private const int DefaultDailyLimit = 10;
 
     [Function("ProcessSubmissions")]
-    public async Task Run([TimerTrigger("0 */10 * * * *")] TimerInfo timer)
+    public async Task Run([TimerTrigger("0 * * * * *")] TimerInfo timer)
     {
         var pending = await pendingSubmissions.GetAllPendingAsync();
         if (pending.Count == 0)
