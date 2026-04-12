@@ -59,6 +59,7 @@ jobs:
             Repository: ${{ github.repository }}
             Issue number: #${{ github.event.issue.number }}
             Issue author: ${{ github.event.issue.user.login }}
+            Action run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
             === BEGIN UNTRUSTED ISSUE TITLE ===
             ${{ github.event.issue.title }}
@@ -84,24 +85,42 @@ jobs:
                   - Create a branch named `claude/issue-${{ github.event.issue.number }}`.
                   - Commit your changes and push the branch.
                   - Open a PR using `gh pr create` with "Closes #${{ github.event.issue.number }}" in the body.
-                  - Comment on the issue linking to the new PR.
+                  - Comment on the issue with a summary and a link to the PR.
 
                b) If NOT FEASIBLE or NOT USEFUL:
                   - Comment on the issue with a clear, respectful explanation of why.
                   - Suggest alternatives if applicable.
                   - Close the issue if it is clearly invalid, spam, or a duplicate.
 
-            4. In all cases, add the `triaged` label and remove the `claude-triage` label
-               using `gh issue edit`.
+            4. Add the `triaged` label using `gh label create triaged --color 0e8a16 --force` then
+               `gh issue edit ${{ github.event.issue.number }} --add-label triaged`.
+               Remove the triggering label using `gh issue edit ${{ github.event.issue.number }} --remove-label "${{ github.event.label.name }}"`.
+
+            5. Write a concise markdown summary of your triage decision to /tmp/triage-summary.md.
+               Include: verdict (feasible/not feasible), reasoning, and action taken.
 
             Keep your scope minimal. Do not refactor unrelated code. Do not modify tests
             unless the issue specifically requests it. Make the narrowest change that
             addresses the issue.
           claude_args: |
-            --model sonnet --max-turns 25 --allowedTools "Read,Glob,Grep,Edit,Write,Bash(gh issue comment:*),Bash(gh issue close:*),Bash(gh issue edit:*),Bash(gh pr create:*),Bash(npm run build:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(git checkout -b:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
+            --model sonnet --max-turns 25 --allowedTools "Read,Glob,Grep,Edit,Write,Bash(gh issue comment:*),Bash(gh issue close:*),Bash(gh issue edit:*),Bash(gh label create:*),Bash(gh pr create:*),Bash(npm run build:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(git checkout -b:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
 
-      - name: Remove claude-triage label
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## Claude Triage — Issue #${{ github.event.issue.number }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Issue:** [${{ github.event.issue.title }}](${{ github.event.issue.html_url }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Triggered by label:** \`${{ github.event.label.name }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f /tmp/triage-summary.md ]; then
+            cat /tmp/triage-summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "_No summary file written by Claude._" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Remove triggering label
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh issue edit ${{ github.event.issue.number }} --remove-label "claude-triage" --repo "${{ github.repository }}" || true
+        run: gh issue edit ${{ github.event.issue.number }} --remove-label "${{ github.event.label.name }}" --repo "${{ github.repository }}" || true
