@@ -103,7 +103,7 @@ jobs:
             unless the issue specifically requests it. Make the narrowest change that
             addresses the issue.
           claude_args: |
-            --model sonnet --max-turns 25 --allowedTools "Read,Glob,Grep,Edit,Write,Bash(gh issue comment:*),Bash(gh issue close:*),Bash(gh issue edit:*),Bash(gh label create:*),Bash(gh pr create:*),Bash(npm run build:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(git checkout -b:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
+            --model sonnet --max-turns 50 --allowedTools "Read,Glob,Grep,Edit,Write,Bash(gh issue comment:*),Bash(gh issue close:*),Bash(gh issue edit:*),Bash(gh label create:*),Bash(gh pr create:*),Bash(npm run build:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(git checkout -b:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
 
       - name: Write job summary
         if: always()
