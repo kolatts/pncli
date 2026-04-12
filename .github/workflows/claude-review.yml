@@ -26,6 +26,8 @@ jobs:
           include_fix_links: 'true'
           plugin_marketplaces: |
             https://github.com/kolatts/claude-marketplace
+          plugins: |
+            sunny
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
