@@ -21,19 +21,18 @@ public class ProcessSubmissionsFunction(
     [Function("ProcessSubmissions")]
     public async Task Run([TimerTrigger("0 */10 * * * *")] TimerInfo timer)
     {
-        var allToday = await pendingSubmissions.GetAllTodayAsync();
-        var pending          = allToday.Where(e => !e.Processed).ToList();
-        var alreadyProcessed = allToday.Count(e => e.Processed);
-
+        var pending = await pendingSubmissions.GetAllPendingAsync();
         if (pending.Count == 0)
         {
             logger.LogInformation("No pending submissions");
             return;
         }
 
-        var dailyLimit     = int.TryParse(
+        var dailyLimit       = int.TryParse(
             Environment.GetEnvironmentVariable("DAILY_SUBMISSION_LIMIT"), out var dl) ? dl : DefaultDailyLimit;
-        var slotsRemaining = dailyLimit - alreadyProcessed;
+        var allToday         = await pendingSubmissions.GetAllTodayAsync();
+        var alreadyProcessed = allToday.Count(e => e.Processed);
+        var slotsRemaining   = dailyLimit - alreadyProcessed;
 
         if (slotsRemaining <= 0)
         {

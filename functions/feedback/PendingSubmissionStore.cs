@@ -35,6 +35,26 @@ public sealed class PendingSubmissionStore
     }
 
     /// <summary>
+    /// Returns all unprocessed submissions from the last <paramref name="daysBack"/> days (default 7).
+    /// Ordered oldest-first so submissions that have been waiting longest get priority.
+    /// </summary>
+    public async Task<List<PendingSubmissionEntity>> GetAllPendingAsync(int daysBack = 7)
+    {
+        var cutoff  = DateTimeOffset.UtcNow.AddDays(-daysBack).ToString("yyyy-MM-dd");
+        var filter  = $"PartitionKey ge '{cutoff}' and Processed eq false";
+        var results = new List<PendingSubmissionEntity>();
+
+        await foreach (var entity in _table.QueryAsync<PendingSubmissionEntity>(filter: filter))
+        {
+            results.Add(entity);
+        }
+
+        // Oldest submissions first so long-waiting items are not starved
+        results.Sort((a, b) => a.SubmittedAt.CompareTo(b.SubmittedAt));
+        return results;
+    }
+
+    /// <summary>
     /// Marks a submission as processed with its resulting issue number.
     /// Ignores 412 conflicts — another instance beat us to it, which is fine.
     /// </summary>
