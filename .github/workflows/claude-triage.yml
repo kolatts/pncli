@@ -104,7 +104,9 @@ jobs:
                   - Comment on the issue explaining specifically why it doesn't fit, referencing
                     the project's purpose or rules where relevant.
                   - Suggest alternatives if applicable.
-                  - Close the issue if it is clearly invalid, spam, or a duplicate.
+                  - Add the `denied` label: `gh label create denied --color e11d48 --force` then
+                    `gh issue edit ${{ github.event.issue.number }} --add-label denied`.
+                  - Close the issue: `gh issue close ${{ github.event.issue.number }} --reason "not planned"`.
 
             4. Add the `triaged` label using `gh label create triaged --color 0e8a16 --force` then
                `gh issue edit ${{ github.event.issue.number }} --add-label triaged`.
