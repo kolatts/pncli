@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   triage:
-    if: github.event.label.name == 'claude-triage'
+    if: github.event.label.name == 'claude-triage' || github.event.label.name == 'from-website'
     runs-on: ubuntu-latest
     permissions:
       contents: write
