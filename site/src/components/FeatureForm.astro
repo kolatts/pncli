@@ -1,6 +1,11 @@
 ---
-const endpoint = import.meta.env.PUBLIC_FEEDBACK_ENDPOINT ?? '';
+const endpoint        = import.meta.env.PUBLIC_FEEDBACK_ENDPOINT      ?? '';
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAAC8hdd6wCVRVf8YH';
 ---
+
+{turnstileSiteKey && (
+  <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+)}
 
 <form
   id="feedback-form"
@@ -62,6 +67,26 @@ const endpoint = import.meta.env.PUBLIC_FEEDBACK_ENDPOINT ?? '';
     ></textarea>
   </div>
 
+  <!-- Email -->
+  <div class="flex flex-col gap-1.5">
+    <label for="fb-email" class="text-sm font-semibold text-ink">
+      Email <span class="text-coral" aria-hidden="true">*</span>
+    </label>
+    <input
+      id="fb-email"
+      name="email"
+      type="email"
+      required
+      maxlength="254"
+      placeholder="you@example.com"
+      class="w-full rounded-lg border border-ink/20 bg-cream px-4 py-2.5 text-sm text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-violet/40 focus:border-violet/60 transition-all"
+    />
+    <p class="text-xs text-ink/50">Used to confirm receipt and notify you when your issue is resolved. Not shared publicly.</p>
+  </div>
+
+  <!-- Rate limit note -->
+  <p class="text-xs text-ink/40">One submission per day per IP address. Issues are reviewed and filed within a minute of receipt.</p>
+
   <!-- Service (optional) -->
   <div class="flex flex-col gap-1.5">
     <label for="fb-service" class="text-sm font-semibold text-ink">
@@ -83,6 +108,11 @@ const endpoint = import.meta.env.PUBLIC_FEEDBACK_ENDPOINT ?? '';
       <option>Other</option>
     </select>
   </div>
+
+  <!-- Turnstile CAPTCHA (rendered only when site key is configured) -->
+  {turnstileSiteKey && (
+    <div class="cf-turnstile" data-sitekey={turnstileSiteKey}></div>
+  )}
 
   <!-- Honeypot (hidden from real users) -->
   <input
@@ -115,11 +145,20 @@ const endpoint = import.meta.env.PUBLIC_FEEDBACK_ENDPOINT ?? '';
 </form>
 
 <script define:vars={{ endpoint }}>
+  const LS_EMAIL_KEY = 'pncli_feedback_email';
+
   // Populate version from ?version= query param
   const params = new URLSearchParams(window.location.search);
   const versionInput = document.getElementById('fb-version');
   if (versionInput && params.get('version')) {
     versionInput.value = params.get('version');
+  }
+
+  // Pre-fill email from localStorage
+  const emailInput = document.getElementById('fb-email');
+  if (emailInput) {
+    const saved = localStorage.getItem(LS_EMAIL_KEY);
+    if (saved) emailInput.value = saved;
   }
 
   const form = document.getElementById('feedback-form');
@@ -142,19 +181,29 @@ const endpoint = import.meta.env.PUBLIC_FEEDBACK_ENDPOINT ?? '';
       });
       const json = await res.json().catch(() => ({}));
 
-      if (json.ok && json.issueUrl) {
-        status.innerHTML =
-          `<span class="text-violet font-medium">Thanks! Your issue was filed: ` +
-          `<a href="${json.issueUrl}" target="_blank" rel="noopener noreferrer" ` +
-          `class="underline hover:opacity-80">${json.issueUrl}</a></span>`;
+      if (json.ok) {
+        // Persist email for next visit before resetting the form
+        const email = form.querySelector('#fb-email')?.value;
+        if (email) localStorage.setItem(LS_EMAIL_KEY, email);
+
+        const okSpan = document.createElement('span');
+        okSpan.className = 'text-violet font-medium';
+        okSpan.textContent = json.message ?? 'Thanks! Your feedback has been received.';
+        status.replaceChildren(okSpan);
         form.reset();
+        // Restore email after reset so it stays filled
+        if (email && emailInput) emailInput.value = email;
       } else {
-        status.innerHTML =
-          `<span class="text-coral">${json.error ?? 'Something went wrong. Please try again.'}</span>`;
+        const errSpan = document.createElement('span');
+        errSpan.className = 'text-coral';
+        errSpan.textContent = json.error ?? 'Something went wrong. Please try again.';
+        status.replaceChildren(errSpan);
       }
     } catch {
-      status.innerHTML =
-        `<span class="text-coral">Network error — please check your connection and try again.</span>`;
+      const netSpan = document.createElement('span');
+      netSpan.className = 'text-coral';
+      netSpan.textContent = 'Network error — please check your connection and try again.';
+      status.replaceChildren(netSpan);
     } finally {
       submit.disabled = false;
       submit.textContent = 'Submit';

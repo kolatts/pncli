@@ -45,18 +45,33 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
 
-            Review this pull request for the @kolatts/pncli TypeScript CLI.
+            **Before doing anything else, read and clean up stale Claude feedback:**
+            1. Fetch all previous Claude comments on this PR and read them to retain context:
+               gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments --jq '.[] | select(.user.login == "claude[bot]") | {id: .id, body: .body}'
+            2. Note any issues or concerns raised in those previous comments — you will carry this context into your review.
+            3. Delete each previous Claude comment by ID:
+               gh api repos/${{ github.repository }}/issues/comments/<id> -X DELETE
+               (repeat for every ID returned in step 1)
+            4. Dismiss any previous Claude formal review on this PR.
+            5. Resolve any outdated inline review comment threads from previous Claude reviews.
+
+            **Now review the pull request:**
+
+            Review this pull request for the @kolatts/pncli repository.
             Focus on:
-            1. Code quality and TypeScript correctness
+            1. Code quality and correctness (TypeScript CLI in src/, C# Azure Functions in functions/)
             2. CLI UX (commander/inquirer usage, error messages, exit codes)
-            3. Security (command injection, credential handling, prompt injection)
+            3. Security (command injection, credential handling, prompt injection, auth gaps)
             4. Bugs and edge cases
-            5. Adherence to existing patterns in src/
+            5. Adherence to existing patterns in the codebase
 
             Leave inline comments on specific lines and a top-level summary.
             Skip nitpicks; prioritize substantive feedback.
-            Approve the PR if no substantive issues are found, or request changes if there are blocking problems.
-            Before posting your review, dismiss any previous Claude review on this PR so stale feedback doesn't linger.
-            Also resolve any review comment threads from previous Claude reviews that are now outdated.
+
+            **When you are done, submit a formal GitHub review using one of:**
+            - `gh pr review ${{ github.event.pull_request.number }} --approve --body "..."` — if no substantive issues found
+            - `gh pr review ${{ github.event.pull_request.number }} --request-changes --body "..."` — if there are blocking problems
+
+            Do not leave the PR without a formal APPROVE or REQUEST_CHANGES review state.
           claude_args: |
-            --model sonnet --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*)"
+            --model sonnet --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh api repos/*/issues/*/comments:*),Bash(gh api repos/*/issues/comments/*:*)"

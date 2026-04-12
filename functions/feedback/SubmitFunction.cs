@@ -1,22 +1,18 @@
-using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
 using Feedback.Models;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using Octokit;
 
 namespace Feedback;
 
-public class SubmitFunction(ILogger<SubmitFunction> logger)
+public class SubmitFunction(
+    ILogger<SubmitFunction> logger,
+    TurnstileVerifier turnstile,
+    TableStorageRateLimiter rateLimiter,
+    PendingSubmissionStore pendingSubmissions)
 {
-    // Per-IP token bucket. Cold starts reset it — acceptable for a starter.
-    private static readonly ConcurrentDictionary<string, (int Tokens, DateTimeOffset LastRefill)> _buckets = new();
-    private static readonly object _bucketsLock = new();
-    private const int MaxTokens = 5;
-    private static readonly TimeSpan RefillPeriod = TimeSpan.FromMinutes(1);
-
     [Function("Submit")]
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "submit")] HttpRequestData req)
@@ -24,10 +20,10 @@ public class SubmitFunction(ILogger<SubmitFunction> logger)
         // ── Parse body ────────────────────────────────────────────────────────
         FeedbackRequest? feedback;
         try { feedback = await req.ReadFromJsonAsync<FeedbackRequest>(); }
-        catch { return await JsonResponse(req, HttpStatusCode.BadRequest, new { ok = false, error = "Invalid JSON body" }); }
+        catch { return await ErrorAsync(req, HttpStatusCode.BadRequest, "Invalid JSON body"); }
 
         if (feedback is null)
-            return await JsonResponse(req, HttpStatusCode.BadRequest, new { ok = false, error = "Missing request body" });
+            return await ErrorAsync(req, HttpStatusCode.BadRequest, "Missing request body");
 
         // ── Honeypot ─────────────────────────────────────────────────────────
         if (!string.IsNullOrEmpty(feedback.Hp))
@@ -46,96 +42,80 @@ public class SubmitFunction(ILogger<SubmitFunction> logger)
 
         // ── Validation ───────────────────────────────────────────────────────
         if (feedback.Kind is not ("bug" or "feature"))
-            return await JsonResponse(req, HttpStatusCode.BadRequest, new { ok = false, error = "kind must be 'bug' or 'feature'" });
+            return await ErrorAsync(req, HttpStatusCode.BadRequest, "kind must be 'bug' or 'feature'");
         if (string.IsNullOrWhiteSpace(feedback.Title) || feedback.Title.Length > 120)
-            return await JsonResponse(req, HttpStatusCode.BadRequest, new { ok = false, error = "title must be 1–120 characters" });
-        if (string.IsNullOrWhiteSpace(feedback.Body))
-            return await JsonResponse(req, HttpStatusCode.BadRequest, new { ok = false, error = "body is required" });
+            return await ErrorAsync(req, HttpStatusCode.BadRequest, "title must be 1–120 characters");
+        if (string.IsNullOrWhiteSpace(feedback.Body) || feedback.Body.Length > 4000)
+            return await ErrorAsync(req, HttpStatusCode.BadRequest, "body must be 1–4000 characters");
+        if (string.IsNullOrWhiteSpace(feedback.Email) || feedback.Email.Length > 254 || !IsValidEmail(feedback.Email))
+            return await ErrorAsync(req, HttpStatusCode.BadRequest, "A valid email address is required");
+        if (feedback.Version is { Length: > 20 })
+            return await ErrorAsync(req, HttpStatusCode.BadRequest, "version must be 20 characters or fewer");
 
-        // ── Rate limit ───────────────────────────────────────────────────────
+        // ── Resolve IP ───────────────────────────────────────────────────────
         var ip = req.Headers.TryGetValues("X-Forwarded-For", out var fwd)
             ? fwd.First().Split(',')[0].Trim()
             : "unknown";
 
-        if (!TryConsumeToken(ip))
+        // ── CAPTCHA ──────────────────────────────────────────────────────────
+        if (!await turnstile.VerifyAsync(feedback.TurnstileToken, ip))
         {
-            logger.LogWarning("Rate limit exceeded for {IP}", ip);
-            return await JsonResponse(req, (HttpStatusCode)429,
-                new { ok = false, error = "Rate limit exceeded. Please try again later." });
+            logger.LogWarning("Turnstile verification failed for {IP}", ip);
+            return await ErrorAsync(req, HttpStatusCode.BadRequest,
+                "CAPTCHA verification failed. Please try again.");
         }
 
-        // ── Create GitHub issue ───────────────────────────────────────────────
-        var token     = Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? "";
-        var repoStr   = Environment.GetEnvironmentVariable("GITHUB_REPO")  ?? "kolatts/pncli";
-        var label     = Environment.GetEnvironmentVariable("GITHUB_ISSUE_LABEL") ?? "from-website";
-        var repoParts = repoStr.Split('/');
+        // ── Per-IP daily limit ────────────────────────────────────────────────
+        var ipDailyLimit = int.TryParse(
+            Environment.GetEnvironmentVariable("IP_DAILY_LIMIT"), out var idl) ? idl : 1;
 
-        var title = string.IsNullOrEmpty(feedback.Version)
-            ? feedback.Title
-            : $"Re: v{feedback.Version} — {feedback.Title}";
-
-        var body = feedback.Body
-            + (string.IsNullOrEmpty(feedback.Service) ? "" : $"\n\n**Service:** {feedback.Service}")
-            + "\n\n---\n*Submitted via [kolatts.github.io/pncli](https://kolatts.github.io/pncli)*";
-
-        try
+        if (!await rateLimiter.TryConsumeAsync(ip, ipDailyLimit))
         {
-            var github = new GitHubClient(new ProductHeaderValue("pncli-site"))
-            {
-                Credentials = new Credentials(token)
-            };
-
-            var issue = new NewIssue(title) { Body = body };
-            issue.Labels.Add(label);
-            issue.Labels.Add(feedback.Kind == "bug" ? "bug" : "enhancement");
-
-            var created = await github.Issue.Create(repoParts[0], repoParts[1], issue);
-            logger.LogInformation("Created issue #{Number}", created.Number);
-
-            return await JsonResponse(req, HttpStatusCode.Created,
-                new { ok = true, issueUrl = created.HtmlUrl });
+            logger.LogWarning("Daily limit ({Limit}) exceeded for {IP}", ipDailyLimit, ip);
+            return await ErrorAsync(req, (HttpStatusCode)429,
+                "You've already submitted feedback today. Please try again tomorrow.");
         }
-        catch (Exception ex)
+
+        // ── Store pending submission ──────────────────────────────────────────
+        var entity = new PendingSubmissionEntity
         {
-            var incidentId = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
-            logger.LogError(ex, "Failed to create issue. Incident={Id}", incidentId);
-            return await JsonResponse(req, HttpStatusCode.InternalServerError,
-                new { ok = false, error = $"Internal error. Reference: {incidentId}" });
-        }
+            PartitionKey = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd"),
+            RowKey       = Guid.NewGuid().ToString("N"),
+            Kind         = feedback.Kind,
+            Title        = feedback.Title,
+            Body         = feedback.Body,
+            Email        = feedback.Email,
+            Service      = feedback.Service,
+            Version      = feedback.Version,
+            SubmittedAt  = DateTimeOffset.UtcNow,
+        };
+
+        await pendingSubmissions.AddAsync(entity);
+        logger.LogInformation("Stored pending submission: {Title}", feedback.Title);
+
+        var response = req.CreateResponse(HttpStatusCode.Accepted);
+        response.Headers.Add("Content-Type", "application/json; charset=utf-8");
+        await response.WriteStringAsync(JsonSerializer.Serialize(new
+        {
+            ok      = true,
+            message = "Thanks! Your feedback has been received and will be reviewed shortly.",
+        }));
+
+        return response;
     }
 
-    private static bool TryConsumeToken(string ip)
+    private static bool IsValidEmail(string email)
     {
-        lock (_bucketsLock)
-        {
-            var now = DateTimeOffset.UtcNow;
-
-            if (!_buckets.TryGetValue(ip, out var bucket))
-            {
-                _buckets[ip] = (MaxTokens - 1, now);
-                return true;
-            }
-
-            var (tokens, lastRefill) = bucket;
-
-            if (now - lastRefill >= RefillPeriod)
-            {
-                _buckets[ip] = (MaxTokens - 1, now);
-                return true;
-            }
-
-            if (tokens <= 0) return false;
-
-            _buckets[ip] = (tokens - 1, lastRefill);
-            return true;
-        }
+        try { _ = new System.Net.Mail.MailAddress(email); return true; }
+        catch { return false; }
     }
 
-    private static async Task<HttpResponseData> JsonResponse(HttpRequestData req, HttpStatusCode status, object payload)
+    private static async Task<HttpResponseData> ErrorAsync(
+        HttpRequestData req, HttpStatusCode status, string message)
     {
         var response = req.CreateResponse(status);
         response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-        await response.WriteStringAsync(JsonSerializer.Serialize(payload));
+        await response.WriteStringAsync(JsonSerializer.Serialize(new { ok = false, error = message }));
         return response;
     }
 }
