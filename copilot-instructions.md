@@ -525,6 +525,7 @@ pncli config init
 pncli config show
 
 pncli config set
+  --repo      Write to repo config (.pncli.json) instead of global config
 
 pncli config test
 

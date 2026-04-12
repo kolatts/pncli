@@ -5,6 +5,7 @@ import {
   writeGlobalConfig,
   writeRepoConfig,
   setConfigValue,
+  setRepoConfigValue,
   maskConfig,
   getGlobalConfigPath
 } from '../../lib/config.js';
@@ -62,12 +63,18 @@ export function registerConfigCommands(program: Command): void {
     .description('Set a config value by dot-notation key (e.g. jira.baseUrl https://...)')
     .argument('<key>', 'Config key in dot notation')
     .argument('<value>', 'Value to set')
-    .action((key: string, value: string) => {
+    .option('--repo', 'Write to repo config (.pncli.json) instead of global config')
+    .action((key: string, value: string, cmdOpts: { repo?: boolean }) => {
       const start = Date.now();
       try {
-        const opts = program.optsWithGlobals();
-        setConfigValue(key, value, opts.config);
-        success({ key, value }, 'config', 'set', start);
+        if (cmdOpts.repo) {
+          setRepoConfigValue(key, value);
+          success({ key, value, target: '.pncli.json' }, 'config', 'set', start);
+        } else {
+          const opts = program.optsWithGlobals();
+          setConfigValue(key, value, opts.config);
+          success({ key, value }, 'config', 'set', start);
+        }
       } catch (err) {
         fail(err, 'config', 'set', start);
       }
