@@ -20,6 +20,7 @@ import { registerDepsCommands } from './services/deps/commands.js';
 import { registerConfigCommands } from './services/config/commands.js';
 import { registerAdoCommands } from './services/ado/commands/index.js';
 import { registerSkillsCommands } from './services/skills/commands.js';
+import { registerNexusiqCommands } from './services/nexusiq/commands.js';
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,6 +64,7 @@ registerDepsCommands(program);
 registerConfigCommands(program);
 registerAdoCommands(program);
 registerSkillsCommands(program);
+registerNexusiqCommands(program);
 
 program.addHelpText('after', `
 Services:
@@ -74,6 +76,7 @@ Services:
   sonar        SonarQube Server (quality gates, issues, metrics, hotspots)
   sde          SDElements (threat modeling, countermeasures, compliance)
   ado          Azure DevOps Server (work items, repos, PRs, pipelines)
+  nexusiq      Sonatype Nexus IQ (Lifecycle) — applications, violations, remediation
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills
 `);
