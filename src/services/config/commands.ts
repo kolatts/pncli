@@ -172,7 +172,8 @@ export function registerConfigCommands(program: Command): void {
   config
     .command('check')
     .description('Check PAT status for every service: Blank, Valid, or Invalid')
-    .action(async () => {
+    .option('--output <format>', 'Output format: json or table', 'json')
+    .action(async (cmdOpts: { output: string }) => {
       const start = Date.now();
       try {
         const opts = program.optsWithGlobals();
@@ -298,8 +299,13 @@ export function registerConfigCommands(program: Command): void {
           results.artifactory = { status: 'valid', message: 'ok' };
         }
 
-        // Pretty table on stderr (stdout stays JSON)
-        if (opts.pretty) {
+        // Exit code: prefer AUTH_ERROR if any invalid, else NETWORK_ERROR if any errors
+        const statuses = Object.values(results).map(r => r.status);
+        if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
+        else if (statuses.includes('error')) process.exitCode = ExitCode.NETWORK_ERROR;
+
+        if (cmdOpts.output === 'table') {
+          // Human-readable table to stdout
           const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
@@ -312,17 +318,30 @@ export function registerConfigCommands(program: Command): void {
               r.status === 'blank'   ? chalk.gray('blank'.padEnd(statusWidth))    :
               r.status === 'invalid' ? chalk.red('invalid'.padEnd(statusWidth))   :
                                        chalk.yellow('error'.padEnd(statusWidth));
-            process.stderr.write(`  ${label}${coloredStatus}${r.message}\n`);
+            process.stdout.write(`  ${label}${coloredStatus}${r.message}\n`);
           }
-          process.stderr.write('\n');
+          process.stdout.write('\n');
+        } else {
+          // Pretty table on stderr when --pretty is set (stdout stays JSON)
+          if (opts.pretty) {
+            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory'] as const;
+            const labelWidth = 14;
+            const statusWidth = 9;
+            for (const svc of services) {
+              const r = results[svc];
+              if (!r) continue;
+              const label = svc.padEnd(labelWidth);
+              const coloredStatus =
+                r.status === 'valid'   ? chalk.green('valid'.padEnd(statusWidth))   :
+                r.status === 'blank'   ? chalk.gray('blank'.padEnd(statusWidth))    :
+                r.status === 'invalid' ? chalk.red('invalid'.padEnd(statusWidth))   :
+                                         chalk.yellow('error'.padEnd(statusWidth));
+              process.stderr.write(`  ${label}${coloredStatus}${r.message}\n`);
+            }
+            process.stderr.write('\n');
+          }
+          success(results, 'config', 'check', start);
         }
-
-        // Exit code: prefer AUTH_ERROR if any invalid, else NETWORK_ERROR if any errors
-        const statuses = Object.values(results).map(r => r.status);
-        if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
-        else if (statuses.includes('error')) process.exitCode = ExitCode.NETWORK_ERROR;
-
-        success(results, 'config', 'check', start);
       } catch (err) {
         fail(err, 'config', 'check', start);
       }
