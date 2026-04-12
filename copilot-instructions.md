@@ -551,13 +551,12 @@ pncli ado pipeline
 
 ```
 pncli skills install
-  --target <dir>       Target directory for skills (default: .claude/skills)
-  (default: ".claude/skills")
-  --skip-instructions  Skip downloading copilot-instructions.md (default: false)
+  --target <dir>       Target directory for skills (default: ".claude/skills")
+  --skip-instructions  Skip downloading copilot-instructions.md (always written
+  to repo root)
 
 pncli skills list
-  --target <dir>  Skills directory to scan (default: .claude/skills) (default:
-  ".claude/skills")
+  --target <dir>  Skills directory to scan (default: ".claude/skills")
 ```
 
 <!-- COMMAND-REFERENCE:END -->
