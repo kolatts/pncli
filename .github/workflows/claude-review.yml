@@ -10,7 +10,14 @@ concurrency:
 
 jobs:
   review:
-    if: github.event.pull_request.head.repo.fork == false
+    # Skip forks, skip non-claude bots (e.g. dependabot, renovate),
+    # but allow claude-created PRs through for self-review
+    if: |
+      github.event.pull_request.head.repo.fork == false &&
+      (
+        !endsWith(github.event.pull_request.user.login, '[bot]') ||
+        contains(github.event.pull_request.user.login, 'claude')
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: read
