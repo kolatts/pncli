@@ -70,30 +70,39 @@ jobs:
             === END UNTRUSTED USER INPUT ===
 
             === YOUR TASK ===
-            1. Read the codebase to understand the project structure and existing patterns.
-               Key areas: src/services/ (service modules), src/lib/ (shared utilities),
-               src/types/ (TypeScript types), src/cli.ts (CLI entry point).
+            1. Read CLAUDE.md and understand the project's purpose and rules before anything else.
+               pncli is a structured JSON CLI giving AI agents and humans unified access to Jira,
+               Bitbucket, Confluence, SonarQube, SDElements, and Azure DevOps. Changes must fit
+               this purpose. Read src/cli.ts and relevant src/services/ files to understand
+               existing patterns.
 
-            2. Assess whether the issue describes a valid, useful, and feasible change for
-               this CLI tool. Consider scope, complexity, and alignment with the project.
+            2. Assess feasibility and fit — DO NOT write any code yet. Ask:
+               - Does this fit the project's purpose (developer tooling for the above integrations)?
+               - Is it technically feasible within the existing architecture?
+               - Is it a reasonable scope for an automated implementation?
+               - Does it conflict with any rules in CLAUDE.md?
+               If the answer to any of these is no, go directly to step 3b.
 
             3. Decision:
 
-               a) If FEASIBLE and USEFUL:
+               a) If FEASIBLE, FITS the project, and appropriate to implement:
                   - Implement the change following existing patterns in src/.
                   - Run `npm run typecheck` and `npm run lint` to validate your changes.
                   - Create a branch named `claude/issue-${{ github.event.issue.number }}`.
                   - Commit your changes and push the branch.
-                  - MANDATORY: You MUST create a PR immediately after pushing. Run:
+                  - MANDATORY (only when code changes were made): Create a PR immediately:
                     `gh pr create --title "<title>" --body "Closes #${{ github.event.issue.number }}" --repo ${{ github.repository }}`
                     Capture the PR URL from the output (it is the last line printed).
-                  - Comment on the issue using this exact format:
+                  - Comment on the issue using this format:
                     "Implemented in PR: <PR URL>
 
                     <2-3 sentence summary of what was changed and why>"
 
-               b) If NOT FEASIBLE or NOT USEFUL:
-                  - Comment on the issue with a clear, respectful explanation of why.
+               b) If NOT appropriate (doesn't fit purpose, not feasible, out of scope, or conflicts
+                  with CLAUDE.md rules):
+                  - Do NOT make any code changes or create any branch or PR.
+                  - Comment on the issue explaining specifically why it doesn't fit, referencing
+                    the project's purpose or rules where relevant.
                   - Suggest alternatives if applicable.
                   - Close the issue if it is clearly invalid, spam, or a duplicate.
 
