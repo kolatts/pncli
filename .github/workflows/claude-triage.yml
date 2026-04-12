@@ -84,8 +84,13 @@ jobs:
                   - Run `npm run typecheck` and `npm run lint` to validate your changes.
                   - Create a branch named `claude/issue-${{ github.event.issue.number }}`.
                   - Commit your changes and push the branch.
-                  - Open a PR using `gh pr create` with "Closes #${{ github.event.issue.number }}" in the body.
-                  - Comment on the issue with a summary and a link to the PR.
+                  - MANDATORY: You MUST create a PR immediately after pushing. Run:
+                    `gh pr create --title "<title>" --body "Closes #${{ github.event.issue.number }}" --repo ${{ github.repository }}`
+                    Capture the PR URL from the output (it is the last line printed).
+                  - Comment on the issue using this exact format:
+                    "Implemented in PR: <PR URL>
+
+                    <2-3 sentence summary of what was changed and why>"
 
                b) If NOT FEASIBLE or NOT USEFUL:
                   - Comment on the issue with a clear, respectful explanation of why.
