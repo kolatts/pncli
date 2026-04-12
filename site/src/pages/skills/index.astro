@@ -6,6 +6,12 @@ import SkillCard from '../../components/SkillCard.astro';
 const entries = await getCollection('skills');
 
 const categories: Record<string, { label: string; order: string[] }> = {
+  'setup': {
+    label: 'Getting Started',
+    order: [
+      'local-setup',
+    ],
+  },
   'pr-workflow': {
     label: 'PR Workflow',
     order: [
@@ -40,7 +46,7 @@ const categories: Record<string, { label: string; order: string[] }> = {
   },
 };
 
-const categoryOrder = ['pr-workflow', 'security', 'code-quality', 'planning'];
+const categoryOrder = ['setup', 'pr-workflow', 'security', 'code-quality', 'planning'];
 
 function getSkillsForCategory(catKey: string) {
   const cat = categories[catKey];

@@ -30,7 +30,9 @@ pncli ships with Claude Code skills — step-by-step workflow guides that agents
 pncli skills install
 ```
 
-This downloads the latest skills from GitHub into `.claude/skills/` in the current directory, replacing any previously installed skills. Claude Code automatically discovers skills in `.claude/skills/` and `~/.claude/skills/`.
+This downloads the latest pncli skills from GitHub into `.claude/skills/` and also fetches `copilot-instructions.md` into the repo root. Only pncli-managed skills are replaced — any custom skills you've created in `.claude/skills/` are left untouched.
+
+Use `--skip-instructions` to skip downloading `copilot-instructions.md`.
 
 To see what's installed locally:
 
@@ -549,8 +551,9 @@ pncli ado pipeline
 
 ```
 pncli skills install
-  --target <dir>  Target directory (default: .claude/skills) (default:
-  ".claude/skills")
+  --target <dir>       Target directory for skills (default: .claude/skills)
+  (default: ".claude/skills")
+  --skip-instructions  Skip downloading copilot-instructions.md (default: false)
 
 pncli skills list
   --target <dir>  Skills directory to scan (default: .claude/skills) (default:

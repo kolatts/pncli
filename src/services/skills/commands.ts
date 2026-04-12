@@ -5,6 +5,7 @@ import path from 'path';
 
 const GITHUB_API = 'https://api.github.com/repos/kolatts/pncli/contents/.claude/skills';
 const RAW_BASE   = 'https://raw.githubusercontent.com/kolatts/pncli/main/.claude/skills';
+const RAW_COPILOT_INSTRUCTIONS = 'https://raw.githubusercontent.com/kolatts/pncli/main/copilot-instructions.md';
 
 interface GitHubEntry {
   name: string;
@@ -16,20 +17,15 @@ export function registerSkillsCommands(program: Command): void {
 
   skills
     .command('install')
-    .description('Download latest pncli skills into .claude/skills/ in the current repo')
-    .option('--target <dir>', 'Target directory (default: .claude/skills)', '.claude/skills')
-    .action(async (opts: { target: string }) => {
+    .description('Download latest pncli skills and copilot-instructions.md into the current repo')
+    .option('--target <dir>', 'Target directory for skills (default: .claude/skills)', '.claude/skills')
+    .option('--skip-instructions', 'Skip downloading copilot-instructions.md', false)
+    .action(async (opts: { target: string; skipInstructions: boolean }) => {
       const start = Date.now();
       try {
         const targetDir = path.resolve(opts.target);
 
-        // 1. Remove existing skills if present
-        if (fs.existsSync(targetDir)) {
-          warn(`Removing existing skills at ${targetDir}`);
-          fs.rmSync(targetDir, { recursive: true, force: true });
-        }
-
-        // 2. Fetch skill directory listing from GitHub API
+        // 1. Fetch skill directory listing from GitHub API
         warn('Fetching skill list from GitHub...');
         const listRes = await fetch(GITHUB_API, {
           headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'pncli' }
@@ -44,6 +40,14 @@ export function registerSkillsCommands(program: Command): void {
 
         if (skillDirs.length === 0) {
           throw new Error('No skills found in the pncli repository');
+        }
+
+        // 2. Remove only the pncli-managed skills (not user-created ones)
+        for (const skillName of skillDirs) {
+          const existingDir = path.join(targetDir, skillName);
+          if (fs.existsSync(existingDir)) {
+            fs.rmSync(existingDir, { recursive: true, force: true });
+          }
         }
 
         // 3. Download each SKILL.md
@@ -79,11 +83,33 @@ export function registerSkillsCommands(program: Command): void {
           warn(`Failed to download: ${failed.join(', ')}`);
         }
 
+        // 4. Download copilot-instructions.md
+        let instructionsWritten = false;
+        if (!opts.skipInstructions) {
+          warn('Downloading copilot-instructions.md...');
+          try {
+            const res = await fetch(RAW_COPILOT_INSTRUCTIONS, {
+              headers: { 'User-Agent': 'pncli' }
+            });
+            if (res.ok) {
+              const content = await res.text();
+              fs.writeFileSync('copilot-instructions.md', content, 'utf8');
+              instructionsWritten = true;
+              warn('Wrote copilot-instructions.md');
+            } else {
+              warn(`Failed to download copilot-instructions.md (${res.status})`);
+            }
+          } catch {
+            warn('Failed to download copilot-instructions.md');
+          }
+        }
+
         success({
           installed,
           failed,
           target: targetDir,
-          total: installed.length
+          total: installed.length,
+          copilotInstructions: instructionsWritten
         }, 'skills', 'install', start);
       } catch (err) {
         fail(err, 'skills', 'install', start);
