@@ -20,52 +20,54 @@ public sealed class EmailService
 
     public async Task<bool> SendConfirmationAsync(string toEmail, int issueNumber, string issueUrl, string title)
     {
-        var subject = $"Feedback received — Issue #{issueNumber}";
+        var encodedTitle = WebUtility.HtmlEncode(title);
+        var subject      = $"Feedback received — Issue #{issueNumber}";
+
+        var bodyHtml =
+            EmailTemplates.Heading("We've got your feedback!") +
+            EmailTemplates.Para($"Your report <strong>{encodedTitle}</strong> has been filed as {EmailTemplates.IssueLink(issueNumber, issueUrl)}.") +
+            EmailTemplates.Para("We'll review it and send you another email when it's resolved.") +
+            EmailTemplates.Button(issueUrl, $"View Issue #{issueNumber} →");
+
         var plain = $"""
-            Thanks for submitting feedback!
+            We've got your feedback!
 
             Your report "{title}" has been filed as issue #{issueNumber}.
-            Track its progress here: {issueUrl}
+            Track it here: {issueUrl}
 
             We'll send you another email when it's resolved.
 
             — pncli team
             """;
-        var html = $"""
-            <p>Thanks for submitting feedback!</p>
-            <p>Your report "<strong>{WebUtility.HtmlEncode(title)}</strong>" has been filed as
-            <a href="{WebUtility.HtmlEncode(issueUrl)}">issue #{issueNumber}</a>.</p>
-            <p>Track its progress at <a href="{WebUtility.HtmlEncode(issueUrl)}">{WebUtility.HtmlEncode(issueUrl)}</a>.</p>
-            <p>We'll send you another email when it's resolved.</p>
-            <p>— pncli team</p>
-            """;
 
-        return await SendAsync(toEmail, subject, plain, html,
+        return await SendAsync(toEmail, subject, plain, EmailTemplates.Wrap(bodyHtml, subject),
             onSuccess: () => _logger.LogInformation(
                 "Confirmation email sent to {Email} for issue #{Number}", toEmail, issueNumber));
     }
 
     public async Task<bool> SendClosedNotificationAsync(string toEmail, int issueNumber, string issueUrl, string title)
     {
-        var subject = $"Your feedback has been resolved — Issue #{issueNumber}";
-        var plain = $"""
-            Good news! Your feedback "{title}" (issue #{issueNumber}) has been resolved and closed.
+        var encodedTitle = WebUtility.HtmlEncode(title);
+        var subject      = $"Your feedback has been resolved — Issue #{issueNumber}";
 
+        var bodyHtml =
+            EmailTemplates.Heading("Your issue has been resolved!") +
+            EmailTemplates.Para($"<strong>{encodedTitle}</strong> ({EmailTemplates.IssueLink(issueNumber, issueUrl)}) has been closed.") +
+            EmailTemplates.Para("Thanks for helping improve pncli!") +
+            EmailTemplates.Button(issueUrl, "View Resolution →");
+
+        var plain = $"""
+            Your issue has been resolved!
+
+            "{title}" (issue #{issueNumber}) has been closed.
             See the details here: {issueUrl}
 
             Thanks for helping improve pncli!
 
             — pncli team
             """;
-        var html = $"""
-            <p>Good news! Your feedback "<strong>{WebUtility.HtmlEncode(title)}</strong>"
-            (<a href="{WebUtility.HtmlEncode(issueUrl)}">issue #{issueNumber}</a>) has been resolved and closed.</p>
-            <p>See the details at <a href="{WebUtility.HtmlEncode(issueUrl)}">{WebUtility.HtmlEncode(issueUrl)}</a>.</p>
-            <p>Thanks for helping improve pncli!</p>
-            <p>— pncli team</p>
-            """;
 
-        return await SendAsync(toEmail, subject, plain, html,
+        return await SendAsync(toEmail, subject, plain, EmailTemplates.Wrap(bodyHtml, subject),
             onSuccess: () => _logger.LogInformation(
                 "Closed notification sent to {Email} for issue #{Number}", toEmail, issueNumber));
     }
