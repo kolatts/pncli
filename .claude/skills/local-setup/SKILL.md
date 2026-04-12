@@ -102,11 +102,13 @@ Ask the user for project-specific defaults:
 - If SDElements is configured: "What is the SDElements project ID?"
 
 ```
-pncli config set defaults.jira.project <key>
-pncli config set defaults.bitbucket.targetBranch <branch>
-pncli config set defaults.sonar.project <key>
-pncli config set defaults.sde.project <id>
+pncli config set --repo defaults.jira.project <key>
+pncli config set --repo defaults.bitbucket.targetBranch <branch>
+pncli config set --repo defaults.sonar.project <key>
+pncli config set --repo defaults.sde.project <id>
 ```
+
+The `--repo` flag writes to `.pncli.json` in the repo root instead of the global config. This keeps project-specific defaults scoped to the repo and shareable with the team via version control.
 
 **Step 6 — Test connectivity.**
 
