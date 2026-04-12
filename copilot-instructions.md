@@ -13,9 +13,34 @@ pncli is a CLI tool that provides structured JSON access to Jira, Bitbucket, Con
 - Run all commands from the repository root.
 - Project and repo are auto-detected from git remotes. You rarely need `--project` or `--repo` flags.
 
+## Provider Detection
+
+Before running provider-specific commands, ask the user which tools this repository uses:
+
+1. **Work item tracking:** "Does this repo use **Jira** or **Azure DevOps** for work items and tickets?" — this determines whether to use `pncli jira ...` or `pncli ado work ...` commands.
+2. **Source control:** "Does this repo use **Bitbucket** or **Azure DevOps** for pull requests and code review?" — this determines whether to use `pncli bitbucket ...` or `pncli ado repo ...` commands.
+
+Cache the answers for the session. If the user doesn't know, run `git remote -v` — if a URL contains `/_git/` it's Azure DevOps; if it contains `/scm/` it's Bitbucket.
+
+## Installing Skills
+
+pncli ships with Claude Code skills — step-by-step workflow guides that agents can follow. To install them into your repo:
+
+```
+pncli skills install
+```
+
+This downloads the latest skills from GitHub into `.claude/skills/` in the current directory, replacing any previously installed skills. Claude Code automatically discovers skills in `.claude/skills/` and `~/.claude/skills/`.
+
+To see what's installed locally:
+
+```
+pncli skills list
+```
+
 ## Common Workflows
 
-> These workflows are also available as Claude Code skills in `.claude/skills/` — copy them into your own project or `~/.claude/skills/` for global access.
+> These workflows are also available as Claude Code skills — run `pncli skills install` to download them into your repo, or copy `.claude/skills/` into `~/.claude/skills/` for global access.
 
 ### Review a Pull Request
 
@@ -518,6 +543,18 @@ pncli ado work
 pncli ado repo
 
 pncli ado pipeline
+```
+
+### Skills
+
+```
+pncli skills install
+  --target <dir>  Target directory (default: .claude/skills) (default:
+  ".claude/skills")
+
+pncli skills list
+  --target <dir>  Skills directory to scan (default: .claude/skills) (default:
+  ".claude/skills")
 ```
 
 <!-- COMMAND-REFERENCE:END -->

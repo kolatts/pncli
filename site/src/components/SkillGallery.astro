@@ -4,33 +4,71 @@ import SkillCard from './SkillCard.astro';
 
 const entries = await getCollection('skills');
 
-// Stable display order
-const order = [
-  'review-pull-request',
-  'address-pr-feedback',
-  'create-bug-from-pr-finding',
-  'check-build-status',
-  'pre-merge-quality-check',
-  'review-vulnerabilities',
-  'vulnerability-triage-to-tickets',
-  'dependency-cve-remediation',
-  'threat-model-to-backlog',
-  'tech-debt-to-backlog',
-  'license-audit-to-tickets',
-  'daily-standup-prep',
-];
+const categories: Record<string, { label: string; order: string[] }> = {
+  'pr-workflow': {
+    label: 'PR Workflow',
+    order: [
+      'review-pull-request',
+      'address-pr-feedback',
+      'create-bug-from-pr-finding',
+      'check-build-status',
+    ],
+  },
+  'security': {
+    label: 'Security & Vulnerability',
+    order: [
+      'review-vulnerabilities',
+      'vulnerability-triage-to-tickets',
+      'dependency-cve-remediation',
+      'threat-model-to-backlog',
+    ],
+  },
+  'code-quality': {
+    label: 'Code Quality & Compliance',
+    order: [
+      'pre-merge-quality-check',
+      'tech-debt-to-backlog',
+      'license-audit-to-tickets',
+    ],
+  },
+  'planning': {
+    label: 'Planning',
+    order: [
+      'daily-standup-prep',
+    ],
+  },
+};
 
-const getOrderIndex = (id: string) => { const i = order.indexOf(id); return i === -1 ? Infinity : i; };
-const skills = [...entries].sort((a, b) => getOrderIndex(a.id) - getOrderIndex(b.id));
+const categoryOrder = ['pr-workflow', 'security', 'code-quality', 'planning'];
+
+function getSkillsForCategory(catKey: string) {
+  const cat = categories[catKey];
+  if (!cat) return [];
+  const getIdx = (id: string) => { const i = cat.order.indexOf(id); return i === -1 ? Infinity : i; };
+  return [...entries]
+    .filter(e => (e.data.category ?? 'other') === catKey)
+    .sort((a, b) => getIdx(a.id) - getIdx(b.id));
+}
 ---
 
-<div class="not-prose grid grid-cols-1 sm:grid-cols-2 gap-4 my-6">
-  {skills.map(skill => (
-    <SkillCard
-      title={skill.data.title}
-      description={skill.data.description}
-      providers={skill.data.providers ?? 'none'}
-      slug={skill.id}
-    />
-  ))}
-</div>
+{categoryOrder.map(catKey => {
+  const cat = categories[catKey];
+  const skills = getSkillsForCategory(catKey);
+  if (!skills.length) return null;
+  return (
+    <div class="not-prose mb-8">
+      <h3 class="font-display text-sm font-semibold text-ink/60 uppercase tracking-wider mb-3">{cat.label}</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {skills.map(skill => (
+          <SkillCard
+            title={skill.data.title}
+            description={skill.data.description}
+            providers={skill.data.providers ?? 'none'}
+            services={skill.data.services ?? ''}
+            slug={skill.id}
+          />
+        ))}
+      </div>
+    </div>
+  );
+})}

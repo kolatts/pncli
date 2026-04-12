@@ -2,6 +2,8 @@
 name: Tech Debt to Backlog
 description: Use when asked to identify tech debt and create refactoring tickets, turn SonarQube code smells into stories, or plan a code quality improvement sprint.
 providers: both
+category: code-quality
+services: sonar, git, jira, ado
 ---
 
 Analyze SonarQube code smells, complexity metrics, and duplication to identify refactoring opportunities, then create Jira or Azure DevOps stories for the highest-impact improvements.

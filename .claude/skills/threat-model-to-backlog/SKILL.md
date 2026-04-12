@@ -2,6 +2,8 @@
 name: Threat Model to Backlog
 description: Use when asked to turn a threat model into backlog items, sync SDElements threats to Jira or ADO, or create stories from security countermeasures.
 providers: both
+category: security
+services: sde, jira, ado
 ---
 
 Pull threats and countermeasures from SDElements and create a structured Jira or Azure DevOps backlog — an epic for the threat model with individual stories for each countermeasure.

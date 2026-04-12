@@ -2,6 +2,8 @@
 name: Pre-Merge Quality Check
 description: Use when asked if a branch is ready to merge, to check quality gates, review SonarQube issues, inspect code coverage, or look at security hotspots before merging.
 providers: none
+category: code-quality
+services: sonar, git
 ---
 
 Run a full quality check against SonarQube for the current branch before merging. This workflow is provider-agnostic — it works the same for Bitbucket and Azure DevOps repos.

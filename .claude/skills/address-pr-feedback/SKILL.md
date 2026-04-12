@@ -2,6 +2,8 @@
 name: Address PR Feedback
 description: Use when asked to work through review comments, resolve PR feedback, reply to comment threads, or mark comments as resolved after fixing them.
 providers: both
+category: pr-workflow
+services: git, bitbucket, ado
 ---
 
 Work through the open review comments on the current branch's PR. Check local code changes, reply to each resolved thread, and mark it as resolved.
