@@ -1,0 +1,54 @@
+name: Claude Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event.pull_request.head.repo.fork == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Claude Code Review
+        uses: anthropics/claude-code-action@v1.0.93
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          track_progress: true
+          classify_inline_comments: 'true'
+          include_fix_links: 'true'
+          plugin_marketplaces: |
+            https://github.com/kolatts/claude-marketplace
+          plugins: |
+            sunny
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Review this pull request for the @kolatts/pncli TypeScript CLI.
+            Focus on:
+            1. Code quality and TypeScript correctness
+            2. CLI UX (commander/inquirer usage, error messages, exit codes)
+            3. Security (command injection, credential handling, prompt injection)
+            4. Bugs and edge cases
+            5. Adherence to existing patterns in src/
+
+            Leave inline comments on specific lines and a top-level summary.
+            Skip nitpicks; prioritize substantive feedback.
+            Approve the PR if no substantive issues are found, or request changes if there are blocking problems.
+            Before posting your review, dismiss any previous Claude review on this PR so stale feedback doesn't linger.
+            Also resolve any review comment threads from previous Claude reviews that are now outdated.
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*)"
