@@ -6,7 +6,7 @@ using Octokit;
 namespace Feedback;
 
 /// <summary>
-/// Runs every 10 minutes and promotes pending submissions into GitHub issues,
+/// Runs every minute and promotes pending submissions into GitHub issues,
 /// up to the configured daily cap. Submissions that fail are left in the
 /// pending state and retried on the next tick.
 /// </summary>
@@ -14,6 +14,7 @@ public class ProcessSubmissionsFunction(
     ILogger<ProcessSubmissionsFunction> logger,
     PendingSubmissionStore pendingSubmissions,
     IssueEmailStore issueEmailStore,
+    GitHubClient github,
     EmailService? emailService = null)
 {
     private const int DefaultDailyLimit = 10;
@@ -44,15 +45,14 @@ public class ProcessSubmissionsFunction(
             "{Pending} pending, {Processed}/{Limit} processed today — will process up to {Slots}",
             pending.Count, alreadyProcessed, dailyLimit, slotsRemaining);
 
-        var token   = Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? "";
         var repoStr = Environment.GetEnvironmentVariable("GITHUB_REPO")  ?? "kolatts/pncli";
         var label   = Environment.GetEnvironmentVariable("GITHUB_ISSUE_LABEL") ?? "from-website";
         var parts   = repoStr.Split('/');
-
-        var github = new GitHubClient(new ProductHeaderValue("pncli-site"))
+        if (parts.Length != 2)
         {
-            Credentials = new Credentials(token),
-        };
+            logger.LogError("GITHUB_REPO must be in 'owner/repo' format, got: {Repo}", repoStr);
+            return; // config error — don't retry
+        }
 
         var processedCount = 0;
         foreach (var submission in pending.Take(slotsRemaining))

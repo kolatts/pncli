@@ -49,6 +49,8 @@ public class SubmitFunction(
             return await ErrorAsync(req, HttpStatusCode.BadRequest, "body must be 1–4000 characters");
         if (string.IsNullOrWhiteSpace(feedback.Email) || feedback.Email.Length > 254 || !IsValidEmail(feedback.Email))
             return await ErrorAsync(req, HttpStatusCode.BadRequest, "A valid email address is required");
+        if (feedback.Version is { Length: > 20 })
+            return await ErrorAsync(req, HttpStatusCode.BadRequest, "version must be 20 characters or fewer");
 
         // ── Resolve IP ───────────────────────────────────────────────────────
         var ip = req.Headers.TryGetValues("X-Forwarded-For", out var fwd)

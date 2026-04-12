@@ -186,18 +186,24 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
         const email = form.querySelector('#fb-email')?.value;
         if (email) localStorage.setItem(LS_EMAIL_KEY, email);
 
-        status.innerHTML =
-          `<span class="text-violet font-medium">${json.message ?? 'Thanks! Your feedback has been received.'}</span>`;
+        const okSpan = document.createElement('span');
+        okSpan.className = 'text-violet font-medium';
+        okSpan.textContent = json.message ?? 'Thanks! Your feedback has been received.';
+        status.replaceChildren(okSpan);
         form.reset();
         // Restore email after reset so it stays filled
         if (email && emailInput) emailInput.value = email;
       } else {
-        status.innerHTML =
-          `<span class="text-coral">${json.error ?? 'Something went wrong. Please try again.'}</span>`;
+        const errSpan = document.createElement('span');
+        errSpan.className = 'text-coral';
+        errSpan.textContent = json.error ?? 'Something went wrong. Please try again.';
+        status.replaceChildren(errSpan);
       }
     } catch {
-      status.innerHTML =
-        `<span class="text-coral">Network error — please check your connection and try again.</span>`;
+      const netSpan = document.createElement('span');
+      netSpan.className = 'text-coral';
+      netSpan.textContent = 'Network error — please check your connection and try again.';
+      status.replaceChildren(netSpan);
     } finally {
       submit.disabled = false;
       submit.textContent = 'Submit';
