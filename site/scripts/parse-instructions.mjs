@@ -83,7 +83,7 @@ if (startIdxNoH1 === -1 || endIdxNoH1 === -1) {
     bodyBefore = preWorkflows
       + '\n\n<ConfigSetupCallout />'
       + '\n\n## Skills'
-      + '\n\nEach workflow is packaged as a Claude Code skill. Copy the skills from `.claude/skills/` in the pncli repo into your project (or `~/.claude/skills/` for global access) and invoke them with `/skill pncli:&lt;name&gt;`.'
+      + '\n\nEach workflow is packaged as a Claude Code skill. Run `pncli skills install` to download them into your repo, or copy `.claude/skills/` from the pncli repo into your project (or `~/.claude/skills/` for global access). Invoke with `/skill pncli:&lt;name&gt;`.'
       + '\n\n<SkillGallery />';
   } else {
     bodyBefore = escapeMdxOutsideFences(beforeRaw) + '\n\n<ConfigSetupCallout />';

@@ -2,6 +2,8 @@
 name: Check Build Status Before Merging
 description: Use when asked if the build is green, whether it's safe to merge, to check CI status on a PR, or to merge a PR after confirming all checks pass.
 providers: both
+category: pr-workflow
+services: git, bitbucket, ado
 ---
 
 Check the CI build status for the current PR and merge if all checks pass.

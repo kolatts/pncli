@@ -2,6 +2,8 @@
 name: Create a Bug from a PR Review Finding
 description: Use when asked to file a bug, create a Jira ticket from a PR comment or code finding, or track a PR review issue as a Jira story.
 providers: both
+category: pr-workflow
+services: jira, bitbucket, ado
 ---
 
 Create a Jira bug from a finding uncovered during a pull request review, link it to the parent story, and add a comment on the PR referencing the new ticket.

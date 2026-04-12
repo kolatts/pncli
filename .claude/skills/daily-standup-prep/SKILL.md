@@ -2,6 +2,8 @@
 name: Daily Standup Prep
 description: Use when asked to prep for standup, summarize recent work, list open PRs and Jira issues, or give a quick status of what's in progress.
 providers: both
+category: planning
+services: git, jira, bitbucket, ado
 ---
 
 Pull together a standup summary: open pull requests, assigned Jira issues, and recent commits.

@@ -19,6 +19,7 @@ import { registerSdeCommands } from './services/sde/commands.js';
 import { registerDepsCommands } from './services/deps/commands.js';
 import { registerConfigCommands } from './services/config/commands.js';
 import { registerAdoCommands } from './services/ado/commands/index.js';
+import { registerSkillsCommands } from './services/skills/commands.js';
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -61,6 +62,7 @@ registerSdeCommands(program);
 registerDepsCommands(program);
 registerConfigCommands(program);
 registerAdoCommands(program);
+registerSkillsCommands(program);
 
 program.addHelpText('after', `
 Services:
@@ -73,6 +75,7 @@ Services:
   sde          SDElements (threat modeling, countermeasures, compliance)
   ado          Azure DevOps Server (work items, repos, PRs, pipelines)
   config       Manage pncli configuration
+  skills       Download and manage Claude Code skills
 `);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
