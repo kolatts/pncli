@@ -2,6 +2,8 @@
 name: License Audit to Tickets
 description: Use when asked to audit dependency licenses, check for license compliance issues, or create tickets for dependencies with problematic or unknown licenses.
 providers: both
+category: code-quality
+services: deps, jira, ado
 ---
 
 Scan all project dependencies for license information, flag packages with copyleft, unknown, or non-compliant licenses, and create Jira or Azure DevOps tickets to resolve each issue.

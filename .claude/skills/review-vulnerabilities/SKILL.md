@@ -2,6 +2,8 @@
 name: Review Vulnerabilities
 description: Use when asked to check for security vulnerabilities, audit dependencies, review SonarQube security issues or hotspots, or run a dependency vulnerability scan.
 providers: none
+category: security
+services: deps, sonar, git
 ---
 
 Audit the codebase for security vulnerabilities using both SonarQube (static analysis) and dependency scanning. This workflow is provider-agnostic — it works the same for Bitbucket and Azure DevOps repos.

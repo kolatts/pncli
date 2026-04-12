@@ -2,6 +2,8 @@
 name: Review a Pull Request
 description: Use when asked to review a PR, check the diff, read or add review comments, or approve/request changes on a pull request.
 providers: both
+category: pr-workflow
+services: git, bitbucket, ado
 ---
 
 Review the open pull request for the current branch. Check the diff, read existing comments, add inline feedback, then approve or request changes.
