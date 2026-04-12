@@ -21,4 +21,7 @@ public record FeedbackRequest
 
     [JsonPropertyName("version")]
     public string? Version { get; init; }
+
+    [JsonPropertyName("cf-turnstile-response")]
+    public string? TurnstileToken { get; init; }
 }

@@ -49,9 +49,10 @@ az functionapp config appsettings set \
     GITHUB_REPO="kolatts/pncli" \
     GITHUB_ISSUE_LABEL="from-website" \
     ALLOWED_ORIGIN="https://kolatts.github.io" \
+    DAILY_SUBMISSION_LIMIT="${DAILY_SUBMISSION_LIMIT:-100}" \
   --only-show-errors >/dev/null
 
-# GITHUB_TOKEN is set manually — never via this script (see infra/README.md).
+# GITHUB_TOKEN and TURNSTILE_SECRET are set manually — never via this script (see infra/README.md).
 
 echo "→ CORS: https://kolatts.github.io" >&2
 az functionapp cors add \
