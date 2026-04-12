@@ -72,6 +72,8 @@ for (const entry of readdirSync(skillsDir).sort()) {
     `title: ${JSON.stringify(data.name || entry)}`,
     `description: ${JSON.stringify(data.description || '')}`,
     `providers: ${JSON.stringify(data.providers || 'none')}`,
+    `category: ${JSON.stringify(data.category || 'other')}`,
+    `services: ${JSON.stringify(data.services || '')}`,
     `generatedAt: ${JSON.stringify(new Date().toISOString())}`,
     '---',
     '',

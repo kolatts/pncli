@@ -4,9 +4,10 @@ interface Props {
   description: string;
   providers: string;
   slug: string;
+  services?: string;
 }
 
-const { title, description, providers, slug } = Astro.props;
+const { title, description, providers, slug, services } = Astro.props;
 
 const providerLabel: Record<string, string> = {
   both:      'Bitbucket · Azure DevOps',
@@ -16,6 +17,10 @@ const providerLabel: Record<string, string> = {
 };
 
 const label = providerLabel[providers] ?? 'All repos';
+
+const serviceList = services
+  ? services.split(',').map(s => s.trim()).filter(Boolean)
+  : [];
 ---
 
 <a
@@ -29,6 +34,15 @@ const label = providerLabel[providers] ?? 'All repos';
     </span>
   </div>
   <p class="text-sm text-cream/55 leading-relaxed flex-1 mb-4">{description}</p>
+  {serviceList.length > 0 && (
+    <div class="flex flex-wrap gap-1.5 mb-3">
+      {serviceList.map(svc => (
+        <span class="font-mono text-[10px] text-violet/80 bg-violet/10 border border-violet/20 px-1.5 py-0.5 rounded">
+          {svc}
+        </span>
+      ))}
+    </div>
+  )}
   <span class="font-mono text-xs text-coral group-hover:underline">
     View skill →
   </span>

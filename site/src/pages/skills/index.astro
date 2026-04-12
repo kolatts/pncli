@@ -5,18 +5,61 @@ import SkillCard from '../../components/SkillCard.astro';
 
 const entries = await getCollection('skills');
 
-const order = [
-  'review-pull-request',
-  'address-pr-feedback',
-  'create-bug-from-pr-finding',
-  'check-build-status',
-  'pre-merge-quality-check',
-  'review-vulnerabilities',
-  'daily-standup-prep',
-];
+const categories: Record<string, { label: string; order: string[] }> = {
+  'setup': {
+    label: 'Getting Started',
+    order: [
+      'local-setup',
+    ],
+  },
+  'pr-workflow': {
+    label: 'PR Workflow',
+    order: [
+      'review-pull-request',
+      'address-pr-feedback',
+      'create-bug-from-pr-finding',
+      'check-build-status',
+    ],
+  },
+  'security': {
+    label: 'Security & Vulnerability',
+    order: [
+      'review-vulnerabilities',
+      'vulnerability-triage-to-tickets',
+      'dependency-cve-remediation',
+      'threat-model-to-backlog',
+    ],
+  },
+  'code-quality': {
+    label: 'Code Quality & Compliance',
+    order: [
+      'pre-merge-quality-check',
+      'tech-debt-to-backlog',
+      'license-audit-to-tickets',
+    ],
+  },
+  'planning': {
+    label: 'Planning',
+    order: [
+      'daily-standup-prep',
+    ],
+  },
+};
 
-const getOrderIndex = (id: string) => { const i = order.indexOf(id); return i === -1 ? Infinity : i; };
-const skills = [...entries].sort((a, b) => getOrderIndex(a.id) - getOrderIndex(b.id));
+const categoryOrder = ['setup', 'pr-workflow', 'security', 'code-quality', 'planning'];
+
+function getSkillsForCategory(catKey: string) {
+  const cat = categories[catKey];
+  if (!cat) return [];
+  const getIdx = (id: string) => { const i = cat.order.indexOf(id); return i === -1 ? Infinity : i; };
+  return [...entries]
+    .filter(e => (e.data.category ?? 'other') === catKey)
+    .sort((a, b) => getIdx(a.id) - getIdx(b.id));
+}
+
+// Collect any skills not in a known category
+const knownIds = new Set(Object.values(categories).flatMap(c => c.order));
+const uncategorized = entries.filter(e => !knownIds.has(e.id));
 ---
 
 <Base
@@ -39,21 +82,50 @@ const skills = [...entries].sort((a, b) => getOrderIndex(a.id) - getOrderIndex(b
           How to install
         </summary>
         <div class="mt-3 pl-5 border-l border-ink/10 space-y-2 text-ink/60">
-          <p>Copy the <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">.claude/skills/</code> directory from the <a href="https://github.com/kolatts/pncli" class="text-coral hover:underline">pncli repo</a> into your own project's <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">.claude/skills/</code> directory (or into <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">~/.claude/skills/</code> for global access).</p>
+          <p>Run <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">pncli skills install</code> from your repo root to download all skills into <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">.claude/skills/</code>.</p>
+          <p>Or copy the <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">.claude/skills/</code> directory from the <a href="https://github.com/kolatts/pncli" class="text-coral hover:underline">pncli repo</a> into your own project's <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">.claude/skills/</code> directory (or into <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">~/.claude/skills/</code> for global access).</p>
           <p>Claude Code automatically discovers skills in those directories.</p>
         </div>
       </details>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {skills.map(skill => (
-        <SkillCard
-          title={skill.data.title}
-          description={skill.data.description}
-          providers={skill.data.providers ?? 'none'}
-          slug={skill.id}
-        />
-      ))}
-    </div>
+    {categoryOrder.map(catKey => {
+      const cat = categories[catKey];
+      const skills = getSkillsForCategory(catKey);
+      if (!skills.length) return null;
+      return (
+        <div class="mb-10">
+          <h2 class="font-display text-lg font-semibold text-ink mb-4">{cat.label}</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {skills.map(skill => (
+              <SkillCard
+                title={skill.data.title}
+                description={skill.data.description}
+                providers={skill.data.providers ?? 'none'}
+                services={skill.data.services ?? ''}
+                slug={skill.id}
+              />
+            ))}
+          </div>
+        </div>
+      );
+    })}
+
+    {uncategorized.length > 0 && (
+      <div class="mb-10">
+        <h2 class="font-display text-lg font-semibold text-ink mb-4">Other</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {uncategorized.map(skill => (
+            <SkillCard
+              title={skill.data.title}
+              description={skill.data.description}
+              providers={skill.data.providers ?? 'none'}
+              services={skill.data.services ?? ''}
+              slug={skill.id}
+            />
+          ))}
+        </div>
+      </div>
+    )}
   </div>
 </Base>

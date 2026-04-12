@@ -182,6 +182,27 @@ export function setConfigValue(key: string, value: string, configPath?: string):
   writeGlobalConfig(existing, configPath);
 }
 
+export function setRepoConfigValue(key: string, value: string): void {
+  const repoRoot = getRepoRoot();
+  const targetDir = repoRoot ?? process.cwd();
+  const filePath = path.join(targetDir, '.pncli.json');
+  const existing = loadJsonFile<RepoConfig>(filePath) ?? {};
+
+  const parts = key.split('.');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let current: any = existing;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i]!;
+    if (typeof current[part] !== 'object' || current[part] === null) {
+      current[part] = {};
+    }
+    current = current[part];
+  }
+  current[parts[parts.length - 1]!] = value;
+
+  writeRepoConfig(existing);
+}
+
 export function maskConfig(config: ResolvedConfig): unknown {
   return {
     ...config,
