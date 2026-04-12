@@ -40,6 +40,10 @@
     "agent",
     "automation"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kolatts/pncli"
+  },
   "license": "Apache-2.0",
   "files": [
     "dist",
