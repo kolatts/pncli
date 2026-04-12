@@ -79,12 +79,23 @@ export interface AdoDefaults {
   repo?: string;
 }
 
+export interface NexusIqConfig {
+  baseUrl?: string;
+  username?: string;
+  token?: string;
+}
+
+export interface NexusIqDefaults {
+  applicationId?: string;
+}
+
 export interface Defaults {
   jira?: JiraDefaults;
   bitbucket?: BitbucketDefaults;
   sonar?: SonarDefaults;
   sde?: SdeDefaults;
   ado?: AdoDefaults;
+  nexusiq?: NexusIqDefaults;
 }
 
 export interface UserConfig {
@@ -101,6 +112,7 @@ export interface GlobalConfig {
   sonar?: SonarConfig;
   sde?: SdeConfig;
   ado?: AdoConfig;
+  nexusiq?: NexusIqConfig;
   defaults?: Defaults;
 }
 
@@ -145,11 +157,17 @@ export interface ResolvedConfig {
     discoveredFields: AdoFieldMeta[];
     discoveredTypes: AdoWorkItemTypeMeta[];
   };
+  nexusiq: {
+    baseUrl: string | undefined;
+    username: string | undefined;
+    token: string | undefined;
+  };
   defaults: {
     jira: JiraDefaults;
     bitbucket: BitbucketDefaults;
     sonar: SonarDefaults;
     sde: SdeDefaults;
     ado: AdoDefaults;
+    nexusiq: NexusIqDefaults;
   };
 }

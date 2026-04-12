@@ -163,6 +163,17 @@ export function registerConfigCommands(program: Command): void {
           results.ado = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.nexusiq.baseUrl) {
+          try {
+            await http.nexusiq<unknown>('/api/v2/applications');
+            results.nexusiq = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.nexusiq = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.nexusiq = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -299,6 +310,20 @@ export function registerConfigCommands(program: Command): void {
           results.artifactory = { status: 'valid', message: 'ok' };
         }
 
+        // Nexus IQ
+        if (!cfg.nexusiq.token) {
+          results.nexusiq = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.nexusiq.baseUrl) {
+          results.nexusiq = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.nexusiq<unknown>('/api/v2/applications', { timeoutMs: 10_000 });
+            results.nexusiq = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.nexusiq = categorize(err);
+          }
+        }
+
         // Exit code: prefer AUTH_ERROR if any invalid, else NETWORK_ERROR if any errors
         const statuses = Object.values(results).map(r => r.status);
         if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
@@ -306,7 +331,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory'] as const;
+          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory', 'nexusiq'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -324,7 +349,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory'] as const;
+            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory', 'nexusiq'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -489,6 +514,32 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── Nexus IQ (Sonatype Lifecycle) ─────────────────\n');
+  const useNexusIq = await confirm({
+    message: 'Configure Nexus IQ for vulnerability remediation commands?',
+    default: false
+  });
+
+  let nexusIqBaseUrl = '';
+  let nexusIqUsername = '';
+  let nexusIqToken = '';
+
+  if (useNexusIq) {
+    nexusIqBaseUrl = await input({
+      message: 'Nexus IQ base URL (e.g. https://nexusiq.your-company.com):',
+      default: ''
+    });
+
+    nexusIqUsername = await input({
+      message: 'Nexus IQ username:',
+      default: ''
+    });
+
+    nexusIqToken = await password({
+      message: 'Nexus IQ password or user token:'
+    });
+  }
+
   process.stderr.write('\n── Azure DevOps Server ───────────────────────────\n');
   const useAdo = await confirm({
     message: 'Configure Azure DevOps Server for work items, repos, and pipelines?',
@@ -585,6 +636,11 @@ async function initGlobalConfig(start: number): Promise<void> {
     default: ''
   }) : '';
 
+  const nexusIqApplication = useNexusIq ? await input({
+    message: 'Default Nexus IQ application public ID (optional):',
+    default: ''
+  }) : '';
+
   const sdeProject = useSde ? await input({
     message: 'Default SDElements project ID (optional, numeric):',
     default: ''
@@ -641,6 +697,13 @@ async function initGlobalConfig(start: number): Promise<void> {
         connection: `${sdeToken}@${sdeBaseUrl}`
       }
     } : {}),
+    ...(useNexusIq && nexusIqBaseUrl ? {
+      nexusiq: {
+        baseUrl: nexusIqBaseUrl || undefined,
+        username: nexusIqUsername || undefined,
+        token: nexusIqToken || undefined
+      }
+    } : {}),
     ...(useAdo && adoBaseUrl ? {
       ado: {
         baseUrl: adoBaseUrl,
@@ -662,6 +725,11 @@ async function initGlobalConfig(start: number): Promise<void> {
       ...(useSde && sdeProject ? {
         sde: {
           project: sdeProject || undefined
+        }
+      } : {}),
+      ...(useNexusIq && nexusIqApplication ? {
+        nexusiq: {
+          applicationId: nexusIqApplication || undefined
         }
       } : {}),
       ...(useAdo && (adoCollection || adoProject) ? {
