@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/kolatts/pncli/compare/v1.6.0...v1.6.1) (2026-04-12)
+
+
+### Bug Fixes
+
+* add repository field to package.json for npm provenance verification ([8fa894d](https://github.com/kolatts/pncli/commit/8fa894d1b77e4805092c9bb0a55663354dc786d0))
+
 ## [1.6.0](https://github.com/kolatts/pncli/compare/v1.5.0...v1.6.0) (2026-04-12)
 
 
