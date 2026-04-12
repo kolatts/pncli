@@ -45,13 +45,15 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
 
-            **Before doing anything else, clean up stale Claude feedback:**
-            1. List all previous Claude comments on this PR and delete each one:
-               gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments --jq '.[] | select(.user.login == "claude[bot]") | .id'
+            **Before doing anything else, read and clean up stale Claude feedback:**
+            1. Fetch all previous Claude comments on this PR and read them to retain context:
+               gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments --jq '.[] | select(.user.login == "claude[bot]") | {id: .id, body: .body}'
+            2. Note any issues or concerns raised in those previous comments — you will carry this context into your review.
+            3. Delete each previous Claude comment by ID:
                gh api repos/${{ github.repository }}/issues/comments/<id> -X DELETE
-               (repeat for every ID returned)
-            2. Dismiss any previous Claude formal review on this PR.
-            3. Resolve any outdated inline review comment threads from previous Claude reviews.
+               (repeat for every ID returned in step 1)
+            4. Dismiss any previous Claude formal review on this PR.
+            5. Resolve any outdated inline review comment threads from previous Claude reviews.
 
             **Now review the pull request:**
 
