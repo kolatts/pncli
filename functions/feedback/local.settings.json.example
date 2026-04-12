@@ -6,6 +6,8 @@
     "GITHUB_TOKEN": "<fine-grained-pat-with-issues:write-on-kolatts/pncli>",
     "GITHUB_REPO": "kolatts/pncli",
     "GITHUB_ISSUE_LABEL": "from-website",
-    "ALLOWED_ORIGIN": "http://localhost:4321"
+    "ALLOWED_ORIGIN": "http://localhost:4321",
+    "TURNSTILE_SECRET": "1x0000000000000000000000000000000AA",
+    "DAILY_SUBMISSION_LIMIT": "100"
   }
 }

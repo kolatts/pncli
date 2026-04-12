@@ -1,6 +1,11 @@
 ---
-const endpoint = import.meta.env.PUBLIC_FEEDBACK_ENDPOINT ?? '';
+const endpoint        = import.meta.env.PUBLIC_FEEDBACK_ENDPOINT      ?? '';
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
 ---
+
+{turnstileSiteKey && (
+  <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+)}
 
 <form
   id="feedback-form"
@@ -84,6 +89,11 @@ const endpoint = import.meta.env.PUBLIC_FEEDBACK_ENDPOINT ?? '';
     </select>
   </div>
 
+  <!-- Turnstile CAPTCHA (rendered only when site key is configured) -->
+  {turnstileSiteKey && (
+    <div class="cf-turnstile" data-sitekey={turnstileSiteKey}></div>
+  )}
+
   <!-- Honeypot (hidden from real users) -->
   <input
     type="text"
@@ -142,11 +152,9 @@ const endpoint = import.meta.env.PUBLIC_FEEDBACK_ENDPOINT ?? '';
       });
       const json = await res.json().catch(() => ({}));
 
-      if (json.ok && json.issueUrl) {
+      if (json.ok) {
         status.innerHTML =
-          `<span class="text-violet font-medium">Thanks! Your issue was filed: ` +
-          `<a href="${json.issueUrl}" target="_blank" rel="noopener noreferrer" ` +
-          `class="underline hover:opacity-80">${json.issueUrl}</a></span>`;
+          `<span class="text-violet font-medium">${json.message ?? 'Thanks! Your feedback has been received.'}</span>`;
         form.reset();
       } else {
         status.innerHTML =
