@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.6.0](https://github.com/kolatts/pncli/compare/v1.5.0...v1.6.0) (2026-04-12)
+
+
+### Features
+
+* add --output flag to config check command ([#41](https://github.com/kolatts/pncli/issues/41)) ([8483edd](https://github.com/kolatts/pncli/commit/8483edd597ad70d21d1f1db012026d86d10434fc)), closes [#40](https://github.com/kolatts/pncli/issues/40)
+* add --repo flag to pncli config set for non-interactive repo config ([b3fa4c7](https://github.com/kolatts/pncli/commit/b3fa4c74eafd24ce259f375a9248ebed2c0a8007))
+* add 5 multi-tool workflow skills for vulnerability scanning and ticket creation ([58d7b78](https://github.com/kolatts/pncli/commit/58d7b781adf4429d911bf3bae7172befe02cf180))
+* add CLAUDE.md with project conventions and site screenshot requirement ([2747172](https://github.com/kolatts/pncli/commit/2747172742474a51a8cb4fe5e5e6a6216f9b9fe4))
+* add denied label and close issue when triage rejects scope ([ecf31b1](https://github.com/kolatts/pncli/commit/ecf31b16de08a7f36bdd952b1e4837c6ae3c9289))
+* add service pills, category grouping, skills install CLI, and provider prompting ([53293de](https://github.com/kolatts/pncli/commit/53293def8acf7502a740bc07effca88d123be873))
+* Claude issue triage and review response workflows ([#34](https://github.com/kolatts/pncli/issues/34)) ([0204ce0](https://github.com/kolatts/pncli/commit/0204ce0e18402d0240ec1073d5cc8c8f8e87a003))
+* surgical skills install, copilot-instructions download, and local-setup skill ([6daeb71](https://github.com/kolatts/pncli/commit/6daeb713cc53e55622a43a8968bbe07bc9b90740))
+* trigger triage on from-website label in addition to claude-triage ([fb65214](https://github.com/kolatts/pncli/commit/fb652146270b9b87da2882759a9eb3fd9040eb05))
+* Turnstile CAPTCHA, persistent rate limiting, and Azure Queue for feedback ([#45](https://github.com/kolatts/pncli/issues/45)) ([e067fd5](https://github.com/kolatts/pncli/commit/e067fd503ec63c4f3ea7033b906c803bb118d1ae))
+* vulnerability scanning skills, service pills, skills install CLI, and local-setup ([77b0744](https://github.com/kolatts/pncli/commit/77b074470f4d0b4100d6ac3ed77614feb77432c4))
+
+
+### Bug Fixes
+
+* add job summary, label creation, and label cleanup improvements ([#38](https://github.com/kolatts/pncli/issues/38)) ([1d61e7a](https://github.com/kolatts/pncli/commit/1d61e7a8e93a02f72f99711ced65bbf07429ed06))
+* address PR review — path traversal guard, gallery fallback, ADO linking ([d994091](https://github.com/kolatts/pncli/commit/d9940917aeaab3058d0174559d6e5fadb812782b))
+* allow claude bot PRs through review, skip other bots ([b4d4ac7](https://github.com/kolatts/pncli/commit/b4d4ac736f32b966de8c9096cfae96f77911dd86))
+* allow claude bot to trigger review action via allowed_bots ([05ce1e3](https://github.com/kolatts/pncli/commit/05ce1e3a8c7d13df9065f3b6fdf4aba461ec5b3e))
+* append .git suffix to claude-marketplace URL ([#28](https://github.com/kolatts/pncli/issues/28)) ([992fd31](https://github.com/kolatts/pncli/commit/992fd31cd3207bbd836b89f7692268b5fd1bfaa5))
+* mandate gh pr create in triage and improve comment link format ([f143aeb](https://github.com/kolatts/pncli/commit/f143aebe1bce32f6ddf36da9dbb8089b11e5abc4))
+* scope triage concurrency group to label name to prevent cancellation ([ffba8a8](https://github.com/kolatts/pncli/commit/ffba8a871a4c33f95cb153d2e8cf8330305078d6))
+* validate project fit from CLAUDE.md before any code changes in triage ([ec48034](https://github.com/kolatts/pncli/commit/ec4803456006710e9d1601ca02a532e62a94bbf1))
+
 ## [1.5.0](https://github.com/kolatts/pncli/compare/v1.4.0...v1.5.0) (2026-04-11)
 
 
