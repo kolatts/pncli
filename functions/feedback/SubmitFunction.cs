@@ -47,8 +47,8 @@ public class SubmitFunction(
             return await ErrorAsync(req, HttpStatusCode.BadRequest, "kind must be 'bug' or 'feature'");
         if (string.IsNullOrWhiteSpace(feedback.Title) || feedback.Title.Length > 120)
             return await ErrorAsync(req, HttpStatusCode.BadRequest, "title must be 1–120 characters");
-        if (string.IsNullOrWhiteSpace(feedback.Body))
-            return await ErrorAsync(req, HttpStatusCode.BadRequest, "body is required");
+        if (string.IsNullOrWhiteSpace(feedback.Body) || feedback.Body.Length > 4000)
+            return await ErrorAsync(req, HttpStatusCode.BadRequest, "body must be 1–4000 characters");
 
         // ── Resolve IP ───────────────────────────────────────────────────────
         var ip = req.Headers.TryGetValues("X-Forwarded-For", out var fwd)
