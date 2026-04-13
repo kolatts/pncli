@@ -15,6 +15,7 @@ import { registerJiraCommands } from './services/jira/commands.js';
 import { registerBitbucketCommands } from './services/bitbucket/commands.js';
 import { registerConfluenceCommands } from './services/confluence/commands.js';
 import { registerSonarCommands } from './services/sonar/commands.js';
+import { registerSonatypeCommands } from './services/sonatype/commands.js';
 import { registerSdeCommands } from './services/sde/commands.js';
 import { registerDepsCommands } from './services/deps/commands.js';
 import { registerConfigCommands } from './services/config/commands.js';
@@ -58,6 +59,7 @@ registerJiraCommands(program);
 registerBitbucketCommands(program);
 registerConfluenceCommands(program);
 registerSonarCommands(program);
+registerSonatypeCommands(program);
 registerSdeCommands(program);
 registerDepsCommands(program);
 registerConfigCommands(program);
@@ -72,6 +74,7 @@ Services:
   bitbucket    Bitbucket Server
   confluence   Confluence
   sonar        SonarQube Server (quality gates, issues, metrics, hotspots)
+  sonatype     Sonatype Nexus IQ / Lifecycle (vulnerability remediation)
   sde          SDElements (threat modeling, countermeasures, compliance)
   ado          Azure DevOps Server (work items, repos, PRs, pipelines)
   config       Manage pncli configuration

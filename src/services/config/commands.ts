@@ -137,6 +137,17 @@ export function registerConfigCommands(program: Command): void {
           results.sonar = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.sonatype.baseUrl) {
+          try {
+            await http.sonatype<unknown>('/api/v2/applications');
+            results.sonatype = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.sonatype = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.sonatype = { ok: null, message: 'not configured' };
+        }
+
         if (cfg.sde.baseUrl) {
           try {
             await http.sde<unknown>('/api/v2/users/me/');
@@ -255,6 +266,20 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        // Sonatype IQ
+        if (!cfg.sonatype.username || !cfg.sonatype.password) {
+          results.sonatype = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.sonatype.baseUrl) {
+          results.sonatype = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.sonatype<unknown>('/api/v2/applications', { timeoutMs: 10_000 });
+            results.sonatype = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.sonatype = categorize(err);
+          }
+        }
+
         // SDElements
         if (!cfg.sde.token) {
           results.sde = { status: 'blank', message: 'not configured' };
@@ -306,7 +331,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory'] as const;
+          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sonatype', 'sde', 'ado', 'artifactory'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -324,7 +349,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory'] as const;
+            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sonatype', 'sde', 'ado', 'artifactory'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -449,6 +474,32 @@ async function initGlobalConfig(start: number): Promise<void> {
 
     sonarToken = await password({
       message: 'SonarQube personal access token:'
+    });
+  }
+
+  process.stderr.write('\n── Sonatype Nexus IQ ─────────────────────────────\n');
+  const useSonatype = await confirm({
+    message: 'Configure Sonatype Nexus IQ (Lifecycle) for vulnerability remediation?',
+    default: false
+  });
+
+  let sonatypeBaseUrl = '';
+  let sonatypeUsername = '';
+  let sonatypePassword = '';
+
+  if (useSonatype) {
+    sonatypeBaseUrl = await input({
+      message: 'Sonatype Nexus IQ base URL (e.g. https://sonatype.your-company.com):',
+      default: ''
+    });
+
+    sonatypeUsername = await input({
+      message: 'Sonatype username:',
+      default: ''
+    });
+
+    sonatypePassword = await password({
+      message: 'Sonatype password:'
     });
   }
 
@@ -634,6 +685,13 @@ async function initGlobalConfig(start: number): Promise<void> {
       sonar: {
         baseUrl: sonarBaseUrl || undefined,
         token: sonarToken || undefined
+      }
+    } : {}),
+    ...(useSonatype && sonatypeBaseUrl ? {
+      sonatype: {
+        baseUrl: sonatypeBaseUrl || undefined,
+        username: sonatypeUsername || undefined,
+        password: sonatypePassword || undefined
       }
     } : {}),
     ...(useSde && sdeToken && sdeBaseUrl ? {

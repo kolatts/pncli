@@ -1,3 +1,9 @@
+export interface SonatypeConfig {
+  baseUrl?: string;
+  username?: string;
+  password?: string;
+}
+
 export interface ArtifactoryConfig {
   baseUrl?: string;
   token?: string;
@@ -99,6 +105,7 @@ export interface GlobalConfig {
   confluence?: ConfluenceConfig;
   artifactory?: ArtifactoryConfig;
   sonar?: SonarConfig;
+  sonatype?: SonatypeConfig;
   sde?: SdeConfig;
   ado?: AdoConfig;
   defaults?: Defaults;
@@ -133,6 +140,11 @@ export interface ResolvedConfig {
   sonar: {
     baseUrl: string | undefined;
     token: string | undefined;
+  };
+  sonatype: {
+    baseUrl: string | undefined;
+    username: string | undefined;
+    password: string | undefined;
   };
   sde: {
     baseUrl: string | undefined;
