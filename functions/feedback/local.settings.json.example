@@ -9,7 +9,7 @@
     "ALLOWED_ORIGIN": "http://localhost:4321",
     "TURNSTILE_SECRET": "1x0000000000000000000000000000000AA",
     "DAILY_SUBMISSION_LIMIT": "100",
-    "IP_DAILY_LIMIT": "1",
+    "IP_DAILY_LIMIT": "10",
     "ACS_CONNECTION_STRING": "<your-acs-connection-string>",
     "EMAIL_FROM_ADDRESS": "no-reply@imagile.dev",
     "WEBHOOK_API_KEY": "<any-random-string-for-local-testing>"

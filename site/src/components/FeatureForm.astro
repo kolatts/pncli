@@ -85,7 +85,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
   </div>
 
   <!-- Rate limit note -->
-  <p class="text-xs text-ink/40">One submission per day per IP address. Issues are reviewed and filed within a minute of receipt.</p>
+  <p class="text-xs text-ink/40">Up to 10 submissions per day per IP address. Issues are reviewed and filed within a minute of receipt.</p>
 
   <!-- Service (optional) -->
   <div class="flex flex-col gap-1.5">
@@ -191,8 +191,10 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
         okSpan.textContent = json.message ?? 'Thanks! Your feedback has been received.';
         status.replaceChildren(okSpan);
         form.reset();
-        // Restore email after reset so it stays filled
-        if (email && emailInput) emailInput.value = email;
+
+        // Reload after a short delay so the Turnstile captcha resets
+        setTimeout(() => window.location.reload(), 2000);
+        return;
       } else {
         const errSpan = document.createElement('span');
         errSpan.className = 'text-coral';
