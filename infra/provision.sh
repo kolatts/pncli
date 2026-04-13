@@ -57,7 +57,7 @@ az functionapp config appsettings set \
     GITHUB_ISSUE_LABEL="from-website" \
     ALLOWED_ORIGIN="https://kolatts.github.io" \
     DAILY_SUBMISSION_LIMIT="${DAILY_SUBMISSION_LIMIT:-10}" \
-    IP_DAILY_LIMIT="${IP_DAILY_LIMIT:-1}" \
+    IP_DAILY_LIMIT="${IP_DAILY_LIMIT:-10}" \
     EMAIL_FROM_ADDRESS="${EMAIL_FROM_ADDRESS:-no-reply@imagile.dev}" \
     GITHUB_TOKEN="@Microsoft.KeyVault(VaultName=$KV;SecretName=GITHUB-TOKEN)" \
     ACS_CONNECTION_STRING="@Microsoft.KeyVault(VaultName=$KV;SecretName=ACS-CONNECTION-STRING)" \

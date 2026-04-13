@@ -67,7 +67,7 @@ public class SubmitFunction(
 
         // ── Per-IP daily limit ────────────────────────────────────────────────
         var ipDailyLimit = int.TryParse(
-            Environment.GetEnvironmentVariable("IP_DAILY_LIMIT"), out var idl) ? idl : 1;
+            Environment.GetEnvironmentVariable("IP_DAILY_LIMIT"), out var idl) ? idl : 10;
 
         if (!await rateLimiter.TryConsumeAsync(ip, ipDailyLimit))
         {
