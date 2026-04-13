@@ -13,7 +13,3 @@ site/src/content/changelog/
 site/src/content/docs/
 site/src/content/skills/
 
-# Azure Function
-functions/feedback/bin/
-functions/feedback/obj/
-functions/feedback/local.settings.json
