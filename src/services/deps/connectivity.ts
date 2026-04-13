@@ -2,6 +2,7 @@ import type { ConnectivityData, Tier } from './types.js';
 import type { ResolvedConfig } from '../../types/config.js';
 import { checkOsvConnectivity } from './clients/osv.js';
 import { checkArtifactoryConnectivity } from './clients/artifactory.js';
+import { checkSonatypeConnectivity } from './clients/sonatype.js';
 
 interface TierResult {
   tier: Tier;
@@ -35,10 +36,16 @@ export function clearTierCache(): void {
   cachedTier = null;
 }
 
+export async function checkSonatypeReachable(): Promise<boolean> {
+  const result = await checkSonatypeConnectivity();
+  return result.reachable;
+}
+
 export async function buildConnectivityData(config: ResolvedConfig): Promise<ConnectivityData> {
-  const [osvResult, artResult] = await Promise.all([
+  const [osvResult, artResult, sonatypeResult] = await Promise.all([
     checkOsvConnectivity(),
-    checkArtifactoryConnectivity(config.artifactory)
+    checkArtifactoryConnectivity(config.artifactory),
+    checkSonatypeConnectivity()
   ]);
 
   const artCfg = config.artifactory;
@@ -70,13 +77,18 @@ export async function buildConnectivityData(config: ResolvedConfig): Promise<Con
       url: 'https://api.osv.dev',
       ...(osvResult.error ? { error: osvResult.error } : {})
     },
+    sonatype: {
+      reachable: sonatypeResult.reachable,
+      url: 'https://ossindex.sonatype.org',
+      ...(sonatypeResult.error ? { error: sonatypeResult.error } : {})
+    },
     tier,
     capabilities: {
       scan: true,
       diff: true,
       outdated: artResult.reachable && artResult.authenticated,
       licenseCheck: artResult.reachable && artResult.authenticated,
-      cveCheck: osvResult.reachable
+      cveCheck: osvResult.reachable || sonatypeResult.reachable
     }
   };
 }
