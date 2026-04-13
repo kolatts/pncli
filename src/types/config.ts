@@ -1,3 +1,9 @@
+export interface ServiceNowConfig {
+  baseUrl?: string;
+  username?: string;
+  password?: string;
+}
+
 export interface ArtifactoryConfig {
   baseUrl?: string;
   token?: string;
@@ -101,6 +107,7 @@ export interface GlobalConfig {
   sonar?: SonarConfig;
   sde?: SdeConfig;
   ado?: AdoConfig;
+  servicenow?: ServiceNowConfig;
   defaults?: Defaults;
 }
 
@@ -144,6 +151,11 @@ export interface ResolvedConfig {
     fieldAliases: Record<string, string>;
     discoveredFields: AdoFieldMeta[];
     discoveredTypes: AdoWorkItemTypeMeta[];
+  };
+  servicenow: {
+    baseUrl: string | undefined;
+    username: string | undefined;
+    password: string | undefined;
   };
   defaults: {
     jira: JiraDefaults;

@@ -24,6 +24,9 @@ const ENV_KEYS = {
   SDE_CONNECTION: 'PNCLI_SDE_CONNECTION',
   ADO_BASE_URL: 'PNCLI_ADO_BASE_URL',
   ADO_PAT: 'PNCLI_ADO_PAT',
+  SNOW_BASE_URL: 'PNCLI_SNOW_BASE_URL',
+  SNOW_USERNAME: 'PNCLI_SNOW_USERNAME',
+  SNOW_PASSWORD: 'PNCLI_SNOW_PASSWORD',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -82,6 +85,7 @@ function mergeDefaults(
     ado: { ...global?.ado, ...repo?.ado }
   };
 }
+
 
 export interface LoadConfigOptions {
   configPath?: string;
@@ -143,6 +147,11 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       fieldAliases: globalConfig.ado?.fieldAliases ?? {},
       discoveredFields: globalConfig.ado?.discoveredFields ?? [],
       discoveredTypes: globalConfig.ado?.discoveredTypes ?? []
+    },
+    servicenow: {
+      baseUrl: process.env[ENV_KEYS.SNOW_BASE_URL] ?? globalConfig.servicenow?.baseUrl,
+      username: process.env[ENV_KEYS.SNOW_USERNAME] ?? globalConfig.servicenow?.username,
+      password: process.env[ENV_KEYS.SNOW_PASSWORD] ?? globalConfig.servicenow?.password
     },
     defaults: mergedDefaults
   };
@@ -234,6 +243,11 @@ export function maskConfig(config: ResolvedConfig): unknown {
     ado: {
       ...config.ado,
       pat: config.ado.pat ? '***' : undefined
+    },
+    servicenow: {
+      baseUrl: config.servicenow.baseUrl,
+      username: config.servicenow.username,
+      password: config.servicenow.password ? '***' : undefined
     }
   };
 }

@@ -163,6 +163,19 @@ export function registerConfigCommands(program: Command): void {
           results.ado = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.servicenow.baseUrl) {
+          try {
+            await http.servicenow<unknown>('/api/now/table/change_request', {
+              params: { sysparm_limit: 1, sysparm_fields: 'sys_id' }
+            });
+            results.servicenow = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.servicenow = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.servicenow = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -287,6 +300,23 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        // ServiceNow
+        if (!cfg.servicenow.username || !cfg.servicenow.password) {
+          results.servicenow = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.servicenow.baseUrl) {
+          results.servicenow = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.servicenow<unknown>('/api/now/table/change_request', {
+              params: { sysparm_limit: 1, sysparm_fields: 'sys_id' },
+              timeoutMs: 10_000
+            });
+            results.servicenow = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.servicenow = categorize(err);
+          }
+        }
+
         // Artifactory — reuse existing helper
         const artResult = await checkArtifactoryConnectivity(cfg.artifactory);
         if (!artResult.configured) {
@@ -306,7 +336,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory'] as const;
+          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'servicenow', 'artifactory'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -324,7 +354,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory'] as const;
+            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'servicenow', 'artifactory'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
