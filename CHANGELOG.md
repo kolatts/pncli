@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.7.0](https://github.com/kolatts/pncli/compare/v1.6.1...v1.7.0) (2026-04-13)
+
+
+### Features
+
+* migrate function app secrets to Key Vault references ([f8f0d7b](https://github.com/kolatts/pncli/commit/f8f0d7b59b48f44851c319f1af1a858d3b8349c8))
+
+
+### Bug Fixes
+
+* raise IP rate limit to 10 and reload page after submission ([01de005](https://github.com/kolatts/pncli/commit/01de0052167a636c374c85dfeaec219279c75257))
+
 ## [1.6.1](https://github.com/kolatts/pncli/compare/v1.6.0...v1.6.1) (2026-04-12)
 
 
