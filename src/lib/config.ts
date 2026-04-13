@@ -21,6 +21,9 @@ const ENV_KEYS = {
   ARTIFACTORY_REPO_MAVEN: 'PNCLI_ARTIFACTORY_REPO_MAVEN',
   SONAR_BASE_URL: 'PNCLI_SONAR_BASE_URL',
   SONAR_TOKEN: 'PNCLI_SONAR_TOKEN',
+  SONATYPE_BASE_URL: 'PNCLI_SONATYPE_BASE_URL',
+  SONATYPE_USERNAME: 'PNCLI_SONATYPE_USERNAME',
+  SONATYPE_PASSWORD: 'PNCLI_SONATYPE_PASSWORD',
   SDE_CONNECTION: 'PNCLI_SDE_CONNECTION',
   ADO_BASE_URL: 'PNCLI_ADO_BASE_URL',
   ADO_PAT: 'PNCLI_ADO_PAT',
@@ -132,6 +135,11 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       baseUrl: process.env[ENV_KEYS.SONAR_BASE_URL] ?? globalConfig.sonar?.baseUrl,
       token: process.env[ENV_KEYS.SONAR_TOKEN] ?? globalConfig.sonar?.token
     },
+    sonatype: {
+      baseUrl: process.env[ENV_KEYS.SONATYPE_BASE_URL] ?? globalConfig.sonatype?.baseUrl,
+      username: process.env[ENV_KEYS.SONATYPE_USERNAME] ?? globalConfig.sonatype?.username,
+      password: process.env[ENV_KEYS.SONATYPE_PASSWORD] ?? globalConfig.sonatype?.password
+    },
     sde: (() => {
       const raw = process.env[ENV_KEYS.SDE_CONNECTION] ?? globalConfig.sde?.connection;
       const parsed = raw ? parseSdeConnection(raw) : null;
@@ -226,6 +234,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     sonar: {
       ...config.sonar,
       token: config.sonar.token ? '***' : undefined
+    },
+    sonatype: {
+      ...config.sonatype,
+      password: config.sonatype.password ? '***' : undefined
     },
     sde: {
       baseUrl: config.sde.baseUrl,

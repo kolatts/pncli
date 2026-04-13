@@ -469,6 +469,45 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
+  private sonatypeHeaders(): Record<string, string> {
+    const { username, password } = this.config.sonatype;
+    if (!username || !password) throw new PncliError('Sonatype credentials not configured. Run: pncli config init');
+    const encoded = Buffer.from(`${username}:${password}`).toString('base64');
+    return {
+      'Authorization': `Basic ${encoded}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+  }
+
+  async sonatype<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.sonatype.baseUrl;
+    if (!baseUrl) throw new PncliError('Sonatype baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.sonatypeHeaders();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
   async sonarPaginate<T>(
     fetchPage: (page: number, pageSize: number) => Promise<{ total: number; p: number; ps: number; items: T[] }>
   ): Promise<T[]> {
