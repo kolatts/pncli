@@ -431,6 +431,128 @@ export class HttpClient {
     return results;
   }
 
+  private jenkinsHeaders(extraHeaders?: Record<string, string>): Record<string, string> {
+    const { user, token } = this.config.jenkins;
+    if (!user || !token) throw new PncliError('Jenkins credentials not configured. Set PNCLI_JENKINS_USER and PNCLI_JENKINS_TOKEN.');
+    const credentials = Buffer.from(`${user}:${token}`).toString('base64');
+    return {
+      'Authorization': `Basic ${credentials}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Connection': 'close',
+      ...extraHeaders
+    };
+  }
+
+  async jenkins<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.jenkins.baseUrl;
+    if (!baseUrl) throw new PncliError('Jenkins baseUrl not configured. Set PNCLI_JENKINS_BASE_URL.');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.jenkinsHeaders(opts.headers);
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
+  async jenkinsText(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<string> {
+    const baseUrl = this.config.jenkins.baseUrl;
+    if (!baseUrl) throw new PncliError('Jenkins baseUrl not configured. Set PNCLI_JENKINS_BASE_URL.');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.jenkinsHeaders({ Accept: 'text/plain', ...opts.headers });
+    delete headers['Content-Type'];
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      fs.writeSync(process.stderr.fd, `DRY RUN: ${opts.method ?? 'GET'} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 30000);
+    let response: Response;
+    try {
+      response = await fetch(url, { method: opts.method ?? 'GET', headers, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!response.ok) {
+      let message = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const text = await response.text();
+        if (text) message = `${message}: ${text.slice(0, 200)}`;
+      } catch { /* ignore */ }
+      throw new PncliError(message, response.status, url);
+    }
+
+    return response.text();
+  }
+
+  // Jenkins trigger POST returns 201 with Location header and an empty body.
+  // Returns the Location header value (queue item URL) or null if not present.
+  async jenkinsTrigger(
+    path: string,
+    opts: { params?: Record<string, string>; headers?: Record<string, string>; timeoutMs?: number } = {}
+  ): Promise<string | null> {
+    const baseUrl = this.config.jenkins.baseUrl;
+    if (!baseUrl) throw new PncliError('Jenkins baseUrl not configured. Set PNCLI_JENKINS_BASE_URL.');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.jenkinsHeaders(opts.headers);
+    // Jenkins trigger POST expects no body (parameters go as query string)
+    delete headers['Content-Type'];
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      fs.writeSync(process.stderr.fd, `DRY RUN: POST ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 30000);
+    let response: Response;
+    try {
+      response = await fetch(url, { method: 'POST', headers, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+
+    // Jenkins returns 201 on successful queue, 303 on redirect — both are success
+    if (!response.ok && response.status !== 201 && response.status !== 303) {
+      let message = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const text = await response.text();
+        if (text) message = `${message}: ${text.slice(0, 200)}`;
+      } catch { /* ignore */ }
+      throw new PncliError(message, response.status, url);
+    }
+
+    return response.headers.get('Location');
+  }
+
   private sonarHeaders(): Record<string, string> {
     const { token } = this.config.sonar;
     if (!token) throw new PncliError('SonarQube credentials not configured. Run: pncli config init');
