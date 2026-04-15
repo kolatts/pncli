@@ -20,6 +20,7 @@ import { registerDepsCommands } from './services/deps/commands.js';
 import { registerConfigCommands } from './services/config/commands.js';
 import { registerAdoCommands } from './services/ado/commands/index.js';
 import { registerSkillsCommands } from './services/skills/commands.js';
+import { registerJenkinsCommands } from './services/jenkins/commands.js';
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,6 +63,7 @@ registerSdeCommands(program);
 registerDepsCommands(program);
 registerConfigCommands(program);
 registerAdoCommands(program);
+registerJenkinsCommands(program);
 registerSkillsCommands(program);
 
 program.addHelpText('after', `
@@ -74,6 +76,7 @@ Services:
   sonar        SonarQube Server (quality gates, issues, metrics, hotspots)
   sde          SDElements (threat modeling, countermeasures, compliance)
   ado          Azure DevOps Server (work items, repos, PRs, pipelines)
+  jenkins      Jenkins CI (jobs, pipeline runs, trigger builds)
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills
 `);

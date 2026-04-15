@@ -79,6 +79,12 @@ export interface AdoDefaults {
   repo?: string;
 }
 
+export interface JenkinsConfig {
+  baseUrl?: string;
+  user?: string;
+  token?: string;
+}
+
 export interface Defaults {
   jira?: JiraDefaults;
   bitbucket?: BitbucketDefaults;
@@ -101,6 +107,7 @@ export interface GlobalConfig {
   sonar?: SonarConfig;
   sde?: SdeConfig;
   ado?: AdoConfig;
+  jenkins?: JenkinsConfig;
   defaults?: Defaults;
 }
 
@@ -144,6 +151,11 @@ export interface ResolvedConfig {
     fieldAliases: Record<string, string>;
     discoveredFields: AdoFieldMeta[];
     discoveredTypes: AdoWorkItemTypeMeta[];
+  };
+  jenkins: {
+    baseUrl: string | undefined;
+    user: string | undefined;
+    token: string | undefined;
   };
   defaults: {
     jira: JiraDefaults;

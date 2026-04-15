@@ -24,6 +24,9 @@ const ENV_KEYS = {
   SDE_CONNECTION: 'PNCLI_SDE_CONNECTION',
   ADO_BASE_URL: 'PNCLI_ADO_BASE_URL',
   ADO_PAT: 'PNCLI_ADO_PAT',
+  JENKINS_BASE_URL: 'PNCLI_JENKINS_BASE_URL',
+  JENKINS_USER: 'PNCLI_JENKINS_USER',
+  JENKINS_TOKEN: 'PNCLI_JENKINS_TOKEN',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -82,6 +85,7 @@ function mergeDefaults(
     ado: { ...global?.ado, ...repo?.ado }
   };
 }
+
 
 export interface LoadConfigOptions {
   configPath?: string;
@@ -143,6 +147,11 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       fieldAliases: globalConfig.ado?.fieldAliases ?? {},
       discoveredFields: globalConfig.ado?.discoveredFields ?? [],
       discoveredTypes: globalConfig.ado?.discoveredTypes ?? []
+    },
+    jenkins: {
+      baseUrl: process.env[ENV_KEYS.JENKINS_BASE_URL] ?? globalConfig.jenkins?.baseUrl,
+      user: process.env[ENV_KEYS.JENKINS_USER] ?? globalConfig.jenkins?.user,
+      token: process.env[ENV_KEYS.JENKINS_TOKEN] ?? globalConfig.jenkins?.token
     },
     defaults: mergedDefaults
   };
@@ -234,6 +243,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     ado: {
       ...config.ado,
       pat: config.ado.pat ? '***' : undefined
+    },
+    jenkins: {
+      ...config.jenkins,
+      token: config.jenkins.token ? '***' : undefined
     }
   };
 }
