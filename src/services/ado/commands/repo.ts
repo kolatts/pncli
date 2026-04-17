@@ -313,7 +313,10 @@ export function registerAdoRepoCommands(ado: Command): void {
         const { collection, project, repo, gitClient } = getAdoContext(ado, true);
         const data = await gitClient.getPRDiff(collection, project, repo, parseInt(opts.pr, 10));
         if (opts.path) {
-          data.changes = (data.changes ?? []).filter(c => c.item.path === opts.path);
+        if (opts.path) {
+          const needle = opts.path.startsWith('/') ? opts.path : `/${opts.path}`;
+          data.changes = (data.changes ?? []).filter(c => c.item.path === needle);
+        }
         }
         success(data, 'ado', 'repo-diff', start);
       } catch (err) { fail(err, 'ado', 'repo-diff', start); }
