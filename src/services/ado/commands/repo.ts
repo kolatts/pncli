@@ -306,11 +306,15 @@ export function registerAdoRepoCommands(ado: Command): void {
     .command('diff')
     .description('Show files changed in a pull request with change types and commit metadata')
     .requiredOption('--pr <n>', 'Pull request ID')
-    .action(async (opts: { pr: string }) => {
+    .option('--path <p>', 'Filter diff to a specific file path')
+    .action(async (opts: { pr: string; path?: string }) => {
       const start = Date.now();
       try {
         const { collection, project, repo, gitClient } = getAdoContext(ado, true);
         const data = await gitClient.getPRDiff(collection, project, repo, parseInt(opts.pr, 10));
+        if (opts.path) {
+          data.changes = (data.changes ?? []).filter(c => c.item.path === opts.path);
+        }
         success(data, 'ado', 'repo-diff', start);
       } catch (err) { fail(err, 'ado', 'repo-diff', start); }
     });
