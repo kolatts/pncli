@@ -152,7 +152,7 @@ export function registerConfigCommands(program: Command): void {
           try {
             const collection = cfg.defaults.ado?.collection;
             const path = collection
-              ? `/${encodeURIComponent(collection)}/_apis/connectionData?api-version=7.1`
+              ? `/${encodeURIComponent(collection)}/_apis/connectionData?api-version=7.1-preview.1`
               : '/_apis/projectCollections?api-version=7.1';
             await http.ado<unknown>(path);
             results.ado = { ok: true, message: 'connected' };
@@ -278,7 +278,7 @@ export function registerConfigCommands(program: Command): void {
           try {
             const collection = cfg.defaults.ado?.collection;
             const path = collection
-              ? `/${encodeURIComponent(collection)}/_apis/connectionData?api-version=7.1`
+              ? `/${encodeURIComponent(collection)}/_apis/connectionData?api-version=7.1-preview.1`
               : '/_apis/projectCollections?api-version=7.1';
             await http.ado<unknown>(path, { timeoutMs: 10_000 });
             results.ado = { status: 'valid', message: 'ok' };
