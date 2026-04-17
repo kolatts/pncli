@@ -7,14 +7,15 @@ import type {
 } from '../../../types/ado.js';
 
 const API = '7.1';
+const API_PREVIEW = '7.1-preview.1';
 
 export class AdoCoreClient {
   constructor(private http: HttpClient) {}
 
   async getConnectionData(collection?: string): Promise<AdoConnectionData> {
     const path = collection
-      ? `/${encodeURIComponent(collection)}/_apis/connectionData?api-version=${API}`
-      : `/_apis/connectionData?api-version=${API}`;
+      ? `/${encodeURIComponent(collection)}/_apis/connectionData?api-version=${API_PREVIEW}`
+      : `/_apis/connectionData?api-version=${API_PREVIEW}`;
     return this.http.ado<AdoConnectionData>(path);
   }
 
