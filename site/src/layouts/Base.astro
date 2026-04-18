@@ -23,6 +23,14 @@ const {
     <meta name="description" content={description} />
     <title>{title}</title>
     <link rel="icon" type="image/png" href="/pncli/favicon.png" />
+    <!-- Runs synchronously before first paint to avoid flash of wrong theme -->
+    <script is:inline>
+      (function () {
+        var stored = localStorage.getItem('pncli-theme');
+        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = stored ?? (prefersDark ? 'dark' : 'light');
+      })();
+    </script>
   </head>
   <body class="min-h-screen flex flex-col bg-cream text-ink font-sans">
     <Nav />
