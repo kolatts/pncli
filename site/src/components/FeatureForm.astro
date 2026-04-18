@@ -200,12 +200,15 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
         errSpan.className = 'text-coral';
         errSpan.textContent = json.error ?? 'Something went wrong. Please try again.';
         status.replaceChildren(errSpan);
+        // Reset Turnstile so a fresh token is issued for the next attempt
+        try { window.turnstile?.reset(); } catch { /* widget not rendered */ }
       }
     } catch {
       const netSpan = document.createElement('span');
       netSpan.className = 'text-coral';
       netSpan.textContent = 'Network error — please check your connection and try again.';
       status.replaceChildren(netSpan);
+      try { window.turnstile?.reset(); } catch { /* widget not rendered */ }
     } finally {
       submit.disabled = false;
       submit.textContent = 'Submit';
