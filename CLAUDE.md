@@ -24,6 +24,11 @@ npm run build          # Build CLI with tsup
 
 Use `/ship` to open a PR. It runs the full gate (typecheck, lint, tests, build, code review, docs audit) before creating the PR and wires up `Closes #<issue>` automatically.
 
+## Branch Naming
+
+Always use `kolatts/<description>` or `kolatts/<issue#>-<description>`.
+- Example: `kolatts/add-ship-skill` or `kolatts/75-add-ship-skill`
+
 ## Commit Conventions
 
 Use Conventional Commits: `fix:` (patch), `feat:` (minor), `feat!:` (breaking/major).
