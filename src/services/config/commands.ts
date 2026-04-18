@@ -165,13 +165,24 @@ export function registerConfigCommands(program: Command): void {
 
         if (cfg.artifactory.baseUrl) {
           try {
-            await http.artifactoryText('/artifactory/api/system/ping');
+            await http.artifactoryText('/api/system/ping');
             results.artifactory = { ok: true, message: 'connected' };
           } catch (err) {
             results.artifactory = { ok: false, message: err instanceof Error ? err.message : String(err) };
           }
         } else {
           results.artifactory = { ok: null, message: 'not configured' };
+        }
+
+        if (cfg.udeploy.baseUrl && cfg.udeploy.pat) {
+          try {
+            await http.udeploy<unknown>('/cli/application');
+            results.udeploy = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.udeploy = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.udeploy = { ok: null, message: 'not configured' };
         }
 
         success(results, 'config', 'test', start);
@@ -298,6 +309,20 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        // UDeploy
+        if (!cfg.udeploy.pat) {
+          results.udeploy = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.udeploy.baseUrl) {
+          results.udeploy = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.udeploy<unknown>('/cli/application', { timeoutMs: 10_000 });
+            results.udeploy = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.udeploy = categorize(err);
+          }
+        }
+
         // Artifactory — reuse existing helper
         const artResult = await checkArtifactoryConnectivity(cfg.artifactory);
         if (!artResult.configured) {
@@ -317,7 +342,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory'] as const;
+          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'udeploy', 'artifactory'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -335,7 +360,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory'] as const;
+            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'udeploy', 'artifactory'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -585,6 +610,54 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── IBM UrbanCode Deploy ──────────────────────────\n');
+  const useUdeploy = await confirm({
+    message: 'Configure IBM UrbanCode Deploy for component imports and deployment processes?',
+    default: false
+  });
+
+  let udeployBaseUrl = '';
+  let udeployPat = '';
+  let udeployDefaultApp = '';
+  let udeployDefaultEnv = '';
+
+  if (useUdeploy) {
+    udeployBaseUrl = await input({
+      message: 'UDeploy base URL (e.g. https://ucd.company.com:8443):',
+      default: ''
+    });
+
+    udeployPat = await password({
+      message: 'UDeploy personal access token (leave blank if none):'
+    });
+
+    udeployDefaultApp = await input({
+      message: 'Default application name (optional):',
+      default: ''
+    });
+
+    udeployDefaultEnv = await input({
+      message: 'Default environment name (optional):',
+      default: ''
+    });
+
+    if (udeployBaseUrl && udeployPat) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          udeploy: { baseUrl: udeployBaseUrl, pat: udeployPat }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.udeploy<unknown>('/cli/application');
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to UDeploy: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your URL and PAT and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -661,6 +734,12 @@ async function initGlobalConfig(start: number): Promise<void> {
         ...(adoDiscoveredTypes.length ? { discoveredTypes: adoDiscoveredTypes } : {})
       }
     } : {}),
+    ...(useUdeploy && udeployBaseUrl ? {
+      udeploy: {
+        baseUrl: udeployBaseUrl,
+        ...(udeployPat ? { pat: udeployPat } : {})
+      }
+    } : {}),
     defaults: {
       jira: {
         project: jiraProject || undefined
@@ -679,6 +758,12 @@ async function initGlobalConfig(start: number): Promise<void> {
         ado: {
           collection: adoCollection || undefined,
           project: adoProject || undefined
+        }
+      } : {}),
+      ...(useUdeploy && (udeployDefaultApp || udeployDefaultEnv) ? {
+        udeploy: {
+          application: udeployDefaultApp || undefined,
+          environment: udeployDefaultEnv || undefined
         }
       } : {})
     }

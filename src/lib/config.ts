@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
-import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, SonarDefaults, SdeDefaults, AdoDefaults } from '../types/config.js';
+import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, SonarDefaults, SdeDefaults, AdoDefaults, UdeployDefaults } from '../types/config.js';
 import type { CustomFieldDefinition } from '../types/jira.js';
 
 const ENV_KEYS = {
@@ -24,6 +24,8 @@ const ENV_KEYS = {
   SDE_CONNECTION: 'PNCLI_SDE_CONNECTION',
   ADO_BASE_URL: 'PNCLI_ADO_BASE_URL',
   ADO_PAT: 'PNCLI_ADO_PAT',
+  UDEPLOY_BASE_URL: 'PNCLI_UDEPLOY_BASE_URL',
+  UDEPLOY_PAT: 'PNCLI_UDEPLOY_PAT',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -73,13 +75,14 @@ function mergeCustomFields(
 function mergeDefaults(
   global: GlobalConfig['defaults'],
   repo: RepoConfig['defaults']
-): { jira: JiraDefaults; bitbucket: BitbucketDefaults; sonar: SonarDefaults; sde: SdeDefaults; ado: AdoDefaults } {
+): { jira: JiraDefaults; bitbucket: BitbucketDefaults; sonar: SonarDefaults; sde: SdeDefaults; ado: AdoDefaults; udeploy: UdeployDefaults } {
   return {
     jira: { ...global?.jira, ...repo?.jira },
     bitbucket: { ...global?.bitbucket, ...repo?.bitbucket },
     sonar: { ...global?.sonar, ...repo?.sonar },
     sde: { ...global?.sde, ...repo?.sde },
-    ado: { ...global?.ado, ...repo?.ado }
+    ado: { ...global?.ado, ...repo?.ado },
+    udeploy: { ...global?.udeploy, ...repo?.udeploy }
   };
 }
 
@@ -143,6 +146,10 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       fieldAliases: globalConfig.ado?.fieldAliases ?? {},
       discoveredFields: globalConfig.ado?.discoveredFields ?? [],
       discoveredTypes: globalConfig.ado?.discoveredTypes ?? []
+    },
+    udeploy: {
+      baseUrl: process.env[ENV_KEYS.UDEPLOY_BASE_URL] ?? globalConfig.udeploy?.baseUrl,
+      pat: process.env[ENV_KEYS.UDEPLOY_PAT] ?? globalConfig.udeploy?.pat,
     },
     defaults: mergedDefaults
   };
@@ -234,6 +241,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     ado: {
       ...config.ado,
       pat: config.ado.pat ? '***' : undefined
+    },
+    udeploy: {
+      ...config.udeploy,
+      pat: config.udeploy.pat ? '***' : undefined
     }
   };
 }

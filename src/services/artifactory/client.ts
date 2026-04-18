@@ -62,7 +62,7 @@ export class ArtifactoryClient {
   async setProperties(repo: string, path: string, properties: Record<string, string>, opts: SetPropertiesOpts = {}): Promise<void> {
     const cleanPath = path.startsWith('/') ? path.slice(1) : path;
     const propString = Object.entries(properties)
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .map(([k, v]) => `${k}=${v}`)
       .join(';');
     await this.http.artifactory<void>(`${API}/storage/${repo}/${cleanPath}`, {
       method: 'PUT',
@@ -74,7 +74,6 @@ export class ArtifactoryClient {
   }
 
   async searchAql(opts: SearchAqlOpts = {}): Promise<ArtifactoryAqlResult<ArtifactoryAqlArtifact>> {
-    const fields: string[] = [];
     const criteria: string[] = [];
 
     if (opts.repo) criteria.push(`"repo": {"$eq": "${opts.repo}"}`);
@@ -94,7 +93,6 @@ export class ArtifactoryClient {
     const sortClause = '.sort({"$desc": ["created"]})';
     const limitClause = opts.limit ? `.limit(${opts.limit})` : '.limit(100)';
 
-    void fields;
     const aql = `items.find(${findClause})${includeFields}${sortClause}${limitClause}`;
 
     return this.http.artifactory<ArtifactoryAqlResult<ArtifactoryAqlArtifact>>(`${API}/search/aql`, {

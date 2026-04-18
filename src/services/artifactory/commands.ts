@@ -116,7 +116,7 @@ export function registerArtifactoryCommands(program: Command): void {
           path: opts.path,
           after: opts.after,
           before: opts.before,
-          limit: parseInt(opts.limit, 10),
+          limit: Number.isNaN(parseInt(opts.limit, 10)) ? 100 : parseInt(opts.limit, 10),
           includeProperties: opts.properties
         });
         success(data, 'artifactory', 'search', start);
