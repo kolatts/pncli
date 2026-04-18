@@ -1,4 +1,5 @@
 import type { HttpClient } from '../../lib/http.js';
+import { PncliError } from '../../lib/errors.js';
 import type {
   JenkinsJob,
   JenkinsJobDetail,
@@ -34,18 +35,15 @@ export class JenkinsClient {
       ? `/job/${encodeURIComponent(name)}/buildWithParameters`
       : `/job/${encodeURIComponent(name)}/build`;
 
-    const body = hasParams
-      ? Object.fromEntries(Object.entries(params))
-      : undefined;
-
     const res = await this.http.jenkinsRaw(endpoint, {
       method: 'POST',
-      body
+      params: hasParams ? params : undefined
     });
 
     const location = res.headers.get('Location') ?? '';
     const match = location.match(/\/queue\/item\/(\d+)\/?$/);
-    const queueItemId = match ? parseInt(match[1]!, 10) : 0;
+    if (!match) throw new PncliError('Build queued but Jenkins did not return a Location header — cannot track queue item');
+    const queueItemId = parseInt(match[1]!, 10);
     return { queueItemId };
   }
 

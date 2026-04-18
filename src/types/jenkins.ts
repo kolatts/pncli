@@ -68,10 +68,3 @@ export interface JenkinsQueueItem {
     url: string;
   };
 }
-
-export interface JenkinsLog {
-  id: number;
-  href: string;
-  size: number;
-  nodeId: string;
-}

@@ -163,7 +163,7 @@ export function registerConfigCommands(program: Command): void {
           results.ado = { ok: null, message: 'not configured' };
         }
 
-        if (cfg.jenkins.baseUrl) {
+        if (cfg.jenkins.baseUrl && cfg.jenkins.username && cfg.jenkins.apiToken) {
           try {
             await http.jenkins<unknown>('/api/json', { params: { tree: 'nodeName' } });
             results.jenkins = { ok: true, message: 'connected' };
@@ -299,7 +299,7 @@ export function registerConfigCommands(program: Command): void {
         }
 
         // Jenkins
-        if (!cfg.jenkins.apiToken) {
+        if (!cfg.jenkins.apiToken || !cfg.jenkins.username) {
           results.jenkins = { status: 'blank', message: 'not configured' };
         } else if (!cfg.jenkins.baseUrl) {
           results.jenkins = { status: 'error', message: 'baseUrl not configured' };

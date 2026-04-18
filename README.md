@@ -52,6 +52,9 @@ pncli uses a three-layer config system (highest priority wins):
 | `PNCLI_SONAR_TOKEN` | SonarQube personal access token |
 | `PNCLI_SDE_CONNECTION` | SDElements connection string (`api-token@hostname`, e.g. `mytoken@myorg.sdelements.com`) |
 | `PNCLI_CONFIG_PATH` | Override global config file path |
+| `PNCLI_JENKINS_BASE_URL` | Jenkins base URL |
+| `PNCLI_JENKINS_USERNAME` | Jenkins username |
+| `PNCLI_JENKINS_API_TOKEN` | Jenkins API token |
 
 ## For AI Agents
 
@@ -88,7 +91,7 @@ This project uses Conventional Commits for automatic versioning:
 | SonarQube | ✅ Active | Server Web API |
 | SDElements | ✅ Active | REST API v2 (cloud + on-prem) |
 | Artifactory | 🔜 Coming | The nightmare never ends |
-| Jenkins | 🔜 Coming | REST API |
+| Jenkins | ✅ Active | REST API (Data Center 2.x) |
 | Azure DevOps Server | ✅ Active | REST API v7.1 (on-prem, Windows auth + PAT) |
 
 ## License

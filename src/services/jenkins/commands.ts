@@ -5,6 +5,7 @@ import { JenkinsClient } from './client.js';
 import { success, fail, log } from '../../lib/output.js';
 import { ExitCode } from '../../lib/exitCodes.js';
 import { PncliError } from '../../lib/errors.js';
+import type { JenkinsBuild } from '../../types/jenkins.js';
 
 function getClient(program: Command): JenkinsClient {
   const opts = program.optsWithGlobals();
@@ -38,7 +39,7 @@ async function pollBuildComplete(
   buildNumber: number,
   pollMs: number,
   timeoutMs: number
-): Promise<import('../../types/jenkins.js').JenkinsBuild> {
+): Promise<JenkinsBuild> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const build = await client.getBuild(jobName, buildNumber);
@@ -118,7 +119,7 @@ export function registerJenkinsCommands(program: Command): void {
         log(`Build #${buildNumber} started — waiting for completion...`);
 
         const build = await pollBuildComplete(client, opts.name, buildNumber, pollSec * 1000, timeoutSec * 1000);
-        if (build.result && build.result !== 'SUCCESS') {
+        if (build.result !== null && build.result !== 'SUCCESS') {
           process.exitCode = ExitCode.GENERAL_ERROR;
         }
         success(build, 'jenkins', 'pipeline-run', start);
