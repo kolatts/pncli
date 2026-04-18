@@ -34,7 +34,9 @@ The site lives in `site/` and is built with Astro 6 + Tailwind v4. Skills, chang
 
 ### Screenshot Requirement
 
-**When any PR includes changes to the GitHub Pages site (`site/`, `.claude/skills/`, `CHANGELOG.md`, or `copilot-instructions.md`), you MUST:**
+**Only required when `site/src/` files are directly edited.** Screenshots are NOT required for changes to `.claude/skills/`, `CHANGELOG.md`, or `copilot-instructions.md` alone — those files feed auto-generation scripts, but no visual review is needed unless the site templates themselves changed.
+
+When `site/src/` files are edited:
 
 1. Start the dev server: `cd site && npm run dev`
 2. Take screenshots of every affected page using the browser
@@ -42,9 +44,6 @@ The site lives in `site/` and is built with Astro 6 + Tailwind v4. Skills, chang
 
 This applies to changes in:
 - `site/src/pages/` or `site/src/components/` — screenshot the affected pages
-- `.claude/skills/` — screenshot the `/skills/` gallery and the new/changed skill detail page(s)
-- `CHANGELOG.md` — screenshot the `/changelog/` page
-- `copilot-instructions.md` — screenshot the `/getting-started/` page
 
 ### Skill Ordering
 

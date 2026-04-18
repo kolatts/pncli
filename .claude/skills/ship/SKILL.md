@@ -81,6 +81,7 @@ Collect all issues from Phase 2:
 - Failing tests → fix them
 - Stale docs or README sections (from Agent B) → update them
 - Stale GitHub Pages site content (from Agent B) → update the affected files in `site/src/`
+  - **Screenshots are only required if `site/src/` files were directly edited.** If the only site-related change was adding a skill to an ordering array, no screenshots are needed.
 
 After fixing, re-run Agent C to confirm build + lint + typecheck all pass, and re-run Agent E if any source files changed.
 
