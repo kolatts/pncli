@@ -1,3 +1,4 @@
+.superset/
 node_modules/
 dist/
 publish/
@@ -5,7 +6,9 @@ deploy.zip
 *.js.map
 .pncli/
 .env
+.envrc
 *.local
+.claude/settings.local.json
 
 # Astro site
 site/.astro/

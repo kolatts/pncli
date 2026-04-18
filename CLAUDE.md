@@ -14,9 +14,20 @@ pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI codin
 ## Build & Test
 
 ```bash
-npm run build          # Build CLI with tsup
+npm run typecheck      # tsc --noEmit
 npm run lint           # ESLint
+npm test               # Vitest (unit tests)
+npm run build          # Build CLI with tsup
 ```
+
+## Opening Pull Requests
+
+Use `/ship` to open a PR. It runs the full gate (typecheck, lint, tests, build, code review, docs audit) before creating the PR and wires up `Closes #<issue>` automatically.
+
+## Branch Naming
+
+Always use `kolatts/<description>` or `kolatts/<issue#>-<description>`.
+- Example: `kolatts/add-ship-skill` or `kolatts/75-add-ship-skill`
 
 ## Adding a New Service Integration
 
@@ -41,7 +52,9 @@ The site lives in `site/` and is built with Astro 6 + Tailwind v4. Skills, chang
 
 ### Screenshot Requirement
 
-**When any PR includes changes to the GitHub Pages site (`site/`, `.claude/skills/`, `CHANGELOG.md`, or `copilot-instructions.md`), you MUST:**
+**Only required when `site/src/` files are directly edited.** Screenshots are NOT required for changes to `.claude/skills/`, `CHANGELOG.md`, or `copilot-instructions.md` alone — those files feed auto-generation scripts, but no visual review is needed unless the site templates themselves changed.
+
+When `site/src/` files are edited:
 
 1. Start the dev server: `cd site && npm run dev`
 2. Take screenshots of every affected page using the browser
@@ -49,10 +62,7 @@ The site lives in `site/` and is built with Astro 6 + Tailwind v4. Skills, chang
 
 This applies to changes in:
 - `site/src/pages/` or `site/src/components/` — screenshot the affected pages
-- `.claude/skills/` — screenshot the `/skills/` gallery and the new/changed skill detail page(s)
-- `CHANGELOG.md` — screenshot the `/changelog/` page
-- `copilot-instructions.md` — screenshot the `/getting-started/` page
 
 ### Skill Ordering
 
-When adding new skills, update the ordering arrays in **both** `site/src/pages/skills/index.astro` and `site/src/components/SkillGallery.astro` so the new skills appear on the site.
+When adding new skills, update the `order` array for the relevant category in `site/src/lib/skill-categories.ts` so the new skill appears on the site.
