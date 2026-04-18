@@ -10,7 +10,7 @@ import type {
   ArtifactoryBuildRuns
 } from '../../types/artifactory.js';
 
-const API = '/api';
+const API = 'api';
 
 export interface ListReposOpts {
   type?: 'local' | 'virtual' | 'remote' | 'federated';
