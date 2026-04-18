@@ -79,12 +79,23 @@ export interface AdoDefaults {
   repo?: string;
 }
 
+export interface UdeployConfig {
+  baseUrl?: string;
+  pat?: string;
+}
+
+export interface UdeployDefaults {
+  application?: string;
+  environment?: string;
+}
+
 export interface Defaults {
   jira?: JiraDefaults;
   bitbucket?: BitbucketDefaults;
   sonar?: SonarDefaults;
   sde?: SdeDefaults;
   ado?: AdoDefaults;
+  udeploy?: UdeployDefaults;
 }
 
 export interface UserConfig {
@@ -101,6 +112,7 @@ export interface GlobalConfig {
   sonar?: SonarConfig;
   sde?: SdeConfig;
   ado?: AdoConfig;
+  udeploy?: UdeployConfig;
   defaults?: Defaults;
 }
 
@@ -145,11 +157,16 @@ export interface ResolvedConfig {
     discoveredFields: AdoFieldMeta[];
     discoveredTypes: AdoWorkItemTypeMeta[];
   };
+  udeploy: {
+    baseUrl: string | undefined;
+    pat: string | undefined;
+  };
   defaults: {
     jira: JiraDefaults;
     bitbucket: BitbucketDefaults;
     sonar: SonarDefaults;
     sde: SdeDefaults;
     ado: AdoDefaults;
+    udeploy: UdeployDefaults;
   };
 }
