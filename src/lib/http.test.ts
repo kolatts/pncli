@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { HttpClient } from './http.js';
 import type { ResolvedConfig } from '../types/config.js';
 
@@ -204,6 +204,26 @@ describe('HttpClient — adoPaginate', () => {
     });
     expect(results).toEqual(['a', 'b']);
     expect(tokens).toEqual([undefined, 'tok2']);
+  });
+});
+
+describe('HttpClient — artifactory URL with path-component base URL', () => {
+  it('preserves /artifactory base path when building Artifactory URL', async () => {
+    const capturedUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrls.push(url);
+      return new Response('OK', { status: 200 });
+    });
+    try {
+      const config = baseConfig({
+        artifactory: { baseUrl: 'https://artifactory.imagile.dev/artifactory', token: 'tok' }
+      });
+      const client = new HttpClient(config);
+      await client.artifactoryText('api/system/ping');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(capturedUrls[0]).toBe('https://artifactory.imagile.dev/artifactory/api/system/ping');
   });
 });
 
