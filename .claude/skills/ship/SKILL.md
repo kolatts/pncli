@@ -12,7 +12,7 @@ Make sure there are no outstanding untracked changes before starting.
 
 ## Phase 0 — GitHub issue check
 
-Check the current branch name for an issue number (e.g., `kolatts/issue-42-add-ship-skill` → `#42`).
+Check the current branch name for an issue number (e.g., `kolatts/75-add-ship-skill` → `#75`).
 
 If no issue number is found in the branch name:
 - Ask the user: "No GitHub issue linked to this branch. What should the issue title be, and should I create one?"
