@@ -19,7 +19,7 @@
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
-    class="hidden"
+    class="hidden dark:block"
     aria-hidden="true"
   >
     <circle cx="12" cy="12" r="4"/>
@@ -37,6 +37,7 @@
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
+    class="block dark:hidden"
     aria-hidden="true"
   >
     <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
@@ -45,21 +46,10 @@
 
 <script>
   const btn = document.getElementById('theme-toggle')!;
-  const iconSun = document.getElementById('icon-sun')!;
-  const iconMoon = document.getElementById('icon-moon')!;
-
-  function syncIcons(theme: string) {
-    const isDark = theme === 'dark';
-    iconSun.classList.toggle('hidden', !isDark);
-    iconMoon.classList.toggle('hidden', isDark);
-  }
-
-  syncIcons(document.documentElement.dataset.theme ?? 'light');
 
   btn.addEventListener('click', () => {
     const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = next;
     localStorage.setItem('pncli-theme', next);
-    syncIcons(next);
   });
 </script>
