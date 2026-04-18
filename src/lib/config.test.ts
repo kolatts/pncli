@@ -12,6 +12,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     sonar: { baseUrl: 'https://sonar.example.com', token: 'secret-sonar' },
     sde: { baseUrl: 'https://sde.example.com', token: 'secret-sde' },
     ado: { baseUrl: 'https://ado.example.com', pat: 'secret-ado', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
+    jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'secret-jenkins' },
     defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {} },
     ...overrides
   };

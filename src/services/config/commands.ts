@@ -163,6 +163,17 @@ export function registerConfigCommands(program: Command): void {
           results.ado = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.jenkins.baseUrl) {
+          try {
+            await http.jenkins<unknown>('/api/json', { params: { tree: 'nodeName' } });
+            results.jenkins = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.jenkins = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.jenkins = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -287,6 +298,20 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        // Jenkins
+        if (!cfg.jenkins.apiToken) {
+          results.jenkins = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.jenkins.baseUrl) {
+          results.jenkins = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.jenkins<unknown>('/api/json', { params: { tree: 'nodeName' }, timeoutMs: 10_000 });
+            results.jenkins = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.jenkins = categorize(err);
+          }
+        }
+
         // Artifactory — reuse existing helper
         const artResult = await checkArtifactoryConnectivity(cfg.artifactory);
         if (!artResult.configured) {
@@ -306,7 +331,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory'] as const;
+          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'artifactory'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -324,7 +349,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'artifactory'] as const;
+            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'artifactory'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -574,6 +599,32 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── Jenkins ───────────────────────────────────────\n');
+  const useJenkins = await confirm({
+    message: 'Configure Jenkins Data Center for pipeline operations?',
+    default: false
+  });
+
+  let jenkinsBaseUrl = '';
+  let jenkinsUsername = '';
+  let jenkinsApiToken = '';
+
+  if (useJenkins) {
+    jenkinsBaseUrl = await input({
+      message: 'Jenkins base URL (e.g. https://jenkins.your-company.com):',
+      default: ''
+    });
+
+    jenkinsUsername = await input({
+      message: 'Jenkins username:',
+      default: ''
+    });
+
+    jenkinsApiToken = await password({
+      message: 'Jenkins API token:'
+    });
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -648,6 +699,13 @@ async function initGlobalConfig(start: number): Promise<void> {
         ...(Object.keys(adoFieldAliases).length ? { fieldAliases: adoFieldAliases } : {}),
         ...(adoDiscoveredFields.length ? { discoveredFields: adoDiscoveredFields } : {}),
         ...(adoDiscoveredTypes.length ? { discoveredTypes: adoDiscoveredTypes } : {})
+      }
+    } : {}),
+    ...(useJenkins && jenkinsBaseUrl ? {
+      jenkins: {
+        baseUrl: jenkinsBaseUrl,
+        ...(jenkinsUsername ? { username: jenkinsUsername } : {}),
+        ...(jenkinsApiToken ? { apiToken: jenkinsApiToken } : {})
       }
     } : {}),
     defaults: {
