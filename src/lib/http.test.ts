@@ -4,7 +4,7 @@ import type { ResolvedConfig } from '../types/config.js';
 
 function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
   return {
-    user: {},
+    user: { email: undefined, userId: undefined },
     jira: { baseUrl: 'https://jira.example.com', apiToken: 'tok', customFields: [] },
     bitbucket: { baseUrl: 'https://bb.example.com', pat: 'tok' },
     confluence: { baseUrl: 'https://conf.example.com', apiToken: 'tok', apiTokenExplicit: true },
@@ -41,27 +41,37 @@ describe('HttpClient — dry-run', () => {
 
 describe('HttpClient — missing credentials', () => {
   it('throws on missing jira baseUrl', async () => {
-    const client = new HttpClient(baseConfig({ jira: { apiToken: 'tok', customFields: [] } }));
+    const config = baseConfig();
+    config.jira = { baseUrl: undefined, apiToken: 'tok', customFields: [] };
+    const client = new HttpClient(config);
     await expect(client.jira('/rest/api/2/issue/TEST-1')).rejects.toMatchObject({ name: 'PncliError' });
   });
 
   it('throws on missing jira apiToken', async () => {
-    const client = new HttpClient(baseConfig({ jira: { baseUrl: 'https://jira.example.com', customFields: [] } }));
+    const config = baseConfig();
+    config.jira = { baseUrl: 'https://jira.example.com', apiToken: undefined, customFields: [] };
+    const client = new HttpClient(config);
     await expect(client.jira('/rest/api/2/issue/TEST-1')).rejects.toMatchObject({ name: 'PncliError' });
   });
 
   it('throws on missing bitbucket baseUrl', async () => {
-    const client = new HttpClient(baseConfig({ bitbucket: { pat: 'tok' } }));
+    const config = baseConfig();
+    config.bitbucket = { baseUrl: undefined, pat: 'tok' };
+    const client = new HttpClient(config);
     await expect(client.bitbucket('/rest/api/1.0/projects')).rejects.toMatchObject({ name: 'PncliError' });
   });
 
   it('throws on missing bitbucket pat', async () => {
-    const client = new HttpClient(baseConfig({ bitbucket: { baseUrl: 'https://bb.example.com' } }));
+    const config = baseConfig();
+    config.bitbucket = { baseUrl: 'https://bb.example.com', pat: undefined };
+    const client = new HttpClient(config);
     await expect(client.bitbucket('/rest/api/1.0/projects')).rejects.toMatchObject({ name: 'PncliError' });
   });
 
   it('throws on missing ado baseUrl', async () => {
-    const client = new HttpClient(baseConfig({ ado: { pat: 'tok', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] } }));
+    const config = baseConfig();
+    config.ado = { baseUrl: undefined, pat: 'tok', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] };
+    const client = new HttpClient(config);
     await expect(client.ado('/_apis/projects')).rejects.toMatchObject({ name: 'PncliError' });
   });
 });
@@ -69,19 +79,24 @@ describe('HttpClient — missing credentials', () => {
 describe('HttpClient — sdePaginate', () => {
   it('collects single page', async () => {
     const client = new HttpClient(baseConfig());
-    const results = await client.sdePaginate(async () => ({ count: 2, results: ['a', 'b'] }));
+    const results = await client.sdePaginate(async (_page, pageSize) => {
+      expect(pageSize).toBe(100);
+      return { count: 2, results: ['a', 'b'] };
+    });
     expect(results).toEqual(['a', 'b']);
   });
 
-  it('collects multiple pages', async () => {
+  it('collects multiple pages and increments page number', async () => {
     const client = new HttpClient(baseConfig());
-    let call = 0;
-    const results = await client.sdePaginate(async () => {
-      call++;
-      if (call === 1) return { count: 3, results: ['a', 'b'] };
+    const pages: number[] = [];
+    const results = await client.sdePaginate(async (page, pageSize) => {
+      pages.push(page);
+      expect(pageSize).toBe(100);
+      if (page === 1) return { count: 3, results: ['a', 'b'] };
       return { count: 3, results: ['c'] };
     });
     expect(results).toEqual(['a', 'b', 'c']);
+    expect(pages).toEqual([1, 2]);
   });
 
   it('stops when results length reaches count', async () => {
@@ -98,51 +113,64 @@ describe('HttpClient — sdePaginate', () => {
 describe('HttpClient — sonarPaginate', () => {
   it('collects single page', async () => {
     const client = new HttpClient(baseConfig());
-    const results = await client.sonarPaginate(async () => ({ total: 2, p: 1, ps: 500, items: [1, 2] }));
+    const results = await client.sonarPaginate(async (page, pageSize) => {
+      expect(page).toBe(1);
+      expect(pageSize).toBe(500);
+      return { total: 2, p: 1, ps: 500, items: [1, 2] };
+    });
     expect(results).toEqual([1, 2]);
   });
 
-  it('collects multiple pages', async () => {
+  it('collects multiple pages and increments page number', async () => {
     const client = new HttpClient(baseConfig());
-    let call = 0;
-    const results = await client.sonarPaginate(async () => {
-      call++;
-      if (call === 1) return { total: 3, p: 1, ps: 2, items: [1, 2] };
+    const pages: number[] = [];
+    const results = await client.sonarPaginate(async (page, pageSize) => {
+      pages.push(page);
+      expect(pageSize).toBe(500);
+      if (page === 1) return { total: 3, p: 1, ps: 2, items: [1, 2] };
       return { total: 3, p: 2, ps: 2, items: [3] };
     });
     expect(results).toEqual([1, 2, 3]);
+    expect(pages).toEqual([1, 2]);
   });
 });
 
 describe('HttpClient — paginate (Bitbucket)', () => {
   it('collects single page', async () => {
     const client = new HttpClient(baseConfig());
-    const results = await client.paginate(async () => ({ values: ['a'], isLastPage: true }));
+    const results = await client.paginate(async (start, limit) => {
+      expect(start).toBe(0);
+      expect(limit).toBe(100);
+      return { values: ['a'], isLastPage: true };
+    });
     expect(results).toEqual(['a']);
   });
 
   it('collects multiple pages using nextPageStart', async () => {
     const client = new HttpClient(baseConfig());
-    let call = 0;
+    const starts: number[] = [];
     const results = await client.paginate(async (start) => {
-      call++;
+      starts.push(start);
       if (start === 0) return { values: ['a', 'b'], isLastPage: false, nextPageStart: 2 };
       return { values: ['c'], isLastPage: true };
     });
     expect(results).toEqual(['a', 'b', 'c']);
+    expect(starts).toEqual([0, 2]);
   });
 });
 
 describe('HttpClient — jiraPaginate', () => {
   it('collects issues across pages', async () => {
     const client = new HttpClient(baseConfig());
-    let call = 0;
-    const results = await client.jiraPaginate(async () => {
-      call++;
-      if (call === 1) return { issues: ['A', 'B'], total: 3, startAt: 0, maxResults: 100 };
+    const startAts: number[] = [];
+    const results = await client.jiraPaginate(async (startAt, maxResults) => {
+      startAts.push(startAt);
+      expect(maxResults).toBe(100);
+      if (startAt === 0) return { issues: ['A', 'B'], total: 3, startAt: 0, maxResults: 100 };
       return { issues: ['C'], total: 3, startAt: 2, maxResults: 100 };
     });
     expect(results).toEqual(['A', 'B', 'C']);
+    expect(startAts).toEqual([0, 2]);
   });
 
   it('works with values field instead of issues', async () => {
@@ -155,49 +183,48 @@ describe('HttpClient — jiraPaginate', () => {
 describe('HttpClient — adoPaginate', () => {
   it('collects single page without continuation token', async () => {
     const client = new HttpClient(baseConfig());
-    const results = await client.adoPaginate(async () => ({
-      data: { value: ['a', 'b'] },
-      headers: new Headers()
-    }));
+    const results = await client.adoPaginate(async (token) => {
+      expect(token).toBeUndefined();
+      return { data: { value: ['a', 'b'] }, headers: new Headers() };
+    });
     expect(results).toEqual(['a', 'b']);
   });
 
   it('follows continuation tokens', async () => {
     const client = new HttpClient(baseConfig());
-    let call = 0;
-    const results = await client.adoPaginate(async () => {
-      call++;
-      if (call === 1) {
-        const h = new Headers({ 'x-ms-continuationtoken': 'tok2' });
-        return { data: { value: ['a'] }, headers: h };
+    const tokens: (string | undefined)[] = [];
+    const results = await client.adoPaginate(async (token) => {
+      tokens.push(token);
+      if (token === undefined) {
+        return { data: { value: ['a'] }, headers: new Headers({ 'x-ms-continuationtoken': 'tok2' }) };
       }
       return { data: { value: ['b'] }, headers: new Headers() };
     });
     expect(results).toEqual(['a', 'b']);
+    expect(tokens).toEqual([undefined, 'tok2']);
   });
 });
 
 describe('HttpClient — confluencePaginate', () => {
   it('collects single page', async () => {
     const client = new HttpClient(baseConfig());
-    const results = await client.confluencePaginate(async () => ({
-      results: ['x'],
-      start: 0,
-      limit: 25,
-      size: 1,
-      _links: {}
-    }));
+    const results = await client.confluencePaginate(async (start, limit) => {
+      expect(start).toBe(0);
+      expect(limit).toBe(25);
+      return { results: ['x'], start: 0, limit: 25, size: 1, _links: {} };
+    });
     expect(results).toEqual(['x']);
   });
 
-  it('follows next links', async () => {
+  it('follows next links and advances start by page size', async () => {
     const client = new HttpClient(baseConfig());
-    let call = 0;
-    const results = await client.confluencePaginate(async () => {
-      call++;
-      if (call === 1) return { results: ['x'], start: 0, limit: 25, size: 25, _links: { next: '/next' } };
+    const starts: number[] = [];
+    const results = await client.confluencePaginate(async (start) => {
+      starts.push(start);
+      if (start === 0) return { results: ['x'], start: 0, limit: 25, size: 25, _links: { next: '/next' } };
       return { results: ['y'], start: 25, limit: 25, size: 1, _links: {} };
     });
     expect(results).toEqual(['x', 'y']);
+    expect(starts).toEqual([0, 25]);
   });
 });

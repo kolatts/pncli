@@ -82,7 +82,7 @@ Collect all issues from Phase 2:
 - Stale docs or README sections (from Agent B) → update them
 - Stale GitHub Pages site content (from Agent B) → update the affected files in `site/src/`
 
-After fixing, re-run Agent C to confirm build + lint + typecheck all pass.
+After fixing, re-run Agent C to confirm build + lint + typecheck all pass, and re-run Agent E if any source files changed.
 
 ## Phase 4 — Commit fixes (if any)
 

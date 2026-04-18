@@ -14,10 +14,10 @@ pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI codin
 ## Build & Test
 
 ```bash
-npm run build          # Build CLI with tsup
+npm run typecheck      # tsc --noEmit
 npm run lint           # ESLint
 npm test               # Vitest (unit tests)
-npm run typecheck      # tsc --noEmit
+npm run build          # Build CLI with tsup
 ```
 
 ## Opening Pull Requests
