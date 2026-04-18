@@ -1,6 +1,7 @@
 ---
 import { Image } from 'astro:assets';
 import logo from '../assets/logo-transparent.png';
+import logoDark from '../assets/logo-dark.png';
 import DarkModeToggle from './DarkModeToggle.astro';
 
 const path = Astro.url.pathname;
@@ -11,7 +12,8 @@ const linkClass = (prefix: string) =>
 
 <nav class="w-full px-6 py-4 flex items-center justify-between border-b border-ink/10 bg-cream">
   <a href="/pncli/" class="flex items-center no-underline shrink-0">
-    <Image src={logo} alt="pncli" width={400} class="h-16 md:h-20 w-auto dark:invert" />
+    <Image src={logo} alt="pncli" width={400} class="h-16 md:h-20 w-auto dark:hidden" />
+    <Image src={logoDark} alt="pncli" width={400} class="h-16 md:h-20 w-auto hidden dark:block" />
   </a>
   <div class="flex items-center gap-6">
     <a href="/pncli/getting-started/" class={linkClass('/pncli/getting-started')}>Docs</a>

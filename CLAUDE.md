@@ -56,9 +56,14 @@ The site lives in `site/` and is built with Astro 6 + Tailwind v4. Skills, chang
 
 When `site/src/` files are edited:
 
-1. Start the dev server: `cd site && npm run dev`
-2. Take screenshots of every affected page using the browser
-3. Include the screenshots in the PR description so reviewers can see the visual impact
+1. Start the dev server in `site/` with `--host 0.0.0.0` so the Docker-based browser tool can reach it:
+   ```bash
+   node scripts/parse-changelog.mjs && node scripts/parse-instructions.mjs && node scripts/parse-skills.mjs && node_modules/.bin/astro dev --port 4323 --host 0.0.0.0
+   ```
+   The server will print a `Network` URL like `http://192.168.0.80:4323/pncli/`. Use that IP (not `localhost` or `172.17.0.1`) with `mcp__MCP_DOCKER__browser_navigate`.
+2. Take screenshots with `mcp__MCP_DOCKER__browser_take_screenshot`
+3. Toggle dark mode via `mcp__MCP_DOCKER__browser_evaluate`: `() => document.documentElement.setAttribute('data-theme', 'dark')`
+4. Include the screenshots in the PR description so reviewers can see the visual impact
 
 This applies to changes in:
 - `site/src/pages/` or `site/src/components/` — screenshot the affected pages
