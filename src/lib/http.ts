@@ -431,6 +431,50 @@ export class HttpClient {
     return results;
   }
 
+  private artifactoryHeaders(): Record<string, string> {
+    const { token } = this.config.artifactory;
+    if (!token) throw new PncliError('Artifactory credentials not configured. Run: pncli config init');
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+  }
+
+  async artifactory<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.artifactory.baseUrl;
+    if (!baseUrl) throw new PncliError('Artifactory baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = { ...this.artifactoryHeaders(), ...opts.headers };
+
+    // AQL search uses text/plain body — don't JSON-serialize it
+    const body = opts.body !== undefined
+      ? (typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body))
+      : undefined;
+
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
   private sonarHeaders(): Record<string, string> {
     const { token } = this.config.sonar;
     if (!token) throw new PncliError('SonarQube credentials not configured. Run: pncli config init');

@@ -93,6 +93,16 @@ pncli config set artifactory.baseUrl <url>
 pncli config set artifactory.token <token>
 ```
 
+Then ask which package ecosystems they proxy through Artifactory (npm, NuGet, Maven). Only ask about the ones relevant to their stack. Set whichever apply:
+
+```
+pncli config set artifactory.npmRepo <virtual-repo-name>
+pncli config set artifactory.nugetRepo <virtual-repo-name>
+pncli config set artifactory.mavenRepo <virtual-repo-name>
+```
+
+These repo names enable `pncli deps outdated` and `pncli deps licenses` to resolve versions and license info through Artifactory rather than hitting public registries directly.
+
 **Step 5 — Set repo-level defaults.**
 
 Ask the user for project-specific defaults:
