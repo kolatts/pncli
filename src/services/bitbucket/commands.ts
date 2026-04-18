@@ -43,7 +43,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { state?: string; author?: string; reviewer?: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const data = await client.listPRs({ project, repo, state: opts.state, author: opts.author, reviewer: opts.reviewer });
         success(data, 'bitbucket', 'list-prs', start);
       } catch (err) { fail(err, 'bitbucket', 'list-prs', start); }
@@ -55,7 +55,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { id: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const data = await client.getPR(project, repo, parseInt(opts.id, 10));
         success(data, 'bitbucket', 'get-pr', start);
       } catch (err) { fail(err, 'bitbucket', 'get-pr', start); }
@@ -71,8 +71,8 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { title: string; source: string; target?: string; description?: string; reviewers?: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
-        const config = loadConfig({ configPath: program.optsWithGlobals().config });
+        const { client, project, repo } = getClient(bb);
+        const config = loadConfig({ configPath: bb.optsWithGlobals().config });
         const target = opts.target ?? config.defaults.bitbucket?.targetBranch ?? 'main';
         const reviewers = opts.reviewers ? opts.reviewers.split(',').map(s => s.trim()) : [];
         const data = await client.createPR({ project, repo, title: opts.title, source: opts.source, target, description: opts.description, reviewers });
@@ -89,7 +89,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { id: string; title?: string; description?: string; reviewers?: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const prId = parseInt(opts.id, 10);
         const pr = await client.getPR(project, repo, prId);
         const reviewers = opts.reviewers ? opts.reviewers.split(',').map(s => s.trim()) : undefined;
@@ -106,7 +106,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { id: string; strategy?: string; deleteBranch?: boolean }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const prId = parseInt(opts.id, 10);
         const pr = await client.getPR(project, repo, prId);
         const data = await client.mergePR({ project, repo, id: prId, version: pr.version, strategy: opts.strategy as 'merge' | 'squash' | 'ff', deleteBranch: opts.deleteBranch });
@@ -120,7 +120,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { id: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const prId = parseInt(opts.id, 10);
         const pr = await client.getPR(project, repo, prId);
         const data = await client.declinePR(project, repo, prId, pr.version);
@@ -139,7 +139,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { pr: string; withReplies: boolean; inlineOnly?: boolean; generalOnly?: boolean }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const data = await client.listComments(project, repo, parseInt(opts.pr, 10), {
           withReplies: opts.withReplies,
           inlineOnly: opts.inlineOnly,
@@ -156,7 +156,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { pr: string; body: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const data = await client.addComment(project, repo, parseInt(opts.pr, 10), opts.body);
         success(data, 'bitbucket', 'add-comment', start);
       } catch (err) { fail(err, 'bitbucket', 'add-comment', start); }
@@ -172,7 +172,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { pr: string; file: string; line: string; body: string; lineType?: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const data = await client.addInlineComment({
           project, repo,
           prId: parseInt(opts.pr, 10),
@@ -193,7 +193,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { pr: string; commentId: string; body: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const data = await client.replyComment(project, repo, parseInt(opts.pr, 10), parseInt(opts.commentId, 10), opts.body);
         success(data, 'bitbucket', 'reply-comment', start);
       } catch (err) { fail(err, 'bitbucket', 'reply-comment', start); }
@@ -207,7 +207,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { pr: string; commentId: string; version?: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         await client.resolveComment(project, repo, parseInt(opts.pr, 10), parseInt(opts.commentId, 10), parseInt(opts.version ?? '0', 10));
         success({ resolved: true }, 'bitbucket', 'resolve-comment', start);
       } catch (err) { fail(err, 'bitbucket', 'resolve-comment', start); }
@@ -221,7 +221,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { pr: string; commentId: string; version?: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         await client.deleteComment(project, repo, parseInt(opts.pr, 10), parseInt(opts.commentId, 10), parseInt(opts.version ?? '0', 10));
         success({ deleted: true }, 'bitbucket', 'delete-comment', start);
       } catch (err) { fail(err, 'bitbucket', 'delete-comment', start); }
@@ -237,7 +237,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { pr: string; file?: string; contextLines?: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const contextLines = opts.contextLines ? parseInt(opts.contextLines, 10) : undefined;
         const diff = await client.getDiff(project, repo, parseInt(opts.pr, 10), opts.file, contextLines);
         success({ diff }, 'bitbucket', 'diff', start);
@@ -250,7 +250,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { pr: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const data = await client.listFiles(project, repo, parseInt(opts.pr, 10));
         success(data, 'bitbucket', 'list-files', start);
       } catch (err) { fail(err, 'bitbucket', 'list-files', start); }
@@ -264,7 +264,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { pr: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const data = await client.approvePR(project, repo, parseInt(opts.pr, 10));
         success(data, 'bitbucket', 'approve', start);
       } catch (err) { fail(err, 'bitbucket', 'approve', start); }
@@ -276,7 +276,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { pr: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const data = await client.unapprovePR(project, repo, parseInt(opts.pr, 10));
         success(data, 'bitbucket', 'unapprove', start);
       } catch (err) { fail(err, 'bitbucket', 'unapprove', start); }
@@ -288,7 +288,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { pr: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const data = await client.needsWorkPR(project, repo, parseInt(opts.pr, 10));
         success(data, 'bitbucket', 'needs-work', start);
       } catch (err) { fail(err, 'bitbucket', 'needs-work', start); }
@@ -300,7 +300,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { pr: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const data = await client.listReviewers(project, repo, parseInt(opts.pr, 10));
         success(data, 'bitbucket', 'list-reviewers', start);
       } catch (err) { fail(err, 'bitbucket', 'list-reviewers', start); }
@@ -314,7 +314,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { pr: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(program);
+        const { client, project, repo } = getClient(bb);
         const data = await client.listBuilds(project, repo, parseInt(opts.pr, 10));
         success(data, 'bitbucket', 'list-builds', start);
       } catch (err) { fail(err, 'bitbucket', 'list-builds', start); }
@@ -326,7 +326,7 @@ export function registerBitbucketCommands(program: Command): void {
     .action(async (opts: { commit: string }) => {
       const start = Date.now();
       try {
-        const { client } = getClient(program);
+        const { client } = getClient(bb);
         const data = await client.getBuildStatus(opts.commit);
         success(data, 'bitbucket', 'get-build-status', start);
       } catch (err) { fail(err, 'bitbucket', 'get-build-status', start); }
