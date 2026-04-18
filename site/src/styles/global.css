@@ -15,6 +15,15 @@
   --font-mono: "JetBrains Mono Variable", ui-monospace, "Courier New", monospace;
 }
 
+/* Dark mode variant — keyed to data-theme="dark" on <html> */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* Swap cream ↔ ink so every bg-cream/text-ink utility flips automatically */
+:root[data-theme="dark"] {
+  --color-cream: #1A1625;
+  --color-ink: #FFFBF5;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--color-cream);
