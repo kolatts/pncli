@@ -548,6 +548,34 @@ pncli ado repo
 pncli ado pipeline
 ```
 
+### Jenkins
+
+```
+pncli jenkins pipeline list
+
+pncli jenkins pipeline get
+  --name <job>         (required) Job name
+
+pncli jenkins pipeline run
+  --name <job>         (required) Job name
+  --parameter <k=v>    Build parameter in key=value format (repeatable)
+  --wait               Wait for the build to complete before returning
+  --timeout <s>        Max wait time in seconds (default: "600")
+  --poll <s>           Poll interval in seconds (default: "10")
+
+pncli jenkins pipeline list-runs
+  --name <job>         (required) Job name
+  --top <n>            Maximum number of builds to return (default: "25")
+
+pncli jenkins pipeline get-run
+  --name <job>         (required) Job name
+  --number <n>         (required) Build number
+
+pncli jenkins pipeline logs
+  --name <job>         (required) Job name
+  --number <n>         (required) Build number
+```
+
 ### Udeploy
 
 ```

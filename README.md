@@ -54,6 +54,9 @@ pncli uses a three-layer config system (highest priority wins):
 | `PNCLI_UDEPLOY_BASE_URL` | IBM UrbanCode Deploy base URL |
 | `PNCLI_UDEPLOY_PAT` | IBM UrbanCode Deploy personal access token |
 | `PNCLI_CONFIG_PATH` | Override global config file path |
+| `PNCLI_JENKINS_BASE_URL` | Jenkins base URL |
+| `PNCLI_JENKINS_USERNAME` | Jenkins username |
+| `PNCLI_JENKINS_API_TOKEN` | Jenkins API token |
 
 ## For AI Agents
 
@@ -90,7 +93,7 @@ This project uses Conventional Commits for automatic versioning:
 | SonarQube | ✅ Active | Server Web API |
 | SDElements | ✅ Active | REST API v2 (cloud + on-prem) |
 | Artifactory | 🔜 Coming | The nightmare never ends |
-| Jenkins | 🔜 Coming | REST API |
+| Jenkins | ✅ Active | REST API (Data Center 2.x) |
 | Azure DevOps Server | ✅ Active | REST API v7.1 (on-prem, Windows auth + PAT) |
 | IBM UrbanCode Deploy | ✅ Active | REST API v7.x (on-prem, PAT auth) |
 

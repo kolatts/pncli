@@ -79,6 +79,12 @@ export interface AdoDefaults {
   repo?: string;
 }
 
+export interface JenkinsConfig {
+  baseUrl?: string;
+  username?: string;
+  apiToken?: string;
+}
+
 export interface UdeployConfig {
   baseUrl?: string;
   pat?: string;
@@ -112,6 +118,7 @@ export interface GlobalConfig {
   sonar?: SonarConfig;
   sde?: SdeConfig;
   ado?: AdoConfig;
+  jenkins?: JenkinsConfig;
   udeploy?: UdeployConfig;
   defaults?: Defaults;
 }
@@ -156,6 +163,11 @@ export interface ResolvedConfig {
     fieldAliases: Record<string, string>;
     discoveredFields: AdoFieldMeta[];
     discoveredTypes: AdoWorkItemTypeMeta[];
+  };
+  jenkins: {
+    baseUrl: string | undefined;
+    username: string | undefined;
+    apiToken: string | undefined;
   };
   udeploy: {
     baseUrl: string | undefined;
