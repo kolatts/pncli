@@ -431,6 +431,18 @@ export class HttpClient {
     return results;
   }
 
+  private jenkinsHeaders(): Record<string, string> {
+    const { username, apiToken } = this.config.jenkins;
+    if (!username || !apiToken) throw new PncliError('Jenkins credentials not configured. Run: pncli config init');
+    const creds = Buffer.from(`${username}:${apiToken}`).toString('base64');
+    return {
+      'Authorization': `Basic ${creds}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+  }
+
   private artifactoryHeaders(): Record<string, string> {
     const { token } = this.config.artifactory;
     if (!token) throw new PncliError('Artifactory credentials not configured. Run: pncli config init');
@@ -452,6 +464,70 @@ export class HttpClient {
       'Accept': 'application/json',
       'Connection': 'close'
     };
+  }
+
+  async jenkins<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.jenkins.baseUrl;
+    if (!baseUrl) throw new PncliError('Jenkins baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.jenkinsHeaders();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
+  async jenkinsRaw(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<{ status: number; headers: Headers; text: string }> {
+    const baseUrl = this.config.jenkins.baseUrl;
+    if (!baseUrl) throw new PncliError('Jenkins baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.jenkinsHeaders();
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${opts.method ?? 'GET'} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const response = await fetchWithTimeout(url, {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    }, opts.timeoutMs ?? 30000);
+
+    if (!response.ok) {
+      let message = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const parsed = JSON.parse(await response.text());
+        if (parsed.message) message = String(parsed.message);
+      } catch { /* ignore */ }
+      throw new PncliError(message, response.status, url);
+    }
+
+    return { status: response.status, headers: response.headers, text: await response.text() };
   }
 
   async artifactory<T>(
@@ -486,6 +562,7 @@ export class HttpClient {
 
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
+
 
   async udeploy<T>(
     path: string,
@@ -547,6 +624,7 @@ export class HttpClient {
 
     return response.text();
   }
+
 
 
   private sonarHeaders(): Record<string, string> {

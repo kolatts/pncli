@@ -163,6 +163,17 @@ export function registerConfigCommands(program: Command): void {
           results.ado = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.jenkins.baseUrl && cfg.jenkins.username && cfg.jenkins.apiToken) {
+          try {
+            await http.jenkins<unknown>('/api/json', { params: { tree: 'nodeName' } });
+            results.jenkins = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.jenkins = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.jenkins = { ok: null, message: 'not configured' };
+        }
+
         if (cfg.artifactory.baseUrl) {
           try {
             await http.artifactoryText('/api/system/ping');
@@ -309,6 +320,20 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        // Jenkins
+        if (!cfg.jenkins.apiToken || !cfg.jenkins.username) {
+          results.jenkins = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.jenkins.baseUrl) {
+          results.jenkins = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.jenkins<unknown>('/api/json', { params: { tree: 'nodeName' }, timeoutMs: 10_000 });
+            results.jenkins = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.jenkins = categorize(err);
+          }
+        }
+
         // UDeploy
         if (!cfg.udeploy.pat) {
           results.udeploy = { status: 'blank', message: 'not configured' };
@@ -342,7 +367,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'udeploy', 'artifactory'] as const;
+          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -360,7 +385,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'udeploy', 'artifactory'] as const;
+            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -610,6 +635,32 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── Jenkins ───────────────────────────────────────\n');
+  const useJenkins = await confirm({
+    message: 'Configure Jenkins Data Center for pipeline operations?',
+    default: false
+  });
+
+  let jenkinsBaseUrl = '';
+  let jenkinsUsername = '';
+  let jenkinsApiToken = '';
+
+  if (useJenkins) {
+    jenkinsBaseUrl = await input({
+      message: 'Jenkins base URL (e.g. https://jenkins.your-company.com):',
+      default: ''
+    });
+
+    jenkinsUsername = await input({
+      message: 'Jenkins username:',
+      default: ''
+    });
+
+    jenkinsApiToken = await password({
+      message: 'Jenkins API token:'
+    });
+  }
+
   process.stderr.write('\n── IBM UrbanCode Deploy ──────────────────────────\n');
   const useUdeploy = await confirm({
     message: 'Configure IBM UrbanCode Deploy for component imports and deployment processes?',
@@ -732,6 +783,13 @@ async function initGlobalConfig(start: number): Promise<void> {
         ...(Object.keys(adoFieldAliases).length ? { fieldAliases: adoFieldAliases } : {}),
         ...(adoDiscoveredFields.length ? { discoveredFields: adoDiscoveredFields } : {}),
         ...(adoDiscoveredTypes.length ? { discoveredTypes: adoDiscoveredTypes } : {})
+      }
+    } : {}),
+    ...(useJenkins && jenkinsBaseUrl ? {
+      jenkins: {
+        baseUrl: jenkinsBaseUrl,
+        ...(jenkinsUsername ? { username: jenkinsUsername } : {}),
+        ...(jenkinsApiToken ? { apiToken: jenkinsApiToken } : {})
       }
     } : {}),
     ...(useUdeploy && udeployBaseUrl ? {
