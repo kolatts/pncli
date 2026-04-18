@@ -52,4 +52,4 @@ This applies to changes in:
 
 ### Skill Ordering
 
-When adding new skills, update the ordering arrays in **both** `site/src/pages/skills/index.astro` and `site/src/components/SkillGallery.astro` so the new skills appear on the site.
+When adding new skills, update the `order` array for the relevant category in `site/src/lib/skill-categories.ts` so the new skill appears on the site.

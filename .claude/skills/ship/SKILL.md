@@ -26,14 +26,14 @@ If an issue number is already present, proceed.
 Launch two subagents simultaneously:
 
 **Agent A — Diff + branch info**
-- Run `git log main..HEAD --oneline` to get commits on this branch
-- Run `git diff main..HEAD --stat` to see which files changed
-- Run `git diff main..HEAD --name-only` to get the raw file list
+- Run `git log origin/main..HEAD --oneline` to get commits on this branch
+- Run `git diff origin/main..HEAD --stat` to see which files changed
+- Run `git diff origin/main..HEAD --name-only` to get the raw file list
 - Run `gh pr list --head "$(git branch --show-current)" --state open` to check if a PR already exists
 - Report: branch name, commit list, changed files (with paths), existing PR URL (if any)
 
 **Agent B — Docs audit**
-- Run `git diff main..HEAD --name-only` to get the changed file list
+- Run `git diff origin/main..HEAD --name-only` to get the changed file list
 - Read every file in `docs/` and every `README.md` in the repo (glob `**/README.md`)
 - Read `CLAUDE.md` sections relevant to the changed files
 - Read the changed source files themselves
@@ -59,7 +59,7 @@ Launch three subagents simultaneously:
 - Report: typecheck result, lint issues (if any), build result
 
 **Agent D — Code review**
-- Run `git diff main..HEAD` to get the full diff
+- Run `git diff origin/main..HEAD` to get the full diff
 - Read each changed file in full
 - Review for correctness, quality, and consistency with CLAUDE.md conventions (Conventional Commits, TypeScript strict, ESM module format)
 - Rate each issue: Major (blocks merge), Minor (should fix), Nit (optional)
@@ -125,7 +125,7 @@ Construct the PR title and body (do not open the PR yet):
 Closes #<issue-number>
 ```
 
-Show the formatted title and body to the user and confirm before opening the PR.
+Show the formatted title and body to the user, then immediately proceed to open the PR without waiting for confirmation.
 
 ## Phase 6 — Open PR
 
