@@ -82,10 +82,10 @@ jobs:
                  Comment explaining this was previously reviewed and denied, referencing the original
                  issue number. Add the `denied` label, add a `duplicate` label
                  (`gh label create duplicate --color cfd3d7 --force`), close with "not planned", and
-                 skip to step 4.
+                 skip to step 5.
                - If an existing OPEN or CLOSED issue covers the same request (regardless of outcome):
                  Comment identifying the duplicate, referencing the original issue number. Add the
-                 `duplicate` label, close with "not planned", and skip to step 4.
+                 `duplicate` label, close with "not planned", and skip to step 5.
                Only continue to step 3 if no duplicates are found.
 
             3. Assess feasibility and fit — DO NOT write any code yet. Ask:
