@@ -29,6 +29,19 @@ Use `/ship` to open a PR. It runs the full gate (typecheck, lint, tests, build, 
 Always use `kolatts/<description>` or `kolatts/<issue#>-<description>`.
 - Example: `kolatts/add-ship-skill` or `kolatts/75-add-ship-skill`
 
+## Adding a New Service Integration
+
+When adding a new service integration (new entry under `src/services/`), these files must all be updated together:
+
+1. **`src/types/config.ts`** — add config interface and wire into `GlobalConfig` / `ResolvedConfig`
+2. **`src/lib/config.ts`** — add env-var resolution for the new service's fields
+3. **`src/lib/http.ts`** — add `private <service>Headers()` and `async <service><T>()` methods
+4. **`src/services/config/commands.ts`** — add the service to `config init` prompts and `config check` / `config test` output
+5. **`src/cli.ts`** — import, register, and add to the help text block
+6. **`.claude/skills/local-setup/SKILL.md`** — add setup instructions for the new service in Step 4 (optional services), including all config keys and what they enable
+
+Never ship a new integration without updating all six of these. The local-setup skill is the onboarding contract — if it's missing a service, new users won't know it exists.
+
 ## Commit Conventions
 
 Use Conventional Commits: `fix:` (patch), `feat:` (minor), `feat!:` (breaking/major).

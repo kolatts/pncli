@@ -84,7 +84,7 @@ export function registerJenkinsCommands(program: Command): void {
     .requiredOption('--name <job>', 'Job name')
     .option('--parameter <k=v>', 'Build parameter (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
     .option('--wait', 'Wait for the build to complete before returning')
-    .option('--timeout <s>', 'Max wait time in seconds (default 600)', '600')
+    .option('--timeout <s>', 'Max wait time in seconds per phase (queue-wait and build-wait each get this budget; default 600)', '600')
     .option('--poll <s>', 'Poll interval in seconds (default 10)', '10')
     .action(async (opts: { name: string; parameter: string[]; wait?: boolean; timeout: string; poll: string }) => {
       const start = Date.now();
