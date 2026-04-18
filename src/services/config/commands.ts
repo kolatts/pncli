@@ -163,7 +163,7 @@ export function registerConfigCommands(program: Command): void {
           results.ado = { ok: null, message: 'not configured' };
         }
 
-        if (cfg.udeploy.baseUrl) {
+        if (cfg.udeploy.baseUrl && cfg.udeploy.pat) {
           try {
             await http.udeploy<unknown>('/cli/application');
             results.udeploy = { ok: true, message: 'connected' };
