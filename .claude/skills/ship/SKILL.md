@@ -15,8 +15,7 @@ Make sure there are no outstanding untracked changes before starting.
 Check the current branch name for an issue number (e.g., `kolatts/75-add-ship-skill` → `#75`).
 
 If no issue number is found in the branch name:
-- Ask the user: "No GitHub issue linked to this branch. What should the issue title be, and should I create one?"
-- If the user confirms: `gh issue create --title "<title>" --body "<description>"` — use the commit list (from Phase 1 Agent A) or branch name to infer a reasonable title/body if the user doesn't specify.
+- Always create one. Do not ask — just run `gh issue create --title "<title>" --body "<description>"`, inferring a reasonable title and body from the branch name and commit list (from Phase 1 Agent A if available, otherwise from the branch name alone).
 - Extract the issue number from the created issue URL and use it throughout.
 
 If an issue number is already present, proceed.
