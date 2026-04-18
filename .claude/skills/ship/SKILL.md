@@ -131,6 +131,7 @@ Show the formatted title and body to the user, then immediately proceed to open 
 
 ```bash
 gh pr create --title "<title>" --body "<body>"
+gh pr merge <PR-URL> --auto --squash
 ```
 
 Report the PR URL to the user.
