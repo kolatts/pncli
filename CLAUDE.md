@@ -16,7 +16,13 @@ pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI codin
 ```bash
 npm run build          # Build CLI with tsup
 npm run lint           # ESLint
+npm test               # Vitest (unit tests)
+npm run typecheck      # tsc --noEmit
 ```
+
+## Opening Pull Requests
+
+Use `/ship` to open a PR. It runs the full gate (typecheck, lint, tests, build, code review, docs audit) before creating the PR and wires up `Closes #<issue>` automatically.
 
 ## Commit Conventions
 
