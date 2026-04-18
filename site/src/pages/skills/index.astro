@@ -2,64 +2,10 @@
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import SkillCard from '../../components/SkillCard.astro';
+import { categories, categoryOrder, getSkillsForCategory, getUncategorizedSkills } from '../../lib/skill-categories';
 
 const entries = await getCollection('skills');
-
-const categories: Record<string, { label: string; order: string[] }> = {
-  'setup': {
-    label: 'Getting Started',
-    order: [
-      'local-setup',
-    ],
-  },
-  'pr-workflow': {
-    label: 'PR Workflow',
-    order: [
-      'review-pull-request',
-      'address-pr-feedback',
-      'create-bug-from-pr-finding',
-      'check-build-status',
-    ],
-  },
-  'security': {
-    label: 'Security & Vulnerability',
-    order: [
-      'review-vulnerabilities',
-      'vulnerability-triage-to-tickets',
-      'dependency-cve-remediation',
-      'threat-model-to-backlog',
-    ],
-  },
-  'code-quality': {
-    label: 'Code Quality & Compliance',
-    order: [
-      'pre-merge-quality-check',
-      'tech-debt-to-backlog',
-      'license-audit-to-tickets',
-    ],
-  },
-  'planning': {
-    label: 'Planning',
-    order: [
-      'daily-standup-prep',
-    ],
-  },
-};
-
-const categoryOrder = ['setup', 'pr-workflow', 'security', 'code-quality', 'planning'];
-
-function getSkillsForCategory(catKey: string) {
-  const cat = categories[catKey];
-  if (!cat) return [];
-  const getIdx = (id: string) => { const i = cat.order.indexOf(id); return i === -1 ? Infinity : i; };
-  return [...entries]
-    .filter(e => (e.data.category ?? 'other') === catKey)
-    .sort((a, b) => getIdx(a.id) - getIdx(b.id));
-}
-
-// Collect any skills not in a known category
-const knownIds = new Set(Object.values(categories).flatMap(c => c.order));
-const uncategorized = entries.filter(e => !knownIds.has(e.id));
+const uncategorized = getUncategorizedSkills(entries);
 ---
 
 <Base
@@ -91,7 +37,7 @@ const uncategorized = entries.filter(e => !knownIds.has(e.id));
 
     {categoryOrder.map(catKey => {
       const cat = categories[catKey];
-      const skills = getSkillsForCategory(catKey);
+      const skills = getSkillsForCategory(entries, catKey);
       if (!skills.length) return null;
       return (
         <div class="mb-10">
