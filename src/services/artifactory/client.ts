@@ -35,7 +35,7 @@ export class ArtifactoryClient {
   constructor(private http: HttpClient) {}
 
   async ping(): Promise<string> {
-    return this.http.artifactory<string>(`${API}/system/ping`);
+    return this.http.artifactoryText(`${API}/system/ping`);
   }
 
   async listRepos(opts: ListReposOpts = {}): Promise<ArtifactoryRepository[]> {

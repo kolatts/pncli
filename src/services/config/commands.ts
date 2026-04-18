@@ -163,6 +163,17 @@ export function registerConfigCommands(program: Command): void {
           results.ado = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.artifactory.baseUrl) {
+          try {
+            await http.artifactoryText('/artifactory/api/system/ping');
+            results.artifactory = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.artifactory = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.artifactory = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);

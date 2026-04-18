@@ -475,6 +475,40 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
+  async artifactoryText(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<string> {
+    const baseUrl = this.config.artifactory.baseUrl;
+    if (!baseUrl) throw new PncliError('Artifactory baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = { ...this.artifactoryHeaders(), Accept: 'text/plain', ...opts.headers };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      fs.writeSync(process.stderr.fd, `DRY RUN: ${opts.method ?? 'GET'} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const response = await fetchWithTimeout(url, {
+      method: opts.method ?? 'GET',
+      headers
+    }, opts.timeoutMs ?? 30000);
+
+    if (!response.ok) {
+      let message = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const parsed = JSON.parse(await response.text());
+        if (parsed.message) message = String(parsed.message);
+      } catch { /* ignore */ }
+      throw new PncliError(message, response.status, url);
+    }
+
+    return response.text();
+  }
+
   private sonarHeaders(): Record<string, string> {
     const { token } = this.config.sonar;
     if (!token) throw new PncliError('SonarQube credentials not configured. Run: pncli config init');
