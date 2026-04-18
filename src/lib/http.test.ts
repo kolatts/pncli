@@ -13,7 +13,8 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     sde: { baseUrl: 'https://sde.example.com', token: 'tok' },
     ado: { baseUrl: 'https://ado.example.com', pat: 'tok', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'tok' },
-    defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {} },
+    udeploy: { baseUrl: undefined, pat: undefined },
+    defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
     ...overrides
   };
 }

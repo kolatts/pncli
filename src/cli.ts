@@ -20,6 +20,7 @@ import { registerDepsCommands } from './services/deps/commands.js';
 import { registerConfigCommands } from './services/config/commands.js';
 import { registerAdoCommands } from './services/ado/commands/index.js';
 import { registerJenkinsCommands } from './services/jenkins/commands.js';
+import { registerUdeployCommands } from './services/udeploy/commands.js';
 import { registerSkillsCommands } from './services/skills/commands.js';
 
 const require = createRequire(import.meta.url);
@@ -64,6 +65,7 @@ registerDepsCommands(program);
 registerConfigCommands(program);
 registerAdoCommands(program);
 registerJenkinsCommands(program);
+registerUdeployCommands(program);
 registerSkillsCommands(program);
 
 program.addHelpText('after', `
@@ -77,6 +79,7 @@ Services:
   sde          SDElements (threat modeling, countermeasures, compliance)
   ado          Azure DevOps Server (work items, repos, PRs, pipelines)
   jenkins      Jenkins Data Center (jobs, builds, logs)
+  udeploy      IBM UrbanCode Deploy (component versions, deployment processes)
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills
 `);

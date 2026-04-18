@@ -51,8 +51,8 @@ export class JenkinsClient {
     return this.http.jenkins<JenkinsQueueItem>(`/queue/item/${queueItemId}/api/json`);
   }
 
-  async listBuilds(name: string, top = 25): Promise<JenkinsBuild[]> {
-    const data = await this.http.jenkins<{ builds: JenkinsBuild[] }>(
+  async listBuilds(name: string, top = 25): Promise<Pick<JenkinsBuild, 'number' | 'url' | 'result' | 'duration' | 'timestamp' | 'building' | 'displayName' | 'fullDisplayName' | 'description' | 'id' | 'queueId'>[]> {
+    const data = await this.http.jenkins<{ builds: Pick<JenkinsBuild, 'number' | 'url' | 'result' | 'duration' | 'timestamp' | 'building' | 'displayName' | 'fullDisplayName' | 'description' | 'id' | 'queueId'>[] }>(
       `/job/${encodeURIComponent(name)}/api/json`,
       { params: { tree: `builds[number,url,result,duration,timestamp,building,displayName,fullDisplayName,description,id,queueId]{0,${top}}` } }
     );

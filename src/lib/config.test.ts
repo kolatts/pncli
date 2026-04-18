@@ -13,7 +13,8 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     sde: { baseUrl: 'https://sde.example.com', token: 'secret-sde' },
     ado: { baseUrl: 'https://ado.example.com', pat: 'secret-ado', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'secret-jenkins' },
-    defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {} },
+    udeploy: { baseUrl: undefined, pat: undefined },
+    defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
     ...overrides
   };
 }
@@ -52,6 +53,11 @@ describe('maskConfig', () => {
   it('masks ado pat', () => {
     const masked = maskConfig(baseConfig()) as ResolvedConfig;
     expect(masked.ado.pat).toBe('***');
+  });
+
+  it('masks jenkins apiToken', () => {
+    const masked = maskConfig(baseConfig()) as ResolvedConfig;
+    expect((masked.jenkins as { apiToken?: string }).apiToken).toBe('***');
   });
 
   it('sets absent tokens to undefined rather than ***', () => {

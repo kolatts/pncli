@@ -443,6 +443,18 @@ export class HttpClient {
     };
   }
 
+  private udeployHeaders(): Record<string, string> {
+    const { pat } = this.config.udeploy;
+    if (!pat) throw new PncliError('UDeploy credentials not configured. Run: pncli config init');
+    const encoded = Buffer.from(`PasswordIsAuthToken:${pat}`).toString('base64');
+    return {
+      'Authorization': `Basic ${encoded}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+  }
+
   async jenkins<T>(
     path: string,
     opts: HttpRequestOptions = {}
@@ -495,7 +507,7 @@ export class HttpClient {
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
     }, opts.timeoutMs ?? 30000);
 
-    if (!response.ok && response.status !== 201) {
+    if (!response.ok) {
       let message = `HTTP ${response.status} ${response.statusText}`;
       try {
         const parsed = JSON.parse(await response.text());
@@ -506,6 +518,34 @@ export class HttpClient {
 
     return { status: response.status, headers: response.headers, text: await response.text() };
   }
+
+  async udeploy<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.udeploy.baseUrl;
+    if (!baseUrl) throw new PncliError('UDeploy baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.udeployHeaders();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
 
   private sonarHeaders(): Record<string, string> {
     const { token } = this.config.sonar;

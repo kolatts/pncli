@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
-import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, SonarDefaults, SdeDefaults, AdoDefaults } from '../types/config.js';
+import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, SonarDefaults, SdeDefaults, AdoDefaults, UdeployDefaults } from '../types/config.js';
 import type { CustomFieldDefinition } from '../types/jira.js';
 
 const ENV_KEYS = {
@@ -27,6 +27,8 @@ const ENV_KEYS = {
   JENKINS_BASE_URL: 'PNCLI_JENKINS_BASE_URL',
   JENKINS_USERNAME: 'PNCLI_JENKINS_USERNAME',
   JENKINS_API_TOKEN: 'PNCLI_JENKINS_API_TOKEN',
+  UDEPLOY_BASE_URL: 'PNCLI_UDEPLOY_BASE_URL',
+  UDEPLOY_PAT: 'PNCLI_UDEPLOY_PAT',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -76,13 +78,14 @@ function mergeCustomFields(
 function mergeDefaults(
   global: GlobalConfig['defaults'],
   repo: RepoConfig['defaults']
-): { jira: JiraDefaults; bitbucket: BitbucketDefaults; sonar: SonarDefaults; sde: SdeDefaults; ado: AdoDefaults } {
+): { jira: JiraDefaults; bitbucket: BitbucketDefaults; sonar: SonarDefaults; sde: SdeDefaults; ado: AdoDefaults; udeploy: UdeployDefaults } {
   return {
     jira: { ...global?.jira, ...repo?.jira },
     bitbucket: { ...global?.bitbucket, ...repo?.bitbucket },
     sonar: { ...global?.sonar, ...repo?.sonar },
     sde: { ...global?.sde, ...repo?.sde },
-    ado: { ...global?.ado, ...repo?.ado }
+    ado: { ...global?.ado, ...repo?.ado },
+    udeploy: { ...global?.udeploy, ...repo?.udeploy }
   };
 }
 
@@ -151,6 +154,10 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       baseUrl: process.env[ENV_KEYS.JENKINS_BASE_URL] ?? globalConfig.jenkins?.baseUrl,
       username: process.env[ENV_KEYS.JENKINS_USERNAME] ?? globalConfig.jenkins?.username,
       apiToken: process.env[ENV_KEYS.JENKINS_API_TOKEN] ?? globalConfig.jenkins?.apiToken
+    },
+    udeploy: {
+      baseUrl: process.env[ENV_KEYS.UDEPLOY_BASE_URL] ?? globalConfig.udeploy?.baseUrl,
+      pat: process.env[ENV_KEYS.UDEPLOY_PAT] ?? globalConfig.udeploy?.pat,
     },
     defaults: mergedDefaults
   };
@@ -246,6 +253,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     jenkins: {
       ...config.jenkins,
       apiToken: config.jenkins.apiToken ? '***' : undefined
+    },
+    udeploy: {
+      ...config.udeploy,
+      pat: config.udeploy.pat ? '***' : undefined
     }
   };
 }

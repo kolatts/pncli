@@ -85,12 +85,23 @@ export interface JenkinsConfig {
   apiToken?: string;
 }
 
+export interface UdeployConfig {
+  baseUrl?: string;
+  pat?: string;
+}
+
+export interface UdeployDefaults {
+  application?: string;
+  environment?: string;
+}
+
 export interface Defaults {
   jira?: JiraDefaults;
   bitbucket?: BitbucketDefaults;
   sonar?: SonarDefaults;
   sde?: SdeDefaults;
   ado?: AdoDefaults;
+  udeploy?: UdeployDefaults;
 }
 
 export interface UserConfig {
@@ -108,6 +119,7 @@ export interface GlobalConfig {
   sde?: SdeConfig;
   ado?: AdoConfig;
   jenkins?: JenkinsConfig;
+  udeploy?: UdeployConfig;
   defaults?: Defaults;
 }
 
@@ -157,11 +169,16 @@ export interface ResolvedConfig {
     username: string | undefined;
     apiToken: string | undefined;
   };
+  udeploy: {
+    baseUrl: string | undefined;
+    pat: string | undefined;
+  };
   defaults: {
     jira: JiraDefaults;
     bitbucket: BitbucketDefaults;
     sonar: SonarDefaults;
     sde: SdeDefaults;
     ado: AdoDefaults;
+    udeploy: UdeployDefaults;
   };
 }

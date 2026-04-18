@@ -576,6 +576,43 @@ pncli jenkins pipeline logs
   --number <n>         (required) Build number
 ```
 
+### Udeploy
+
+```
+pncli udeploy
+  --application <name>  Application name or ID (or set defaults.udeploy.application in config)
+  --environment <name>  Environment name or ID (or set defaults.udeploy.environment in config)
+
+pncli udeploy apps
+
+pncli udeploy environments
+
+pncli udeploy components
+
+pncli udeploy versions
+  --component <name>  Component name or ID [required]
+
+pncli udeploy import-version
+  --component <name>  Component name or ID [required]
+  --version <name>    Version name [required]
+  --no-finish         Skip marking the version as finished importing
+
+pncli udeploy run
+  --process <name>    Application process name or ID [required]
+  --component <name>  Component name (repeatable)
+  --version <name>    Component version (repeatable; positionally paired with --component)
+  --snapshot <name>   Snapshot name or ID (alternative to --component/--version)
+  --only-changed      Deploy only changed components
+  --wait              Poll until the process completes
+  --timeout <ms>      Max wait time in milliseconds (default: 600000)
+
+pncli udeploy request-status
+  --request-id <id>   Request ID returned by udeploy run [required]
+
+pncli udeploy request-info
+  --request-id <id>   Request ID returned by udeploy run [required]
+```
+
 ### Skills
 
 ```

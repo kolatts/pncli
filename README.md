@@ -5,7 +5,7 @@
 
 > One command does what three meetings couldn't.
 
-pncli gives AI coding agents (and humans) structured CLI access to Jira, Bitbucket, Confluence, SonarQube, and SDElements. No MCP servers required. No meetings to schedule. No forms to fill out.
+pncli gives AI coding agents (and humans) structured CLI access to Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, and IBM UrbanCode Deploy. No MCP servers required. No meetings to schedule. No forms to fill out.
 
 ## Why?
 
@@ -51,6 +51,8 @@ pncli uses a three-layer config system (highest priority wins):
 | `PNCLI_SONAR_BASE_URL` | SonarQube Server base URL |
 | `PNCLI_SONAR_TOKEN` | SonarQube personal access token |
 | `PNCLI_SDE_CONNECTION` | SDElements connection string (`api-token@hostname`, e.g. `mytoken@myorg.sdelements.com`) |
+| `PNCLI_UDEPLOY_BASE_URL` | IBM UrbanCode Deploy base URL |
+| `PNCLI_UDEPLOY_PAT` | IBM UrbanCode Deploy personal access token |
 | `PNCLI_CONFIG_PATH` | Override global config file path |
 | `PNCLI_JENKINS_BASE_URL` | Jenkins base URL |
 | `PNCLI_JENKINS_USERNAME` | Jenkins username |
@@ -93,6 +95,7 @@ This project uses Conventional Commits for automatic versioning:
 | Artifactory | 🔜 Coming | The nightmare never ends |
 | Jenkins | ✅ Active | REST API (Data Center 2.x) |
 | Azure DevOps Server | ✅ Active | REST API v7.1 (on-prem, Windows auth + PAT) |
+| IBM UrbanCode Deploy | ✅ Active | REST API v7.x (on-prem, PAT auth) |
 
 ## License
 
