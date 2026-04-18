@@ -1,3 +1,4 @@
+.superset/
 node_modules/
 dist/
 publish/
