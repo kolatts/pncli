@@ -43,9 +43,11 @@ The site lives in `site/` and is built with Astro 6 + Tailwind v4. Skills, chang
 
 When `site/src/` files are edited:
 
-1. Start the dev server: `cd site && npm run dev`
-2. Take screenshots of every affected page using the browser
-3. Include the screenshots in the PR description so reviewers can see the visual impact
+1. Start the dev server with network exposure: `cd site && npm run dev -- --host`
+2. Take a full-page screenshot using the browser MCP via `http://host.docker.internal:4321/pncli/<page>/`
+   - The browser MCP runs in Docker and cannot reach `localhost` — use `host.docker.internal` instead
+   - The screenshot is saved inside the Docker container and cannot be attached to a PR directly; describe what was verified in the PR body instead
+3. Include the screenshot verification note in the PR description so reviewers know it was checked
 
 This applies to changes in:
 - `site/src/pages/` or `site/src/components/` — screenshot the affected pages
