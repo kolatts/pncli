@@ -10,6 +10,7 @@ export const categories: Record<string, { label: string; order: string[] }> = {
   'pr-workflow': {
     label: 'PR Workflow',
     order: [
+      'ship',
       'review-pull-request',
       'address-pr-feedback',
       'create-bug-from-pr-finding',
