@@ -185,7 +185,8 @@ export function registerConfigCommands(program: Command): void {
           results.artifactory = { ok: null, message: 'not configured' };
         }
 
-        if (cfg.udeploy.baseUrl && cfg.udeploy.pat) {
+        const udeployHasAuth = cfg.udeploy.pat || (cfg.udeploy.username && cfg.udeploy.password);
+        if (cfg.udeploy.baseUrl && udeployHasAuth) {
           try {
             await http.udeploy<unknown>('/cli/application');
             results.udeploy = { ok: true, message: 'connected' };
@@ -335,7 +336,8 @@ export function registerConfigCommands(program: Command): void {
         }
 
         // UDeploy
-        if (!cfg.udeploy.pat) {
+        const udeployHasAuth = cfg.udeploy.pat || (cfg.udeploy.username && cfg.udeploy.password);
+        if (!udeployHasAuth) {
           results.udeploy = { status: 'blank', message: 'not configured' };
         } else if (!cfg.udeploy.baseUrl) {
           results.udeploy = { status: 'error', message: 'baseUrl not configured' };
@@ -669,6 +671,8 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   let udeployBaseUrl = '';
   let udeployPat = '';
+  let udeployUsername = '';
+  let udeployPassword = '';
   let udeployDefaultApp = '';
   let udeployDefaultEnv = '';
 
@@ -678,9 +682,25 @@ async function initGlobalConfig(start: number): Promise<void> {
       default: ''
     });
 
-    udeployPat = await password({
-      message: 'UDeploy personal access token (leave blank if none):'
+    const useBasicAuth = await confirm({
+      message: 'Use username + password auth instead of an auth token?',
+      default: false
     });
+
+    if (useBasicAuth) {
+      udeployUsername = await input({
+        message: 'UDeploy username:',
+        default: ''
+      });
+
+      udeployPassword = await password({
+        message: 'UDeploy password:'
+      });
+    } else {
+      udeployPat = await password({
+        message: 'UDeploy personal access token (leave blank if none):'
+      });
+    }
 
     udeployDefaultApp = await input({
       message: 'Default application name (optional):',
@@ -692,19 +712,25 @@ async function initGlobalConfig(start: number): Promise<void> {
       default: ''
     });
 
-    if (udeployBaseUrl && udeployPat) {
+    const udeployHasAuth = udeployPat || (udeployUsername && udeployPassword);
+    if (udeployBaseUrl && udeployHasAuth) {
       process.stderr.write('\n  Verifying connection...\n');
       try {
         const tempConfig = {
           ...loadConfig(),
-          udeploy: { baseUrl: udeployBaseUrl, pat: udeployPat }
+          udeploy: {
+            baseUrl: udeployBaseUrl,
+            pat: udeployPat || undefined,
+            username: udeployUsername || undefined,
+            password: udeployPassword || undefined
+          }
         };
         const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
         await tempHttp.udeploy<unknown>('/cli/application');
         process.stderr.write('  Connected.\n');
       } catch (err) {
         warn(`Could not connect to UDeploy: ${err instanceof Error ? err.message : String(err)}`);
-        warn('Config will be saved anyway. Check your URL and PAT and re-run pncli config init or pncli config test.');
+        warn('Config will be saved anyway. Check your URL and credentials and re-run pncli config init or pncli config test.');
       }
     }
   }
@@ -795,7 +821,9 @@ async function initGlobalConfig(start: number): Promise<void> {
     ...(useUdeploy && udeployBaseUrl ? {
       udeploy: {
         baseUrl: udeployBaseUrl,
-        ...(udeployPat ? { pat: udeployPat } : {})
+        ...(udeployPat ? { pat: udeployPat } : {}),
+        ...(udeployUsername ? { username: udeployUsername } : {}),
+        ...(udeployPassword ? { password: udeployPassword } : {})
       }
     } : {}),
     defaults: {
