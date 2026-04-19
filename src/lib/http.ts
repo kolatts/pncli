@@ -455,9 +455,15 @@ export class HttpClient {
   }
 
   private udeployHeaders(): Record<string, string> {
-    const { pat } = this.config.udeploy;
-    if (!pat) throw new PncliError('UDeploy credentials not configured. Run: pncli config init');
-    const encoded = Buffer.from(`PasswordIsAuthToken:${pat}`).toString('base64');
+    const { pat, username, password } = this.config.udeploy;
+    let encoded: string;
+    if (username && password) {
+      encoded = Buffer.from(`${username}:${password}`).toString('base64');
+    } else if (pat) {
+      encoded = Buffer.from(`PasswordIsAuthToken:${pat}`).toString('base64');
+    } else {
+      throw new PncliError('UDeploy credentials not configured. Run: pncli config init');
+    }
     return {
       'Authorization': `Basic ${encoded}`,
       'Content-Type': 'application/json',
