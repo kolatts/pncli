@@ -30,9 +30,7 @@ pncli ships with Claude Code skills — step-by-step workflow guides that agents
 pncli skills install
 ```
 
-This downloads the latest pncli skills from GitHub into `.claude/skills/` and also fetches `copilot-instructions.md` into the repo root. Only pncli-managed skills are replaced — any custom skills you've created in `.claude/skills/` are left untouched.
-
-Use `--skip-instructions` to skip downloading `copilot-instructions.md`.
+This downloads the latest pncli skills from GitHub. Default installs to `.agents/skills/` (GitHub Copilot). For Claude Code, add `--agent claude-code`. For user-scope, add `--scope user`. Only pncli-managed skills are replaced — any custom skills you've added are left untouched.
 
 To see what's installed locally:
 
@@ -42,7 +40,7 @@ pncli skills list
 
 ## Common Workflows
 
-> These workflows are also available as Claude Code skills — run `pncli skills install` to download them into your repo, or copy `.claude/skills/` into `~/.claude/skills/` for global access.
+> These workflows are also available as skills — run `pncli skills install` (Copilot default) or `pncli skills install --agent claude-code` (Claude Code) to download them into your repo. Add `--scope user` for global access.
 
 ### Review a Pull Request
 
@@ -617,12 +615,14 @@ pncli udeploy request-info
 
 ```
 pncli skills install
-  --target <dir>       Target directory for skills (default: ".claude/skills")
-  --skip-instructions  Skip downloading copilot-instructions.md (always written
-  to repo root)
+  --agent <agent>  Target agent host: github-copilot | claude-code (default: "github-copilot")
+  --scope <scope>  Installation scope: project | user (default: "project")
+  --target <dir>   Override install directory (ignores --agent and --scope)
 
 pncli skills list
-  --target <dir>  Skills directory to scan (default: ".claude/skills")
+  --agent <agent>  Target agent host: github-copilot | claude-code (default: "github-copilot")
+  --scope <scope>  Installation scope: project | user (default: "project")
+  --target <dir>   Override skills directory to scan
 ```
 
 <!-- COMMAND-REFERENCE:END -->

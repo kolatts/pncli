@@ -178,6 +178,7 @@ export function registerSkillsCommands(program: Command): void {
             category: metadata.category || data.category || 'other',
             services: metadata.services || data.services || '',
             providers: metadata.providers || data.providers || 'none',
+            userInvocable: data['user-invocable'] === 'true',
           };
         });
 
