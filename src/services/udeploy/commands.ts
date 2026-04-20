@@ -100,15 +100,15 @@ export function registerUdeployCommands(program: Command): void {
     .command('import-version')
     .description('Create a component version and mark it ready for deployment')
     .requiredOption('--component <name>', 'Component name or ID')
-    .requiredOption('--version <name>', 'Version name')
+    .requiredOption('--name <name>', 'Version name')
     .option('--no-finish', 'Skip marking the version as finished importing')
-    .action(async (cmdOpts: { component: string; version: string; finish: boolean }) => {
+    .action(async (cmdOpts: { component: string; name: string; finish: boolean }) => {
       const start = Date.now();
       try {
         const { client } = getClient(program);
-        const created = await client.createVersion(cmdOpts.component, cmdOpts.version);
+        const created = await client.createVersion(cmdOpts.component, cmdOpts.name);
         if (cmdOpts.finish) {
-          await client.finishImporting(cmdOpts.component, cmdOpts.version);
+          await client.finishImporting(cmdOpts.component, cmdOpts.name);
         }
         success({ ...created, finishedImporting: cmdOpts.finish }, 'udeploy', 'import-version', start);
       } catch (err) {
@@ -121,7 +121,7 @@ export function registerUdeployCommands(program: Command): void {
     .description('Run an application deployment process')
     .requiredOption('--process <name>', 'Application process name or ID')
     .option('--component <name>', 'Component name (repeatable)', collect, [])
-    .option('--version <name>', 'Component version (repeatable; positionally paired with --component)', collect, [])
+    .option('--component-version <name>', 'Component version (repeatable; positionally paired with --component)', collect, [])
     .option('--snapshot <name>', 'Snapshot name or ID (alternative to specifying versions)')
     .option('--only-changed', 'Deploy only changed components', false)
     .option('--wait', 'Poll until the process completes', false)
@@ -129,7 +129,7 @@ export function registerUdeployCommands(program: Command): void {
     .action(async (cmdOpts: {
       process: string;
       component: string[];
-      version: string[];
+      componentVersion: string[];
       snapshot?: string;
       onlyChanged: boolean;
       wait: boolean;
@@ -143,7 +143,7 @@ export function registerUdeployCommands(program: Command): void {
         const environment = resolveEnvironment(config, parentOpts.environment);
 
         const components = cmdOpts.component;
-        const versions = cmdOpts.version;
+        const versions = cmdOpts.componentVersion;
         const versionEntries = components.map((c, i) => ({
           component: c,
           version: versions[i] ?? 'latest'
