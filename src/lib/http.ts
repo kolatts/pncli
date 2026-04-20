@@ -460,7 +460,7 @@ export class HttpClient {
     if (username && password) {
       encoded = Buffer.from(`${username}:${password}`).toString('base64');
     } else if (pat) {
-      encoded = Buffer.from(`PasswordIsAuthToken:{"token":"${pat}"}`).toString('base64');
+      encoded = Buffer.from(`PasswordIsAuthToken:${JSON.stringify({ token: pat })}`).toString('base64');
     } else {
       throw new PncliError('UDeploy credentials not configured. Run: pncli config init');
     }

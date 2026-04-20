@@ -76,4 +76,16 @@ describe('maskConfig', () => {
     expect(masked.jira.baseUrl).toBe('https://jira.example.com');
     expect(masked.user.email).toBe('user@example.com');
   });
+
+  it('masks udeploy password when present', () => {
+    const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.example.com', pat: undefined, username: 'alice', password: 'secret' } });
+    const masked = maskConfig(config) as ResolvedConfig;
+    expect((masked.udeploy as { password?: string }).password).toBe('***');
+  });
+
+  it('leaves udeploy password undefined when not set', () => {
+    const config = baseConfig({ udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined } });
+    const masked = maskConfig(config) as ResolvedConfig;
+    expect((masked.udeploy as { password?: string }).password).toBeUndefined();
+  });
 });

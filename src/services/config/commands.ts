@@ -687,7 +687,8 @@ async function initGlobalConfig(start: number): Promise<void> {
 
     if (udeployUsername) {
       udeployPassword = await password({
-        message: 'UDeploy password:'
+        message: 'UDeploy password:',
+        validate: (v) => v.length > 0 || 'Password cannot be blank'
       });
     } else {
       udeployPat = await password({
