@@ -39,14 +39,16 @@ program
   .option('--pretty', 'Human-readable formatted output', false)
   .option('--verbose', 'Include full response metadata', false)
   .option('--dry-run', 'Print API requests without executing', false)
-  .option('--config <path>', 'Override global config file location');
+  .option('--config <path>', 'Override global config file location')
+  .option('--output-file <path>', 'Write JSON output to file instead of stdout');
 
 // Propagate global options and user identity before any command runs
 program.hook('preAction', (thisCommand) => {
   const opts = thisCommand.optsWithGlobals();
   setGlobalOptions({
     pretty: Boolean(opts.pretty),
-    verbose: Boolean(opts.verbose)
+    verbose: Boolean(opts.verbose),
+    outputFile: opts.outputFile as string | undefined
   });
   try {
     const config = loadConfig({ configPath: opts.config as string | undefined });

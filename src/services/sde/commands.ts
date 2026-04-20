@@ -75,7 +75,7 @@ export function registerSdeCommands(program: Command): void {
     .option('--active <bool>', 'Filter by active status: true or false')
     .option('--page <n>', 'Page number (1-based)', '1')
     .option('--page-size <n>', 'Results per page', '100')
-    .option('--all', 'Fetch all pages')
+    .option('--all', 'Fetch all pages (consider --output-file for large results)')
     .action(async (opts: { email?: string; firstName?: string; lastName?: string; active?: string; page: string; pageSize: string; all?: boolean }) => {
       const start = Date.now();
       try {
@@ -112,7 +112,7 @@ export function registerSdeCommands(program: Command): void {
     .option('--include <fields>', 'Include extra fields (comma-separated): task_counts,permissions')
     .option('--page <n>', 'Page number (1-based)', '1')
     .option('--page-size <n>', 'Results per page', '100')
-    .option('--all', 'Fetch all pages')
+    .option('--all', 'Fetch all pages (consider --output-file for large results)')
     .action(async (opts: { name?: string; search?: string; active?: string; ordering?: string; expand?: string; include?: string; page: string; pageSize: string; all?: boolean }) => {
       const start = Date.now();
       try {
@@ -174,7 +174,7 @@ export function registerSdeCommands(program: Command): void {
     .option('--include <fields>', 'Include extra fields (comma-separated): how_tos,last_note,references,regulation_sections')
     .option('--page <n>', 'Page number (1-based)', '1')
     .option('--page-size <n>', 'Results per page', '100')
-    .option('--all', 'Fetch all pages')
+    .option('--all', 'Fetch all pages (consider --output-file for large results)')
     .action(async (opts: { project?: string; phase?: string; priority?: string; status?: string; assignedTo?: string; source?: string; verification?: string; tag?: string; accepted?: string; relevant?: string; expand?: string; include?: string; page: string; pageSize: string; all?: boolean }) => {
       const start = Date.now();
       try {
@@ -238,7 +238,7 @@ export function registerSdeCommands(program: Command): void {
     .option('--component-id <id>', 'Filter by component ID')
     .option('--page <n>', 'Page number (1-based)', '1')
     .option('--page-size <n>', 'Results per page', '100')
-    .option('--all', 'Fetch all pages')
+    .option('--all', 'Fetch all pages (consider --output-file for large results)')
     .action(async (opts: { project?: string; severity?: string; search?: string; ordering?: string; capecId?: string; componentId?: string; page: string; pageSize: string; all?: boolean }) => {
       const start = Date.now();
       try {

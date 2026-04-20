@@ -69,10 +69,11 @@ pncli is designed agent-first:
 ## Global Flags
 
 ```
---pretty          Human-readable formatted output (default: compact JSON)
---verbose         Include full API response metadata
---dry-run         Print the API request without executing
---config <path>   Override global config file location
+--pretty                Human-readable formatted output (default: compact JSON)
+--verbose               Include full API response metadata
+--dry-run               Print the API request without executing
+--config <path>         Override global config file location
+--output-file <path>    Write JSON output to file instead of stdout
 ```
 
 ## Commit Convention

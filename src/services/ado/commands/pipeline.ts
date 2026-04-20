@@ -136,7 +136,7 @@ export function registerAdoPipelineCommands(ado: Command): void {
 
   pipeline
     .command('logs')
-    .description('List or retrieve build logs')
+    .description('List or retrieve build logs (consider --output-file for large logs)')
     .requiredOption('--id <n>', 'Build ID')
     .option('--log-id <n>', 'Specific log ID (omit to list all logs)')
     .action(async (opts: { id: string; logId?: string }) => {
