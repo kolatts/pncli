@@ -13,7 +13,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     sde: { baseUrl: 'https://sde.example.com', token: 'secret-sde' },
     ado: { baseUrl: 'https://ado.example.com', pat: 'secret-ado', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'secret-jenkins' },
-    udeploy: { baseUrl: undefined, pat: undefined },
+    udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
     ...overrides
   };
@@ -75,5 +75,17 @@ describe('maskConfig', () => {
     const masked = maskConfig(baseConfig()) as ResolvedConfig;
     expect(masked.jira.baseUrl).toBe('https://jira.example.com');
     expect(masked.user.email).toBe('user@example.com');
+  });
+
+  it('masks udeploy password when present', () => {
+    const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.example.com', pat: undefined, username: 'alice', password: 'secret' } });
+    const masked = maskConfig(config) as ResolvedConfig;
+    expect((masked.udeploy as { password?: string }).password).toBe('***');
+  });
+
+  it('leaves udeploy password undefined when not set', () => {
+    const config = baseConfig({ udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined } });
+    const masked = maskConfig(config) as ResolvedConfig;
+    expect((masked.udeploy as { password?: string }).password).toBeUndefined();
   });
 });

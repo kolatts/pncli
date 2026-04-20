@@ -86,6 +86,28 @@ pncli config set sonar.token <token>
 pncli config set sde.connection <token@hostname>
 ```
 
+**IBM UrbanCode Deploy** — "Do you use IBM UrbanCode Deploy for component imports or deployment processes?"
+
+```
+pncli config set udeploy.baseUrl <url>
+```
+
+Ask whether they authenticate with a PAT or username/password:
+
+- If **PAT**: `pncli config set udeploy.pat <token>`
+- If **username/password**:
+  ```
+  pncli config set udeploy.username <username>
+  pncli config set udeploy.password <password>
+  ```
+
+Optionally set defaults to avoid repeating flags on every command:
+
+```
+pncli config set defaults.udeploy.application <app-name>
+pncli config set defaults.udeploy.environment <env-name>
+```
+
 **Artifactory** — "Do you use Artifactory for package management?"
 
 ```
