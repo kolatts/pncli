@@ -459,6 +459,8 @@ export class HttpClient {
     let encoded: string;
     if (username && password) {
       encoded = Buffer.from(`${username}:${password}`).toString('base64');
+    } else if (username && pat) {
+      encoded = Buffer.from(`${username}:${pat}`).toString('base64');
     } else if (pat) {
       encoded = Buffer.from(`PasswordIsAuthToken:${JSON.stringify({ token: pat })}`).toString('base64');
     } else {
