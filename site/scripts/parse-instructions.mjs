@@ -83,8 +83,8 @@ if (startIdxNoH1 === -1 || endIdxNoH1 === -1) {
     bodyBefore = preWorkflows
       + '\n\n<ConfigSetupCallout />'
       + '\n\n## Skills'
-      + '\n\nEach workflow is packaged as a Claude Code skill. Run `pncli skills install` to download them into your repo, or copy `.claude/skills/` from the pncli repo into your project (or `~/.claude/skills/` for global access). Invoke with `/skill pncli:&lt;name&gt;`.'
-      + '\n\n<SkillGallery />';
+      + '\n\nEach workflow is packaged as a Claude Code skill. Run `pncli skills install` to download them into your repo (default: `.agents/skills/` for Copilot; add `--agent claude-code` for Claude Code). Skills marked `/invoke` can be called directly by name once installed.'
+      + '\n\nBrowse all skills at [/skills](/pncli/skills/).';
   } else {
     bodyBefore = escapeMdxOutsideFences(beforeRaw) + '\n\n<ConfigSetupCallout />';
   }
@@ -101,7 +101,6 @@ const mdx = [
   '',
   "import CommandReferenceCallout from '../../components/CommandReferenceCallout.astro';",
   "import ConfigSetupCallout from '../../components/ConfigSetupCallout.astro';",
-  "import SkillGallery from '../../components/SkillGallery.astro';",
   '',
   body.trim(),
   '',

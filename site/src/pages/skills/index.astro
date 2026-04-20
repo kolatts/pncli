@@ -28,9 +28,9 @@ const uncategorized = getUncategorizedSkills(entries);
           How to install
         </summary>
         <div class="mt-3 pl-5 border-l border-ink/10 space-y-2 text-ink/60">
-          <p>Run <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">pncli skills install</code> from your repo root to download all skills into <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">.claude/skills/</code>.</p>
-          <p>Or copy the <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">.claude/skills/</code> directory from the <a href="https://github.com/kolatts/pncli" class="text-coral hover:underline">pncli repo</a> into your own project's <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">.claude/skills/</code> directory (or into <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">~/.claude/skills/</code> for global access).</p>
-          <p>Claude Code automatically discovers skills in those directories.</p>
+          <p>Run <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">pncli skills install</code> from your repo root. Default installs to <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">.agents/skills/</code> (GitHub Copilot). For Claude Code, add <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">--agent claude-code</code>. For user-scope, add <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">--scope user</code>.</p>
+          <p>Skills marked <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">/invoke</code> can be called directly by name (e.g. <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">/ship</code>) once installed.</p>
+          <p>Claude Code automatically discovers skills in <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">.claude/skills/</code> and <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">~/.claude/skills/</code>.</p>
         </div>
       </details>
     </div>
@@ -50,6 +50,7 @@ const uncategorized = getUncategorizedSkills(entries);
                 providers={skill.data.providers ?? 'none'}
                 services={skill.data.services ?? ''}
                 slug={skill.id}
+                userInvocable={skill.data.userInvocable}
               />
             ))}
           </div>
@@ -68,6 +69,7 @@ const uncategorized = getUncategorizedSkills(entries);
               providers={skill.data.providers ?? 'none'}
               services={skill.data.services ?? ''}
               slug={skill.id}
+              userInvocable={skill.data.userInvocable}
             />
           ))}
         </div>

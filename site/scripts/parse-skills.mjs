@@ -4,20 +4,38 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const skillsDir = join(__dirname, '../../.claude/skills');
+const skillsDir = join(__dirname, '../../skills');
 const outDir    = join(__dirname, '../src/content/skills');
 
 function parseFrontmatter(content) {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
   if (!match) return { data: {}, body: content };
   const data = {};
+  const metadata = {};
+  let inMetadata = false;
   for (const line of match[1].split('\n')) {
+    if (line.trimEnd() === 'metadata:') { inMetadata = true; continue; }
+    if (inMetadata && line.startsWith('  ')) {
+      const colonIdx = line.indexOf(':');
+      if (colonIdx !== -1) {
+        const key = line.slice(0, colonIdx).trim();
+        const value = line.slice(colonIdx + 1).trim();
+        if (key) metadata[key] = value;
+      }
+      continue;
+    }
+    inMetadata = false;
     const colonIdx = line.indexOf(':');
     if (colonIdx === -1) continue;
     const key   = line.slice(0, colonIdx).trim();
     const value = line.slice(colonIdx + 1).trim();
     if (key) data[key] = value;
   }
+  // Promote metadata fields — spec stores category/providers/services under metadata:
+  // but the Astro schema expects them at top level in the generated MDX
+  if (metadata.category)  data.category  = metadata.category;
+  if (metadata.providers) data.providers = metadata.providers;
+  if (metadata.services)  data.services  = metadata.services;
   return { data, body: match[2] };
 }
 
@@ -74,6 +92,7 @@ for (const entry of readdirSync(skillsDir).sort()) {
     `providers: ${JSON.stringify(data.providers || 'none')}`,
     `category: ${JSON.stringify(data.category || 'other')}`,
     `services: ${JSON.stringify(data.services || '')}`,
+    `userInvocable: ${data['user-invocable'] === 'true'}`,
     `generatedAt: ${JSON.stringify(new Date().toISOString())}`,
     '---',
     '',
