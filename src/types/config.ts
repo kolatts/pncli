@@ -88,8 +88,6 @@ export interface JenkinsConfig {
 export interface UdeployConfig {
   baseUrl?: string;
   pat?: string;
-  username?: string;
-  password?: string;
 }
 
 export interface UdeployDefaults {
@@ -174,8 +172,6 @@ export interface ResolvedConfig {
   udeploy: {
     baseUrl: string | undefined;
     pat: string | undefined;
-    username: string | undefined;
-    password: string | undefined;
   };
   defaults: {
     jira: JiraDefaults;
