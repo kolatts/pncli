@@ -640,5 +640,6 @@ Always check `ok` before accessing `data`.
 - Use `--dry-run` to preview API calls without executing
 - Use `--verbose` to see full response metadata for debugging
 - Use `--pretty` when running manually for readable output
+- Use `--output-file <path>` to write JSON output to a file instead of stdout — recommended for commands that produce large payloads (search, logs, `--all` pagination) to avoid flooding agent context
 - Pipe output through `jq` for ad-hoc filtering (if available)
 - Defaults from `.pncli.json` are applied automatically — you rarely need to pass `--project`, `--type`, or `--priority` flags for Jira

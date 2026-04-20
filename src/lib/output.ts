@@ -29,11 +29,12 @@ function buildMeta(service: string, action: string, startTime: number): Meta {
 
 function writeToFile(filePath: string, content: string): void {
   try {
-    fs.writeFileSync(filePath, content, { encoding: 'utf8', flag: 'w' });
+    fs.writeFileSync(filePath, content, 'utf8');
   } catch (writeErr) {
     process.stderr.write(
       `Warning: could not write to output file "${filePath}": ${(writeErr as NodeJS.ErrnoException).message}\n`
     );
+    process.exitCode = ExitCode.GENERAL_ERROR;
   }
 }
 
