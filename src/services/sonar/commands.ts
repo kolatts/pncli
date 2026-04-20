@@ -52,7 +52,7 @@ export function registerSonarCommands(program: Command): void {
     .option('--resolved <bool>', 'Filter resolved issues: true or false')
     .option('--page <n>', 'Page number (1-based)', '1')
     .option('--page-size <n>', 'Results per page (max 500)', '100')
-    .option('--all', 'Fetch all pages (ignores --page/--page-size)')
+    .option('--all', 'Fetch all pages — consider --output-file for large results (ignores --page/--page-size)')
     .action(async (opts: { project?: string; severities?: string; types?: string; statuses?: string; branch?: string; resolved?: string; page: string; pageSize: string; all?: boolean }) => {
       const start = Date.now();
       try {
@@ -108,7 +108,7 @@ export function registerSonarCommands(program: Command): void {
     .option('--query <text>', 'Search query')
     .option('--page <n>', 'Page number (1-based)', '1')
     .option('--page-size <n>', 'Results per page', '100')
-    .option('--all', 'Fetch all pages')
+    .option('--all', 'Fetch all pages (consider --output-file for large results)')
     .action(async (opts: { query?: string; page: string; pageSize: string; all?: boolean }) => {
       const start = Date.now();
       try {
@@ -137,7 +137,7 @@ export function registerSonarCommands(program: Command): void {
     .option('--branch <name>', 'Branch name')
     .option('--page <n>', 'Page number (1-based)', '1')
     .option('--page-size <n>', 'Results per page', '100')
-    .option('--all', 'Fetch all pages')
+    .option('--all', 'Fetch all pages (consider --output-file for large results)')
     .action(async (opts: { project?: string; status?: string; resolution?: string; branch?: string; page: string; pageSize: string; all?: boolean }) => {
       const start = Date.now();
       try {
