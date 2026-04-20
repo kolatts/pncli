@@ -11,38 +11,25 @@ export const categories: Record<string, { label: string; order: string[] }> = {
     label: 'PR Workflow',
     order: [
       'ship',
-      'review-pull-request',
+      'code-review',
       'address-pr-feedback',
-      'create-bug-from-pr-finding',
-      'check-build-status',
     ],
   },
   'security': {
-    label: 'Security & Vulnerability',
+    label: 'Security',
     order: [
-      'review-vulnerabilities',
-      'vulnerability-triage-to-tickets',
-      'dependency-cve-remediation',
-      'threat-model-to-backlog',
-    ],
-  },
-  'code-quality': {
-    label: 'Code Quality & Compliance',
-    order: [
-      'pre-merge-quality-check',
-      'tech-debt-to-backlog',
-      'license-audit-to-tickets',
+      'security-review',
     ],
   },
   'planning': {
     label: 'Planning',
     order: [
-      'daily-standup-prep',
+      'plan',
     ],
   },
 };
 
-export const categoryOrder = ['setup', 'pr-workflow', 'security', 'code-quality', 'planning'];
+export const categoryOrder = ['setup', 'pr-workflow', 'security', 'planning'];
 
 export function getSkillsForCategory(
   entries: CollectionEntry<'skills'>[],
