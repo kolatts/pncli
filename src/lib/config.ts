@@ -29,8 +29,6 @@ const ENV_KEYS = {
   JENKINS_API_TOKEN: 'PNCLI_JENKINS_API_TOKEN',
   UDEPLOY_BASE_URL: 'PNCLI_UDEPLOY_BASE_URL',
   UDEPLOY_PAT: 'PNCLI_UDEPLOY_PAT',
-  UDEPLOY_USERNAME: 'PNCLI_UDEPLOY_USERNAME',
-  UDEPLOY_PASSWORD: 'PNCLI_UDEPLOY_PASSWORD',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -160,8 +158,6 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
     udeploy: {
       baseUrl: process.env[ENV_KEYS.UDEPLOY_BASE_URL] ?? globalConfig.udeploy?.baseUrl,
       pat: process.env[ENV_KEYS.UDEPLOY_PAT] ?? globalConfig.udeploy?.pat,
-      username: process.env[ENV_KEYS.UDEPLOY_USERNAME] ?? globalConfig.udeploy?.username,
-      password: process.env[ENV_KEYS.UDEPLOY_PASSWORD] ?? globalConfig.udeploy?.password,
     },
     defaults: mergedDefaults
   };
@@ -260,8 +256,7 @@ export function maskConfig(config: ResolvedConfig): unknown {
     },
     udeploy: {
       ...config.udeploy,
-      pat: config.udeploy.pat ? '***' : undefined,
-      password: config.udeploy.password ? '***' : undefined
+      pat: config.udeploy.pat ? '***' : undefined
     }
   };
 }
