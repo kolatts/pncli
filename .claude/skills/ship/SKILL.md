@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Open a PR for the current branch against main. Runs the full pre-PR gate (build, lint, typecheck, tests, code review, docs) using parallel subagents before opening the PR. Use whenever the user says "open a PR", "create a PR", "ship this", "pull request", or "/ship".
+description: Open a PR for the current branch against main. GitHub only — for ADO/Bitbucket projects use /ship from the installed pncli skills instead. Runs the full pre-PR gate (build, lint, typecheck, tests, code review, docs) using parallel subagents before opening the PR. Use whenever the user says "open a PR", "create a PR", "ship this", "pull request", or "/ship".
 providers: none
 category: pr-workflow
 services: git

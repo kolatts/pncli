@@ -1,12 +1,15 @@
 ---
-name: Local Setup
-description: Use when asked to set up pncli for the first time, configure services, initialize a repo, or get started with pncli in a new project.
-providers: both
-category: setup
-services: config
+name: local-setup
+description: Use when asked to set up pncli for the first time, configure services, or initialize a repo. Walks through identity, work item tracking, source control, and optional services using non-interactive pncli config commands.
+compatibility: Designed for Claude Code. Requires pncli installed and accessible in PATH.
+user-invocable: true
+metadata:
+  category: setup
+  providers: both
+  services: config
 ---
 
-Walk the user through a complete pncli setup — global config, repo config, skills, and copilot-instructions — using non-interactive commands. Ask the user questions and use their answers to run `pncli config set` commands.
+Walk the user through a complete pncli setup — global config and repo-level defaults — using non-interactive commands. Ask the user questions and use their answers to run `pncli config set` commands.
 
 **Step 1 — Ask about identity.**
 
@@ -93,15 +96,13 @@ pncli config set artifactory.baseUrl <url>
 pncli config set artifactory.token <token>
 ```
 
-Then ask which package ecosystems they proxy through Artifactory (npm, NuGet, Maven). Only ask about the ones relevant to their stack. Set whichever apply:
+Then ask which package ecosystems they proxy through Artifactory (npm, NuGet, Maven). Set whichever apply:
 
 ```
 pncli config set artifactory.npmRepo <virtual-repo-name>
 pncli config set artifactory.nugetRepo <virtual-repo-name>
 pncli config set artifactory.mavenRepo <virtual-repo-name>
 ```
-
-These repo names enable `pncli deps outdated` and `pncli deps licenses` to resolve versions and license info through Artifactory rather than hitting public registries directly.
 
 **Step 5 — Set repo-level defaults.**
 
@@ -118,7 +119,7 @@ pncli config set --repo defaults.sonar.project <key>
 pncli config set --repo defaults.sde.project <id>
 ```
 
-The `--repo` flag writes to `.pncli.json` in the repo root instead of the global config. This keeps project-specific defaults scoped to the repo and shareable with the team via version control.
+The `--repo` flag writes to `.pncli.json` in the repo root, keeping project-specific defaults scoped to the repo and shareable via version control.
 
 **Step 6 — Test connectivity.**
 
@@ -128,19 +129,4 @@ pncli config test
 
 Review the results. If any service shows `ok: false`, help the user troubleshoot the URL or credentials.
 
-**Step 7 — Install skills and copilot-instructions.**
-
-```
-pncli skills install
-```
-
-This downloads all pncli Claude Code skills into `.claude/skills/` and fetches `copilot-instructions.md` into the repo root. Existing custom skills are preserved.
-
-**Step 8 — Verify the setup.**
-
-```
-pncli config show
-pncli skills list
-```
-
-Summarize: which services are configured, how many skills were installed, and confirm that `copilot-instructions.md` is present. The user is now ready to use pncli.
+Run `pncli config show` to confirm the final configuration.

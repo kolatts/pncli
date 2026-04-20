@@ -8,8 +8,8 @@ pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI codin
 
 - `src/` — TypeScript source (CLI entry: `src/cli.ts`, services in `src/services/`)
 - `site/` — Astro static site for GitHub Pages documentation
-- `.claude/skills/` — Claude Code skill definitions (SKILL.md files)
-- `copilot-instructions.md` — Auto-generated agent command reference (do not edit manually)
+- `skills/` — Consumer-facing Claude Code skills distributed via `pncli skills install`
+- `.claude/skills/` — Skills active in this repo. `ship/` is repo-internal (GitHub only); all others are symlinks into `skills/`
 
 ## Build & Test
 
@@ -22,7 +22,12 @@ npm run build          # Build CLI with tsup
 
 ## Opening Pull Requests
 
-Use `/ship` to open a PR. It runs the full gate (typecheck, lint, tests, build, code review, docs audit) before creating the PR and wires up `Closes #<issue>` automatically.
+This repo uses **two `/ship` skills**:
+
+- `.claude/skills/ship/` — **repo-internal** (GitHub only). Use this when working on pncli itself. Uses `gh` CLI, hardcoded `npm run` commands, and audits `site/src/`. Wires up `Closes #<issue>` automatically.
+- `skills/ship/` — **consumer-facing** (ADO/Bitbucket). Distributed to users via `pncli skills install`. Detects provider from `git remote`, asks the user for their build commands on first run, and uses `pncli bitbucket` / `pncli ado repo` to open the PR.
+
+When working on pncli, always use the repo-internal `/ship`.
 
 ## Branch Naming
 
@@ -38,7 +43,7 @@ When adding a new service integration (new entry under `src/services/`), these f
 3. **`src/lib/http.ts`** — add `private <service>Headers()` and `async <service><T>()` methods
 4. **`src/services/config/commands.ts`** — add the service to `config init` prompts and `config check` / `config test` output
 5. **`src/cli.ts`** — import, register, and add to the help text block
-6. **`.claude/skills/local-setup/SKILL.md`** — add setup instructions for the new service in Step 4 (optional services), including all config keys and what they enable
+6. **`skills/local-setup/SKILL.md`** — add setup instructions for the new service in Step 4 (optional services), including all config keys and what they enable
 
 Never ship a new integration without updating all six of these. The local-setup skill is the onboarding contract — if it's missing a service, new users won't know it exists.
 
@@ -52,7 +57,7 @@ The site lives in `site/` and is built with Astro 6 + Tailwind v4. Skills, chang
 
 ### Screenshot Requirement
 
-**Only required when `site/src/` files are directly edited.** Screenshots are NOT required for changes to `.claude/skills/`, `CHANGELOG.md`, or `copilot-instructions.md` alone — those files feed auto-generation scripts, but no visual review is needed unless the site templates themselves changed.
+**Only required when `site/src/` files are directly edited.** Screenshots are NOT required for changes to `skills/`, `.claude/skills/`, or `CHANGELOG.md` alone — those files feed auto-generation scripts, but no visual review is needed unless the site templates themselves changed.
 
 When `site/src/` files are edited:
 

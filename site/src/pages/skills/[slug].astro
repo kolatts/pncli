@@ -45,9 +45,14 @@ const serviceList = entry.data.services
       <h1 class="font-display text-4xl font-bold text-ink mb-3">{entry.data.title}</h1>
       <div class="flex items-center gap-3">
         <p class="text-ink/60 text-lg flex-1">{entry.data.description}</p>
-        <span class="font-mono text-xs text-ink/40 bg-ink/5 border border-ink/10 px-2 py-1 rounded shrink-0">
-          {label}
-        </span>
+        <div class="flex items-center gap-1.5 shrink-0">
+          {entry.data.userInvocable && (
+            <span class="font-mono text-xs text-coral/80 bg-coral/10 border border-coral/20 px-2 py-1 rounded">/invoke</span>
+          )}
+          <span class="font-mono text-xs text-ink/40 bg-ink/5 border border-ink/10 px-2 py-1 rounded">
+            {label}
+          </span>
+        </div>
       </div>
       {serviceList.length > 0 && (
         <div class="flex flex-wrap gap-1.5 mt-3">
@@ -76,11 +81,11 @@ const serviceList = entry.data.services
     <div class="mt-12 pt-6 border-t border-ink/10">
       <p class="text-sm text-ink/40 font-mono">
         Source: <a
-          href={`https://github.com/kolatts/pncli/blob/main/.claude/skills/${entry.id}/SKILL.md`}
+          href={`https://github.com/kolatts/pncli/blob/main/skills/${entry.id}/SKILL.md`}
           class="text-coral hover:underline"
           target="_blank"
           rel="noopener"
-        >.claude/skills/{entry.id}/SKILL.md</a>
+        >skills/{entry.id}/SKILL.md</a>
       </p>
     </div>
   </div>
