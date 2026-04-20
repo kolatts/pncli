@@ -13,7 +13,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     sde: { baseUrl: 'https://sde.example.com', token: 'tok' },
     ado: { baseUrl: 'https://ado.example.com', pat: 'tok', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'tok' },
-    udeploy: { baseUrl: undefined, pat: undefined },
+    udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
     ...overrides
   };
@@ -75,6 +75,69 @@ describe('HttpClient — missing credentials', () => {
     config.ado = { baseUrl: undefined, pat: 'tok', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] };
     const client = new HttpClient(config);
     await expect(client.ado('/_apis/projects')).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('throws on missing udeploy credentials', async () => {
+    const config = baseConfig();
+    config.udeploy = { baseUrl: 'https://ucd.example.com', pat: undefined, username: undefined, password: undefined };
+    const client = new HttpClient(config);
+    await expect(client.udeploy('/cli/application')).rejects.toMatchObject({ name: 'PncliError' });
+  });
+});
+
+describe('HttpClient — udeploy auth encoding', () => {
+  it('encodes PAT using PasswordIsAuthToken JSON format', async () => {
+    const capturedHeaders: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
+      return new Response('[]', { status: 200 });
+    });
+    try {
+      const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.example.com', pat: 'my-pat', username: undefined, password: undefined } });
+      const client = new HttpClient(config);
+      await client.udeploy('/cli/application');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const auth = capturedHeaders[0]?.['authorization'] ?? '';
+    const decoded = Buffer.from(auth.replace('Basic ', ''), 'base64').toString();
+    expect(decoded).toBe('PasswordIsAuthToken:{"token":"my-pat"}');
+  });
+
+  it('encodes username:password as standard Basic auth', async () => {
+    const capturedHeaders: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
+      return new Response('[]', { status: 200 });
+    });
+    try {
+      const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.example.com', pat: undefined, username: 'alice', password: 'secret' } });
+      const client = new HttpClient(config);
+      await client.udeploy('/cli/application');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const auth = capturedHeaders[0]?.['authorization'] ?? '';
+    const decoded = Buffer.from(auth.replace('Basic ', ''), 'base64').toString();
+    expect(decoded).toBe('alice:secret');
+  });
+
+  it('prefers username:password over PAT when both are set', async () => {
+    const capturedHeaders: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
+      return new Response('[]', { status: 200 });
+    });
+    try {
+      const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.example.com', pat: 'my-pat', username: 'alice', password: 'secret' } });
+      const client = new HttpClient(config);
+      await client.udeploy('/cli/application');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const auth = capturedHeaders[0]?.['authorization'] ?? '';
+    const decoded = Buffer.from(auth.replace('Basic ', ''), 'base64').toString();
+    expect(decoded).toBe('alice:secret');
   });
 });
 

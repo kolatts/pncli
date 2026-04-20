@@ -53,6 +53,8 @@ pncli uses a three-layer config system (highest priority wins):
 | `PNCLI_SDE_CONNECTION` | SDElements connection string (`api-token@hostname`, e.g. `mytoken@myorg.sdelements.com`) |
 | `PNCLI_UDEPLOY_BASE_URL` | IBM UrbanCode Deploy base URL |
 | `PNCLI_UDEPLOY_PAT` | IBM UrbanCode Deploy personal access token |
+| `PNCLI_UDEPLOY_USERNAME` | IBM UrbanCode Deploy username (alternative to PAT) |
+| `PNCLI_UDEPLOY_PASSWORD` | IBM UrbanCode Deploy password (used with `PNCLI_UDEPLOY_USERNAME`) |
 | `PNCLI_CONFIG_PATH` | Override global config file path |
 | `PNCLI_JENKINS_BASE_URL` | Jenkins base URL |
 | `PNCLI_JENKINS_USERNAME` | Jenkins username |
@@ -69,10 +71,11 @@ pncli is designed agent-first:
 ## Global Flags
 
 ```
---pretty          Human-readable formatted output (default: compact JSON)
---verbose         Include full API response metadata
---dry-run         Print the API request without executing
---config <path>   Override global config file location
+--pretty                Human-readable formatted output (default: compact JSON)
+--verbose               Include full API response metadata
+--dry-run               Print the API request without executing
+--config <path>         Override global config file location
+--output-file <path>    Write JSON output to file instead of stdout
 ```
 
 ## Commit Convention
@@ -95,7 +98,7 @@ This project uses Conventional Commits for automatic versioning:
 | Artifactory | 🔜 Coming | The nightmare never ends |
 | Jenkins | ✅ Active | REST API (Data Center 2.x) |
 | Azure DevOps Server | ✅ Active | REST API v7.1 (on-prem, Windows auth + PAT) |
-| IBM UrbanCode Deploy | ✅ Active | REST API v7.x (on-prem, PAT auth) |
+| IBM UrbanCode Deploy | ✅ Active | REST API v7.x (on-prem, PAT or username/password auth) |
 
 ## License
 

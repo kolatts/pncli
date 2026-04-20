@@ -46,7 +46,7 @@ export function registerConfluenceCommands(program: Command): void {
     });
 
   confluence.command('list-pages')
-    .description('List pages in a Confluence space')
+    .description('List pages in a Confluence space (consider --output-file for large results)')
     .requiredOption('--space <key>', 'Space key')
     .option('--limit <n>', 'Max results per page (default: all)')
     .option('--start <n>', 'Offset for first result')

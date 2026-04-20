@@ -6,9 +6,11 @@ import { ExitCode, exitCodeFromStatus } from './exitCodes.js';
 
 let globalOptions = { pretty: false, verbose: false };
 let globalUser: { email: string | undefined; userId: string | undefined } = { email: undefined, userId: undefined };
+let outputFile: string | undefined;
 
-export function setGlobalOptions(opts: { pretty: boolean; verbose: boolean }): void {
-  globalOptions = opts;
+export function setGlobalOptions(opts: { pretty: boolean; verbose: boolean; outputFile?: string }): void {
+  globalOptions = { pretty: opts.pretty, verbose: opts.verbose };
+  outputFile = opts.outputFile;
 }
 
 export function setGlobalUser(user: { email: string | undefined; userId: string | undefined }): void {
@@ -25,15 +27,29 @@ function buildMeta(service: string, action: string, startTime: number): Meta {
   };
 }
 
+function writeToFile(filePath: string, content: string): void {
+  try {
+    fs.writeFileSync(filePath, content, 'utf8');
+  } catch (writeErr) {
+    process.stderr.write(
+      `Warning: could not write to output file "${filePath}": ${(writeErr as NodeJS.ErrnoException).message}\n`
+    );
+    process.exitCode = ExitCode.GENERAL_ERROR;
+  }
+}
+
 export function success<T>(data: T, service: string, action: string, startTime: number): void {
   const envelope: SuccessEnvelope<T> = {
     ok: true,
     data,
     meta: buildMeta(service, action, startTime)
   };
-  process.stdout.write(
-    (globalOptions.pretty ? JSON.stringify(envelope, null, 2) : JSON.stringify(envelope)) + '\n'
-  );
+  const out = (globalOptions.pretty ? JSON.stringify(envelope, null, 2) : JSON.stringify(envelope)) + '\n';
+  if (outputFile) {
+    writeToFile(outputFile, out);
+  } else {
+    process.stdout.write(out);
+  }
 }
 
 export function fail(
@@ -62,10 +78,14 @@ export function fail(
 
   const output = (globalOptions.pretty ? JSON.stringify(envelope, null, 2) : JSON.stringify(envelope)) + '\n';
   const exitCode = err instanceof PncliError ? exitCodeFromStatus(err.status) : ExitCode.GENERAL_ERROR;
-  try {
-    fs.writeSync(process.stdout.fd, output);
-  } catch (writeErr) {
-    if ((writeErr as NodeJS.ErrnoException).code !== 'EPIPE') throw writeErr;
+  if (outputFile) {
+    writeToFile(outputFile, output);
+  } else {
+    try {
+      fs.writeSync(process.stdout.fd, output);
+    } catch (writeErr) {
+      if ((writeErr as NodeJS.ErrnoException).code !== 'EPIPE') throw writeErr;
+    }
   }
   process.exitCode = exitCode;
   throw new PncliError(errorDetail.message, errorDetail.status);
