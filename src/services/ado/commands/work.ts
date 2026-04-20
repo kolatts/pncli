@@ -145,7 +145,7 @@ export function registerAdoWorkCommands(ado: Command): void {
 
   work
     .command('search')
-    .description('Run a WIQL query')
+    .description('Run a WIQL query (consider --output-file for large results)')
     .requiredOption('--wiql <query>', 'WIQL query string')
     .action(async (opts: { wiql: string }) => {
       const start = Date.now();
@@ -225,7 +225,7 @@ export function registerAdoWorkCommands(ado: Command): void {
 
   work
     .command('fields')
-    .description('List work item fields available in the collection')
+    .description('List work item fields available in the collection (consider --output-file for large results)')
     .option('--type <type>', 'Scope to fields for a specific work item type (e.g. Bug)')
     .option('--custom-only', 'Exclude System.* and Microsoft.VSTS.* fields')
     .option('--discover', 'Fetch from server (always true for this command)')

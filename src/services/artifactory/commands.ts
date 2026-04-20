@@ -95,7 +95,7 @@ export function registerArtifactoryCommands(program: Command): void {
   // ── AQL search ────────────────────────────────────────────────────────────
 
   art.command('search')
-    .description('Search artifacts using AQL (Artifactory Query Language)')
+    .description('Search artifacts using AQL (Artifactory Query Language) (consider --output-file for large results)')
     .option('--repo <name>', 'Filter by repository key')
     .option('--name <pattern>', 'Filter by artifact name (supports * and ? wildcards)')
     .option('--path <pattern>', 'Filter by artifact path (supports * and ? wildcards)')

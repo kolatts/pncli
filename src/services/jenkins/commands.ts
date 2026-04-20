@@ -160,7 +160,7 @@ export function registerJenkinsCommands(program: Command): void {
 
   pipeline
     .command('logs')
-    .description('Fetch console log for a build')
+    .description('Fetch console log for a build (consider --output-file for large logs)')
     .requiredOption('--name <job>', 'Job name')
     .requiredOption('--number <n>', 'Build number')
     .action(async (opts: { name: string; number: string }) => {

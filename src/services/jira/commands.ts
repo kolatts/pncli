@@ -157,7 +157,7 @@ export function registerJiraCommands(program: Command): void {
     });
 
   jira.command('search')
-    .description('Search Jira issues with JQL')
+    .description('Search Jira issues with JQL (consider --output-file for large results)')
     .requiredOption('--jql <query>', 'JQL query string')
     .option('--max-results <n>', 'Maximum number of results')
     .action(async (opts: { jql: string; maxResults?: string }) => {
@@ -203,7 +203,7 @@ export function registerJiraCommands(program: Command): void {
     });
 
   jira.command('fields')
-    .description('List custom fields (configured or discovered from Jira API)')
+    .description('List custom fields (configured or discovered from Jira API) (consider --output-file for large results)')
     .option('--discover', 'Fetch field metadata from Jira API')
     .option('--custom-only', 'Show only custom fields (requires --discover)')
     .action(async (opts: { discover?: boolean; customOnly?: boolean }) => {
