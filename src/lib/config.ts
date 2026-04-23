@@ -31,6 +31,8 @@ const ENV_KEYS = {
   UDEPLOY_PAT: 'PNCLI_UDEPLOY_PAT',
   UDEPLOY_USERNAME: 'PNCLI_UDEPLOY_USERNAME',
   UDEPLOY_PASSWORD: 'PNCLI_UDEPLOY_PASSWORD',
+  SHAREPOINT_BASE_URL: 'PNCLI_SHAREPOINT_BASE_URL',
+  SHAREPOINT_TOKEN: 'PNCLI_SHAREPOINT_TOKEN',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -163,6 +165,10 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       username: process.env[ENV_KEYS.UDEPLOY_USERNAME] ?? globalConfig.udeploy?.username,
       password: process.env[ENV_KEYS.UDEPLOY_PASSWORD] ?? globalConfig.udeploy?.password,
     },
+    sharepoint: {
+      baseUrl: process.env[ENV_KEYS.SHAREPOINT_BASE_URL] ?? globalConfig.sharepoint?.baseUrl,
+      token: process.env[ENV_KEYS.SHAREPOINT_TOKEN] ?? globalConfig.sharepoint?.token
+    },
     defaults: mergedDefaults
   };
 }
@@ -262,6 +268,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
       ...config.udeploy,
       pat: config.udeploy.pat ? '***' : undefined,
       password: config.udeploy.password ? '***' : undefined
+    },
+    sharepoint: {
+      ...config.sharepoint,
+      token: config.sharepoint.token ? '***' : undefined
     }
   };
 }

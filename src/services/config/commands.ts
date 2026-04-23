@@ -196,6 +196,17 @@ export function registerConfigCommands(program: Command): void {
           results.udeploy = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.sharepoint.baseUrl) {
+          try {
+            await http.sharepoint<unknown>('/_api/web', { params: { $select: 'Title' } }, cfg.sharepoint.baseUrl);
+            results.sharepoint = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.sharepoint = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.sharepoint = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -348,6 +359,20 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        // SharePoint
+        if (!cfg.sharepoint.token) {
+          results.sharepoint = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.sharepoint.baseUrl) {
+          results.sharepoint = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.sharepoint<unknown>('/_api/web', { params: { $select: 'Title' }, timeoutMs: 10_000 }, cfg.sharepoint.baseUrl);
+            results.sharepoint = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.sharepoint = categorize(err);
+          }
+        }
+
         // Artifactory — reuse existing helper
         const artResult = await checkArtifactoryConnectivity(cfg.artifactory);
         if (!artResult.configured) {
@@ -367,7 +392,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory'] as const;
+          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'sharepoint', 'artifactory'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -385,7 +410,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory'] as const;
+            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'sharepoint', 'artifactory'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -729,6 +754,26 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── SharePoint ────────────────────────────────────\n');
+  const useSharepoint = await confirm({
+    message: 'Configure Microsoft SharePoint for document and list access?',
+    default: false
+  });
+
+  let sharepointBaseUrl = '';
+  let sharepointToken = '';
+
+  if (useSharepoint) {
+    sharepointBaseUrl = await input({
+      message: 'SharePoint site URL (e.g. https://tenant.sharepoint.com/sites/mysite):',
+      default: ''
+    });
+
+    sharepointToken = await password({
+      message: 'SharePoint Bearer token (obtain via: az account get-access-token --resource https://tenant.sharepoint.com):'
+    });
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -818,6 +863,12 @@ async function initGlobalConfig(start: number): Promise<void> {
         ...(udeployPat ? { pat: udeployPat } : {}),
         ...(udeployUsername ? { username: udeployUsername } : {}),
         ...(udeployPassword ? { password: udeployPassword } : {})
+      }
+    } : {}),
+    ...(useSharepoint && sharepointBaseUrl ? {
+      sharepoint: {
+        baseUrl: sharepointBaseUrl || undefined,
+        token: sharepointToken || undefined
       }
     } : {}),
     defaults: {

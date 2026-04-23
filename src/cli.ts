@@ -22,6 +22,7 @@ import { registerAdoCommands } from './services/ado/commands/index.js';
 import { registerJenkinsCommands } from './services/jenkins/commands.js';
 import { registerArtifactoryCommands } from './services/artifactory/commands.js';
 import { registerUdeployCommands } from './services/udeploy/commands.js';
+import { registerSharepointCommands } from './services/sharepoint/commands.js';
 import { registerSkillsCommands } from './services/skills/commands.js';
 
 const require = createRequire(import.meta.url);
@@ -70,6 +71,7 @@ registerAdoCommands(program);
 registerJenkinsCommands(program);
 registerArtifactoryCommands(program);
 registerUdeployCommands(program);
+registerSharepointCommands(program);
 registerSkillsCommands(program);
 
 program.addHelpText('after', `
@@ -85,6 +87,7 @@ Services:
   jenkins      Jenkins Data Center (jobs, builds, logs)
   artifactory  Artifactory (repos, artifact search, build info, properties)
   udeploy      IBM UrbanCode Deploy (component versions, deployment processes)
+  sharepoint   Microsoft SharePoint (sites, lists, document libraries)
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills
 `);

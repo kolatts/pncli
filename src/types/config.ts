@@ -92,6 +92,11 @@ export interface UdeployConfig {
   password?: string;
 }
 
+export interface SharepointConfig {
+  baseUrl?: string;
+  token?: string;
+}
+
 export interface UdeployDefaults {
   application?: string;
   environment?: string;
@@ -122,6 +127,7 @@ export interface GlobalConfig {
   ado?: AdoConfig;
   jenkins?: JenkinsConfig;
   udeploy?: UdeployConfig;
+  sharepoint?: SharepointConfig;
   defaults?: Defaults;
 }
 
@@ -176,6 +182,10 @@ export interface ResolvedConfig {
     pat: string | undefined;
     username: string | undefined;
     password: string | undefined;
+  };
+  sharepoint: {
+    baseUrl: string | undefined;
+    token: string | undefined;
   };
   defaults: {
     jira: JiraDefaults;

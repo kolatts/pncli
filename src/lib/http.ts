@@ -599,6 +599,59 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
+  private buildSharepointUrl(siteUrl: string, path: string, params?: Record<string, string | number | boolean | undefined>): string {
+    const base = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const url = new URL(base + cleanPath);
+    if (params) {
+      for (const [key, val] of Object.entries(params)) {
+        if (val !== undefined) {
+          url.searchParams.set(key, String(val));
+        }
+      }
+    }
+    return url.toString();
+  }
+
+  private sharepointHeaders(): Record<string, string> {
+    const { token } = this.config.sharepoint;
+    if (!token) throw new PncliError('SharePoint credentials not configured. Run: pncli config init');
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json;odata=nometadata',
+      'Content-Type': 'application/json',
+      'Connection': 'close'
+    };
+  }
+
+  async sharepoint<T>(
+    path: string,
+    opts: HttpRequestOptions = {},
+    siteUrl?: string
+  ): Promise<T> {
+    const base = siteUrl ?? this.config.sharepoint.baseUrl;
+    if (!base) throw new PncliError('SharePoint baseUrl not configured. Run: pncli config init');
+
+    const url = this.buildSharepointUrl(base, path, opts.params);
+    const headers = this.sharepointHeaders();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
   async artifactoryText(
     path: string,
     opts: HttpRequestOptions = {}
