@@ -126,6 +126,15 @@ pncli config set artifactory.nugetRepo <virtual-repo-name>
 pncli config set artifactory.mavenRepo <virtual-repo-name>
 ```
 
+**SharePoint** — "Do you use Microsoft SharePoint for documents or knowledge management?"
+
+```
+pncli config set sharepoint.baseUrl <site-url>
+pncli config set sharepoint.token <bearer-token>
+```
+
+The site URL is the full SharePoint site URL, e.g. `https://tenant.sharepoint.com/sites/mysite`. The Bearer token can be obtained with: `az account get-access-token --resource https://tenant.sharepoint.com`.
+
 **Step 5 — Set repo-level defaults.**
 
 Ask the user for project-specific defaults:
