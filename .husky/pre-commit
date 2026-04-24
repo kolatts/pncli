@@ -1,2 +1,1 @@
 # Quality gate intentionally moved to CI and /ship skill.
-git diff --quiet copilot-instructions.md || git add copilot-instructions.md

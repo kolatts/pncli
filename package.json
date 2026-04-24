@@ -52,7 +52,6 @@
     "dist",
     "LICENSE",
     "NOTICE",
-    "README.md",
-    "copilot-instructions.md"
+    "README.md"
   ]
 }
