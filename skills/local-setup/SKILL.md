@@ -152,3 +152,5 @@ pncli config test
 Review the results. If any service shows `ok: false`, help the user troubleshoot the URL or credentials.
 
 Run `pncli config show` to confirm the final configuration.
+
+For a full reference of every available command and flag, see https://kolatts.github.io/pncli/commands/.

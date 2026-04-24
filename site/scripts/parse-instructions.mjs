@@ -4,17 +4,11 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const srcPath = join(__dirname, '../../copilot-instructions.md');
+const srcPath = join(__dirname, 'getting-started-source.md');
 const outDir  = join(__dirname, '../src/content/docs');
 const outFile = join(outDir, 'getting-started.mdx');
 
 const raw = readFileSync(srcPath, 'utf8');
-
-const START_MARKER = '<!-- COMMAND-REFERENCE:START -->';
-const END_MARKER   = '<!-- COMMAND-REFERENCE:END -->';
-
-const startIdx = raw.indexOf(START_MARKER);
-const endIdx   = raw.indexOf(END_MARKER);
 
 // Strip the H1 on line 1 so the page's own <h1> is the only one
 const rawNoH1 = raw.replace(/^# .+\n/, '');
@@ -58,39 +52,41 @@ function escapeMdxOutsideFences(text) {
   return result.join('\n');
 }
 
-// Escape MDX footguns in source content, then splice callout at the right position
-const startIdxNoH1 = rawNoH1.indexOf(START_MARKER);
-const endIdxNoH1   = rawNoH1.indexOf(END_MARKER);
+const COMMANDS_LINK_MARKER = '<!-- COMMANDS-LINK -->';
+const WORKFLOWS_HEADING    = '\n\n## Common Workflows';
 
-let body;
-if (startIdxNoH1 === -1 || endIdxNoH1 === -1) {
-  console.warn('parse-instructions: WARNING — COMMAND-REFERENCE markers missing; emitting full file');
-  body = escapeMdxOutsideFences(rawNoH1);
+const commandsLinkIdx = rawNoH1.indexOf(COMMANDS_LINK_MARKER);
+
+let beforeMarker, afterMarker;
+if (commandsLinkIdx !== -1) {
+  beforeMarker = rawNoH1.slice(0, commandsLinkIdx).trimEnd();
+  afterMarker  = rawNoH1.slice(commandsLinkIdx + COMMANDS_LINK_MARKER.length).trimStart();
 } else {
-  const beforeRaw = rawNoH1.slice(0, startIdxNoH1).trimEnd();
-  const afterRaw  = rawNoH1.slice(endIdxNoH1 + END_MARKER.length).trimStart();
-
-  const after = escapeMdxOutsideFences(afterRaw);
-
-  // Keep everything up to "## Common Workflows", inject setup callout, then
-  // replace the workflow recipes with a <SkillGallery /> component.
-  const WORKFLOWS_HEADING = '\n\n## Common Workflows';
-  const workflowsIdx = beforeRaw.indexOf(WORKFLOWS_HEADING);
-
-  let bodyBefore;
-  if (workflowsIdx !== -1) {
-    const preWorkflows = escapeMdxOutsideFences(beforeRaw.slice(0, workflowsIdx));
-    bodyBefore = preWorkflows
-      + '\n\n<ConfigSetupCallout />'
-      + '\n\n## Skills'
-      + '\n\nEach workflow is packaged as a Claude Code skill. Run `pncli skills install` to download them into your repo (default: `.agents/skills/` for Copilot; add `--agent claude-code` for Claude Code). Skills marked `/invoke` can be called directly by name once installed.'
-      + '\n\nBrowse all skills at [/skills](/pncli/skills/).';
-  } else {
-    bodyBefore = escapeMdxOutsideFences(beforeRaw) + '\n\n<ConfigSetupCallout />';
-  }
-
-  body = bodyBefore + '\n\n<CommandReferenceCallout />\n\n' + after;
+  console.warn('parse-instructions: WARNING — COMMANDS-LINK marker missing; emitting full file');
+  beforeMarker = rawNoH1.trimEnd();
+  afterMarker  = '';
 }
+
+// Keep everything up to "## Common Workflows", inject setup callout, then
+// replace the workflow recipes with a <SkillGallery /> component.
+const workflowsIdx = beforeMarker.indexOf(WORKFLOWS_HEADING);
+
+let bodyBefore;
+if (workflowsIdx !== -1) {
+  const preWorkflows = escapeMdxOutsideFences(beforeMarker.slice(0, workflowsIdx));
+  bodyBefore = preWorkflows
+    + '\n\n<ConfigSetupCallout />'
+    + '\n\n## Skills'
+    + '\n\nEach workflow is packaged as a Claude Code skill. Run `pncli skills install` to download them into your repo (default: `.agents/skills/` for Copilot; add `--agent claude-code` for Claude Code). Skills marked `/invoke` can be called directly by name once installed.'
+    + '\n\nBrowse all skills at [/skills](/pncli/skills/).';
+} else {
+  bodyBefore = escapeMdxOutsideFences(beforeMarker) + '\n\n<ConfigSetupCallout />';
+}
+
+const commandsLink = 'For a full list of commands and flags, see the [Command Reference](/pncli/commands/).';
+const after = afterMarker.trim() ? '\n\n' + escapeMdxOutsideFences(afterMarker.trim()) : '';
+
+const body = bodyBefore + '\n\n' + commandsLink + after;
 
 const mdx = [
   '---',
@@ -99,7 +95,6 @@ const mdx = [
   `generatedAt: "${new Date().toISOString()}"`,
   '---',
   '',
-  "import CommandReferenceCallout from '../../components/CommandReferenceCallout.astro';",
   "import ConfigSetupCallout from '../../components/ConfigSetupCallout.astro';",
   '',
   body.trim(),
