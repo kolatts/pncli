@@ -31,6 +31,9 @@ const ENV_KEYS = {
   UDEPLOY_PAT: 'PNCLI_UDEPLOY_PAT',
   UDEPLOY_USERNAME: 'PNCLI_UDEPLOY_USERNAME',
   UDEPLOY_PASSWORD: 'PNCLI_UDEPLOY_PASSWORD',
+  CHECKMARX_BASE_URL: 'PNCLI_CHECKMARX_BASE_URL',
+  CHECKMARX_USERNAME: 'PNCLI_CHECKMARX_USERNAME',
+  CHECKMARX_PASSWORD: 'PNCLI_CHECKMARX_PASSWORD',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -163,6 +166,11 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       username: process.env[ENV_KEYS.UDEPLOY_USERNAME] ?? globalConfig.udeploy?.username,
       password: process.env[ENV_KEYS.UDEPLOY_PASSWORD] ?? globalConfig.udeploy?.password,
     },
+    checkmarx: {
+      baseUrl: process.env[ENV_KEYS.CHECKMARX_BASE_URL] ?? globalConfig.checkmarx?.baseUrl,
+      username: process.env[ENV_KEYS.CHECKMARX_USERNAME] ?? globalConfig.checkmarx?.username,
+      password: process.env[ENV_KEYS.CHECKMARX_PASSWORD] ?? globalConfig.checkmarx?.password,
+    },
     defaults: mergedDefaults
   };
 }
@@ -262,6 +270,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
       ...config.udeploy,
       pat: config.udeploy.pat ? '***' : undefined,
       password: config.udeploy.password ? '***' : undefined
+    },
+    checkmarx: {
+      ...config.checkmarx,
+      password: config.checkmarx.password ? '***' : undefined
     }
   };
 }

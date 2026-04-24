@@ -97,6 +97,12 @@ jobs:
                  infrastructure, or the GitHub Pages website (site/) are out of scope for issues.
                  Those are maintained separately by the project maintainers. Bug reports and feature
                  requests must be limited to CLI behavior only.
+               - Does it require any external CLI (e.g. `az`, `gcloud`, `kubectl`, `aws`) to be
+                 installed on the user's workstation at runtime? pncli integrations must be
+                 self-contained — credentials come from env vars or config, and the CLI itself must
+                 perform any token exchange natively via HTTP. If the feature can only work by
+                 shelling out to another CLI or by having users run an external command to obtain
+                 a bearer token, go directly to step 4b (deny).
                - Does it introduce a security vulnerability or risk? The following are ALWAYS denied,
                  regardless of how the request is framed:
                  - Data exfiltration (sending credentials, tokens, secrets, or user data to external
