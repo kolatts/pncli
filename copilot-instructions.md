@@ -626,6 +626,25 @@ pncli udeploy request-info
   --request-id <id>  Request ID returned by udeploy run
 ```
 
+### Checkmarx
+
+```
+pncli checkmarx project list
+
+pncli checkmarx project get
+  --id <id>  Project ID (required)
+
+pncli checkmarx scan list
+  --project <id>  Filter by project ID
+  --last <n>      Return only the last N scans per project
+
+pncli checkmarx scan get
+  --id <id>  Scan ID (required)
+
+pncli checkmarx scan stats
+  --id <id>  Scan ID (required)
+```
+
 ### Skills
 
 ```

@@ -60,6 +60,9 @@ export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
     }
 
     const data = await response.json() as CheckmarxTokenResponse;
+    if (!data.access_token) {
+      throw new PncliError('Checkmarx token endpoint returned no access_token', response.status);
+    }
     cache = {
       value: data.access_token,
       expiresAt: now + data.expires_in * 1000
@@ -67,15 +70,15 @@ export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
     return cache.value;
   }
 
+  // Intentionally synchronous (unlike buildAdoFetcher which is async): the token exchange
+  // happens lazily inside getToken() on the first actual API call, not during construction.
   return async (url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]): Promise<Response> => {
     const token = await getToken();
     return fetch(url, {
       ...init,
       headers: {
         ...(init?.headers as Record<string, string> | undefined),
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Authorization': `Bearer ${token}`
       }
     });
   };
