@@ -4,7 +4,7 @@
 
 ## What is pncli?
 
-pncli is a CLI tool that provides structured JSON access to Jira, Bitbucket, Confluence, SonarQube, SDElements, and local git state. Use it for all interactions with these services. It exists because MCP servers aren't available in this environment — pncli is your agent-friendly shim layer.
+pncli is a CLI tool that provides structured JSON access to Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, IBM UrbanCode Deploy, Checkmarx, and local git state. Use it for all interactions with these services. It exists because MCP servers aren't available in this environment — pncli is your agent-friendly shim layer.
 
 ## Important
 
@@ -372,7 +372,8 @@ pncli sonar issues
   --resolved <bool>    Filter resolved issues: true or false
   --page <n>           Page number (1-based) (default: "1")
   --page-size <n>      Results per page (max 500) (default: "100")
-  --all                Fetch all pages (ignores --page/--page-size)
+  --all                Fetch all pages (consider --output-file for large
+  results; ignores --page/--page-size)
 
 pncli sonar measures
   --project <key>   SonarQube project key (or set defaults.sonar.project in
@@ -385,7 +386,7 @@ pncli sonar projects
   --query <text>   Search query
   --page <n>       Page number (1-based) (default: "1")
   --page-size <n>  Results per page (default: "100")
-  --all            Fetch all pages
+  --all            Fetch all pages (consider --output-file for large results)
 
 pncli sonar hotspots
   --project <key>      SonarQube project key (or set defaults.sonar.project in
@@ -395,7 +396,8 @@ pncli sonar hotspots
   --branch <name>      Branch name
   --page <n>           Page number (1-based) (default: "1")
   --page-size <n>      Results per page (default: "100")
-  --all                Fetch all pages
+  --all                Fetch all pages (consider --output-file for large
+  results)
 ```
 
 ### Sde
@@ -412,7 +414,8 @@ pncli sde users
   --active <bool>      Filter by active status: true or false
   --page <n>           Page number (1-based) (default: "1")
   --page-size <n>      Results per page (default: "100")
-  --all                Fetch all pages
+  --all                Fetch all pages (consider --output-file for large
+  results)
 
 pncli sde projects
   --name <name>       Filter by project name
@@ -426,7 +429,7 @@ pncli sde projects
   task_counts,permissions
   --page <n>          Page number (1-based) (default: "1")
   --page-size <n>     Results per page (default: "100")
-  --all               Fetch all pages
+  --all               Fetch all pages (consider --output-file for large results)
 
 pncli sde project
   --id <id>           Project ID (or set defaults.sde.project in config)
@@ -453,7 +456,8 @@ pncli sde tasks
   how_tos,last_note,references,regulation_sections
   --page <n>             Page number (1-based) (default: "1")
   --page-size <n>        Results per page (default: "100")
-  --all                  Fetch all pages
+  --all                  Fetch all pages (consider --output-file for large
+  results)
 
 pncli sde task
   --project <id>      Project ID (or set defaults.sde.project in config)
@@ -473,7 +477,8 @@ pncli sde threats
   --component-id <id>  Filter by component ID
   --page <n>           Page number (1-based) (default: "1")
   --page-size <n>      Results per page (default: "100")
-  --all                Fetch all pages
+  --all                Fetch all pages (consider --output-file for large
+  results)
 ```
 
 ### Deps
@@ -528,6 +533,7 @@ pncli config set
 pncli config test
 
 pncli config check
+  --output <format>  Output format: json or table (default: "json")
 ```
 
 ### Ado
@@ -549,38 +555,45 @@ pncli ado pipeline
 ### Jenkins
 
 ```
-pncli jenkins pipeline list
+pncli jenkins pipeline
+```
 
-pncli jenkins pipeline get
-  --name <job>         (required) Job name
+### Artifactory
 
-pncli jenkins pipeline run
-  --name <job>         (required) Job name
-  --parameter <k=v>    Build parameter in key=value format (repeatable)
-  --wait               Wait for the build to complete before returning
-  --timeout <s>        Max wait time in seconds (default: "600")
-  --poll <s>           Poll interval in seconds (default: "10")
+```
+pncli artifactory ping
 
-pncli jenkins pipeline list-runs
-  --name <job>         (required) Job name
-  --top <n>            Maximum number of builds to return (default: "25")
+pncli artifactory repos
+  --type <type>          Filter by type: local, virtual, remote, federated
+  --package-type <type>  Filter by package type: npm, maven, nuget, docker,
+  pypi, etc.
 
-pncli jenkins pipeline get-run
-  --name <job>         (required) Job name
-  --number <n>         (required) Build number
+pncli artifactory artifact-info
 
-pncli jenkins pipeline logs
-  --name <job>         (required) Job name
-  --number <n>         (required) Build number
+pncli artifactory properties-get
+
+pncli artifactory properties-set
+  --recursive  Apply recursively to folder contents (default: false)
+
+pncli artifactory search
+  --repo <name>     Filter by repository key
+  --name <pattern>  Filter by artifact name (supports * and ? wildcards)
+  --path <pattern>  Filter by artifact path (supports * and ? wildcards)
+  --after <date>    Created after this date (ISO 8601, e.g. 2024-01-01)
+  --before <date>   Created before this date (ISO 8601)
+  --limit <n>       Maximum results to return (default: 100) (default: "100")
+  --properties      Include artifact properties in results (default: false)
+
+pncli artifactory builds
+
+pncli artifactory build-runs
+
+pncli artifactory build-info
 ```
 
 ### Udeploy
 
 ```
-pncli udeploy
-  --application <name>  Application name or ID (or set defaults.udeploy.application in config)
-  --environment <name>  Environment name or ID (or set defaults.udeploy.environment in config)
-
 pncli udeploy apps
 
 pncli udeploy environments
@@ -588,39 +601,43 @@ pncli udeploy environments
 pncli udeploy components
 
 pncli udeploy versions
-  --component <name>  Component name or ID [required]
+  --component <name>  Component name or ID
 
 pncli udeploy import-version
-  --component <name>  Component name or ID [required]
-  --version <name>    Version name [required]
+  --component <name>  Component name or ID
+  --name <name>       Version name
   --no-finish         Skip marking the version as finished importing
 
 pncli udeploy run
-  --process <name>    Application process name or ID [required]
-  --component <name>  Component name (repeatable)
-  --version <name>    Component version (repeatable; positionally paired with --component)
-  --snapshot <name>   Snapshot name or ID (alternative to --component/--version)
-  --only-changed      Deploy only changed components
-  --wait              Poll until the process completes
-  --timeout <ms>      Max wait time in milliseconds (default: 600000)
+  --process <name>            Application process name or ID
+  --component <name>          Component name (repeatable) (default: [])
+  --component-version <name>  Component version (repeatable; positionally paired
+  with --component) (default: [])
+  --snapshot <name>           Snapshot name or ID (alternative to specifying
+  versions)
+  --only-changed              Deploy only changed components (default: false)
+  --wait                      Poll until the process completes (default: false)
+  --timeout <ms>              Max wait time in milliseconds (default: "600000")
 
 pncli udeploy request-status
-  --request-id <id>   Request ID returned by udeploy run [required]
+  --request-id <id>  Request ID returned by udeploy run
 
 pncli udeploy request-info
-  --request-id <id>   Request ID returned by udeploy run [required]
+  --request-id <id>  Request ID returned by udeploy run
 ```
 
 ### Skills
 
 ```
 pncli skills install
-  --agent <agent>  Target agent host: github-copilot | claude-code (default: "github-copilot")
+  --agent <agent>  Target agent host: github-copilot | claude-code (default:
+  "github-copilot")
   --scope <scope>  Installation scope: project | user (default: "project")
   --target <dir>   Override install directory (ignores --agent and --scope)
 
 pncli skills list
-  --agent <agent>  Target agent host: github-copilot | claude-code (default: "github-copilot")
+  --agent <agent>  Target agent host: github-copilot | claude-code (default:
+  "github-copilot")
   --scope <scope>  Installation scope: project | user (default: "project")
   --target <dir>   Override skills directory to scan
 ```

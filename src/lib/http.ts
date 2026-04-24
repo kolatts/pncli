@@ -4,6 +4,7 @@ import { PncliError } from './errors.js';
 import { ExitCode } from './exitCodes.js';
 import { log } from './output.js';
 import { buildAdoFetcher } from './adoFetch.js';
+import { buildCheckmarxFetcher } from './checkmarxFetch.js';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
@@ -123,6 +124,7 @@ export class HttpClient {
   private config: ResolvedConfig;
   private dryRun: boolean;
   private adoFetcher: typeof fetch | null = null;
+  private checkmarxFetcher: typeof fetch | null = null;
 
   constructor(config: ResolvedConfig, dryRun = false) {
     this.config = config;
@@ -740,6 +742,40 @@ export class HttpClient {
     }
 
     return results;
+  }
+
+  private getCheckmarxFetcher(): typeof fetch {
+    if (!this.checkmarxFetcher) {
+      this.checkmarxFetcher = buildCheckmarxFetcher(this.config);
+    }
+    return this.checkmarxFetcher;
+  }
+
+  async checkmarx<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.checkmarx.baseUrl;
+    if (!baseUrl) throw new PncliError('Checkmarx baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+
+    if (this.dryRun) {
+      const msg = `DRY RUN: ${opts.method ?? 'GET'} ${url}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const fetcher = this.getCheckmarxFetcher();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', ...opts.headers },
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000, fetcher);
   }
 }
 

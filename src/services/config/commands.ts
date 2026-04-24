@@ -196,6 +196,17 @@ export function registerConfigCommands(program: Command): void {
           results.udeploy = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.checkmarx.baseUrl && cfg.checkmarx.username && cfg.checkmarx.password) {
+          try {
+            await http.checkmarx<unknown>('/cxrestapi/projects');
+            results.checkmarx = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.checkmarx = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.checkmarx = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -360,6 +371,20 @@ export function registerConfigCommands(program: Command): void {
           results.artifactory = { status: 'valid', message: 'ok' };
         }
 
+        // Checkmarx
+        if (!cfg.checkmarx.username || !cfg.checkmarx.password) {
+          results.checkmarx = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.checkmarx.baseUrl) {
+          results.checkmarx = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.checkmarx<unknown>('/cxrestapi/projects', { timeoutMs: 10_000 });
+            results.checkmarx = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.checkmarx = categorize(err);
+          }
+        }
+
         // Exit code: prefer AUTH_ERROR if any invalid, else NETWORK_ERROR if any errors
         const statuses = Object.values(results).map(r => r.status);
         if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
@@ -367,7 +392,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory'] as const;
+          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -385,7 +410,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory'] as const;
+            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -729,6 +754,53 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── Checkmarx ─────────────────────────────────────\n');
+  const useCheckmarx = await confirm({
+    message: 'Configure Checkmarx CxSAST for vulnerability scanning?',
+    default: false
+  });
+
+  let checkmarxBaseUrl = '';
+  let checkmarxUsername = '';
+  let checkmarxPassword = '';
+
+  if (useCheckmarx) {
+    checkmarxBaseUrl = await input({
+      message: 'Checkmarx base URL (e.g. https://cx.company.com):',
+      default: ''
+    });
+
+    checkmarxUsername = await input({
+      message: 'Checkmarx username:',
+      default: ''
+    });
+
+    checkmarxPassword = await password({
+      message: 'Checkmarx password:',
+      validate: (v) => v.length > 0 || 'Password cannot be blank'
+    });
+
+    if (checkmarxBaseUrl && checkmarxUsername && checkmarxPassword) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          checkmarx: {
+            baseUrl: checkmarxBaseUrl,
+            username: checkmarxUsername,
+            password: checkmarxPassword
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.checkmarx<unknown>('/cxrestapi/projects');
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to Checkmarx: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your URL and credentials and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -818,6 +890,13 @@ async function initGlobalConfig(start: number): Promise<void> {
         ...(udeployPat ? { pat: udeployPat } : {}),
         ...(udeployUsername ? { username: udeployUsername } : {}),
         ...(udeployPassword ? { password: udeployPassword } : {})
+      }
+    } : {}),
+    ...(useCheckmarx && checkmarxBaseUrl ? {
+      checkmarx: {
+        baseUrl: checkmarxBaseUrl,
+        username: checkmarxUsername || undefined,
+        password: checkmarxPassword || undefined
       }
     } : {}),
     defaults: {

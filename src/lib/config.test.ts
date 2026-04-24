@@ -14,6 +14,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     ado: { baseUrl: 'https://ado.example.com', pat: 'secret-ado', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'secret-jenkins' },
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
+    checkmarx: { baseUrl: undefined, username: undefined, password: undefined },
     defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
     ...overrides
   };
@@ -87,5 +88,17 @@ describe('maskConfig', () => {
     const config = baseConfig({ udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined } });
     const masked = maskConfig(config) as ResolvedConfig;
     expect((masked.udeploy as { password?: string }).password).toBeUndefined();
+  });
+
+  it('masks checkmarx password when present', () => {
+    const config = baseConfig({ checkmarx: { baseUrl: 'https://cx.example.com', username: 'admin', password: 'secret' } });
+    const masked = maskConfig(config) as ResolvedConfig;
+    expect((masked.checkmarx as { password?: string }).password).toBe('***');
+  });
+
+  it('leaves checkmarx password undefined when not set', () => {
+    const config = baseConfig({ checkmarx: { baseUrl: undefined, username: undefined, password: undefined } });
+    const masked = maskConfig(config) as ResolvedConfig;
+    expect((masked.checkmarx as { password?: string }).password).toBeUndefined();
   });
 });
