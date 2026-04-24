@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI coding agents and humans unified access to Jira, Bitbucket, Confluence, SonarQube, SDElements, and Azure DevOps Server. Built with TypeScript, Commander.js, and published as `@kolatts/pncli`.
+pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI coding agents and humans unified access to Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, IBM UrbanCode Deploy, and Checkmarx. Built with TypeScript, Commander.js, and published as `@kolatts/pncli`.
 
 ## Key Directories
 
@@ -46,6 +46,14 @@ When adding a new service integration (new entry under `src/services/`), these f
 6. **`skills/local-setup/SKILL.md`** — add setup instructions for the new service in Step 4 (optional services), including all config keys and what they enable
 
 Never ship a new integration without updating all six of these. The local-setup skill is the onboarding contract — if it's missing a service, new users won't know it exists.
+
+## Self-Containment Rule
+
+pncli integrations must be self-contained. Users cannot be required to have any other CLI installed (e.g. `az`, `gcloud`, `kubectl`, `aws`) to obtain credentials, exchange tokens, or otherwise use a pncli command. If an integration needs a bearer token from an OAuth2 exchange, pncli performs the exchange itself using credentials the user supplies (username/password, client ID, refresh token, etc.). The only external dependency allowed at runtime is the target service's HTTP API.
+
+## Testing Rule
+
+Unit tests must exercise internal logic — auth header construction, URL building, response parsing, config resolution, token-cache expiry — by stubbing `fetch` (see `src/lib/http.test.ts` for the pattern). Tests must never depend on a live external service being reachable; a developer running `npm test` offline or on a locked-down CI runner must get the same pass/fail result as one with full network access. Connectivity against real services is what `pncli config test` is for, not the unit test suite.
 
 ## Commit Conventions
 

@@ -22,6 +22,7 @@ import { registerAdoCommands } from './services/ado/commands/index.js';
 import { registerJenkinsCommands } from './services/jenkins/commands.js';
 import { registerArtifactoryCommands } from './services/artifactory/commands.js';
 import { registerUdeployCommands } from './services/udeploy/commands.js';
+import { registerCheckmarxCommands } from './services/checkmarx/commands.js';
 import { registerSkillsCommands } from './services/skills/commands.js';
 
 const require = createRequire(import.meta.url);
@@ -70,6 +71,7 @@ registerAdoCommands(program);
 registerJenkinsCommands(program);
 registerArtifactoryCommands(program);
 registerUdeployCommands(program);
+registerCheckmarxCommands(program);
 registerSkillsCommands(program);
 
 program.addHelpText('after', `
@@ -85,6 +87,7 @@ Services:
   jenkins      Jenkins Data Center (jobs, builds, logs)
   artifactory  Artifactory (repos, artifact search, build info, properties)
   udeploy      IBM UrbanCode Deploy (component versions, deployment processes)
+  checkmarx    Checkmarx CxSAST (projects, scans, scan statistics)
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills
 `);

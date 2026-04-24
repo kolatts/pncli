@@ -92,6 +92,12 @@ export interface UdeployConfig {
   password?: string;
 }
 
+export interface CheckmarxConfig {
+  baseUrl?: string;
+  username?: string;
+  password?: string;
+}
+
 export interface UdeployDefaults {
   application?: string;
   environment?: string;
@@ -122,6 +128,7 @@ export interface GlobalConfig {
   ado?: AdoConfig;
   jenkins?: JenkinsConfig;
   udeploy?: UdeployConfig;
+  checkmarx?: CheckmarxConfig;
   defaults?: Defaults;
 }
 
@@ -174,6 +181,11 @@ export interface ResolvedConfig {
   udeploy: {
     baseUrl: string | undefined;
     pat: string | undefined;
+    username: string | undefined;
+    password: string | undefined;
+  };
+  checkmarx: {
+    baseUrl: string | undefined;
     username: string | undefined;
     password: string | undefined;
   };

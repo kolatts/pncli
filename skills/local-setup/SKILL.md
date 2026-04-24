@@ -89,6 +89,16 @@ pncli config set sonar.token <token>
 pncli config set sde.connection <token@hostname>
 ```
 
+**Checkmarx** — "Do you use Checkmarx CxSAST for vulnerability scanning?"
+
+```
+pncli config set checkmarx.baseUrl <url>
+pncli config set checkmarx.username <username>
+pncli config set checkmarx.password <password>
+```
+
+The base URL is your CxSAST server root, e.g. `https://cx.company.com`. pncli handles the OAuth2 token exchange using your username and password — no other tools required.
+
 **IBM UrbanCode Deploy** — "Do you use IBM UrbanCode Deploy for component imports or deployment processes?"
 
 ```

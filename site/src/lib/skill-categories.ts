@@ -27,9 +27,15 @@ export const categories: Record<string, { label: string; order: string[] }> = {
       'plan',
     ],
   },
+  'code-quality': {
+    label: 'Code Quality',
+    order: [
+      'license-audit-to-tickets',
+    ],
+  },
 };
 
-export const categoryOrder = ['setup', 'pr-workflow', 'security', 'planning'];
+export const categoryOrder = ['setup', 'pr-workflow', 'security', 'planning', 'code-quality'];
 
 export function getSkillsForCategory(
   entries: CollectionEntry<'skills'>[],
