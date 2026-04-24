@@ -12,7 +12,8 @@ namespace Feedback;
 
 /// <summary>
 /// Receives GitHub issue webhook events and sends a closed-notification email
-/// to the original submitter when a from-website issue is closed.
+/// to the original submitter whenever an issue is closed, provided an email
+/// mapping exists in the IssueEmailStore.
 /// Authenticated via HMAC-SHA256 signature in the X-Hub-Signature-256 header.
 /// </summary>
 public class IssueWebhookFunction(
@@ -65,18 +66,10 @@ public class IssueWebhookFunction(
         if (payload?.Issue is null)
             return req.CreateResponse(HttpStatusCode.OK);
 
-        // ── Filter: only closed issues with the from-website label ────────────
-        var label = Environment.GetEnvironmentVariable("GITHUB_ISSUE_LABEL") ?? "from-website";
-
+        // ── Filter: only closed issues ────────────────────────────────────────
         if (payload.Action != "closed")
         {
             logger.LogInformation("Ignoring action '{Action}' for issue #{Number}", payload.Action, payload.Issue.Number);
-            return req.CreateResponse(HttpStatusCode.OK);
-        }
-
-        if (!payload.Issue.Labels.Any(l => l.Name == label))
-        {
-            logger.LogInformation("Issue #{Number} missing label '{Label}' — skipping", payload.Issue.Number, label);
             return req.CreateResponse(HttpStatusCode.OK);
         }
 
