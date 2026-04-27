@@ -16,6 +16,9 @@ interface TokenCache {
  * with OAuth2 password-grant token exchange and bearer auth injected into every call.
  * The token is cached for the lifetime of the returned fetcher and refreshed
  * when within 60s of expiry.
+ *
+ * For Windows-auth Checkmarx instances, set checkmarx.clientId, checkmarx.clientSecret,
+ * and/or checkmarx.scope in config to override the defaults.
  */
 export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
   const { baseUrl, username, password } = config.checkmarx;
@@ -23,6 +26,10 @@ export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
   if (!baseUrl) throw new PncliError('Checkmarx baseUrl not configured. Run: pncli config init', 1);
   if (!username) throw new PncliError('Checkmarx username not configured. Run: pncli config init', 1);
   if (!password) throw new PncliError('Checkmarx password not configured. Run: pncli config init', 1);
+
+  const clientId = config.checkmarx.clientId ?? CX_CLIENT_ID;
+  const clientSecret = config.checkmarx.clientSecret ?? CX_CLIENT_SECRET;
+  const scope = config.checkmarx.scope ?? CX_SCOPE;
 
   // Capture as definite strings for use inside the closure (TypeScript can't narrow across closures)
   const resolvedUsername: string = username;
@@ -38,9 +45,9 @@ export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
 
     const body = new URLSearchParams({
       grant_type: 'password',
-      client_id: CX_CLIENT_ID,
-      client_secret: CX_CLIENT_SECRET,
-      scope: CX_SCOPE,
+      client_id: clientId,
+      client_secret: clientSecret,
+      scope: scope,
       username: resolvedUsername,
       password: resolvedPassword
     });

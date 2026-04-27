@@ -34,6 +34,9 @@ const ENV_KEYS = {
   CHECKMARX_BASE_URL: 'PNCLI_CHECKMARX_BASE_URL',
   CHECKMARX_USERNAME: 'PNCLI_CHECKMARX_USERNAME',
   CHECKMARX_PASSWORD: 'PNCLI_CHECKMARX_PASSWORD',
+  CHECKMARX_CLIENT_ID: 'PNCLI_CHECKMARX_CLIENT_ID',
+  CHECKMARX_CLIENT_SECRET: 'PNCLI_CHECKMARX_CLIENT_SECRET',
+  CHECKMARX_SCOPE: 'PNCLI_CHECKMARX_SCOPE',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -170,6 +173,9 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       baseUrl: process.env[ENV_KEYS.CHECKMARX_BASE_URL] ?? globalConfig.checkmarx?.baseUrl,
       username: process.env[ENV_KEYS.CHECKMARX_USERNAME] ?? globalConfig.checkmarx?.username,
       password: process.env[ENV_KEYS.CHECKMARX_PASSWORD] ?? globalConfig.checkmarx?.password,
+      clientId: process.env[ENV_KEYS.CHECKMARX_CLIENT_ID] ?? globalConfig.checkmarx?.clientId,
+      clientSecret: process.env[ENV_KEYS.CHECKMARX_CLIENT_SECRET] ?? globalConfig.checkmarx?.clientSecret,
+      scope: process.env[ENV_KEYS.CHECKMARX_SCOPE] ?? globalConfig.checkmarx?.scope,
     },
     defaults: mergedDefaults
   };
@@ -273,7 +279,8 @@ export function maskConfig(config: ResolvedConfig): unknown {
     },
     checkmarx: {
       ...config.checkmarx,
-      password: config.checkmarx.password ? '***' : undefined
+      password: config.checkmarx.password ? '***' : undefined,
+      clientSecret: config.checkmarx.clientSecret ? '***' : undefined
     }
   };
 }

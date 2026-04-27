@@ -96,6 +96,12 @@ export interface CheckmarxConfig {
   baseUrl?: string;
   username?: string;
   password?: string;
+  /** OAuth2 client_id. Defaults to 'resource_owner_client'. Set to a different value for Windows-auth Checkmarx instances. */
+  clientId?: string;
+  /** OAuth2 client_secret. Defaults to the well-known resource_owner_client secret. */
+  clientSecret?: string;
+  /** Space-separated OAuth2 scopes. Defaults to 'sast_api offline_access'. */
+  scope?: string;
 }
 
 export interface UdeployDefaults {
@@ -188,6 +194,9 @@ export interface ResolvedConfig {
     baseUrl: string | undefined;
     username: string | undefined;
     password: string | undefined;
+    clientId: string | undefined;
+    clientSecret: string | undefined;
+    scope: string | undefined;
   };
   defaults: {
     jira: JiraDefaults;
