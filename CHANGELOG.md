@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.8.0](https://github.com/kolatts/pncli/compare/v1.7.0...v1.8.0) (2026-04-24)
+
+
+### Features
+
+* add --path filter to ado repo diff ([dbbee5b](https://github.com/kolatts/pncli/commit/dbbee5b980514436512c76e2a7a48f11ccc2902b))
+* add --path filter to ado repo diff command ([10a7a0c](https://github.com/kolatts/pncli/commit/10a7a0c1e514aafe67a59caa39a5e62eb25f56d6)), closes [#70](https://github.com/kolatts/pncli/issues/70)
+* **artifactory:** add Artifactory API support ([#83](https://github.com/kolatts/pncli/issues/83)) ([077a861](https://github.com/kolatts/pncli/commit/077a8614e7e1606746e2beb5458e36a3f611160b))
+* **checkmarx:** add CxSAST 9.x integration with OAuth2 token exchange ([#118](https://github.com/kolatts/pncli/issues/118)) ([65e6f29](https://github.com/kolatts/pncli/commit/65e6f29f0535294b32fd703eaa93142ea572f16a))
+* **cli:** add --output-file global option for large command output ([#101](https://github.com/kolatts/pncli/issues/101)) ([092cbf8](https://github.com/kolatts/pncli/commit/092cbf835be7c422f13d99ad5905580eebb7bde7))
+* **docs:** Dark mode ([#74](https://github.com/kolatts/pncli/issues/74)) ([066d53b](https://github.com/kolatts/pncli/commit/066d53bcf67640a064e4eb5c12d6409f5b0c5822))
+* **jenkins:** add Jenkins Data Center pipeline integration ([#85](https://github.com/kolatts/pncli/issues/85)) ([dd0c90a](https://github.com/kolatts/pncli/commit/dd0c90aefdcc395d745dfc739540839eed7bf752))
+* **site:** reorganize NOTICE file and add hidden easter egg page ([#82](https://github.com/kolatts/pncli/issues/82)) ([86f4f77](https://github.com/kolatts/pncli/commit/86f4f77b92ca063b1a6586bf22283c21c3f6d394))
+* **site:** replace dark mode logo invert with dedicated dark variant ([#95](https://github.com/kolatts/pncli/issues/95)) ([9f05229](https://github.com/kolatts/pncli/commit/9f05229fd6d97fce0b46a0d06b043c81908067bd))
+* **skills:** add ship skill, vitest tests, and pre-commit gate cleanup ([#76](https://github.com/kolatts/pncli/issues/76)) ([23c0c3d](https://github.com/kolatts/pncli/commit/23c0c3db8267f6d136220014ae01cba27ac99f69))
+* **skills:** redux — isolate consumer skills, align to agentskills spec, add --agent/--scope to install ([#107](https://github.com/kolatts/pncli/issues/107)) ([edc57d0](https://github.com/kolatts/pncli/commit/edc57d09550d29e16c3e511f587d290431b45ae6))
+* **udeploy:** IBM UrbanCode Deploy integration with PAT auth ([#86](https://github.com/kolatts/pncli/issues/86)) ([160f2b3](https://github.com/kolatts/pncli/commit/160f2b31818d74a8d031650950e7d46ea3863cc4))
+* **udeploy:** re-add username/password auth and fix PAT token encoding ([#105](https://github.com/kolatts/pncli/issues/105)) ([b77bc1d](https://github.com/kolatts/pncli/commit/b77bc1d9c9ef3b1814982555558c7fc7ad63f382))
+* **udeploy:** support username/password basic auth in addition to auth tokens ([#98](https://github.com/kolatts/pncli/issues/98)) ([2570680](https://github.com/kolatts/pncli/commit/2570680f57067346e78205125715030c4e9e0408)), closes [#97](https://github.com/kolatts/pncli/issues/97)
+
+
+### Bug Fixes
+
+* add .mailmap to normalize contributor email identity ([3e581b5](https://github.com/kolatts/pncli/commit/3e581b5adca4ec97a6267ba90f8ff243e9c0d91e))
+* **ado:** use 7.1-preview.1 for connectionData endpoint ([f0e94ae](https://github.com/kolatts/pncli/commit/f0e94ae45b7b0f48a4e0ca06aad7240cbdd2c0c1))
+* **ado:** use 7.1-preview.1 for connectionData endpoint ([b21983d](https://github.com/kolatts/pncli/commit/b21983db7527224a5c6829719f2c3ac4a89ae5f4)), closes [#69](https://github.com/kolatts/pncli/issues/69)
+* **artifactory:** drop leading slash from API prefix to preserve base URL path ([#94](https://github.com/kolatts/pncli/issues/94)) ([26ab1ef](https://github.com/kolatts/pncli/commit/26ab1ef846fb8724a3ed8117248309012d795d64)), closes [#90](https://github.com/kolatts/pncli/issues/90)
+* **bitbucket:** pass bb subcommand to getClient so --project/--repo are resolved ([#92](https://github.com/kolatts/pncli/issues/92)) ([4e2e0d9](https://github.com/kolatts/pncli/commit/4e2e0d9a3ff4a4c379e6ec7268bad6ee5d60f35a)), closes [#89](https://github.com/kolatts/pncli/issues/89)
+* **jenkins:** handle multi-level folder paths in pipeline commands ([#96](https://github.com/kolatts/pncli/issues/96)) ([961766e](https://github.com/kolatts/pncli/commit/961766ea72237ea865b0afda0964718628f7bd87)), closes [#91](https://github.com/kolatts/pncli/issues/91)
+* **site:** reset Turnstile widget on failed submission ([#88](https://github.com/kolatts/pncli/issues/88)) ([bde51cb](https://github.com/kolatts/pncli/commit/bde51cb2484f265f0d15c97525668183462804f9))
+* **udeploy:** remove username/password auth, PAT-only ([#103](https://github.com/kolatts/pncli/issues/103)) ([24f0248](https://github.com/kolatts/pncli/commit/24f0248a7f147a7002beaa6c9df38e9880c60395))
+* **udeploy:** rename --version options to avoid root-level Commander.js collision ([#112](https://github.com/kolatts/pncli/issues/112)) ([96084c9](https://github.com/kolatts/pncli/commit/96084c97ddc1bda68c7f1c3b24811d17ca24f1d5))
+* **udeploy:** support username+pat as Basic auth credential pair ([#110](https://github.com/kolatts/pncli/issues/110)) ([3143caa](https://github.com/kolatts/pncli/commit/3143caae45636b2ecdba02baf9c93bdc157a3bc1)), closes [#109](https://github.com/kolatts/pncli/issues/109)
+
 ## [1.7.0](https://github.com/kolatts/pncli/compare/v1.6.1...v1.7.0) (2026-04-13)
 
 
