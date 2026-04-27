@@ -14,7 +14,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     ado: { baseUrl: 'https://ado.example.com', pat: 'secret-ado', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'secret-jenkins' },
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
-    checkmarx: { baseUrl: undefined, username: undefined, password: undefined },
+    checkmarx: { baseUrl: undefined, username: undefined, password: undefined, clientId: undefined, clientSecret: undefined, scope: undefined },
     defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
     ...overrides
   };
@@ -91,14 +91,20 @@ describe('maskConfig', () => {
   });
 
   it('masks checkmarx password when present', () => {
-    const config = baseConfig({ checkmarx: { baseUrl: 'https://cx.example.com', username: 'admin', password: 'secret' } });
+    const config = baseConfig({ checkmarx: { baseUrl: 'https://cx.example.com', username: 'admin', password: 'secret', clientId: undefined, clientSecret: undefined, scope: undefined } });
     const masked = maskConfig(config) as ResolvedConfig;
     expect((masked.checkmarx as { password?: string }).password).toBe('***');
   });
 
   it('leaves checkmarx password undefined when not set', () => {
-    const config = baseConfig({ checkmarx: { baseUrl: undefined, username: undefined, password: undefined } });
+    const config = baseConfig({ checkmarx: { baseUrl: undefined, username: undefined, password: undefined, clientId: undefined, clientSecret: undefined, scope: undefined } });
     const masked = maskConfig(config) as ResolvedConfig;
     expect((masked.checkmarx as { password?: string }).password).toBeUndefined();
+  });
+
+  it('masks checkmarx clientSecret when present', () => {
+    const config = baseConfig({ checkmarx: { baseUrl: 'https://cx.example.com', username: 'admin', password: 'secret', clientId: 'access_control_ui', clientSecret: 'my-secret', scope: undefined } });
+    const masked = maskConfig(config) as ResolvedConfig;
+    expect((masked.checkmarx as { clientSecret?: string }).clientSecret).toBe('***');
   });
 });

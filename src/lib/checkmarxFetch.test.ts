@@ -18,6 +18,9 @@ function makeConfig(overrides: Partial<ResolvedConfig['checkmarx']> = {}): Resol
       baseUrl: 'https://cx.example.com',
       username: 'admin',
       password: 'secret',
+      clientId: undefined,
+      clientSecret: undefined,
+      scope: undefined,
       ...overrides
     },
     defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} }
@@ -147,5 +150,41 @@ describe('buildCheckmarxFetcher', () => {
 
     const tokenCalls = mockFetch.mock.calls.filter(c => String(c[0]).includes('connect/token'));
     expect(tokenCalls).toHaveLength(2);
+  });
+
+  it('uses configured clientId and scope when provided (Windows auth override)', async () => {
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(makeTokenResponse()), { status: 200 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+    vi.stubGlobal('fetch', mockFetch);
+
+    const fetcher = buildCheckmarxFetcher(makeConfig({
+      clientId: 'access_control_ui',
+      clientSecret: '',
+      scope: 'openid profile email access_control_api'
+    }));
+    await fetcher('https://cx.example.com/cxrestapi/projects');
+
+    const tokenCall = mockFetch.mock.calls[0];
+    const body = tokenCall[1]?.body as string;
+    expect(body).toContain('client_id=access_control_ui');
+    expect(body).toContain('scope=openid+profile+email+access_control_api');
+  });
+
+  it('falls back to default clientId and scope when not configured', async () => {
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(makeTokenResponse()), { status: 200 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+    vi.stubGlobal('fetch', mockFetch);
+
+    const fetcher = buildCheckmarxFetcher(makeConfig({ clientId: undefined, scope: undefined }));
+    await fetcher('https://cx.example.com/cxrestapi/projects');
+
+    const tokenCall = mockFetch.mock.calls[0];
+    const body = tokenCall[1]?.body as string;
+    expect(body).toContain('client_id=resource_owner_client');
+    expect(body).toContain('scope=sast_api');
   });
 });

@@ -763,6 +763,9 @@ async function initGlobalConfig(start: number): Promise<void> {
   let checkmarxBaseUrl = '';
   let checkmarxUsername = '';
   let checkmarxPassword = '';
+  let checkmarxClientId = '';
+  let checkmarxClientSecret = '';
+  let checkmarxScope = '';
 
   if (useCheckmarx) {
     checkmarxBaseUrl = await input({
@@ -780,6 +783,28 @@ async function initGlobalConfig(start: number): Promise<void> {
       validate: (v) => v.length > 0 || 'Password cannot be blank'
     });
 
+    const useAdvancedOAuth = await confirm({
+      message: 'Configure advanced OAuth2 settings? (needed for Windows-auth Checkmarx instances)',
+      default: false
+    });
+
+    if (useAdvancedOAuth) {
+      checkmarxClientId = await input({
+        message: 'OAuth2 client ID (leave blank to use default: resource_owner_client):',
+        default: ''
+      });
+
+      checkmarxClientSecret = await input({
+        message: 'OAuth2 client secret (leave blank to use default):',
+        default: ''
+      });
+
+      checkmarxScope = await input({
+        message: 'OAuth2 scope (leave blank to use default: sast_api offline_access):',
+        default: ''
+      });
+    }
+
     if (checkmarxBaseUrl && checkmarxUsername && checkmarxPassword) {
       process.stderr.write('\n  Verifying connection...\n');
       try {
@@ -788,7 +813,10 @@ async function initGlobalConfig(start: number): Promise<void> {
           checkmarx: {
             baseUrl: checkmarxBaseUrl,
             username: checkmarxUsername,
-            password: checkmarxPassword
+            password: checkmarxPassword,
+            ...(checkmarxClientId ? { clientId: checkmarxClientId } : {}),
+            ...(checkmarxClientSecret ? { clientSecret: checkmarxClientSecret } : {}),
+            ...(checkmarxScope ? { scope: checkmarxScope } : {})
           }
         };
         const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
@@ -896,7 +924,10 @@ async function initGlobalConfig(start: number): Promise<void> {
       checkmarx: {
         baseUrl: checkmarxBaseUrl,
         username: checkmarxUsername || undefined,
-        password: checkmarxPassword || undefined
+        password: checkmarxPassword || undefined,
+        ...(checkmarxClientId ? { clientId: checkmarxClientId } : {}),
+        ...(checkmarxClientSecret ? { clientSecret: checkmarxClientSecret } : {}),
+        ...(checkmarxScope ? { scope: checkmarxScope } : {})
       }
     } : {}),
     defaults: {

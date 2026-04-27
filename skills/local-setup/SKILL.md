@@ -99,6 +99,16 @@ pncli config set checkmarx.password <password>
 
 The base URL is your CxSAST server root, e.g. `https://cx.company.com`. pncli handles the OAuth2 token exchange using your username and password — no other tools required.
 
+If the instance uses Windows authentication, the OAuth2 server may require different settings than the defaults. Override them with:
+
+```
+pncli config set checkmarx.clientId <client-id>
+pncli config set checkmarx.clientSecret <client-secret>
+pncli config set checkmarx.scope "<scope>"
+```
+
+Defaults: `clientId=resource_owner_client`, `scope=sast_api offline_access`. These can also be set via env vars: `PNCLI_CHECKMARX_CLIENT_ID`, `PNCLI_CHECKMARX_CLIENT_SECRET`, `PNCLI_CHECKMARX_SCOPE`.
+
 **IBM UrbanCode Deploy** — "Do you use IBM UrbanCode Deploy for component imports or deployment processes?"
 
 ```
