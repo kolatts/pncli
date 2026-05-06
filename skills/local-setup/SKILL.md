@@ -99,6 +99,16 @@ pncli config set checkmarx.password <password>
 
 The base URL is your CxSAST server root, e.g. `https://cx.company.com`. pncli handles the OAuth2 token exchange using your username and password — no other tools required.
 
+**ServiceNow** — "Do you use ServiceNow for change management?"
+
+```
+pncli config set servicenow.baseUrl <url>
+pncli config set servicenow.username <username>
+pncli config set servicenow.password <password>
+```
+
+The base URL is your ServiceNow instance root, e.g. `https://your-instance.service-now.com`. pncli authenticates using HTTP Basic auth with your username and password — no other tools required. Enables `pncli servicenow change list` and `pncli servicenow change get`.
+
 **IBM UrbanCode Deploy** — "Do you use IBM UrbanCode Deploy for component imports or deployment processes?"
 
 ```

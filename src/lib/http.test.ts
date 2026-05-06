@@ -15,6 +15,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'tok' },
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     checkmarx: { baseUrl: undefined, username: undefined, password: undefined },
+    servicenow: { baseUrl: undefined, username: undefined, password: undefined },
     defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
     ...overrides
   };

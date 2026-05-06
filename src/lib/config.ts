@@ -34,6 +34,9 @@ const ENV_KEYS = {
   CHECKMARX_BASE_URL: 'PNCLI_CHECKMARX_BASE_URL',
   CHECKMARX_USERNAME: 'PNCLI_CHECKMARX_USERNAME',
   CHECKMARX_PASSWORD: 'PNCLI_CHECKMARX_PASSWORD',
+  SERVICENOW_BASE_URL: 'PNCLI_SERVICENOW_BASE_URL',
+  SERVICENOW_USERNAME: 'PNCLI_SERVICENOW_USERNAME',
+  SERVICENOW_PASSWORD: 'PNCLI_SERVICENOW_PASSWORD',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -171,6 +174,11 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       username: process.env[ENV_KEYS.CHECKMARX_USERNAME] ?? globalConfig.checkmarx?.username,
       password: process.env[ENV_KEYS.CHECKMARX_PASSWORD] ?? globalConfig.checkmarx?.password,
     },
+    servicenow: {
+      baseUrl: process.env[ENV_KEYS.SERVICENOW_BASE_URL] ?? globalConfig.servicenow?.baseUrl,
+      username: process.env[ENV_KEYS.SERVICENOW_USERNAME] ?? globalConfig.servicenow?.username,
+      password: process.env[ENV_KEYS.SERVICENOW_PASSWORD] ?? globalConfig.servicenow?.password,
+    },
     defaults: mergedDefaults
   };
 }
@@ -274,6 +282,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     checkmarx: {
       ...config.checkmarx,
       password: config.checkmarx.password ? '***' : undefined
+    },
+    servicenow: {
+      ...config.servicenow,
+      password: config.servicenow.password ? '***' : undefined
     }
   };
 }

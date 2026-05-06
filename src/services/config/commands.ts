@@ -207,6 +207,17 @@ export function registerConfigCommands(program: Command): void {
           results.checkmarx = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.servicenow.baseUrl && cfg.servicenow.username && cfg.servicenow.password) {
+          try {
+            await http.servicenow<unknown>('/api/now/table/change_request', { params: { sysparm_limit: 1 } });
+            results.servicenow = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.servicenow = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.servicenow = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -385,6 +396,23 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        // ServiceNow
+        if (!cfg.servicenow.username || !cfg.servicenow.password) {
+          results.servicenow = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.servicenow.baseUrl) {
+          results.servicenow = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.servicenow<unknown>('/api/now/table/change_request', {
+              params: { sysparm_limit: 1 },
+              timeoutMs: 10_000
+            });
+            results.servicenow = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.servicenow = categorize(err);
+          }
+        }
+
         // Exit code: prefer AUTH_ERROR if any invalid, else NETWORK_ERROR if any errors
         const statuses = Object.values(results).map(r => r.status);
         if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
@@ -392,7 +420,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx'] as const;
+          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -410,7 +438,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx'] as const;
+            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -801,6 +829,53 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── ServiceNow ────────────────────────────────────\n');
+  const useServiceNow = await confirm({
+    message: 'Configure ServiceNow for change request operations?',
+    default: false
+  });
+
+  let serviceNowBaseUrl = '';
+  let serviceNowUsername = '';
+  let serviceNowPassword = '';
+
+  if (useServiceNow) {
+    serviceNowBaseUrl = await input({
+      message: 'ServiceNow instance URL (e.g. https://your-instance.service-now.com):',
+      default: ''
+    });
+
+    serviceNowUsername = await input({
+      message: 'ServiceNow username:',
+      default: ''
+    });
+
+    serviceNowPassword = await password({
+      message: 'ServiceNow password:',
+      validate: (v) => v.length > 0 || 'Password cannot be blank'
+    });
+
+    if (serviceNowBaseUrl && serviceNowUsername && serviceNowPassword) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          servicenow: {
+            baseUrl: serviceNowBaseUrl,
+            username: serviceNowUsername,
+            password: serviceNowPassword
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.servicenow<unknown>('/api/now/table/change_request', { params: { sysparm_limit: 1 } });
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to ServiceNow: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your URL and credentials and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -897,6 +972,13 @@ async function initGlobalConfig(start: number): Promise<void> {
         baseUrl: checkmarxBaseUrl,
         username: checkmarxUsername || undefined,
         password: checkmarxPassword || undefined
+      }
+    } : {}),
+    ...(useServiceNow && serviceNowBaseUrl ? {
+      servicenow: {
+        baseUrl: serviceNowBaseUrl,
+        username: serviceNowUsername || undefined,
+        password: serviceNowPassword || undefined
       }
     } : {}),
     defaults: {

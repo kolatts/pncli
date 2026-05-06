@@ -23,6 +23,7 @@ import { registerJenkinsCommands } from './services/jenkins/commands.js';
 import { registerArtifactoryCommands } from './services/artifactory/commands.js';
 import { registerUdeployCommands } from './services/udeploy/commands.js';
 import { registerCheckmarxCommands } from './services/checkmarx/commands.js';
+import { registerServiceNowCommands } from './services/servicenow/commands.js';
 import { registerSkillsCommands } from './services/skills/commands.js';
 
 const require = createRequire(import.meta.url);
@@ -72,6 +73,7 @@ registerJenkinsCommands(program);
 registerArtifactoryCommands(program);
 registerUdeployCommands(program);
 registerCheckmarxCommands(program);
+registerServiceNowCommands(program);
 registerSkillsCommands(program);
 
 program.addHelpText('after', `
@@ -88,6 +90,7 @@ Services:
   artifactory  Artifactory (repos, artifact search, build info, properties)
   udeploy      IBM UrbanCode Deploy (component versions, deployment processes)
   checkmarx    Checkmarx CxSAST (projects, scans, scan statistics)
+  servicenow   ServiceNow (change requests)
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills
 `);

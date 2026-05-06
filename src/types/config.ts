@@ -98,6 +98,12 @@ export interface CheckmarxConfig {
   password?: string;
 }
 
+export interface ServiceNowConfig {
+  baseUrl?: string;
+  username?: string;
+  password?: string;
+}
+
 export interface UdeployDefaults {
   application?: string;
   environment?: string;
@@ -129,6 +135,7 @@ export interface GlobalConfig {
   jenkins?: JenkinsConfig;
   udeploy?: UdeployConfig;
   checkmarx?: CheckmarxConfig;
+  servicenow?: ServiceNowConfig;
   defaults?: Defaults;
 }
 
@@ -185,6 +192,11 @@ export interface ResolvedConfig {
     password: string | undefined;
   };
   checkmarx: {
+    baseUrl: string | undefined;
+    username: string | undefined;
+    password: string | undefined;
+  };
+  servicenow: {
     baseUrl: string | undefined;
     username: string | undefined;
     password: string | undefined;
