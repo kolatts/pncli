@@ -140,6 +140,7 @@ pncli jira create-issue
   --priority <name>       Priority name
   --assignee <accountId>  Assignee account ID
   --labels <labels>       Comma-separated labels
+  --parent <key>          Parent issue key — creates an "is child of" link after creation
   --field <Name=value>    Custom field value (repeatable) (default: [])
 
 pncli jira update-issue
@@ -559,6 +560,7 @@ pncli ado work create
   --description <text>  Description
   --assignee <user>     Assigned to (display name or email)
   --priority <n>        Priority (1-4)
+  --parent <id>         Parent work item ID — creates a parent link after creation
   --field <name=value>  Additional field (repeatable) (default: [])
 
 pncli ado work update
