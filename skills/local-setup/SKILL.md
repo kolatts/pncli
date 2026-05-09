@@ -121,6 +121,16 @@ pncli config set defaults.udeploy.application <app-name>
 pncli config set defaults.udeploy.environment <env-name>
 ```
 
+**Jenkins** — "Do you use Jenkins for CI/CD pipelines?"
+
+```
+pncli config set jenkins.baseUrl <url>
+pncli config set jenkins.username <username>
+pncli config set jenkins.apiToken <token>
+```
+
+The base URL is your Jenkins root, e.g. `https://jenkins.company.com`. pncli authenticates using HTTP Basic (username + API token).
+
 **Artifactory** — "Do you use Artifactory for package management?"
 
 ```
