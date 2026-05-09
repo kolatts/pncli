@@ -15,6 +15,8 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'secret-jenkins' },
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     checkmarx: { baseUrl: undefined, username: undefined, password: undefined },
+    servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
+    contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
     ...overrides
   };
@@ -100,5 +102,26 @@ describe('maskConfig', () => {
     const config = baseConfig({ checkmarx: { baseUrl: undefined, username: undefined, password: undefined } });
     const masked = maskConfig(config) as ResolvedConfig;
     expect((masked.checkmarx as { password?: string }).password).toBeUndefined();
+  });
+
+  it('masks servicenow password and apiToken when present', () => {
+    const config = baseConfig({ servicenow: { baseUrl: 'https://sn.example.com', username: 'user', password: 'secret', apiToken: 'tok' } });
+    const masked = maskConfig(config) as ResolvedConfig;
+    expect((masked.servicenow as { password?: string }).password).toBe('***');
+    expect((masked.servicenow as { apiToken?: string }).apiToken).toBe('***');
+  });
+
+  it('leaves servicenow credentials undefined when not set', () => {
+    const config = baseConfig({ servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined } });
+    const masked = maskConfig(config) as ResolvedConfig;
+    expect((masked.servicenow as { password?: string }).password).toBeUndefined();
+    expect((masked.servicenow as { apiToken?: string }).apiToken).toBeUndefined();
+  });
+
+  it('masks contrast apiKey and serviceKey when present', () => {
+    const config = baseConfig({ contrast: { baseUrl: undefined, orgUuid: 'org', apiKey: 'key', serviceKey: 'svc', username: 'user' } });
+    const masked = maskConfig(config) as ResolvedConfig;
+    expect((masked.contrast as { apiKey?: string }).apiKey).toBe('***');
+    expect((masked.contrast as { serviceKey?: string }).serviceKey).toBe('***');
   });
 });

@@ -207,6 +207,29 @@ export function registerConfigCommands(program: Command): void {
           results.checkmarx = { ok: null, message: 'not configured' };
         }
 
+        const snConfigured = cfg.servicenow.baseUrl && cfg.servicenow.username && (cfg.servicenow.password || cfg.servicenow.apiToken);
+        if (snConfigured) {
+          try {
+            await http.servicenow<unknown>('/api/now/table/change_request', { params: { sysparm_limit: 1 } });
+            results.servicenow = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.servicenow = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.servicenow = { ok: null, message: 'not configured' };
+        }
+
+        if (cfg.contrast.apiKey && cfg.contrast.serviceKey && cfg.contrast.username && cfg.contrast.orgUuid) {
+          try {
+            await http.contrast<unknown>(`/Contrast/api/ng/${cfg.contrast.orgUuid}/applications`, { params: { limit: 1 } });
+            results.contrast = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.contrast = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.contrast = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -385,6 +408,35 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        // ServiceNow
+        const snCreds = cfg.servicenow.username && (cfg.servicenow.password || cfg.servicenow.apiToken);
+        if (!snCreds) {
+          results.servicenow = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.servicenow.baseUrl) {
+          results.servicenow = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.servicenow<unknown>('/api/now/table/change_request', { params: { sysparm_limit: 1 }, timeoutMs: 10_000 });
+            results.servicenow = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.servicenow = categorize(err);
+          }
+        }
+
+        // Contrast IAST
+        if (!cfg.contrast.apiKey || !cfg.contrast.serviceKey || !cfg.contrast.username) {
+          results.contrast = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.contrast.orgUuid) {
+          results.contrast = { status: 'error', message: 'orgUuid not configured' };
+        } else {
+          try {
+            await http.contrast<unknown>(`/Contrast/api/ng/${cfg.contrast.orgUuid}/applications`, { params: { limit: 1 }, timeoutMs: 10_000 });
+            results.contrast = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.contrast = categorize(err);
+          }
+        }
+
         // Exit code: prefer AUTH_ERROR if any invalid, else NETWORK_ERROR if any errors
         const statuses = Object.values(results).map(r => r.status);
         if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
@@ -392,7 +444,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx'] as const;
+          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -410,7 +462,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx'] as const;
+            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -801,6 +853,130 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── ServiceNow ────────────────────────────────────\n');
+  const useServiceNow = await confirm({
+    message: 'Configure ServiceNow for change management?',
+    default: false
+  });
+
+  let servicenowBaseUrl = '';
+  let servicenowUsername = '';
+  let servicenowPassword = '';
+  let servicenowApiToken = '';
+
+  if (useServiceNow) {
+    servicenowBaseUrl = await input({
+      message: 'ServiceNow instance URL (e.g. https://mycompany.service-now.com):',
+      default: ''
+    });
+
+    servicenowUsername = await input({
+      message: 'ServiceNow username:',
+      default: ''
+    });
+
+    const snUseToken = await confirm({
+      message: 'Authenticate with an API token instead of a password?',
+      default: false
+    });
+
+    if (snUseToken) {
+      servicenowApiToken = await password({
+        message: 'ServiceNow API token:',
+        validate: (v) => v.length > 0 || 'Token cannot be blank'
+      });
+    } else {
+      servicenowPassword = await password({
+        message: 'ServiceNow password:',
+        validate: (v) => v.length > 0 || 'Password cannot be blank'
+      });
+    }
+
+    const snHasCreds = servicenowBaseUrl && servicenowUsername && (servicenowPassword || servicenowApiToken);
+    if (snHasCreds) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          servicenow: {
+            baseUrl: servicenowBaseUrl,
+            username: servicenowUsername,
+            password: servicenowPassword || undefined,
+            apiToken: servicenowApiToken || undefined
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.servicenow<unknown>('/api/now/table/change_request', { params: { sysparm_limit: 1 } });
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to ServiceNow: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your URL and credentials and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
+  process.stderr.write('\n── Contrast IAST ─────────────────────────────────\n');
+  const useContrast = await confirm({
+    message: 'Configure Contrast Security IAST for vulnerability findings?',
+    default: false
+  });
+
+  let contrastBaseUrl = '';
+  let contrastOrgUuid = '';
+  let contrastUsername = '';
+  let contrastApiKey = '';
+  let contrastServiceKey = '';
+
+  if (useContrast) {
+    process.stderr.write('  Find your credentials in Contrast under User Settings → Your Keys.\n');
+
+    contrastBaseUrl = await input({
+      message: 'Contrast base URL (leave blank for cloud: https://app.contrastsecurity.com):',
+      default: ''
+    });
+
+    contrastOrgUuid = await input({
+      message: 'Organization UUID:',
+      default: ''
+    });
+
+    contrastUsername = await input({
+      message: 'Username (email):',
+      default: ''
+    });
+
+    contrastApiKey = await password({
+      message: 'API key:'
+    });
+
+    contrastServiceKey = await password({
+      message: 'Service key:'
+    });
+
+    const contrastHasCreds = contrastOrgUuid && contrastUsername && contrastApiKey && contrastServiceKey;
+    if (contrastHasCreds) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          contrast: {
+            baseUrl: contrastBaseUrl || undefined,
+            orgUuid: contrastOrgUuid,
+            username: contrastUsername,
+            apiKey: contrastApiKey,
+            serviceKey: contrastServiceKey
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.contrast<unknown>(`/Contrast/api/ng/${contrastOrgUuid}/applications`, { params: { limit: 1 } });
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to Contrast: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your credentials and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -897,6 +1073,23 @@ async function initGlobalConfig(start: number): Promise<void> {
         baseUrl: checkmarxBaseUrl,
         username: checkmarxUsername || undefined,
         password: checkmarxPassword || undefined
+      }
+    } : {}),
+    ...(useServiceNow && servicenowBaseUrl ? {
+      servicenow: {
+        baseUrl: servicenowBaseUrl,
+        username: servicenowUsername || undefined,
+        ...(servicenowApiToken ? { apiToken: servicenowApiToken } : {}),
+        ...(servicenowPassword ? { password: servicenowPassword } : {})
+      }
+    } : {}),
+    ...(useContrast && contrastOrgUuid ? {
+      contrast: {
+        ...(contrastBaseUrl ? { baseUrl: contrastBaseUrl } : {}),
+        orgUuid: contrastOrgUuid,
+        username: contrastUsername || undefined,
+        apiKey: contrastApiKey || undefined,
+        serviceKey: contrastServiceKey || undefined
       }
     } : {}),
     defaults: {
