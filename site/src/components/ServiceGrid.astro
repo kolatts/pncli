@@ -1,20 +1,8 @@
 ---
 import { Image } from 'astro:assets';
 import tools from '../assets/tools.png';
-
-const services = [
-  { name: 'Git',          description: 'Local repository operations',   active: true  },
-  { name: 'Jira',         description: 'Issues, sprints, projects',      active: true  },
-  { name: 'Bitbucket',    description: 'Pull requests, repositories',    active: true  },
-  { name: 'Confluence',   description: 'Pages, spaces, content',         active: true  },
-  { name: 'SonarQube',    description: 'Code quality & security',        active: true  },
-  { name: 'Checkmarx',    description: 'Vulnerability scanning (SAST)',  active: true  },
-  { name: 'SDElements',   description: 'Security requirements',          active: true  },
-  { name: 'Azure DevOps', description: 'Work items, pipelines',          active: true  },
-  { name: 'IBM UDeploy',  description: 'Component versions, deploys',    active: true  },
-  { name: 'Artifactory',  description: 'Artifact repository',            active: true  },
-  { name: 'Jenkins',      description: 'CI/CD pipelines',               active: true  },
-];
+import TestingMeter from './TestingMeter.astro';
+import { integrations } from '../lib/integrations';
 ---
 
 <section class="relative w-full py-20 px-6 overflow-hidden bg-cream border-t border-ink/5">
@@ -33,11 +21,12 @@ const services = [
       <h2 class="font-display text-4xl md:text-5xl font-bold text-ink">
         Every tool your org<br class="hidden sm:block" /> throws at you.
       </h2>
-      <p class="mt-3 text-ink/50 text-lg">Data Center editions, specifically. The ones your company hasn't gotten around to migrating off yet.</p>
+      <p class="mt-3 text-ink/50 text-lg">Give GitHub Copilot, Claude Code, and Codex a unified API into the Data Center editions your org hasn't migrated yet.</p>
+      <p class="mt-2 text-ink/30 text-sm font-mono">Testing maturity shown per integration — <code>untested</code> means shipped but not validated against a live instance.</p>
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {services.map(service => (
+      {integrations.map(service => (
         <div
           class={`rounded-xl px-5 py-4 border transition-all ${
             service.active
@@ -55,7 +44,7 @@ const services = [
               </p>
             </div>
             {service.active ? (
-              <span class="shrink-0 mt-1.5 w-2 h-2 rounded-full bg-coral/80"></span>
+              <TestingMeter level={service.testing} />
             ) : (
               <span class="shrink-0 text-xs font-mono text-ink/30 bg-ink/5 px-2 py-0.5 rounded-full whitespace-nowrap">
                 soon
