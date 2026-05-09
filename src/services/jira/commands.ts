@@ -3,7 +3,7 @@ import { JiraClient } from './client.js';
 import { buildFieldMap, translateJql, translateFieldsInOutput, formatFieldValue } from './custom-fields.js';
 import { createHttpClient } from '../../lib/http.js';
 import { loadConfig } from '../../lib/config.js';
-import { success, fail } from '../../lib/output.js';
+import { success, fail, warn } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
 import type { CustomFieldMap } from '../../types/jira.js';
 
@@ -61,8 +61,9 @@ export function registerJiraCommands(program: Command): void {
     .option('--priority <name>', 'Priority name')
     .option('--assignee <accountId>', 'Assignee account ID')
     .option('--labels <labels>', 'Comma-separated labels')
+    .option('--parent <key>', 'Parent issue key — creates an "is child of" link after creation')
     .option('--field <Name=value>', 'Custom field value (repeatable)', (val: string, acc: string[]) => [...acc, val], [] as string[])
-    .action(async (opts: { project?: string; type?: string; summary: string; description?: string; priority?: string; assignee?: string; labels?: string; field: string[] }) => {
+    .action(async (opts: { project?: string; type?: string; summary: string; description?: string; priority?: string; assignee?: string; labels?: string; parent?: string; field: string[] }) => {
       const start = Date.now();
       try {
         const { client, fieldMap } = getClientAndFields(program);
@@ -75,6 +76,14 @@ export function registerJiraCommands(program: Command): void {
         const customFieldValues = parseFieldArgs(opts.field, fieldMap);
         const data = await client.createIssue({ project, issueType, summary: opts.summary, description: opts.description, priority, assignee: opts.assignee, labels, customFieldValues });
         success(data, 'jira', 'create-issue', start);
+        if (opts.parent) {
+          try {
+            await client.linkIssue({ key: data.key, linkType: 'is child of', target: opts.parent });
+          } catch (linkErr) {
+            warn(`Created ${data.key} but failed to link to parent ${opts.parent}: ${linkErr instanceof Error ? linkErr.message : linkErr}`);
+          }
+        }
+        return;
       } catch (err) { fail(err, 'jira', 'create-issue', start); }
     });
 
