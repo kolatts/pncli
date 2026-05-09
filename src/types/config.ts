@@ -98,6 +98,21 @@ export interface CheckmarxConfig {
   password?: string;
 }
 
+export interface ServiceNowConfig {
+  baseUrl?: string;
+  username?: string;
+  password?: string;
+  apiToken?: string;
+}
+
+export interface ContrastConfig {
+  baseUrl?: string;
+  orgUuid?: string;
+  apiKey?: string;
+  serviceKey?: string;
+  username?: string;
+}
+
 export interface UdeployDefaults {
   application?: string;
   environment?: string;
@@ -129,6 +144,8 @@ export interface GlobalConfig {
   jenkins?: JenkinsConfig;
   udeploy?: UdeployConfig;
   checkmarx?: CheckmarxConfig;
+  servicenow?: ServiceNowConfig;
+  contrast?: ContrastConfig;
   defaults?: Defaults;
 }
 
@@ -188,6 +205,19 @@ export interface ResolvedConfig {
     baseUrl: string | undefined;
     username: string | undefined;
     password: string | undefined;
+  };
+  servicenow: {
+    baseUrl: string | undefined;
+    username: string | undefined;
+    password: string | undefined;
+    apiToken: string | undefined;
+  };
+  contrast: {
+    baseUrl: string | undefined;
+    orgUuid: string | undefined;
+    apiKey: string | undefined;
+    serviceKey: string | undefined;
+    username: string | undefined;
   };
   defaults: {
     jira: JiraDefaults;

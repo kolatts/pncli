@@ -34,6 +34,15 @@ const ENV_KEYS = {
   CHECKMARX_BASE_URL: 'PNCLI_CHECKMARX_BASE_URL',
   CHECKMARX_USERNAME: 'PNCLI_CHECKMARX_USERNAME',
   CHECKMARX_PASSWORD: 'PNCLI_CHECKMARX_PASSWORD',
+  SERVICENOW_BASE_URL: 'PNCLI_SERVICENOW_BASE_URL',
+  SERVICENOW_USERNAME: 'PNCLI_SERVICENOW_USERNAME',
+  SERVICENOW_PASSWORD: 'PNCLI_SERVICENOW_PASSWORD',
+  SERVICENOW_API_TOKEN: 'PNCLI_SERVICENOW_API_TOKEN',
+  CONTRAST_BASE_URL: 'PNCLI_CONTRAST_BASE_URL',
+  CONTRAST_ORG_UUID: 'PNCLI_CONTRAST_ORG_UUID',
+  CONTRAST_API_KEY: 'PNCLI_CONTRAST_API_KEY',
+  CONTRAST_SERVICE_KEY: 'PNCLI_CONTRAST_SERVICE_KEY',
+  CONTRAST_USERNAME: 'PNCLI_CONTRAST_USERNAME',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -171,6 +180,19 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       username: process.env[ENV_KEYS.CHECKMARX_USERNAME] ?? globalConfig.checkmarx?.username,
       password: process.env[ENV_KEYS.CHECKMARX_PASSWORD] ?? globalConfig.checkmarx?.password,
     },
+    servicenow: {
+      baseUrl: process.env[ENV_KEYS.SERVICENOW_BASE_URL] ?? globalConfig.servicenow?.baseUrl,
+      username: process.env[ENV_KEYS.SERVICENOW_USERNAME] ?? globalConfig.servicenow?.username,
+      password: process.env[ENV_KEYS.SERVICENOW_PASSWORD] ?? globalConfig.servicenow?.password,
+      apiToken: process.env[ENV_KEYS.SERVICENOW_API_TOKEN] ?? globalConfig.servicenow?.apiToken,
+    },
+    contrast: {
+      baseUrl: process.env[ENV_KEYS.CONTRAST_BASE_URL] ?? globalConfig.contrast?.baseUrl,
+      orgUuid: process.env[ENV_KEYS.CONTRAST_ORG_UUID] ?? globalConfig.contrast?.orgUuid,
+      apiKey: process.env[ENV_KEYS.CONTRAST_API_KEY] ?? globalConfig.contrast?.apiKey,
+      serviceKey: process.env[ENV_KEYS.CONTRAST_SERVICE_KEY] ?? globalConfig.contrast?.serviceKey,
+      username: process.env[ENV_KEYS.CONTRAST_USERNAME] ?? globalConfig.contrast?.username,
+    },
     defaults: mergedDefaults
   };
 }
@@ -274,6 +296,16 @@ export function maskConfig(config: ResolvedConfig): unknown {
     checkmarx: {
       ...config.checkmarx,
       password: config.checkmarx.password ? '***' : undefined
+    },
+    servicenow: {
+      ...config.servicenow,
+      password: config.servicenow.password ? '***' : undefined,
+      apiToken: config.servicenow.apiToken ? '***' : undefined
+    },
+    contrast: {
+      ...config.contrast,
+      apiKey: config.contrast.apiKey ? '***' : undefined,
+      serviceKey: config.contrast.serviceKey ? '***' : undefined
     }
   };
 }

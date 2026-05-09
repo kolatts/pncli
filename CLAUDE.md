@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI coding agents and humans unified access to Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, IBM UrbanCode Deploy, and Checkmarx. Built with TypeScript, Commander.js, and published as `@kolatts/pncli`.
+pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI coding agents and humans unified access to Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, IBM UrbanCode Deploy, Checkmarx, ServiceNow, and Contrast Security IAST. Built with TypeScript, Commander.js, and published as `@kolatts/pncli`.
 
 ## Key Directories
 
