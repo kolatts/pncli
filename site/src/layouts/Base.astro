@@ -10,7 +10,7 @@ interface Props {
 
 const {
   title = 'pncli — The Paperwork Nightmare CLI',
-  description = 'One command does what three meetings couldn\'t. Structured CLI access to Jira, Bitbucket, Confluence, SonarQube, and more.',
+  description = 'Bridge GitHub Copilot, Claude Code, and Codex to your Data Center SDLC stack. Structured JSON access to Jira, Bitbucket, Confluence, SonarQube, and more.',
 } = Astro.props;
 ---
 
@@ -27,8 +27,7 @@ const {
     <script is:inline>
       (function () {
         var stored = localStorage.getItem('pncli-theme');
-        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.dataset.theme = stored ?? (prefersDark ? 'dark' : 'light');
+        document.documentElement.dataset.theme = stored ?? 'light';
       })();
     </script>
   </head>
