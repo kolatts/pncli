@@ -7,7 +7,7 @@ import { PncliError } from '../../lib/errors.js';
 function getHttpAndOrg(program: Command) {
   const opts = program.optsWithGlobals();
   const config = loadConfig({ configPath: opts.config as string | undefined });
-  if (!config.contrast.apiKey) throw new PncliError('Contrast not configured. Run: pncli config init');
+  if (!config.contrast.apiKey || !config.contrast.serviceKey || !config.contrast.username) throw new PncliError('Contrast not configured. Run: pncli config init');
   if (!config.contrast.orgUuid) throw new PncliError('Contrast org UUID not configured. Run: pncli config set contrast.orgUuid <uuid>');
   const http = createHttpClient(config, Boolean(opts.dryRun));
   return { http, orgUuid: config.contrast.orgUuid };

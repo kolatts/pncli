@@ -71,7 +71,6 @@ export function registerServiceNowCommands(program: Command): void {
       const start = Date.now();
       try {
         const http = getHttp(program);
-        let path: string;
         if (opts.id.toUpperCase().startsWith('CHG')) {
           const list = await http.servicenow<SnowListResponse>('/api/now/table/change_request', {
             params: { sysparm_query: `number=${opts.id}`, sysparm_display_value: 'true', sysparm_limit: 1 }
@@ -80,8 +79,7 @@ export function registerServiceNowCommands(program: Command): void {
           success(list.result[0], 'servicenow', 'change get', start);
           return;
         }
-        path = `/api/now/table/change_request/${opts.id}`;
-        const data = await http.servicenow<SnowSingleResponse>(path, {
+        const data = await http.servicenow<SnowSingleResponse>(`/api/now/table/change_request/${opts.id}`, {
           params: { sysparm_display_value: 'true' }
         });
         success(data.result, 'servicenow', 'change get', start);
@@ -182,7 +180,7 @@ export function registerServiceNowCommands(program: Command): void {
       const start = Date.now();
       try {
         const http = getHttp(program);
-        const body: Record<string, unknown> = { state: '3' };
+        const body: Record<string, unknown> = { state: 3 };
         if (opts.closeNotes) body['close_notes'] = opts.closeNotes;
         if (opts.closeCode) body['close_code'] = opts.closeCode;
 

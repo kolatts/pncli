@@ -71,6 +71,35 @@ function formatHelp(helpText) {
     .join('\n');
 }
 
+/** Extract options block from a help string, excluding -h/--help */
+function extractOptions(helpText) {
+  const subLines = helpText.split('\n');
+  const optStart = subLines.findIndex(l => l.trimEnd() === 'Options:');
+  const opts = [];
+  if (optStart !== -1) {
+    for (let i = optStart + 1; i < subLines.length; i++) {
+      const l = subLines[i];
+      if (l.length > 0 && !l.startsWith(' ') && !l.startsWith('\t')) break;
+      const trimmed = l.trim();
+      if (trimmed && !trimmed.startsWith('-h,') && !trimmed.startsWith('--help')) {
+        opts.push(trimmed);
+      }
+    }
+  }
+  return opts;
+}
+
+/** Emit a single leaf command entry into the lines array */
+function emitLeaf(lines, fullPrefix, helpText) {
+  lines.push(`pncli ${fullPrefix}`);
+  const description = helpText.split('\n')[1]?.trim() ?? '';
+  if (description) lines.push(`  # ${description}`);
+  for (const opt of extractOptions(helpText)) {
+    lines.push(`  ${opt}`);
+  }
+  lines.push('');
+}
+
 function buildCommandReference() {
   const topHelp = run('');
   const topCommands = parseTopLevelCommands(topHelp);
@@ -91,29 +120,18 @@ function buildCommandReference() {
     } else {
       for (const sub of subcommands) {
         const subHelp = run(`${cmd} ${sub}`);
-        lines.push(`pncli ${cmd} ${sub}`);
-        // Extract usage line and options
-        const usageLine = subHelp.match(/^Usage:\s+(.+)$/m)?.[1] ?? '';
-        const description = subHelp.split('\n')[1]?.trim() ?? '';
-        if (description) lines.push(`  # ${description}`);
-        // Extract options (excluding -h/--help and global flags)
-        const subLines = subHelp.split('\n');
-        const optStart = subLines.findIndex(l => l.trimEnd() === 'Options:');
-        const opts = [];
-        if (optStart !== -1) {
-          for (let i = optStart + 1; i < subLines.length; i++) {
-            const l = subLines[i];
-            if (l.length > 0 && !l.startsWith(' ') && !l.startsWith('\t')) break;
-            const trimmed = l.trim();
-            if (trimmed && !trimmed.startsWith('-h,') && !trimmed.startsWith('--help')) {
-              opts.push(trimmed);
-            }
+        const subSubcommands = parseSubcommands(subHelp);
+
+        if (subSubcommands.length > 0) {
+          // This is a subgroup (e.g. `change`, `pipeline`, `project`) — recurse one more level
+          for (const leaf of subSubcommands) {
+            const leafHelp = run(`${cmd} ${sub} ${leaf}`);
+            emitLeaf(lines, `${cmd} ${sub} ${leaf}`, leafHelp);
           }
+        } else {
+          // This is a leaf command
+          emitLeaf(lines, `${cmd} ${sub}`, subHelp);
         }
-        for (const opt of opts) {
-          lines.push(`  ${opt}`);
-        }
-        lines.push('');
       }
       // Remove trailing empty line before closing ```
       if (lines[lines.length - 1] === '') lines.pop();

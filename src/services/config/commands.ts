@@ -882,7 +882,8 @@ async function initGlobalConfig(start: number): Promise<void> {
 
     if (snUseToken) {
       servicenowApiToken = await password({
-        message: 'ServiceNow API token:'
+        message: 'ServiceNow API token:',
+        validate: (v) => v.length > 0 || 'Token cannot be blank'
       });
     } else {
       servicenowPassword = await password({
@@ -951,6 +952,29 @@ async function initGlobalConfig(start: number): Promise<void> {
     contrastServiceKey = await password({
       message: 'Service key:'
     });
+
+    const contrastHasCreds = contrastOrgUuid && contrastUsername && contrastApiKey && contrastServiceKey;
+    if (contrastHasCreds) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          contrast: {
+            baseUrl: contrastBaseUrl || undefined,
+            orgUuid: contrastOrgUuid,
+            username: contrastUsername,
+            apiKey: contrastApiKey,
+            serviceKey: contrastServiceKey
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.contrast<unknown>(`/Contrast/api/ng/${contrastOrgUuid}/applications`, { params: { limit: 1 } });
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to Contrast: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your credentials and re-run pncli config init or pncli config test.');
+      }
+    }
   }
 
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
