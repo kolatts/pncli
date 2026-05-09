@@ -366,6 +366,24 @@ describe('HttpClient — ServiceNow', () => {
     expect(decoded).toBe('alice:my-token');
   });
 
+  it('prefers apiToken over password when both are set', async () => {
+    const capturedHeaders: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
+      return new Response('{"result":[]}', { status: 200 });
+    });
+    try {
+      const config = baseConfig({ servicenow: { baseUrl: 'https://sn.example.com', username: 'alice', password: 'pw', apiToken: 'tok' } });
+      const client = new HttpClient(config);
+      await client.servicenow('/api/now/table/change_request');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const auth = capturedHeaders[0]?.['authorization'] ?? '';
+    const decoded = Buffer.from(auth.replace('Basic ', ''), 'base64').toString();
+    expect(decoded).toBe('alice:tok');
+  });
+
   it('throws PncliError with status 0 on dry-run', async () => {
     const config = baseConfig({ servicenow: { baseUrl: 'https://sn.example.com', username: 'u', password: 'p', apiToken: undefined } });
     const client = new HttpClient(config, true);

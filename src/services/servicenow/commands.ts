@@ -52,9 +52,10 @@ export function registerServiceNowCommands(program: Command): void {
           sysparm_limit: opts.limit ? parseInt(opts.limit, 10) : 25,
           sysparm_display_value: 'true',
         };
+        const sanitize = (v: string) => v.replace(/\^/g, '');
         const queries: string[] = [];
-        if (opts.state !== undefined) queries.push(`state=${opts.state}`);
-        if (opts.assignedTo) queries.push(`assigned_to=${opts.assignedTo}`);
+        if (opts.state !== undefined) queries.push(`state=${sanitize(opts.state)}`);
+        if (opts.assignedTo) queries.push(`assigned_to=${sanitize(opts.assignedTo)}`);
         if (queries.length) params['sysparm_query'] = queries.join('^');
         if (opts.fields) params['sysparm_fields'] = opts.fields;
 
@@ -161,6 +162,8 @@ export function registerServiceNowCommands(program: Command): void {
         if (opts.assignedTo) body['assigned_to'] = opts.assignedTo;
         if (opts.startDate) body['start_date'] = opts.startDate;
         if (opts.endDate) body['end_date'] = opts.endDate;
+
+        if (Object.keys(body).length === 0) throw new PncliError('No fields to update. Provide at least one option besides --id.', 1);
 
         const data = await http.servicenow<SnowSingleResponse>(`/api/now/table/change_request/${opts.id}`, {
           method: 'PATCH',
