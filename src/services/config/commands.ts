@@ -795,7 +795,9 @@ async function initGlobalConfig(start: number): Promise<void> {
       });
 
       checkmarxClientSecret = await input({
+      checkmarxClientSecret = await password({
         message: 'OAuth2 client secret (leave blank to use default):',
+      });
         default: ''
       });
 
