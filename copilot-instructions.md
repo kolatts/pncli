@@ -543,19 +543,213 @@ pncli ado whoami
 
 pncli ado connection-data
 
-pncli ado project
+pncli ado project list-collections
 
-pncli ado work
+pncli ado project list
 
-pncli ado repo
+pncli ado project get
+  --name <project>  Project name
 
-pncli ado pipeline
+pncli ado work get
+  --id <n>    Work item ID
+
+pncli ado work create
+  --type <type>         Work item type (e.g. Bug, Task, User Story)
+  --title <title>       Work item title
+  --description <text>  Description
+  --assignee <user>     Assigned to (display name or email)
+  --priority <n>        Priority (1-4)
+  --field <name=value>  Additional field (repeatable) (default: [])
+
+pncli ado work update
+  --id <n>              Work item ID
+  --field <name=value>  Field to update (repeatable) (default: [])
+
+pncli ado work transition
+  --id <n>         Work item ID
+  --state <state>  New state (e.g. Active, Resolved, Closed)
+
+pncli ado work assign
+  --id <n>     Work item ID
+  --to <user>  User display name or email
+
+pncli ado work link
+  --id <a>      Source work item ID
+  --to <b>      Target work item ID
+  --type <rel>  Link type (related|parent|child|duplicate|duplicate-of)
+  (default: "related")
+
+pncli ado work search
+  --wiql <query>  WIQL query string
+
+pncli ado work list-comments
+  --id <n>    Work item ID
+
+pncli ado work add-comment
+  --id <n>       Work item ID
+  --body <text>  Comment text
+
+pncli ado work types
+  --discover  Fetch from server (always true for this command)
+  --save      Save discovered types to ~/.pncli/config.json
+
+pncli ado work list-states
+  --type <type>  Work item type name (e.g. Bug)
+
+pncli ado work fields
+  --type <type>  Scope to fields for a specific work item type (e.g. Bug)
+  --custom-only  Exclude System.* and Microsoft.VSTS.* fields
+  --discover     Fetch from server (always true for this command)
+  --save         Save discovered fields and aliases to ~/.pncli/config.json
+
+pncli ado repo list
+
+pncli ado repo get
+
+pncli ado repo list-prs
+  --state <state>     PR state: active|abandoned|completed|all (default:
+  "active")
+  --creator <alias>   Filter by creator
+  --reviewer <alias>  Filter by reviewer
+
+pncli ado repo get-pr
+  --id <n>    Pull request ID
+
+pncli ado repo create-pr
+  --title <title>       PR title
+  --source <branch>     Source branch
+  --target <branch>     Target branch (default: main) (default: "main")
+  --description <text>  PR description
+  --reviewers <ids>     Comma-separated reviewer IDs or display names
+
+pncli ado repo update-pr
+  --id <n>              Pull request ID
+  --title <title>       New title
+  --description <text>  New description
+  --reviewers <ids>     Comma-separated reviewer IDs
+
+pncli ado repo merge-pr
+  --id <n>         Pull request ID
+  --strategy <s>   Merge strategy: noFastForward|squash|rebase|rebaseMerge
+  (default: "noFastForward")
+  --delete-source  Delete source branch after merge
+
+pncli ado repo abandon-pr
+  --id <n>    Pull request ID
+
+pncli ado repo list-comments
+  --pr <n>        Pull request ID
+  --inline-only   Return only inline file comments
+  --general-only  Return only general PR comments
+
+pncli ado repo add-comment
+  --pr <n>       Pull request ID
+  --body <text>  Comment text
+
+pncli ado repo add-inline-comment
+  --pr <n>            Pull request ID
+  --file <path>       File path
+  --line <n>          Line number
+  --body <text>       Comment text
+  --line-type <side>  Line side: left|right (default: right) (default: "right")
+
+pncli ado repo reply-comment
+  --pr <n>          Pull request ID
+  --thread-id <id>  Thread ID
+  --body <text>     Reply text
+
+pncli ado repo resolve-comment
+  --pr <n>          Pull request ID
+  --thread-id <id>  Thread ID
+
+pncli ado repo delete-comment
+  --pr <n>           Pull request ID
+  --thread-id <id>   Thread ID
+  --comment-id <id>  Comment ID
+
+pncli ado repo list-files
+  --pr <n>    Pull request ID
+
+pncli ado repo diff
+  --pr <n>    Pull request ID
+  --path <p>  Filter diff to a specific file path
+
+pncli ado repo get-build-status
+  --commit <sha>  Commit SHA
+
+pncli ado repo list-reviewers
+  --pr <n>    Pull request ID
+
+pncli ado repo approve
+  --pr <n>    Pull request ID
+
+pncli ado repo unapprove
+  --pr <n>    Pull request ID
+
+pncli ado repo wait-for-author
+  --pr <n>    Pull request ID
+
+pncli ado repo list-builds
+  --pr <n>    Pull request ID
+
+pncli ado pipeline list
+
+pncli ado pipeline get
+  --id <n>    Pipeline definition ID
+
+pncli ado pipeline run
+  --id <n>           Pipeline definition ID
+  --branch <ref>     Source branch (e.g. refs/heads/main or main)
+  --parameter <k=v>  Build parameter (repeatable) (default: [])
+  --wait             Wait for the run to complete before returning
+  --timeout <s>      Max wait time in seconds (default 600) (default: "600")
+  --poll <s>         Poll interval in seconds (default 10) (default: "10")
+
+pncli ado pipeline list-runs
+  --definition <id>  Filter by definition ID
+  --branch <ref>     Filter by branch name
+  --status <filter>  Filter by status (inProgress|completed|cancelling|...)
+  --top <n>          Maximum results (default: "50")
+
+pncli ado pipeline get-run
+  --id <n>    Build ID
+
+pncli ado pipeline cancel-run
+  --id <n>    Build ID
+
+pncli ado pipeline logs
+  --id <n>      Build ID
+  --log-id <n>  Specific log ID (omit to list all logs)
 ```
 
 ### Jenkins
 
 ```
-pncli jenkins pipeline
+pncli jenkins pipeline list
+
+pncli jenkins pipeline get
+  --name <job>  Job name
+
+pncli jenkins pipeline run
+  --name <job>       Job name
+  --parameter <k=v>  Build parameter (repeatable) (default: [])
+  --wait             Wait for the build to complete before returning
+  --timeout <s>      Max wait time in seconds per phase (queue-wait and
+  build-wait each get this budget; default 600) (default:
+  "600")
+  --poll <s>         Poll interval in seconds (default 10) (default: "10")
+
+pncli jenkins pipeline list-runs
+  --name <job>  Job name
+  --top <n>     Maximum number of builds to return (default 25) (default: "25")
+
+pncli jenkins pipeline get-run
+  --name <job>  Job name
+  --number <n>  Build number
+
+pncli jenkins pipeline logs
+  --name <job>  Job name
+  --number <n>  Build number
 ```
 
 ### Artifactory
@@ -632,17 +826,77 @@ pncli udeploy request-info
 pncli checkmarx project list
 
 pncli checkmarx project get
-  --id <id>  Project ID (required)
+  --id <id>   Project ID
 
 pncli checkmarx scan list
   --project <id>  Filter by project ID
   --last <n>      Return only the last N scans per project
 
 pncli checkmarx scan get
-  --id <id>  Scan ID (required)
+  --id <id>   Scan ID
 
 pncli checkmarx scan stats
-  --id <id>  Scan ID (required)
+  --id <id>   Scan ID
+```
+
+### Servicenow
+
+```
+pncli servicenow change list
+  --state <state>       Filter by state (e.g. -1=Pending, 1=Open, 2=Work in
+  Progress, 3=Closed Complete)
+  --assigned-to <user>  Filter by assigned user sys_id or display name
+  --limit <n>           Maximum number of results (default: "25")
+  --fields <fields>     Comma-separated field names to return
+
+pncli servicenow change get
+  --id <id>   Change request sys_id or number (e.g. CHG0001234)
+
+pncli servicenow change create
+  --short-description <text>  Short description (title)
+  --description <text>        Full description
+  --type <type>               Change type: normal, standard, or emergency
+  (default: "normal")
+  --priority <n>              Priority: 1=Critical, 2=High, 3=Moderate, 4=Low
+  --assigned-to <user>        Assigned user sys_id
+  --assignment-group <group>  Assignment group sys_id
+  --start-date <datetime>     Planned start date (yyyy-MM-dd HH:mm:ss)
+  --end-date <datetime>       Planned end date (yyyy-MM-dd HH:mm:ss)
+
+pncli servicenow change update
+  --id <sys_id>               Change request sys_id
+  --short-description <text>  New short description
+  --description <text>        New description
+  --state <state>             New state value
+  --priority <n>              New priority
+  --assigned-to <user>        New assigned user sys_id
+  --start-date <datetime>     New planned start date
+  --end-date <datetime>       New planned end date
+
+pncli servicenow change close
+  --id <sys_id>         Change request sys_id
+  --close-notes <text>  Closure notes
+  --close-code <code>   Close code (e.g. successful, unsuccessful)
+```
+
+### Contrast
+
+```
+pncli contrast apps list
+  --limit <n>   Maximum number of results (default: "25")
+  --offset <n>  Pagination offset (default: "0")
+
+pncli contrast findings list
+  --app <app-id>      Application ID (UUID)
+  --severity <level>  Filter by severity: CRITICAL, HIGH, MEDIUM, LOW, NOTE
+  --status <status>   Filter by status: REPORTED, CONFIRMED, SUSPICIOUS,
+  NOT_A_PROBLEM, REMEDIATED, FIXED
+  --limit <n>         Maximum number of results (default: "25")
+  --offset <n>        Pagination offset (default: "0")
+
+pncli contrast findings get
+  --app <app-id>      Application ID (UUID)
+  --trace <trace-id>  Trace/finding UUID
 ```
 
 ### Skills
