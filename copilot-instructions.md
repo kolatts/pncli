@@ -140,6 +140,8 @@ pncli jira create-issue
   --priority <name>       Priority name
   --assignee <accountId>  Assignee account ID
   --labels <labels>       Comma-separated labels
+  --parent <key>          Parent issue key — creates an "is child of" link after
+  creation
   --field <Name=value>    Custom field value (repeatable) (default: [])
 
 pncli jira update-issue
@@ -629,20 +631,9 @@ pncli udeploy request-info
 ### Checkmarx
 
 ```
-pncli checkmarx project list
+pncli checkmarx project
 
-pncli checkmarx project get
-  --id <id>  Project ID (required)
-
-pncli checkmarx scan list
-  --project <id>  Filter by project ID
-  --last <n>      Return only the last N scans per project
-
-pncli checkmarx scan get
-  --id <id>  Scan ID (required)
-
-pncli checkmarx scan stats
-  --id <id>  Scan ID (required)
+pncli checkmarx scan
 ```
 
 ### Skills

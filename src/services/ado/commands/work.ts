@@ -34,8 +34,9 @@ export function registerAdoWorkCommands(ado: Command): void {
     .option('--description <text>', 'Description')
     .option('--assignee <user>', 'Assigned to (display name or email)')
     .option('--priority <n>', 'Priority (1-4)')
+    .option('--parent <id>', 'Parent work item ID — creates a parent link after creation')
     .option('--field <name=value>', 'Additional field (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
-    .action(async (opts: { type: string; title: string; description?: string; assignee?: string; priority?: string; field: string[] }) => {
+    .action(async (opts: { type: string; title: string; description?: string; assignee?: string; priority?: string; parent?: string; field: string[] }) => {
       const start = Date.now();
       try {
         const globalOpts = ado.optsWithGlobals();
@@ -53,6 +54,12 @@ export function registerAdoWorkCommands(ado: Command): void {
           ...extra
         ];
         const data = await workClient.createWorkItem(collection, project, opts.type, patch);
+        if (opts.parent) {
+          const baseUrl = config.ado.baseUrl?.replace(/\/$/, '');
+          const targetUrl = `${baseUrl}/${encodeURIComponent(collection)}/_apis/wit/workitems/${opts.parent}`;
+          const linkPatch = [{ op: 'add' as const, path: '/relations/-', value: { rel: 'System.LinkTypes.Hierarchy-Reverse', url: targetUrl } }];
+          await workClient.updateWorkItem(collection, data.id, linkPatch);
+        }
         success(data, 'ado', 'work-create', start);
       } catch (err) { fail(err, 'ado', 'work-create', start); }
     });
