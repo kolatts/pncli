@@ -1,0 +1,36 @@
+---
+import type { TestingLevel } from '../lib/integrations';
+
+interface Props {
+  level: TestingLevel;
+}
+
+const { level } = Astro.props;
+
+const filledCount = { untested: 1, basic: 2, beta: 3, live: 4 }[level];
+
+const filledClass = {
+  untested: 'bg-ink/20',
+  basic:    'bg-violet/70',
+  beta:     'bg-coral/70',
+  live:     'bg-coral',
+}[level];
+
+const labelClass = {
+  untested: 'text-ink/30',
+  basic:    'text-violet/70',
+  beta:     'text-coral/70',
+  live:     'text-coral',
+}[level];
+
+const bars = [1, 2, 3, 4].map(i => i <= filledCount);
+---
+
+<span class="flex items-center gap-1.5 shrink-0 mt-1.5">
+  <span class="flex items-end gap-0.5">
+    {bars.map(isFilled => (
+      <span class={`w-1.5 h-3 rounded-sm ${isFilled ? filledClass : 'bg-ink/10'}`}></span>
+    ))}
+  </span>
+  <span class={`text-xs font-mono ${labelClass}`}>{level}</span>
+</span>
