@@ -136,6 +136,45 @@ pncli config set artifactory.nugetRepo <virtual-repo-name>
 pncli config set artifactory.mavenRepo <virtual-repo-name>
 ```
 
+**Jenkins** — "Do you use Jenkins for CI/CD pipelines?"
+
+```
+pncli config set jenkins.baseUrl <url>
+pncli config set jenkins.username <username>
+pncli config set jenkins.apiToken <token>
+```
+
+**ServiceNow** — "Do you use ServiceNow for change management?"
+
+```
+pncli config set servicenow.baseUrl <url>
+pncli config set servicenow.username <username>
+```
+
+Ask whether they authenticate with a password or API token:
+
+- If **password**: `pncli config set servicenow.password <password>`
+- If **API token**: `pncli config set servicenow.apiToken <token>`
+
+The base URL is your ServiceNow instance root, e.g. `https://mycompany.service-now.com`.
+
+**Contrast IAST** — "Do you use Contrast Security for interactive application security testing?"
+
+```
+pncli config set contrast.orgUuid <org-uuid>
+pncli config set contrast.username <username>
+pncli config set contrast.apiKey <api-key>
+pncli config set contrast.serviceKey <service-key>
+```
+
+Optionally set the base URL if using an on-premise instance (defaults to `https://app.contrastsecurity.com`):
+
+```
+pncli config set contrast.baseUrl <url>
+```
+
+All four credentials (org UUID, username, API key, service key) are found in your Contrast account under **User Settings → Your Keys**.
+
 **Step 5 — Set repo-level defaults.**
 
 Ask the user for project-specific defaults:

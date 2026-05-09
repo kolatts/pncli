@@ -629,20 +629,23 @@ pncli udeploy request-info
 ### Checkmarx
 
 ```
-pncli checkmarx project list
+pncli checkmarx project
 
-pncli checkmarx project get
-  --id <id>  Project ID (required)
+pncli checkmarx scan
+```
 
-pncli checkmarx scan list
-  --project <id>  Filter by project ID
-  --last <n>      Return only the last N scans per project
+### Servicenow
 
-pncli checkmarx scan get
-  --id <id>  Scan ID (required)
+```
+pncli servicenow change
+```
 
-pncli checkmarx scan stats
-  --id <id>  Scan ID (required)
+### Contrast
+
+```
+pncli contrast apps
+
+pncli contrast findings
 ```
 
 ### Skills

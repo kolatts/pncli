@@ -15,6 +15,8 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'tok' },
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     checkmarx: { baseUrl: undefined, username: undefined, password: undefined },
+    servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
+    contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
     ...overrides
   };
@@ -312,5 +314,95 @@ describe('HttpClient — confluencePaginate', () => {
     });
     expect(results).toEqual(['x', 'y']);
     expect(starts).toEqual([0, 25]);
+  });
+});
+
+describe('HttpClient — ServiceNow', () => {
+  it('throws on missing baseUrl', async () => {
+    const config = baseConfig({ servicenow: { baseUrl: undefined, username: 'user', password: 'pass', apiToken: undefined } });
+    const client = new HttpClient(config);
+    await expect(client.servicenow('/api/now/table/change_request')).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('throws on missing credentials', async () => {
+    const config = baseConfig({ servicenow: { baseUrl: 'https://sn.example.com', username: undefined, password: undefined, apiToken: undefined } });
+    const client = new HttpClient(config);
+    await expect(client.servicenow('/api/now/table/change_request')).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('sends Basic auth with username:password', async () => {
+    const capturedHeaders: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
+      return new Response('{"result":[]}', { status: 200 });
+    });
+    try {
+      const config = baseConfig({ servicenow: { baseUrl: 'https://sn.example.com', username: 'alice', password: 'secret', apiToken: undefined } });
+      const client = new HttpClient(config);
+      await client.servicenow('/api/now/table/change_request');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const auth = capturedHeaders[0]?.['authorization'] ?? '';
+    const decoded = Buffer.from(auth.replace('Basic ', ''), 'base64').toString();
+    expect(decoded).toBe('alice:secret');
+  });
+
+  it('sends Basic auth with username:apiToken when token provided', async () => {
+    const capturedHeaders: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
+      return new Response('{"result":[]}', { status: 200 });
+    });
+    try {
+      const config = baseConfig({ servicenow: { baseUrl: 'https://sn.example.com', username: 'alice', password: undefined, apiToken: 'my-token' } });
+      const client = new HttpClient(config);
+      await client.servicenow('/api/now/table/change_request');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const auth = capturedHeaders[0]?.['authorization'] ?? '';
+    const decoded = Buffer.from(auth.replace('Basic ', ''), 'base64').toString();
+    expect(decoded).toBe('alice:my-token');
+  });
+
+  it('throws PncliError with status 0 on dry-run', async () => {
+    const config = baseConfig({ servicenow: { baseUrl: 'https://sn.example.com', username: 'u', password: 'p', apiToken: undefined } });
+    const client = new HttpClient(config, true);
+    await expect(client.servicenow('/api/now/table/change_request')).rejects.toMatchObject({ status: 0, message: 'dry-run' });
+  });
+});
+
+describe('HttpClient — Contrast', () => {
+  it('throws on missing credentials', async () => {
+    const config = baseConfig({ contrast: { baseUrl: undefined, orgUuid: 'org', apiKey: undefined, serviceKey: undefined, username: undefined } });
+    const client = new HttpClient(config);
+    await expect(client.contrast('/Contrast/api/ng/org/applications')).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('sends Authorization, API-Key headers', async () => {
+    const capturedHeaders: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
+      return new Response('{}', { status: 200 });
+    });
+    try {
+      const config = baseConfig({ contrast: { baseUrl: 'https://app.contrastsecurity.com', orgUuid: 'org-123', apiKey: 'my-api-key', serviceKey: 'my-svc-key', username: 'user@example.com' } });
+      const client = new HttpClient(config);
+      await client.contrast('/Contrast/api/ng/org-123/applications');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const authorization = capturedHeaders[0]?.['authorization'] ?? '';
+    const apiKey = capturedHeaders[0]?.['api-key'] ?? '';
+    const decoded = Buffer.from(authorization, 'base64').toString();
+    expect(decoded).toBe('user@example.com:my-svc-key');
+    expect(apiKey).toBe('my-api-key');
+  });
+
+  it('throws PncliError with status 0 on dry-run', async () => {
+    const config = baseConfig({ contrast: { baseUrl: undefined, orgUuid: 'org', apiKey: 'k', serviceKey: 's', username: 'u' } });
+    const client = new HttpClient(config, true);
+    await expect(client.contrast('/Contrast/api/ng/org/applications')).rejects.toMatchObject({ status: 0, message: 'dry-run' });
   });
 });
