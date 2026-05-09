@@ -54,13 +54,18 @@ export function registerAdoWorkCommands(ado: Command): void {
           ...extra
         ];
         const data = await workClient.createWorkItem(collection, project, opts.type, patch);
-        if (opts.parent) {
-          const baseUrl = config.ado.baseUrl?.replace(/\/$/, '');
-          const targetUrl = `${baseUrl}/${encodeURIComponent(collection)}/_apis/wit/workitems/${opts.parent}`;
-          const linkPatch = [{ op: 'add' as const, path: '/relations/-', value: { rel: 'System.LinkTypes.Hierarchy-Reverse', url: targetUrl } }];
-          await workClient.updateWorkItem(collection, data.id, linkPatch);
-        }
         success(data, 'ado', 'work-create', start);
+        if (opts.parent) {
+          try {
+            const baseUrl = config.ado.baseUrl?.replace(/\/$/, '');
+            const targetUrl = `${baseUrl}/${encodeURIComponent(collection)}/_apis/wit/workitems/${opts.parent}`;
+            const linkPatch = [{ op: 'add' as const, path: '/relations/-', value: { rel: 'System.LinkTypes.Hierarchy-Reverse', url: targetUrl } }];
+            await workClient.updateWorkItem(collection, data.id, linkPatch);
+          } catch (linkErr) {
+            warn(`Created #${data.id} but failed to link to parent ${opts.parent}: ${linkErr instanceof Error ? linkErr.message : linkErr}`);
+          }
+        }
+        return;
       } catch (err) { fail(err, 'ado', 'work-create', start); }
     });
 
