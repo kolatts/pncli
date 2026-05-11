@@ -73,9 +73,9 @@ function mapSonatypeVuln(v: SonatypeVuln, pkg: Package): OsvVulnerability {
   // Sonatype doesn't return fixed versions — direct user to the vulnerability reference
   const advice = `See ${v.reference} for remediation details for ${pkg.name}@${pkg.version}.`;
 
-  // Extract CVE aliases from displayName (e.g. "CVE-2021-23337")
-  const cveMatch = /CVE-\d{4}-\d+/i.exec(v.displayName);
-  const aliases = cveMatch ? [cveMatch[0].toUpperCase()] : [];
+  const cvePattern = /CVE-\d{4}-\d+/gi;
+  const searchText = [v.displayName, v.title, v.description].filter(Boolean).join(' ');
+  const aliases = [...new Set([...searchText.matchAll(cvePattern)].map(m => m[0].toUpperCase()))];
 
   return {
     id: v.displayName || v.id,
@@ -101,6 +101,13 @@ async function queryBatch(
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ coordinates: purls })
   });
+
+  if (res.status === 429) {
+    throw new Error(
+      'Sonatype OSS Index is rate-limiting requests from this IP. ' +
+      'Create a free account at ossindex.sonatype.org and add your credentials to your pncli config to raise the limit.'
+    );
+  }
 
   if (!res.ok) {
     throw new Error(`Sonatype OSS Index returned HTTP ${res.status}`);

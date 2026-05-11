@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { success, fail } from '../../lib/output.js';
 import { loadConfig } from '../../lib/config.js';
 import type { ScanOptions, Ecosystem, FriskSource } from './types.js';
@@ -22,7 +22,7 @@ export function registerDepsCommands(program: Command): void {
     .option('--ecosystem <ecosystem>', 'Filter to one ecosystem: npm, nuget, maven, all', 'all')
     .option('--direct-only', 'Only scan direct dependencies (default: include transitive)', false)
     .option('--include-dev', 'Include dev/test dependencies', false)
-    .option('--source <source>', 'Vulnerability source: osv, sonatype, all', 'osv')
+    .addOption(new Option('--source <source>', 'Vulnerability source').choices(['osv', 'sonatype', 'all']).default('osv'))
     .action(async (opts: { ecosystem: string; directOnly: boolean; includeDev: boolean; source: string }, cmd: Command) => {
       const startTime = Date.now();
       try {

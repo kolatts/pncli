@@ -73,9 +73,16 @@ export interface VulnerablePackage extends Package {
   vulnerabilities: OsvVulnerability[];
 }
 
+export interface FriskSourceError {
+  source: FriskSource;
+  error: string;
+}
+
 export interface FriskData {
   tier: Tier;
   source: FriskSource;
+  sourcesQueried: FriskSource[];
+  sourceErrors: FriskSourceError[];
   scanned: number;
   vulnerable: number;
   packages: VulnerablePackage[];

@@ -1,11 +1,15 @@
 import type { ResolvedConfig } from '../../types/config.js';
-import type { ScanOptions, FriskData, FriskSource, VulnerablePackage } from './types.js';
+import type { ScanOptions, FriskData, FriskSource, FriskSourceError, VulnerablePackage } from './types.js';
 import { scanRepo } from './parsers/index.js';
 import { checkPackagesForVulns } from './clients/osv.js';
 import { checkPackagesForVulnsViaSonatype } from './clients/sonatype.js';
 import { detectTier, checkSonatypeReachable } from './connectivity.js';
 import { getRepoRoot } from '../../lib/git-context.js';
 import { PncliError } from '../../lib/errors.js';
+
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
 export async function runFrisk(
   config: ResolvedConfig,
@@ -44,6 +48,21 @@ export async function runFrisk(
     );
   }
 
+  // For source=all, capture pre-check failures in sourceErrors so the LLM can see what was skipped
+  const sourceErrors: FriskSourceError[] = [];
+  let sourcesQueried: FriskSource[];
+
+  if (source === 'all') {
+    if (!osvReachable) sourceErrors.push({ source: 'osv', error: 'api.osv.dev is not reachable — run pncli deps connectivity to diagnose.' });
+    if (!sonatypeReachable) sourceErrors.push({ source: 'sonatype', error: 'ossindex.sonatype.org is not reachable — run pncli deps connectivity to diagnose.' });
+    sourcesQueried = [
+      ...(osvReachable ? ['osv' as const] : []),
+      ...(sonatypeReachable ? ['sonatype' as const] : [])
+    ];
+  } else {
+    sourcesQueried = [source];
+  }
+
   // Default frisk: include transitive deps (CVEs hide in transitive deps)
   const scanOpts: ScanOptions = {
     ...opts,
@@ -53,7 +72,7 @@ export async function runFrisk(
   const scan = scanRepo(repoRoot, scanOpts);
 
   if (scan.packages.length === 0) {
-    return { tier, source, scanned: 0, vulnerable: 0, packages: [] };
+    return { tier, source, sourcesQueried, sourceErrors, scanned: 0, vulnerable: 0, packages: [] };
   }
 
   let vulnerable: VulnerablePackage[];
@@ -61,11 +80,36 @@ export async function runFrisk(
   if (source === 'sonatype') {
     vulnerable = await checkPackagesForVulnsViaSonatype(scan.packages);
   } else if (source === 'all') {
-    const [osvResults, sonatypeResults] = await Promise.all([
-      osvReachable ? checkPackagesForVulns(scan.packages) : Promise.resolve([]),
-      sonatypeReachable ? checkPackagesForVulnsViaSonatype(scan.packages) : Promise.resolve([])
+    // Use allSettled so a runtime failure from one source doesn't discard results from the other
+    const [osvSettled, sonatypeSettled] = await Promise.allSettled([
+      osvReachable ? checkPackagesForVulns(scan.packages) : Promise.resolve([] as VulnerablePackage[]),
+      sonatypeReachable ? checkPackagesForVulnsViaSonatype(scan.packages) : Promise.resolve([] as VulnerablePackage[])
     ]);
-    vulnerable = mergeVulnerablePackages(osvResults, sonatypeResults);
+
+    if (osvReachable) {
+      if (osvSettled.status === 'rejected') {
+        sourceErrors.push({ source: 'osv', error: toErrorMessage(osvSettled.reason) });
+        sourcesQueried = sourcesQueried.filter(s => s !== 'osv');
+      }
+    }
+    if (sonatypeReachable) {
+      if (sonatypeSettled.status === 'rejected') {
+        sourceErrors.push({ source: 'sonatype', error: toErrorMessage(sonatypeSettled.reason) });
+        sourcesQueried = sourcesQueried.filter(s => s !== 'sonatype');
+      }
+    }
+
+    if (sourcesQueried.length === 0) {
+      throw new PncliError(
+        'All vulnerability sources failed during scanning. Run \'pncli deps connectivity\' to diagnose.',
+        503
+      );
+    }
+
+    vulnerable = mergeVulnerablePackages(
+      osvSettled.status === 'fulfilled' ? osvSettled.value : [],
+      sonatypeSettled.status === 'fulfilled' ? sonatypeSettled.value : []
+    );
   } else {
     vulnerable = await checkPackagesForVulns(scan.packages);
   }
@@ -73,6 +117,8 @@ export async function runFrisk(
   return {
     tier,
     source,
+    sourcesQueried,
+    sourceErrors,
     scanned: scan.packages.length,
     vulnerable: vulnerable.length,
     packages: vulnerable
