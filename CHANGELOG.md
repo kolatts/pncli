@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.9.0](https://github.com/kolatts/pncli/compare/v1.8.0...v1.9.0) (2026-05-11)
+
+
+### Features
+
+* **deps:** add Sonatype OSS Index as vulnerability source for deps frisk ([#62](https://github.com/kolatts/pncli/issues/62)) ([4b8651e](https://github.com/kolatts/pncli/commit/4b8651e9cc907d6e653afa6758f05af3e618f216))
+* **jira,ado:** add --parent flag to create-issue and work create ([#125](https://github.com/kolatts/pncli/issues/125)) ([c4bdb60](https://github.com/kolatts/pncli/commit/c4bdb60b8152f9b52f7d7f8fa107ecf4dc33b17e)), closes [#31](https://github.com/kolatts/pncli/issues/31)
+* **servicenow,contrast:** add ServiceNow change management and Contrast IAST integrations ([#128](https://github.com/kolatts/pncli/issues/128)) ([47a706f](https://github.com/kolatts/pncli/commit/47a706f40a49e869cbdef901de00f058ffec5847))
+* **site:** add auto-generated commands reference page ([#126](https://github.com/kolatts/pncli/issues/126)) ([f01e67a](https://github.com/kolatts/pncli/commit/f01e67a7fce91dacf63cc6902d491b11d8c6ee81)), closes [#99](https://github.com/kolatts/pncli/issues/99)
+* **site:** add integration testing-maturity badges and reframe homepage ([#124](https://github.com/kolatts/pncli/issues/124)) ([74185cf](https://github.com/kolatts/pncli/commit/74185cfdf8d566ab3cab00e16f9bab9899362dcf))
+
 ## [1.8.0](https://github.com/kolatts/pncli/compare/v1.7.0...v1.8.0) (2026-04-24)
 
 
