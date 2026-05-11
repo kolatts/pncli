@@ -140,7 +140,8 @@ pncli jira create-issue
   --priority <name>       Priority name
   --assignee <accountId>  Assignee account ID
   --labels <labels>       Comma-separated labels
-  --parent <key>          Parent issue key — creates an "is child of" link after creation
+  --parent <key>          Parent issue key — creates an "is child of" link after
+  creation
   --field <Name=value>    Custom field value (repeatable) (default: [])
 
 pncli jira update-issue
@@ -491,6 +492,8 @@ pncli deps frisk
   --direct-only            Only scan direct dependencies (default: include
   transitive) (default: false)
   --include-dev            Include dev/test dependencies (default: false)
+  --source <source>        Vulnerability source (choices: "osv", "sonatype",
+  "all", default: "osv")
 
 pncli deps scan
   --ecosystem <ecosystem>  Filter to one ecosystem: npm, nuget, maven, all
@@ -560,7 +563,8 @@ pncli ado work create
   --description <text>  Description
   --assignee <user>     Assigned to (display name or email)
   --priority <n>        Priority (1-4)
-  --parent <id>         Parent work item ID — creates a parent link after creation
+  --parent <id>         Parent work item ID — creates a parent link after
+  creation
   --field <name=value>  Additional field (repeatable) (default: [])
 
 pncli ado work update

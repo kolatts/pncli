@@ -3,6 +3,7 @@ export type DependencyType = 'direct' | 'transitive';
 export type DependencyScope = 'production' | 'dev';
 export type ChangeType = 'added' | 'removed' | 'upgraded' | 'downgraded';
 export type Tier = 'local' | 'artifactory' | 'full';
+export type FriskSource = 'osv' | 'sonatype' | 'all';
 
 export interface Package {
   name: string;
@@ -72,8 +73,16 @@ export interface VulnerablePackage extends Package {
   vulnerabilities: OsvVulnerability[];
 }
 
+export interface FriskSourceError {
+  source: FriskSource;
+  error: string;
+}
+
 export interface FriskData {
   tier: Tier;
+  source: FriskSource;
+  sourcesQueried: FriskSource[];
+  sourceErrors: FriskSourceError[];
   scanned: number;
   vulnerable: number;
   packages: VulnerablePackage[];
@@ -129,6 +138,11 @@ export interface ConnectivityData {
     error?: string;
   };
   osv: {
+    reachable: boolean;
+    url: string;
+    error?: string;
+  };
+  sonatype: {
     reachable: boolean;
     url: string;
     error?: string;
