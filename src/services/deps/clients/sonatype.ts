@@ -116,18 +116,18 @@ async function queryBatch(
   const reports = (await res.json()) as SonatypeComponentReport[];
   const vulnerable: VulnerablePackage[] = [];
 
-  for (let i = 0; i < reports.length; i++) {
-    const report = reports[i];
-    const pkg = packages[i];
-    if (!report || !pkg) continue;
+  const purlToPackage = new Map<string, Package>();
+  for (let i = 0; i < purls.length; i++) {
+    purlToPackage.set(purls[i]!, packages[i]!);
+  }
 
+  for (const report of reports) {
+    if (!report?.coordinates) continue;
+    const pkg = purlToPackage.get(report.coordinates);
+    if (!pkg) continue;
     const vulns = report.vulnerabilities ?? [];
     if (vulns.length === 0) continue;
-
-    vulnerable.push({
-      ...pkg,
-      vulnerabilities: vulns.map(v => mapSonatypeVuln(v, pkg))
-    });
+    vulnerable.push({ ...pkg, vulnerabilities: vulns.map(v => mapSonatypeVuln(v, pkg)) });
   }
 
   return vulnerable;

@@ -21,8 +21,9 @@ export async function runFrisk(
     throw new PncliError('Not inside a git repository.', 1);
   }
 
-  const { tier, osvReachable } = await detectTier(config);
+  const { tier: baseTier, osvReachable } = await detectTier(config);
   const sonatypeReachable = source !== 'osv' ? await checkSonatypeReachable() : false;
+  const tier = sonatypeReachable ? 'full' : baseTier;
 
   if (source === 'osv' && !osvReachable) {
     throw new PncliError(

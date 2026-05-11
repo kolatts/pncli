@@ -141,7 +141,7 @@ export function registerDepsCommands(program: Command): void {
 
   deps
     .command('connectivity')
-    .description('Test network access to Artifactory and OSV.dev, report available tier')
+    .description('Test network access to Artifactory, OSV.dev, and Sonatype OSS Index, report available tier')
     .action(async (_opts: unknown, cmd: Command) => {
       const startTime = Date.now();
       try {

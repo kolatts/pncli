@@ -52,7 +52,7 @@ export async function buildConnectivityData(config: ResolvedConfig): Promise<Con
 
   let tier: Tier = 'local';
   if (artResult.reachable && artResult.authenticated) tier = 'artifactory';
-  if (osvResult.reachable) tier = 'full';
+  if (osvResult.reachable || sonatypeResult.reachable) tier = 'full';
 
   cachedTier = {
     tier,
