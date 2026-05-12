@@ -43,6 +43,9 @@ const ENV_KEYS = {
   CONTRAST_API_KEY: 'PNCLI_CONTRAST_API_KEY',
   CONTRAST_SERVICE_KEY: 'PNCLI_CONTRAST_SERVICE_KEY',
   CONTRAST_USERNAME: 'PNCLI_CONTRAST_USERNAME',
+  SONATYPEIQ_BASE_URL: 'PNCLI_SONATYPEIQ_BASE_URL',
+  SONATYPEIQ_USER_CODE: 'PNCLI_SONATYPEIQ_USER_CODE',
+  SONATYPEIQ_PASSCODE: 'PNCLI_SONATYPEIQ_PASSCODE',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -193,6 +196,11 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       serviceKey: process.env[ENV_KEYS.CONTRAST_SERVICE_KEY] ?? globalConfig.contrast?.serviceKey,
       username: process.env[ENV_KEYS.CONTRAST_USERNAME] ?? globalConfig.contrast?.username,
     },
+    sonatypeiq: {
+      baseUrl: process.env[ENV_KEYS.SONATYPEIQ_BASE_URL] ?? globalConfig.sonatypeiq?.baseUrl,
+      userCode: process.env[ENV_KEYS.SONATYPEIQ_USER_CODE] ?? globalConfig.sonatypeiq?.userCode,
+      passcode: process.env[ENV_KEYS.SONATYPEIQ_PASSCODE] ?? globalConfig.sonatypeiq?.passcode,
+    },
     defaults: mergedDefaults
   };
 }
@@ -306,6 +314,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
       ...config.contrast,
       apiKey: config.contrast.apiKey ? '***' : undefined,
       serviceKey: config.contrast.serviceKey ? '***' : undefined
+    },
+    sonatypeiq: {
+      ...config.sonatypeiq,
+      passcode: config.sonatypeiq.passcode ? '***' : undefined
     }
   };
 }

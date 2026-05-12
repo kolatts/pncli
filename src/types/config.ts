@@ -113,6 +113,12 @@ export interface ContrastConfig {
   username?: string;
 }
 
+export interface SonatypeIqConfig {
+  baseUrl?: string;
+  userCode?: string;
+  passcode?: string;
+}
+
 export interface UdeployDefaults {
   application?: string;
   environment?: string;
@@ -146,6 +152,7 @@ export interface GlobalConfig {
   checkmarx?: CheckmarxConfig;
   servicenow?: ServiceNowConfig;
   contrast?: ContrastConfig;
+  sonatypeiq?: SonatypeIqConfig;
   defaults?: Defaults;
 }
 
@@ -218,6 +225,11 @@ export interface ResolvedConfig {
     apiKey: string | undefined;
     serviceKey: string | undefined;
     username: string | undefined;
+  };
+  sonatypeiq: {
+    baseUrl: string | undefined;
+    userCode: string | undefined;
+    passcode: string | undefined;
   };
   defaults: {
     jira: JiraDefaults;

@@ -18,12 +18,13 @@ export function registerDepsCommands(program: Command): void {
 
   deps
     .command('frisk')
-    .description('Scan all dependencies for CVEs and output remediation paths (requires OSV.dev or Sonatype OSS Index)')
+    .description('Scan all dependencies for CVEs and output remediation paths (requires OSV.dev, Sonatype OSS Index, or Sonatype IQ Server)')
     .option('--ecosystem <ecosystem>', 'Filter to one ecosystem: npm, nuget, maven, all', 'all')
     .option('--direct-only', 'Only scan direct dependencies (default: include transitive)', false)
     .option('--include-dev', 'Include dev/test dependencies', false)
-    .addOption(new Option('--source <source>', 'Vulnerability source').choices(['osv', 'sonatype', 'all']).default('osv'))
-    .action(async (opts: { ecosystem: string; directOnly: boolean; includeDev: boolean; source: string }, cmd: Command) => {
+    .addOption(new Option('--source <source>', 'Vulnerability source').choices(['osv', 'sonatype', 'sonatypeiq', 'all']).default('osv'))
+    .option('--application-id <id>', 'Sonatype IQ Server application ID (required when --source sonatypeiq)')
+    .action(async (opts: { ecosystem: string; directOnly: boolean; includeDev: boolean; source: string; applicationId?: string }, cmd: Command) => {
       const startTime = Date.now();
       try {
         const globalOpts = cmd.optsWithGlobals();
@@ -33,7 +34,7 @@ export function registerDepsCommands(program: Command): void {
           includeTransitive: !opts.directOnly,
           includeDev: opts.includeDev
         };
-        const data = await runFrisk(config, scanOpts, opts.source as FriskSource);
+        const data = await runFrisk(config, scanOpts, opts.source as FriskSource, opts.applicationId);
         success(data, 'deps', 'frisk', startTime);
       } catch (err) {
         fail(err, 'deps', 'frisk', startTime);

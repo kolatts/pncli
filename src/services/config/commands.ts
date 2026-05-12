@@ -230,6 +230,17 @@ export function registerConfigCommands(program: Command): void {
           results.contrast = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.sonatypeiq.baseUrl && cfg.sonatypeiq.userCode && cfg.sonatypeiq.passcode) {
+          try {
+            await http.sonatypeiq<unknown>('/api/v2/applications', { params: { limit: 1 } });
+            results.sonatypeiq = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.sonatypeiq = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.sonatypeiq = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -437,6 +448,20 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        // Sonatype IQ Server
+        if (!cfg.sonatypeiq.userCode || !cfg.sonatypeiq.passcode) {
+          results.sonatypeiq = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.sonatypeiq.baseUrl) {
+          results.sonatypeiq = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.sonatypeiq<unknown>('/api/v2/applications', { params: { limit: 1 }, timeoutMs: 10_000 });
+            results.sonatypeiq = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.sonatypeiq = categorize(err);
+          }
+        }
+
         // Exit code: prefer AUTH_ERROR if any invalid, else NETWORK_ERROR if any errors
         const statuses = Object.values(results).map(r => r.status);
         if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
@@ -444,7 +469,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast'] as const;
+          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -462,7 +487,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast'] as const;
+            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -915,6 +940,54 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── Sonatype IQ Server ────────────────────────────\n');
+  const useSonatypeIq = await confirm({
+    message: 'Configure Sonatype IQ Server for dependency vulnerability scanning?',
+    default: false
+  });
+
+  let sonatypeIqBaseUrl = '';
+  let sonatypeIqUserCode = '';
+  let sonatypeIqPasscode = '';
+
+  if (useSonatypeIq) {
+    process.stderr.write('  User Token credentials are found in your IQ Server profile under User Token.\n');
+
+    sonatypeIqBaseUrl = await input({
+      message: 'Sonatype IQ Server base URL (e.g. https://iq.your-company.com):',
+      default: ''
+    });
+
+    sonatypeIqUserCode = await input({
+      message: 'User Code (from User Token):',
+      default: ''
+    });
+
+    sonatypeIqPasscode = await password({
+      message: 'Passcode (from User Token):'
+    });
+
+    if (sonatypeIqBaseUrl && sonatypeIqUserCode && sonatypeIqPasscode) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          sonatypeiq: {
+            baseUrl: sonatypeIqBaseUrl,
+            userCode: sonatypeIqUserCode,
+            passcode: sonatypeIqPasscode
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.sonatypeiq<unknown>('/api/v2/applications', { params: { limit: 1 } });
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to Sonatype IQ Server: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your URL and credentials and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Contrast IAST ─────────────────────────────────\n');
   const useContrast = await confirm({
     message: 'Configure Contrast Security IAST for vulnerability findings?',
@@ -1090,6 +1163,13 @@ async function initGlobalConfig(start: number): Promise<void> {
         username: contrastUsername || undefined,
         apiKey: contrastApiKey || undefined,
         serviceKey: contrastServiceKey || undefined
+      }
+    } : {}),
+    ...(useSonatypeIq && sonatypeIqBaseUrl ? {
+      sonatypeiq: {
+        baseUrl: sonatypeIqBaseUrl,
+        userCode: sonatypeIqUserCode || undefined,
+        passcode: sonatypeIqPasscode || undefined
       }
     } : {}),
     defaults: {

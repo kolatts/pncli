@@ -3,7 +3,7 @@ export type DependencyType = 'direct' | 'transitive';
 export type DependencyScope = 'production' | 'dev';
 export type ChangeType = 'added' | 'removed' | 'upgraded' | 'downgraded';
 export type Tier = 'local' | 'artifactory' | 'full';
-export type FriskSource = 'osv' | 'sonatype' | 'all';
+export type FriskSource = 'osv' | 'sonatype' | 'sonatypeiq' | 'all';
 
 export interface Package {
   name: string;
@@ -144,6 +144,12 @@ export interface ConnectivityData {
   };
   sonatype: {
     reachable: boolean;
+    url: string;
+    error?: string;
+  };
+  sonatypeiq?: {
+    reachable: boolean;
+    authenticated: boolean;
     url: string;
     error?: string;
   };
