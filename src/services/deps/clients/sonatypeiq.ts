@@ -46,6 +46,16 @@ interface IqEvaluationResponse {
   components?: IqComponentResult[];
 }
 
+interface IqApplication {
+  id: string;
+  publicId: string;
+  name: string;
+}
+
+interface IqApplicationsResponse {
+  applications: IqApplication[];
+}
+
 async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -159,6 +169,27 @@ function syntheticVulnsFromCounts(
   return vulns;
 }
 
+async function resolveApplicationInternalId(
+  applicationId: string,
+  baseUrl: string,
+  auth: string
+): Promise<string> {
+  const url = `${baseUrl.replace(/\/$/, '')}/api/v2/applications?publicId=${encodeURIComponent(applicationId)}`;
+  try {
+    const res = await fetchWithTimeout(url, {
+      method: 'GET',
+      headers: { 'Authorization': auth, 'Accept': 'application/json' }
+    });
+    if (!res.ok) return applicationId;
+    const data = await res.json() as IqApplicationsResponse;
+    const app = data.applications?.[0];
+    if (app?.id) return app.id;
+  } catch {
+    // If lookup fails, use the provided ID as-is (may already be internal UUID)
+  }
+  return applicationId;
+}
+
 async function pollResults(
   baseUrl: string,
   resultsUrl: string,
@@ -255,12 +286,13 @@ export async function checkPackagesViaIqServer(
   if (!userCode || !passcode) throw new Error('Sonatype IQ Server credentials not configured.');
 
   const auth = buildBasicAuth(userCode, passcode);
+  const resolvedId = await resolveApplicationInternalId(applicationId, baseUrl, auth);
   const allVulnerable: VulnerablePackage[] = [];
 
   for (let i = 0; i < packages.length; i += BATCH_SIZE) {
     const chunk = packages.slice(i, i + BATCH_SIZE);
     const purls = chunk.map(toPurl);
-    const results = await evaluateBatch(purls, chunk, baseUrl, applicationId, auth);
+    const results = await evaluateBatch(purls, chunk, baseUrl, resolvedId, auth);
     allVulnerable.push(...results);
   }
 
