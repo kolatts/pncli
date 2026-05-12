@@ -3,6 +3,7 @@ import type { ResolvedConfig } from '../../types/config.js';
 import { checkOsvConnectivity } from './clients/osv.js';
 import { checkArtifactoryConnectivity } from './clients/artifactory.js';
 import { checkSonatypeConnectivity } from './clients/sonatype.js';
+import { checkSonatypeIqConnectivity } from './clients/sonatypeiq.js';
 
 interface TierResult {
   tier: Tier;
@@ -42,11 +43,19 @@ export async function checkSonatypeReachable(): Promise<boolean> {
 }
 
 export async function buildConnectivityData(config: ResolvedConfig): Promise<ConnectivityData> {
-  const [osvResult, artResult, sonatypeResult] = await Promise.all([
+  const iqCfg = config.sonatypeiq;
+  const iqConfigured = !!(iqCfg.baseUrl && iqCfg.userCode && iqCfg.passcode);
+
+  const checks = await Promise.all([
     checkOsvConnectivity(),
     checkArtifactoryConnectivity(config.artifactory),
-    checkSonatypeConnectivity()
+    checkSonatypeConnectivity(),
+    iqConfigured
+      ? checkSonatypeIqConnectivity(iqCfg.baseUrl!, iqCfg.userCode!, iqCfg.passcode!)
+      : Promise.resolve(null)
   ]);
+
+  const [osvResult, artResult, sonatypeResult, iqResult] = checks;
 
   const artCfg = config.artifactory;
 
@@ -82,13 +91,21 @@ export async function buildConnectivityData(config: ResolvedConfig): Promise<Con
       url: 'https://ossindex.sonatype.org',
       ...(sonatypeResult.error ? { error: sonatypeResult.error } : {})
     },
+    ...(iqConfigured && iqResult ? {
+      sonatypeiq: {
+        reachable: iqResult.reachable,
+        authenticated: iqResult.authenticated,
+        url: iqCfg.baseUrl!,
+        ...(iqResult.error ? { error: iqResult.error } : {})
+      }
+    } : {}),
     tier,
     capabilities: {
       scan: true,
       diff: true,
       outdated: artResult.reachable && artResult.authenticated,
       licenseCheck: artResult.reachable && artResult.authenticated,
-      cveCheck: osvResult.reachable || sonatypeResult.reachable
+      cveCheck: osvResult.reachable || sonatypeResult.reachable || (iqResult?.reachable && iqResult?.authenticated) === true
     }
   };
 }

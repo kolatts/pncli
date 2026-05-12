@@ -25,6 +25,7 @@ import { registerUdeployCommands } from './services/udeploy/commands.js';
 import { registerCheckmarxCommands } from './services/checkmarx/commands.js';
 import { registerServiceNowCommands } from './services/servicenow/commands.js';
 import { registerContrastCommands } from './services/contrast/commands.js';
+import { registerSonatypeIqCommands } from './services/sonatypeiq/commands.js';
 import { registerSkillsCommands } from './services/skills/commands.js';
 
 const require = createRequire(import.meta.url);
@@ -76,6 +77,7 @@ registerUdeployCommands(program);
 registerCheckmarxCommands(program);
 registerServiceNowCommands(program);
 registerContrastCommands(program);
+registerSonatypeIqCommands(program);
 registerSkillsCommands(program);
 
 program.addHelpText('after', `
@@ -94,6 +96,7 @@ Services:
   checkmarx    Checkmarx CxSAST (projects, scans, scan statistics)
   servicenow   ServiceNow (change requests)
   contrast     Contrast IAST (applications, vulnerability findings)
+  sonatypeiq   Sonatype IQ Server (applications, organizations, policies)
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills
 `);
