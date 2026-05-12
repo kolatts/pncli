@@ -270,6 +270,55 @@ describe('HTTP error handling', () => {
   });
 });
 
+// ─── application ID resolution (public ID → internal UUID) ───────────────────
+
+describe('application ID resolution', () => {
+  it('resolves public ID to internal UUID via publicId lookup', async () => {
+    const capturedUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrls.push(url as string);
+      if ((url as string).includes('publicId=hub-00004')) {
+        return new Response(JSON.stringify({
+          applications: [{ id: '293f3158b64f41dfb975b1962352b84c', publicId: 'hub-00004', name: 'Hub' }]
+        }), { status: 200 });
+      }
+      return evalResponse([]);
+    });
+    await checkPackagesViaIqServer([pkg('foo')], 'hub-00004', makeConfig());
+    const evalUrl = capturedUrls.find(u => u.includes('/evaluation/'));
+    expect(evalUrl).toContain('293f3158b64f41dfb975b1962352b84c');
+    expect(evalUrl).not.toContain('hub-00004');
+  });
+
+  it('uses provided ID as-is when publicId lookup returns empty applications array', async () => {
+    const capturedUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrls.push(url as string);
+      if ((url as string).includes('publicId=')) {
+        return new Response(JSON.stringify({ applications: [] }), { status: 200 });
+      }
+      return evalResponse([]);
+    });
+    await checkPackagesViaIqServer([pkg('foo')], '293f3158b64f41dfb975b1962352b84c', makeConfig());
+    const evalUrl = capturedUrls.find(u => u.includes('/evaluation/'));
+    expect(evalUrl).toContain('293f3158b64f41dfb975b1962352b84c');
+  });
+
+  it('uses provided ID as-is when publicId lookup returns non-ok status', async () => {
+    const capturedUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrls.push(url as string);
+      if ((url as string).includes('publicId=')) {
+        return new Response('', { status: 500 });
+      }
+      return evalResponse([]);
+    });
+    await checkPackagesViaIqServer([pkg('foo')], 'my-internal-uuid', makeConfig());
+    const evalUrl = capturedUrls.find(u => u.includes('/evaluation/'));
+    expect(evalUrl).toContain('my-internal-uuid');
+  });
+});
+
 // ─── connectivity check ───────────────────────────────────────────────────────
 
 describe('checkSonatypeIqConnectivity', () => {
