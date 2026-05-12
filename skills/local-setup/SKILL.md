@@ -185,6 +185,18 @@ pncli config set contrast.baseUrl <url>
 
 All four credentials (org UUID, username, API key, service key) are found in your Contrast account under **User Settings → Your Keys**.
 
+**Sonatype IQ Server** — "Do you use Sonatype IQ Server for dependency security policy enforcement?"
+
+```
+pncli config set sonatypeiq.baseUrl <url>
+pncli config set sonatypeiq.userCode <user-code>
+pncli config set sonatypeiq.passcode <passcode>
+```
+
+The `userCode` and `passcode` are User Token credentials generated in your IQ Server profile under **User Menu → User Token**. The base URL is your IQ Server instance root, e.g. `https://iq.your-company.com`.
+
+Once configured, use `pncli sonatypeiq applications list` to discover application IDs, then run `pncli deps frisk --source sonatypeiq --application-id <id>` to scan dependencies against your IQ Server policies.
+
 **Step 5 — Set repo-level defaults.**
 
 Ask the user for project-specific defaults:

@@ -3,6 +3,7 @@ import type { ScanOptions, FriskData, FriskSource, FriskSourceError, VulnerableP
 import { scanRepo } from './parsers/index.js';
 import { checkPackagesForVulns } from './clients/osv.js';
 import { checkPackagesForVulnsViaSonatype } from './clients/sonatype.js';
+import { checkPackagesViaIqServer } from './clients/sonatypeiq.js';
 import { detectTier, checkSonatypeReachable } from './connectivity.js';
 import { getRepoRoot } from '../../lib/git-context.js';
 import { PncliError } from '../../lib/errors.js';
@@ -14,15 +15,33 @@ function toErrorMessage(err: unknown): string {
 export async function runFrisk(
   config: ResolvedConfig,
   opts: ScanOptions,
-  source: FriskSource = 'osv'
+  source: FriskSource = 'osv',
+  applicationId?: string
 ): Promise<FriskData> {
   const repoRoot = getRepoRoot();
   if (!repoRoot) {
     throw new PncliError('Not inside a git repository.', 1);
   }
 
+  // Validate sonatypeiq config upfront before any network checks
+  if (source === 'sonatypeiq') {
+    if (!config.sonatypeiq.baseUrl || !config.sonatypeiq.userCode || !config.sonatypeiq.passcode) {
+      throw new PncliError(
+        'deps frisk --source sonatypeiq requires Sonatype IQ Server to be configured. Run: pncli config init',
+        1
+      );
+    }
+    if (!applicationId) {
+      throw new PncliError(
+        'deps frisk --source sonatypeiq requires --application-id <id>. ' +
+        'Use \'pncli sonatypeiq applications list\' to find application IDs.',
+        1
+      );
+    }
+  }
+
   const { tier: baseTier, osvReachable } = await detectTier(config);
-  const sonatypeReachable = source !== 'osv' ? await checkSonatypeReachable() : false;
+  const sonatypeReachable = (source === 'sonatype' || source === 'all') ? await checkSonatypeReachable() : false;
   const tier = sonatypeReachable ? 'full' : baseTier;
 
   if (source === 'osv' && !osvReachable) {
@@ -78,7 +97,9 @@ export async function runFrisk(
 
   let vulnerable: VulnerablePackage[];
 
-  if (source === 'sonatype') {
+  if (source === 'sonatypeiq') {
+    vulnerable = await checkPackagesViaIqServer(scan.packages, applicationId!, config);
+  } else if (source === 'sonatype') {
     vulnerable = await checkPackagesForVulnsViaSonatype(scan.packages);
   } else if (source === 'all') {
     // Use allSettled so a runtime failure from one source doesn't discard results from the other
