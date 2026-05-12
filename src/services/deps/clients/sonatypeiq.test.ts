@@ -45,7 +45,9 @@ describe('auth header construction', () => {
 describe('purl encoding', () => {
   it('encodes scoped npm packages with %40', async () => {
     const capturedBodies: string[] = [];
-    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      if ((url as string).includes('publicId='))
+        return new Response(JSON.stringify({ applications: [] }), { status: 200 });
       capturedBodies.push(init.body as string);
       return evalResponse([{ component: { packageUrl: 'pkg:npm/%40scope/pkg@1.0.0' }, matchState: 'exact', criticalVulnerabilityCount: 0, severeVulnerabilityCount: 0, moderateVulnerabilityCount: 0 }]);
     });
@@ -56,7 +58,9 @@ describe('purl encoding', () => {
 
   it('encodes plain npm packages', async () => {
     const capturedBodies: string[] = [];
-    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      if ((url as string).includes('publicId='))
+        return new Response(JSON.stringify({ applications: [] }), { status: 200 });
       capturedBodies.push(init.body as string);
       return evalResponse([{ component: { packageUrl: 'pkg:npm/lodash@4.17.20' }, matchState: 'exact', criticalVulnerabilityCount: 0, severeVulnerabilityCount: 0, moderateVulnerabilityCount: 0 }]);
     });
@@ -67,7 +71,9 @@ describe('purl encoding', () => {
 
   it('encodes maven packages splitting groupId:artifactId', async () => {
     const capturedBodies: string[] = [];
-    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      if ((url as string).includes('publicId='))
+        return new Response(JSON.stringify({ applications: [] }), { status: 200 });
       capturedBodies.push(init.body as string);
       return evalResponse([{ component: { packageUrl: 'pkg:maven/org.apache.commons/commons-lang3@3.12.0' }, matchState: 'exact', criticalVulnerabilityCount: 0, severeVulnerabilityCount: 0, moderateVulnerabilityCount: 0 }]);
     });
@@ -230,6 +236,8 @@ describe('queued evaluation polling', () => {
   it('polls resultsUrl when isQueued is true', async () => {
     let callCount = 0;
     vi.stubGlobal('fetch', async (url: string) => {
+      if ((url as string).includes('publicId='))
+        return new Response(JSON.stringify({ applications: [] }), { status: 200 });
       callCount++;
       if (callCount === 1) {
         // First call: evaluation submission — returns queued
@@ -239,7 +247,6 @@ describe('queued evaluation polling', () => {
         }), { status: 200 });
       }
       // Second call: poll results — returns ready with no vulns
-      void url;
       return evalResponse([
         { component: { packageUrl: 'pkg:npm/foo@1.0.0' }, matchState: 'exact', criticalVulnerabilityCount: 0, severeVulnerabilityCount: 0, moderateVulnerabilityCount: 0 }
       ]);
