@@ -3,6 +3,7 @@ import { success, fail, warn } from '../../lib/output.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { fileURLToPath } from 'url';
 
 const GITHUB_API = 'https://api.github.com/repos/kolatts/pncli/contents/skills';
 const RAW_BASE   = 'https://raw.githubusercontent.com/kolatts/pncli/main/skills';
@@ -11,6 +12,16 @@ const AGENT_PATHS: Record<string, { project: string; user: string }> = {
   'github-copilot': { project: '.agents/skills',  user: path.join(os.homedir(), '.copilot/skills') },
   'claude-code':    { project: '.claude/skills',   user: path.join(os.homedir(), '.claude/skills') },
 };
+
+// Resolve the bundled skills directory relative to this file (dist/cli.js → ../skills)
+function getBundledSkillsDir(): string {
+  try {
+    const thisFile = fileURLToPath(import.meta.url);
+    return path.resolve(path.dirname(thisFile), '..', 'skills');
+  } catch {
+    return '';
+  }
+}
 
 interface GitHubEntry {
   name: string;
@@ -22,7 +33,7 @@ export function registerSkillsCommands(program: Command): void {
 
   skills
     .command('install')
-    .description('Download latest pncli skills into the current repo')
+    .description('Install pncli skills into the current repo')
     .option('--agent <agent>', 'Target agent host: github-copilot | claude-code', 'github-copilot')
     .option('--scope <scope>', 'Installation scope: project | user', 'project')
     .option('--target <dir>', 'Override install directory (ignores --agent and --scope)')
@@ -42,68 +53,115 @@ export function registerSkillsCommands(program: Command): void {
           targetDir = path.resolve(scopePath);
         }
 
-        // 1. Fetch skill directory listing from GitHub API
-        warn('Fetching skill list from GitHub...');
-        const listRes = await fetch(GITHUB_API, {
-          headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'pncli' }
-        });
-
-        if (!listRes.ok) {
-          throw new Error(`GitHub API returned ${listRes.status}: ${await listRes.text()}`);
-        }
-
-        const entries = (await listRes.json()) as GitHubEntry[];
-        const skillDirs = entries.filter(e => e.type === 'dir').map(e => e.name);
-
-        if (skillDirs.length === 0) {
-          throw new Error('No skills found in the pncli repository');
-        }
-
-        // 2. Remove only the pncli-managed skills (not user-created ones)
         const resolvedTarget = path.resolve(targetDir);
-        for (const skillName of skillDirs) {
-          const existingDir = path.resolve(targetDir, skillName);
-          if (!existingDir.startsWith(resolvedTarget + path.sep)) continue;
-          if (fs.existsSync(existingDir)) {
-            fs.rmSync(existingDir, { recursive: true, force: true });
-          }
-        }
+        const bundledDir = getBundledSkillsDir();
+        const useBundled = bundledDir !== '' && fs.existsSync(bundledDir);
 
-        // 3. Download each SKILL.md
-        warn(`Found ${skillDirs.length} skills. Downloading to ${targetDir}...`);
+        let skillDirs: string[];
+        let source: 'bundled' | 'github';
         const installed: string[] = [];
         const failed: string[] = [];
 
-        for (const skillName of skillDirs) {
-          const skillDir = path.resolve(targetDir, skillName);
-          if (!skillDir.startsWith(resolvedTarget + path.sep)) {
-            failed.push(skillName);
-            continue;
+        if (useBundled) {
+          // Use skills bundled with the npm package
+          skillDirs = fs.readdirSync(bundledDir).filter(name => {
+            const skillFile = path.join(bundledDir, name, 'SKILL.md');
+            return fs.existsSync(skillFile);
+          });
+
+          if (skillDirs.length === 0) {
+            throw new Error('No skills found in bundled package');
           }
-          const skillUrl = `${RAW_BASE}/${skillName}/SKILL.md`;
 
-          try {
-            const res = await fetch(skillUrl, {
-              headers: { 'User-Agent': 'pncli' }
-            });
+          // Remove only pncli-managed skills (not user-created ones)
+          for (const skillName of skillDirs) {
+            const existingDir = path.resolve(targetDir, skillName);
+            if (!existingDir.startsWith(resolvedTarget + path.sep)) continue;
+            if (fs.existsSync(existingDir)) {
+              fs.rmSync(existingDir, { recursive: true, force: true });
+            }
+          }
 
-            if (!res.ok) {
+          warn(`Installing ${skillDirs.length} bundled skill(s) to ${targetDir}...`);
+
+          for (const skillName of skillDirs) {
+            const skillDir = path.resolve(targetDir, skillName);
+            if (!skillDir.startsWith(resolvedTarget + path.sep)) {
               failed.push(skillName);
               continue;
             }
 
-            const content = await res.text();
-            fs.mkdirSync(skillDir, { recursive: true });
-            fs.writeFileSync(path.join(skillDir, 'SKILL.md'), content, 'utf8');
-            installed.push(skillName);
-          } catch {
-            failed.push(skillName);
+            try {
+              const content = fs.readFileSync(path.join(bundledDir, skillName, 'SKILL.md'), 'utf8');
+              fs.mkdirSync(skillDir, { recursive: true });
+              fs.writeFileSync(path.join(skillDir, 'SKILL.md'), content, 'utf8');
+              installed.push(skillName);
+            } catch {
+              failed.push(skillName);
+            }
           }
+
+          source = 'bundled';
+        } else {
+          // Fall back to downloading from GitHub
+          warn('Bundled skills not found, fetching from GitHub...');
+          const listRes = await fetch(GITHUB_API, {
+            headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'pncli' }
+          });
+
+          if (!listRes.ok) {
+            throw new Error(`GitHub API returned ${listRes.status}: ${await listRes.text()}`);
+          }
+
+          const entries = (await listRes.json()) as GitHubEntry[];
+          skillDirs = entries.filter(e => e.type === 'dir').map(e => e.name);
+
+          if (skillDirs.length === 0) {
+            throw new Error('No skills found in the pncli repository');
+          }
+
+          // Remove only pncli-managed skills (not user-created ones)
+          for (const skillName of skillDirs) {
+            const existingDir = path.resolve(targetDir, skillName);
+            if (!existingDir.startsWith(resolvedTarget + path.sep)) continue;
+            if (fs.existsSync(existingDir)) {
+              fs.rmSync(existingDir, { recursive: true, force: true });
+            }
+          }
+
+          warn(`Found ${skillDirs.length} skills. Downloading to ${targetDir}...`);
+
+          for (const skillName of skillDirs) {
+            const skillDir = path.resolve(targetDir, skillName);
+            if (!skillDir.startsWith(resolvedTarget + path.sep)) {
+              failed.push(skillName);
+              continue;
+            }
+            const skillUrl = `${RAW_BASE}/${skillName}/SKILL.md`;
+
+            try {
+              const res = await fetch(skillUrl, { headers: { 'User-Agent': 'pncli' } });
+
+              if (!res.ok) {
+                failed.push(skillName);
+                continue;
+              }
+
+              const content = await res.text();
+              fs.mkdirSync(skillDir, { recursive: true });
+              fs.writeFileSync(path.join(skillDir, 'SKILL.md'), content, 'utf8');
+              installed.push(skillName);
+            } catch {
+              failed.push(skillName);
+            }
+          }
+
+          source = 'github';
         }
 
         warn(`Installed ${installed.length} skill(s) to ${targetDir}`);
         if (failed.length > 0) {
-          warn(`Failed to download: ${failed.join(', ')}`);
+          warn(`Failed to install: ${failed.join(', ')}`);
         }
 
         success({
@@ -113,6 +171,7 @@ export function registerSkillsCommands(program: Command): void {
           total: installed.length,
           agent: opts.target ? 'custom' : opts.agent,
           scope: opts.target ? 'custom' : opts.scope,
+          source,
         }, 'skills', 'install', start);
       } catch (err) {
         fail(err, 'skills', 'install', start);
