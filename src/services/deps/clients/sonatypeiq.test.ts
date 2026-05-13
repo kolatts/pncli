@@ -40,15 +40,74 @@ describe('auth header construction', () => {
   });
 });
 
+// ─── public ID → internal UUID resolution ────────────────────────────────────
+
+describe('public ID to internal UUID resolution', () => {
+  it('resolves a public ID to the internal UUID before calling the evaluation endpoint', async () => {
+    const evaluationUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (String(url).includes('/api/v2/applications') && !String(url).includes('evaluation')) {
+        return new Response(JSON.stringify({
+          applications: [{ id: '293f3158b64f41dfb975b1962352b84c', publicId: 'hub-00004', name: 'Hub' }]
+        }), { status: 200 });
+      }
+      evaluationUrls.push(String(url));
+      return evalResponse([]);
+    });
+    await checkPackagesViaIqServer([pkg('foo')], 'hub-00004', makeConfig());
+    expect(evaluationUrls[0]).toContain('293f3158b64f41dfb975b1962352b84c');
+    expect(evaluationUrls[0]).not.toContain('hub-00004');
+  });
+
+  it('falls back to the original ID when public ID lookup returns no results', async () => {
+    const evaluationUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (String(url).includes('/api/v2/applications') && !String(url).includes('evaluation')) {
+        return new Response(JSON.stringify({ applications: [] }), { status: 200 });
+      }
+      evaluationUrls.push(String(url));
+      return evalResponse([]);
+    });
+    await checkPackagesViaIqServer([pkg('foo')], 'my-internal-uuid', makeConfig());
+    expect(evaluationUrls[0]).toContain('my-internal-uuid');
+  });
+
+  it('falls back to the original ID when public ID lookup fails with non-ok status', async () => {
+    const evaluationUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (String(url).includes('/api/v2/applications') && !String(url).includes('evaluation')) {
+        return new Response('', { status: 500 });
+      }
+      evaluationUrls.push(String(url));
+      return evalResponse([]);
+    });
+    await checkPackagesViaIqServer([pkg('foo')], 'my-internal-uuid', makeConfig());
+    expect(evaluationUrls[0]).toContain('my-internal-uuid');
+  });
+});
+
 // ─── purl encoding ────────────────────────────────────────────────────────────
+
+// Helper: stub that handles the resolution preflight (returns no match) then
+// delegates evaluation calls to the provided handler.
+function withResolutionPreflight(
+  evalHandler: (url: string, init: RequestInit) => Response | Promise<Response>
+) {
+  return async (url: string, init: RequestInit): Promise<Response> => {
+    if (String(url).includes('/api/v2/applications') && !String(url).includes('evaluation')) {
+      return new Response(JSON.stringify({ applications: [] }), { status: 200 });
+    }
+    return evalHandler(url, init);
+  };
+}
 
 describe('purl encoding', () => {
   it('encodes scoped npm packages with %40', async () => {
     const capturedBodies: string[] = [];
-    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+    vi.stubGlobal('fetch', withResolutionPreflight((_url, init) => {
       capturedBodies.push(init.body as string);
       return evalResponse([{ component: { packageUrl: 'pkg:npm/%40scope/pkg@1.0.0' }, matchState: 'exact', criticalVulnerabilityCount: 0, severeVulnerabilityCount: 0, moderateVulnerabilityCount: 0 }]);
-    });
+    }));
     await checkPackagesViaIqServer([pkg('@scope/pkg')], 'app-1', makeConfig());
     const body = JSON.parse(capturedBodies[0]!);
     expect(body.components[0].packageUrl).toBe('pkg:npm/%40scope/pkg@1.0.0');
@@ -56,10 +115,10 @@ describe('purl encoding', () => {
 
   it('encodes plain npm packages', async () => {
     const capturedBodies: string[] = [];
-    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+    vi.stubGlobal('fetch', withResolutionPreflight((_url, init) => {
       capturedBodies.push(init.body as string);
       return evalResponse([{ component: { packageUrl: 'pkg:npm/lodash@4.17.20' }, matchState: 'exact', criticalVulnerabilityCount: 0, severeVulnerabilityCount: 0, moderateVulnerabilityCount: 0 }]);
-    });
+    }));
     await checkPackagesViaIqServer([pkg('lodash', '4.17.20')], 'app-1', makeConfig());
     const body = JSON.parse(capturedBodies[0]!);
     expect(body.components[0].packageUrl).toBe('pkg:npm/lodash@4.17.20');
@@ -67,10 +126,10 @@ describe('purl encoding', () => {
 
   it('encodes maven packages splitting groupId:artifactId', async () => {
     const capturedBodies: string[] = [];
-    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+    vi.stubGlobal('fetch', withResolutionPreflight((_url, init) => {
       capturedBodies.push(init.body as string);
       return evalResponse([{ component: { packageUrl: 'pkg:maven/org.apache.commons/commons-lang3@3.12.0' }, matchState: 'exact', criticalVulnerabilityCount: 0, severeVulnerabilityCount: 0, moderateVulnerabilityCount: 0 }]);
-    });
+    }));
     await checkPackagesViaIqServer([pkg('org.apache.commons:commons-lang3', '3.12.0', 'maven')], 'app-1', makeConfig());
     const body = JSON.parse(capturedBodies[0]!);
     expect(body.components[0].packageUrl).toBe('pkg:maven/org.apache.commons/commons-lang3@3.12.0');
@@ -228,24 +287,27 @@ describe('synthetic vulnerability counts (no policy violations)', () => {
 
 describe('queued evaluation polling', () => {
   it('polls resultsUrl when isQueued is true', async () => {
-    let callCount = 0;
+    let evalCallCount = 0;
     vi.stubGlobal('fetch', async (url: string) => {
-      callCount++;
-      if (callCount === 1) {
-        // First call: evaluation submission — returns queued
+      // Resolution preflight — no match, fall back to original ID
+      if (String(url).includes('/api/v2/applications') && !String(url).includes('evaluation')) {
+        return new Response(JSON.stringify({ applications: [] }), { status: 200 });
+      }
+      evalCallCount++;
+      if (evalCallCount === 1) {
+        // First evaluation call: submission — returns queued
         return new Response(JSON.stringify({
           isQueued: true,
           resultsUrl: '/api/v2/evaluation/applications/app-1/results/r-123'
         }), { status: 200 });
       }
-      // Second call: poll results — returns ready with no vulns
-      void url;
+      // Second evaluation call: poll results — returns ready with no vulns
       return evalResponse([
         { component: { packageUrl: 'pkg:npm/foo@1.0.0' }, matchState: 'exact', criticalVulnerabilityCount: 0, severeVulnerabilityCount: 0, moderateVulnerabilityCount: 0 }
       ]);
     });
     await checkPackagesViaIqServer([pkg('foo')], 'app-1', makeConfig());
-    expect(callCount).toBe(2);
+    expect(evalCallCount).toBe(2);
   });
 });
 
