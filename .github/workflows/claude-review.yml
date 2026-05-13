@@ -68,11 +68,9 @@ jobs:
             Leave inline comments on specific lines and a top-level summary.
             Skip nitpicks; prioritize substantive feedback.
 
-            **When you are done, submit a formal GitHub review using the `mcp__github__pull_request_review_write` tool:**
-            - method: "create", event: "APPROVE", body: "..." — if no substantive issues found
-            - method: "create", event: "REQUEST_CHANGES", body: "..." — if there are blocking problems
-
-            owner: ${{ github.repository_owner }}, repo: ${{ github.event.repository.name }}, pullNumber: ${{ github.event.pull_request.number }}
+            **When you are done, submit a formal GitHub review using one of:**
+            - `gh pr review ${{ github.event.pull_request.number }} --approve --body "..."` — if no substantive issues found
+            - `gh pr review ${{ github.event.pull_request.number }} --request-changes --body "..."` — if there are blocking problems
 
             Do not leave the PR without a formal APPROVE or REQUEST_CHANGES review state.
           claude_args: |
