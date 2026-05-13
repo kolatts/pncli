@@ -55,7 +55,15 @@ export function registerSkillsCommands(program: Command): void {
 
         const resolvedTarget = path.resolve(targetDir);
         const bundledDir = getBundledSkillsDir();
-        const useBundled = bundledDir !== '' && fs.existsSync(bundledDir);
+        let bundledSkillDirs: string[] = [];
+        if (bundledDir !== '') {
+          try {
+            bundledSkillDirs = fs.readdirSync(bundledDir).filter(name =>
+              fs.existsSync(path.join(bundledDir, name, 'SKILL.md'))
+            );
+          } catch { /* not bundled, will fall back */ }
+        }
+        const useBundled = bundledSkillDirs.length > 0;
 
         let skillDirs: string[];
         let source: 'bundled' | 'github';
@@ -64,14 +72,7 @@ export function registerSkillsCommands(program: Command): void {
 
         if (useBundled) {
           // Use skills bundled with the npm package
-          skillDirs = fs.readdirSync(bundledDir).filter(name => {
-            const skillFile = path.join(bundledDir, name, 'SKILL.md');
-            return fs.existsSync(skillFile);
-          });
-
-          if (skillDirs.length === 0) {
-            throw new Error('No skills found in bundled package');
-          }
+          skillDirs = bundledSkillDirs;
 
           // Remove only pncli-managed skills (not user-created ones)
           for (const skillName of skillDirs) {
