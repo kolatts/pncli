@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.10.0](https://github.com/kolatts/pncli/compare/v1.9.0...v1.10.0) (2026-05-14)
+
+
+### Features
+
+* enable mcp__github__pull_request_review_write for Claude review approvals ([#138](https://github.com/kolatts/pncli/issues/138)) ([3f07dc2](https://github.com/kolatts/pncli/commit/3f07dc25288e9530bdc473ba3902170d0b5ad579))
+* **sonatypeiq:** add Sonatype IQ Server integration with PAT auth ([#130](https://github.com/kolatts/pncli/issues/130)) ([76d0c73](https://github.com/kolatts/pncli/commit/76d0c738de1d3b8f15bd509d0af47f4d078fc30e))
+
+
+### Bug Fixes
+
+* **deps:** resolve Sonatype IQ public ID to internal UUID before evaluation ([#135](https://github.com/kolatts/pncli/issues/135)) ([41674bc](https://github.com/kolatts/pncli/commit/41674bc91e787b7f1a80c436c27f8be7e285383c)), closes [#133](https://github.com/kolatts/pncli/issues/133)
+* improve supply chain security for socket.dev ([#140](https://github.com/kolatts/pncli/issues/140)) ([f0b6e3f](https://github.com/kolatts/pncli/commit/f0b6e3f308402202928cb4de34b0bdf754658809))
+* **skills:** bundle skills with npm package and copy from dist on install ([#137](https://github.com/kolatts/pncli/issues/137)) ([4cf8c0c](https://github.com/kolatts/pncli/commit/4cf8c0cc9e4b4ca370d90b57f2c1b88f8eac2eb0))
+
 ## [1.9.0](https://github.com/kolatts/pncli/compare/v1.8.0...v1.9.0) (2026-05-11)
 
 
