@@ -527,7 +527,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   process.stderr.write('\n── Jira ──────────────────────────────────────────\n');
   const jiraBaseUrl = await input({
-    message: 'Jira base URL (e.g. https://jira.your-company.com):',
+    message: 'Jira base URL (e.g. jira.your-company.com):',
     default: ''
   });
 
@@ -537,7 +537,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   process.stderr.write('\n── Bitbucket ─────────────────────────────────────\n');
   const bitbucketBaseUrl = await input({
-    message: 'Bitbucket Server base URL (e.g. https://bitbucket.your-company.com):',
+    message: 'Bitbucket Server base URL (e.g. bitbucket.your-company.com):',
     default: ''
   });
 
@@ -547,7 +547,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   process.stderr.write('\n── Confluence ────────────────────────────────────\n');
   const confluenceBaseUrl = await input({
-    message: 'Confluence base URL (e.g. https://confluence.your-company.com):',
+    message: 'Confluence base URL (e.g. confluence.your-company.com):',
     default: ''
   });
 
@@ -569,7 +569,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (useArtifactory) {
     artifactoryBaseUrl = await input({
-      message: 'Artifactory base URL (e.g. https://artifactory.company.com):',
+      message: 'Artifactory base URL (e.g. artifactory.company.com):',
       default: ''
     });
 
@@ -606,7 +606,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (useSonar) {
     sonarBaseUrl = await input({
-      message: 'SonarQube Server base URL (e.g. https://sonar.your-company.com):',
+      message: 'SonarQube Server base URL (e.g. sonar.your-company.com):',
       default: ''
     });
 
@@ -668,7 +668,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (useAdo) {
     adoBaseUrl = await input({
-      message: 'Azure DevOps Server base URL (e.g. https://tfs.company.com or https://devops.company.com/tfs):',
+      message: 'Azure DevOps Server base URL (e.g. tfs.company.com or devops.company.com/tfs):',
       default: ''
     });
 
@@ -749,7 +749,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (useJenkins) {
     jenkinsBaseUrl = await input({
-      message: 'Jenkins base URL (e.g. https://jenkins.your-company.com):',
+      message: 'Jenkins base URL (e.g. jenkins.your-company.com):',
       default: ''
     });
 
@@ -778,7 +778,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (useUdeploy) {
     udeployBaseUrl = await input({
-      message: 'UDeploy base URL (e.g. https://ucd.company.com:8443):',
+      message: 'UDeploy base URL (e.g. ucd.company.com:8443):',
       default: ''
     });
 
@@ -843,7 +843,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (useCheckmarx) {
     checkmarxBaseUrl = await input({
-      message: 'Checkmarx base URL (e.g. https://cx.company.com):',
+      message: 'Checkmarx base URL (e.g. cx.company.com):',
       default: ''
     });
 
@@ -891,7 +891,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (useServiceNow) {
     servicenowBaseUrl = await input({
-      message: 'ServiceNow instance URL (e.g. https://mycompany.service-now.com):',
+      message: 'ServiceNow instance URL (e.g. mycompany.service-now.com):',
       default: ''
     });
 
@@ -954,7 +954,7 @@ async function initGlobalConfig(start: number): Promise<void> {
     process.stderr.write('  User Token credentials are found in your IQ Server profile under User Token.\n');
 
     sonatypeIqBaseUrl = await input({
-      message: 'Sonatype IQ Server base URL (e.g. https://iq.your-company.com):',
+      message: 'Sonatype IQ Server base URL (e.g. iq.your-company.com):',
       default: ''
     });
 

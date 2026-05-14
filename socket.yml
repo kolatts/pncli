@@ -1,0 +1,8 @@
+version: 2
+settings:
+  issueRules:
+    # pncli is a multi-service CLI that intentionally calls well-known public APIs
+    # (OSV.dev, Sonatype OSS Index, Contrast Security). These hardcoded base URLs
+    # are documented integration endpoints, not exfiltration vectors.
+    urlStrings:
+      action: ignore
