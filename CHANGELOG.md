@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.1](https://github.com/kolatts/pncli/compare/v1.10.0...v1.10.1) (2026-05-14)
+
+
+### Bug Fixes
+
+* improve supply chain security for socket.dev ([#141](https://github.com/kolatts/pncli/issues/141)) ([426818d](https://github.com/kolatts/pncli/commit/426818dbd55f528924c98da9fbeb4dc70aa30808))
+
 ## [1.10.0](https://github.com/kolatts/pncli/compare/v1.9.0...v1.10.0) (2026-05-14)
 
 
