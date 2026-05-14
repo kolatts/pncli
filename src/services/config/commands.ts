@@ -512,8 +512,9 @@ export function registerConfigCommands(program: Command): void {
 }
 
 function normalizeBaseUrl(raw: string): string {
-  if (!raw) return raw;
-  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
 async function initGlobalConfig(start: number): Promise<void> {
@@ -698,7 +699,7 @@ async function initGlobalConfig(start: number): Promise<void> {
         const tempConfig = {
           ...loadConfig(),
           ado: {
-            baseUrl: adoBaseUrl,
+            baseUrl: normalizeBaseUrl(adoBaseUrl),
             pat: adoPat || undefined,
             fieldAliases: {},
             discoveredFields: [],
@@ -820,7 +821,7 @@ async function initGlobalConfig(start: number): Promise<void> {
         const tempConfig = {
           ...loadConfig(),
           udeploy: {
-            baseUrl: udeployBaseUrl,
+            baseUrl: normalizeBaseUrl(udeployBaseUrl),
             pat: udeployPat || undefined,
             username: udeployUsername || undefined,
             password: udeployPassword || undefined
@@ -868,7 +869,7 @@ async function initGlobalConfig(start: number): Promise<void> {
         const tempConfig = {
           ...loadConfig(),
           checkmarx: {
-            baseUrl: checkmarxBaseUrl,
+            baseUrl: normalizeBaseUrl(checkmarxBaseUrl),
             username: checkmarxUsername,
             password: checkmarxPassword
           }
@@ -929,7 +930,7 @@ async function initGlobalConfig(start: number): Promise<void> {
         const tempConfig = {
           ...loadConfig(),
           servicenow: {
-            baseUrl: servicenowBaseUrl,
+            baseUrl: normalizeBaseUrl(servicenowBaseUrl),
             username: servicenowUsername,
             password: servicenowPassword || undefined,
             apiToken: servicenowApiToken || undefined
@@ -978,7 +979,7 @@ async function initGlobalConfig(start: number): Promise<void> {
         const tempConfig = {
           ...loadConfig(),
           sonatypeiq: {
-            baseUrl: sonatypeIqBaseUrl,
+            baseUrl: normalizeBaseUrl(sonatypeIqBaseUrl),
             userCode: sonatypeIqUserCode,
             passcode: sonatypeIqPasscode
           }
@@ -1038,7 +1039,7 @@ async function initGlobalConfig(start: number): Promise<void> {
         const tempConfig = {
           ...loadConfig(),
           contrast: {
-            baseUrl: contrastBaseUrl || undefined,
+            baseUrl: normalizeBaseUrl(contrastBaseUrl) || undefined,
             orgUuid: contrastOrgUuid,
             username: contrastUsername,
             apiKey: contrastApiKey,
