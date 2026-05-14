@@ -1,8 +1,10 @@
 version: 2
 settings:
   issueRules:
-    # pncli is a multi-service CLI that intentionally calls well-known public APIs
-    # (OSV.dev, Sonatype OSS Index, Contrast Security). These hardcoded base URLs
-    # are documented integration endpoints, not exfiltration vectors.
+    # Suppresses ALL urlStrings findings for this package — not scoped to specific endpoints.
+    # pncli is a multi-service CLI that intentionally embeds base URLs for every integration
+    # (OSV.dev, Sonatype OSS Index, Contrast Security, and user-supplied on-prem hosts).
+    # The trade-off is accepted: any future hardcoded URL added to this package will also be
+    # silently ignored by socket. Review new outbound fetch() call sites during code review.
     urlStrings:
       action: ignore
