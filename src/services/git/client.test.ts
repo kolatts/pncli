@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseBranchReportOutput, formatBranchReportCsv } from './client.js';
-
-const COMMIT_PREFIX = '__PNCLI_COMMIT__';
+import { parseBranchReportOutput, formatBranchReportCsv, buildReportArgs, COMMIT_PREFIX, type BranchReport } from './client.js';
 
 describe('parseBranchReportOutput', () => {
   it('returns an empty report when raw output is empty', () => {
@@ -90,48 +88,114 @@ describe('parseBranchReportOutput', () => {
   });
 });
 
-describe('formatBranchReportCsv', () => {
-  const report = {
-    branch: 'feature',
-    since: '2024-01-01',
-    until: '2024-12-31',
-    commits: [
-      {
-        hash: 'abc123',
-        date: '2024-06-15T12:00:00Z',
-        author: 'Alice',
-        message: 'Add feature',
-        filesChanged: 3,
-        insertions: 20,
-        deletions: 5,
-        netLines: 15
-      }
-    ],
-    summary: {
-      commitCount: 1,
-      totalInsertions: 20,
-      totalDeletions: 5,
-      totalNetLines: 15,
-      totalFilesChanged: 3
-    }
-  };
-
-  it('includes header row', () => {
-    const csv = formatBranchReportCsv(report);
-    const lines = csv.split('\n');
-    expect(lines[0]).toBe('hash,date,author,message,files_changed,insertions,deletions,net_lines');
+describe('weekly and author breakdown', () => {
+  it('single author, single week', () => {
+    const raw = [
+      `${COMMIT_PREFIX}aaa\tAlice\t2024-04-10T10:00:00Z\tCommit A`,
+      '5\t2\tsrc/foo.ts'
+    ].join('\n');
+    const report = parseBranchReportOutput(raw, 'main', {});
+    expect(report.weeks).toHaveLength(1);
+    expect(report.weeks[0]!.week).toBe('2024-W15');
+    expect(report.weeks[0]!.weekStart).toBe('2024-04-08');
+    expect(report.weeks[0]!.weekEnd).toBe('2024-04-14');
+    expect(report.weeks[0]!.authors).toHaveLength(1);
+    expect(report.weeks[0]!.authors[0]!.author).toBe('Alice');
+    expect(report.weeks[0]!.authors[0]!.commitCount).toBe(1);
+    expect(report.weeks[0]!.authors[0]!.insertions).toBe(5);
+    expect(report.weeks[0]!.authors[0]!.deletions).toBe(2);
+    expect(report.weeks[0]!.authors[0]!.netLines).toBe(3);
+    expect(report.weeks[0]!.summary.commitCount).toBe(1);
+    expect(report.byAuthor).toHaveLength(1);
+    expect(report.byAuthor[0]!.author).toBe('Alice');
   });
 
-  it('includes one data row per commit', () => {
-    const csv = formatBranchReportCsv(report);
+  it('multiple authors in same week are sorted alphabetically', () => {
+    const raw = [
+      `${COMMIT_PREFIX}aaa\tZara\t2024-04-09T10:00:00Z\tCommit Z`,
+      '3\t1\tfile.ts',
+      `${COMMIT_PREFIX}bbb\tAlice\t2024-04-10T10:00:00Z\tCommit A`,
+      '7\t2\tfile.ts'
+    ].join('\n');
+    const report = parseBranchReportOutput(raw, 'main', {});
+    expect(report.weeks).toHaveLength(1);
+    const authors = report.weeks[0]!.authors;
+    expect(authors).toHaveLength(2);
+    expect(authors[0]!.author).toBe('Alice');
+    expect(authors[1]!.author).toBe('Zara');
+    expect(report.weeks[0]!.summary.commitCount).toBe(2);
+    expect(report.weeks[0]!.summary.totalInsertions).toBe(10);
+  });
+
+  it('commits spanning two weeks produce two entries in chronological order', () => {
+    const raw = [
+      `${COMMIT_PREFIX}aaa\tAlice\t2024-04-08T10:00:00Z\tWeek 15`,
+      '2\t0\tfile.ts',
+      `${COMMIT_PREFIX}bbb\tAlice\t2024-04-15T10:00:00Z\tWeek 16`,
+      '4\t1\tfile.ts'
+    ].join('\n');
+    const report = parseBranchReportOutput(raw, 'main', {});
+    expect(report.weeks).toHaveLength(2);
+    expect(report.weeks[0]!.week).toBe('2024-W15');
+    expect(report.weeks[1]!.week).toBe('2024-W16');
+  });
+
+  it('byAuthor rolls up across all weeks', () => {
+    const raw = [
+      `${COMMIT_PREFIX}aaa\tAlice\t2024-04-08T10:00:00Z\tWeek 15`,
+      '2\t0\tfile.ts',
+      `${COMMIT_PREFIX}bbb\tAlice\t2024-04-15T10:00:00Z\tWeek 16`,
+      '4\t1\tfile.ts',
+      `${COMMIT_PREFIX}ccc\tBob\t2024-04-15T10:00:00Z\tWeek 16 Bob`,
+      '1\t1\tfile.ts'
+    ].join('\n');
+    const report = parseBranchReportOutput(raw, 'main', {});
+    expect(report.byAuthor).toHaveLength(2);
+    const alice = report.byAuthor.find(a => a.author === 'Alice')!;
+    expect(alice.commitCount).toBe(2);
+    expect(alice.insertions).toBe(6);
+    expect(alice.deletions).toBe(1);
+    const bob = report.byAuthor.find(a => a.author === 'Bob')!;
+    expect(bob.commitCount).toBe(1);
+  });
+
+  it('empty commits produce empty weeks and byAuthor', () => {
+    const report = parseBranchReportOutput('', 'main', {});
+    expect(report.weeks).toHaveLength(0);
+    expect(report.byAuthor).toHaveLength(0);
+  });
+});
+
+describe('formatBranchReportCsv', () => {
+  const makeReport = (overrides?: Partial<BranchReport>): BranchReport => {
+    const base = parseBranchReportOutput(
+      [
+        `${COMMIT_PREFIX}abc123\tAlice\t2024-06-15T12:00:00Z\tAdd feature`,
+        '20\t5\tsrc/foo.ts',
+        '0\t0\tsrc/bar.ts'
+      ].join('\n'),
+      'feature',
+      { since: '2024-01-01', until: '2024-12-31' }
+    );
+    return { ...base, ...overrides };
+  };
+
+  it('includes weekly/author header row', () => {
+    const csv = formatBranchReportCsv(makeReport());
+    expect(csv.split('\n')[0]).toBe('week,week_start,author,commits,insertions,deletions,net_lines,files_changed');
+  });
+
+  it('includes one data row per author per week', () => {
+    const csv = formatBranchReportCsv(makeReport());
     const lines = csv.trim().split('\n');
-    // header + 1 commit + TOTAL
+    // header + 1 author row + TOTAL
     expect(lines).toHaveLength(3);
-    expect(lines[1]).toBe('abc123,2024-06-15T12:00:00Z,Alice,Add feature,3,20,5,15');
+    expect(lines[1]).toContain('Alice');
+    expect(lines[1]).toContain('2024-W24');
   });
 
   it('includes TOTAL row', () => {
-    const csv = formatBranchReportCsv(report);
+    const csv = formatBranchReportCsv(makeReport());
     const lines = csv.trim().split('\n');
     const totalRow = lines[lines.length - 1]!;
     expect(totalRow.startsWith('TOTAL,')).toBe(true);
@@ -139,26 +203,49 @@ describe('formatBranchReportCsv', () => {
     expect(totalRow).toContain('15');
   });
 
-  it('escapes commas in author/message fields', () => {
-    const r = {
-      ...report,
-      commits: [
-        {
-          ...report.commits[0]!,
-          author: 'Doe, Jane',
-          message: 'Fix: handle "quotes" and, commas'
-        }
-      ]
-    };
-    const csv = formatBranchReportCsv(r);
-    const dataLine = csv.split('\n')[1]!;
-    // Both fields should be quoted
-    expect(dataLine).toContain('"Doe, Jane"');
-    expect(dataLine).toContain('"Fix: handle ""quotes"" and, commas"');
+  it('escapes commas in author field', () => {
+    const raw = [
+      `${COMMIT_PREFIX}aaa\tDoe, Jane\t2024-04-10T10:00:00Z\tFix`,
+      '1\t0\tfile.ts'
+    ].join('\n');
+    const report = parseBranchReportOutput(raw, 'main', {});
+    const csv = formatBranchReportCsv(report);
+    expect(csv).toContain('"Doe, Jane"');
   });
 
   it('ends with a newline', () => {
-    const csv = formatBranchReportCsv(report);
+    const csv = formatBranchReportCsv(makeReport());
     expect(csv.endsWith('\n')).toBe(true);
+  });
+});
+
+describe('buildReportArgs', () => {
+  it('adds base..HEAD when --base given without --branch', () => {
+    const args = buildReportArgs({ base: 'main' });
+    expect(args).toContain('main..HEAD');
+  });
+
+  it('adds base..branch when both --base and --branch given', () => {
+    const args = buildReportArgs({ base: 'main', branch: 'feature' });
+    expect(args).toContain('main..feature');
+    expect(args).not.toContain('main..HEAD');
+  });
+
+  it('adds branch alone when only --branch given', () => {
+    const args = buildReportArgs({ branch: 'feature' });
+    expect(args).toContain('feature');
+    expect(args).not.toContain('..');
+  });
+
+  it('adds --since and --until flags', () => {
+    const args = buildReportArgs({ since: '2024-01-01', until: '2024-12-31' });
+    expect(args).toContain('--since=2024-01-01');
+    expect(args).toContain('--until=2024-12-31');
+  });
+
+  it('adds no range arg when no base, branch, since, or until', () => {
+    const args = buildReportArgs({});
+    expect(args).not.toContain('..');
+    expect(args.some(a => a.startsWith('--since'))).toBe(false);
   });
 });

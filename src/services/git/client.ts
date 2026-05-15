@@ -209,11 +209,20 @@ export interface CommitStats {
   netLines: number;
 }
 
-export interface BranchReport {
-  branch: string;
-  since: string | null;
-  until: string | null;
-  commits: CommitStats[];
+export interface AuthorStats {
+  author: string;
+  commitCount: number;
+  insertions: number;
+  deletions: number;
+  netLines: number;
+  filesChanged: number;
+}
+
+export interface WeeklyBreakdown {
+  week: string;
+  weekStart: string;
+  weekEnd: string;
+  authors: AuthorStats[];
   summary: {
     commitCount: number;
     totalInsertions: number;
@@ -223,7 +232,118 @@ export interface BranchReport {
   };
 }
 
-const COMMIT_PREFIX = '__PNCLI_COMMIT__';
+export interface BranchReport {
+  branch: string;
+  since: string | null;
+  until: string | null;
+  commits: CommitStats[];
+  weeks: WeeklyBreakdown[];
+  byAuthor: AuthorStats[];
+  summary: {
+    commitCount: number;
+    totalInsertions: number;
+    totalDeletions: number;
+    totalNetLines: number;
+    totalFilesChanged: number;
+  };
+}
+
+export const COMMIT_PREFIX = '__PNCLI_COMMIT__';
+
+function getWeekMonday(dateStr: string): string {
+  const d = new Date(dateStr);
+  const day = d.getUTCDay(); // 0=Sun
+  const diff = day === 0 ? -6 : 1 - day;
+  const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + diff));
+  return monday.toISOString().slice(0, 10);
+}
+
+function getWeekSunday(mondayStr: string): string {
+  const d = new Date(mondayStr);
+  const sunday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 6));
+  return sunday.toISOString().slice(0, 10);
+}
+
+function getISOWeekLabel(mondayStr: string): string {
+  const d = new Date(mondayStr);
+  // Thursday of the same week determines the ISO year
+  const thursday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 3));
+  const year = thursday.getUTCFullYear();
+  const jan4 = new Date(Date.UTC(year, 0, 4)); // Jan 4 is always in week 1
+  const jan4Monday = new Date(Date.UTC(year, 0, 4 - (jan4.getUTCDay() === 0 ? 6 : jan4.getUTCDay() - 1)));
+  const weekNum = Math.round((d.getTime() - jan4Monday.getTime()) / (7 * 86400000)) + 1;
+  return `${year}-W${String(weekNum).padStart(2, '0')}`;
+}
+
+function buildWeeklyBreakdown(commits: CommitStats[]): WeeklyBreakdown[] {
+  const weekMap = new Map<string, Map<string, AuthorStats>>();
+
+  for (const commit of commits) {
+    const monday = getWeekMonday(commit.date);
+    if (!weekMap.has(monday)) weekMap.set(monday, new Map());
+    const authorMap = weekMap.get(monday)!;
+
+    if (!authorMap.has(commit.author)) {
+      authorMap.set(commit.author, {
+        author: commit.author,
+        commitCount: 0,
+        insertions: 0,
+        deletions: 0,
+        netLines: 0,
+        filesChanged: 0
+      });
+    }
+
+    const stats = authorMap.get(commit.author)!;
+    stats.commitCount++;
+    stats.insertions += commit.insertions;
+    stats.deletions += commit.deletions;
+    stats.netLines += commit.netLines;
+    stats.filesChanged += commit.filesChanged;
+  }
+
+  return [...weekMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([monday, authorMap]) => {
+      const authors = [...authorMap.values()].sort((a, b) => a.author.localeCompare(b.author));
+      return {
+        week: getISOWeekLabel(monday),
+        weekStart: monday,
+        weekEnd: getWeekSunday(monday),
+        authors,
+        summary: {
+          commitCount: authors.reduce((s, a) => s + a.commitCount, 0),
+          totalInsertions: authors.reduce((s, a) => s + a.insertions, 0),
+          totalDeletions: authors.reduce((s, a) => s + a.deletions, 0),
+          totalNetLines: authors.reduce((s, a) => s + a.netLines, 0),
+          totalFilesChanged: authors.reduce((s, a) => s + a.filesChanged, 0)
+        }
+      };
+    });
+}
+
+function buildByAuthor(commits: CommitStats[]): AuthorStats[] {
+  const map = new Map<string, AuthorStats>();
+  for (const commit of commits) {
+    if (!map.has(commit.author)) {
+      map.set(commit.author, {
+        author: commit.author,
+        commitCount: 0,
+        insertions: 0,
+        deletions: 0,
+        netLines: 0,
+        filesChanged: 0
+      });
+    }
+    const stats = map.get(commit.author)!;
+    stats.commitCount++;
+    stats.insertions += commit.insertions;
+    stats.deletions += commit.deletions;
+    stats.netLines += commit.netLines;
+    stats.filesChanged += commit.filesChanged;
+  }
+  return [...map.values()].sort((a, b) => a.author.localeCompare(b.author));
+}
 
 // Exported for unit testing
 export function parseBranchReportOutput(
@@ -272,6 +392,8 @@ export function parseBranchReportOutput(
     since: opts.since ?? null,
     until: opts.until ?? null,
     commits,
+    weeks: buildWeeklyBreakdown(commits),
+    byAuthor: buildByAuthor(commits),
     summary: {
       commitCount: commits.length,
       totalInsertions,
@@ -282,10 +404,8 @@ export function parseBranchReportOutput(
   };
 }
 
-export function getBranchReport(
-  root: string,
-  opts: { branch?: string; since?: string; until?: string; base?: string }
-): BranchReport {
+// Exported for unit testing — pure arg construction with no I/O
+export function buildReportArgs(opts: { branch?: string; since?: string; until?: string; base?: string }): string[] {
   const fmt = `${COMMIT_PREFIX}%H\t%an\t%aI\t%s`;
   const args = ['log', `--format=${fmt}`, '--numstat'];
 
@@ -294,9 +414,20 @@ export function getBranchReport(
 
   if (opts.base && opts.branch) {
     args.push(`${opts.base}..${opts.branch}`);
+  } else if (opts.base) {
+    args.push(`${opts.base}..HEAD`);
   } else if (opts.branch) {
     args.push(opts.branch);
   }
+
+  return args;
+}
+
+export function getBranchReport(
+  root: string,
+  opts: { branch?: string; since?: string; until?: string; base?: string }
+): BranchReport {
+  const args = buildReportArgs(opts);
 
   let raw = '';
   try {
@@ -328,31 +459,28 @@ function escapeCsvField(value: string): string {
 }
 
 export function formatBranchReportCsv(report: BranchReport): string {
-  const header = 'hash,date,author,message,files_changed,insertions,deletions,net_lines';
-  const rows = report.commits.map(c =>
-    [
-      c.hash,
-      c.date,
-      escapeCsvField(c.author),
-      escapeCsvField(c.message),
-      c.filesChanged,
-      c.insertions,
-      c.deletions,
-      c.netLines
-    ].join(',')
-  );
+  const header = 'week,week_start,author,commits,insertions,deletions,net_lines,files_changed';
+  const rows: string[] = [];
+
+  for (const week of report.weeks) {
+    for (const a of week.authors) {
+      rows.push(
+        [
+          week.week,
+          week.weekStart,
+          escapeCsvField(a.author),
+          a.commitCount,
+          a.insertions,
+          a.deletions,
+          a.netLines,
+          a.filesChanged
+        ].join(',')
+      );
+    }
+  }
 
   const s = report.summary;
-  const totalRow = [
-    'TOTAL',
-    '',
-    '',
-    escapeCsvField(`commits:${s.commitCount}`),
-    s.totalFilesChanged,
-    s.totalInsertions,
-    s.totalDeletions,
-    s.totalNetLines
-  ].join(',');
+  const totalRow = ['TOTAL', '', '', s.commitCount, s.totalInsertions, s.totalDeletions, s.totalNetLines, s.totalFilesChanged].join(',');
 
   return [header, ...rows, totalRow].join('\n') + '\n';
 }
