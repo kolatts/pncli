@@ -2,12 +2,39 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills } from './commands.js';
+import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl } from './commands.js';
 
 type ReaddirResult = ReturnType<typeof fs.readdirSync>;
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+// ── injectTokenIntoUrl ────────────────────────────────────────────────────────
+
+describe('injectTokenIntoUrl', () => {
+  it('injects token into an https URL using x-token-auth scheme', () => {
+    const result = injectTokenIntoUrl('https://bitbucket.example.com/scm/proj/repo.git', 'mytoken123');
+    expect(result).toBe('https://x-token-auth:mytoken123@bitbucket.example.com/scm/proj/repo.git');
+  });
+
+  it('URL-encodes special characters in the token', () => {
+    const result = injectTokenIntoUrl('https://bitbucket.example.com/scm/proj/repo.git', 'tok@en/sp ec');
+    expect(result).toContain('x-token-auth:');
+    expect(result).toContain('@bitbucket.example.com');
+    // token with special chars should be encoded
+    const parsed = new URL(result);
+    expect(parsed.password).toBe('tok@en/sp ec');
+  });
+
+  it('preserves the path and query string', () => {
+    const result = injectTokenIntoUrl('https://bitbucket.example.com/scm/PROJ/my-repo.git', 'tok');
+    expect(result).toContain('/scm/PROJ/my-repo.git');
+  });
+
+  it('throws on a non-http URL', () => {
+    expect(() => injectTokenIntoUrl('git@bitbucket.example.com:proj/repo.git', 'tok')).toThrow();
+  });
 });
 
 // ── resolvePluginChoices ──────────────────────────────────────────────────────

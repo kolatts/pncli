@@ -9,6 +9,17 @@ import { select } from '@inquirer/prompts';
 import { writeGlobalConfig, getGlobalConfigPath, loadJsonFile } from '../../lib/config.js';
 import type { GlobalConfig } from '../../types/config.js';
 
+/**
+ * Injects a Bitbucket HTTP access token into a git clone URL using the
+ * x-token-auth scheme: https://x-token-auth:<token>@host/path
+ */
+export function injectTokenIntoUrl(url: string, token: string): string {
+  const parsed = new URL(url);
+  parsed.username = 'x-token-auth';
+  parsed.password = token;
+  return parsed.toString();
+}
+
 const AGENT_PATHS: Record<string, { project: string; user: string }> = {
   'github-copilot': { project: '.agents/skills',  user: path.join(os.homedir(), '.copilot/skills') },
   'claude-code':    { project: '.claude/skills',   user: path.join(os.homedir(), '.claude/skills') },
@@ -196,7 +207,8 @@ export function registerSkillsCommands(program: Command): void {
     .argument('<url>', 'Git clone URL of the marketplace repository')
     .argument('<localPath>', 'Local directory to clone the marketplace into')
     .option('--branch <branch>', 'Branch to clone', 'master')
-    .action(async (url: string, localPath: string, opts: { branch: string }) => {
+    .option('--token <token>', 'Bitbucket HTTP access token for authenticated clone and pull')
+    .action(async (url: string, localPath: string, opts: { branch: string; token?: string }) => {
       const start = Date.now();
       try {
         const resolvedPath = path.resolve(localPath);
@@ -209,15 +221,16 @@ export function registerSkillsCommands(program: Command): void {
           warn(`Directory already contains a git repo at ${resolvedPath} — skipping clone, updating config only.`);
         } else {
           warn(`Cloning ${url} (branch: ${opts.branch}) → ${resolvedPath}...`);
-          execFileSync('git', ['clone', '--branch', opts.branch, url, resolvedPath], { stdio: 'inherit' });
+          const cloneUrl = opts.token ? injectTokenIntoUrl(url, opts.token) : url;
+          execFileSync('git', ['clone', '--branch', opts.branch, cloneUrl, resolvedPath], { stdio: 'inherit' });
         }
 
         const configPath = getGlobalConfigPath();
         const existing: GlobalConfig = loadJsonFile<GlobalConfig>(configPath) ?? {};
-        existing.marketplace = { repoUrl: url, localPath: resolvedPath };
+        existing.marketplace = { repoUrl: url, localPath: resolvedPath, ...(opts.token ? { token: opts.token } : {}) };
         writeGlobalConfig(existing, configPath);
 
-        success({ repoUrl: url, localPath: resolvedPath, branch: opts.branch }, 'skills', 'marketplace-setup', start);
+        success({ repoUrl: url, localPath: resolvedPath, branch: opts.branch, tokenConfigured: !!opts.token }, 'skills', 'marketplace-setup', start);
       } catch (err) {
         fail(err, 'skills', 'marketplace-setup', start);
       }
@@ -240,7 +253,14 @@ export function registerSkillsCommands(program: Command): void {
         }
 
         warn('Pulling latest marketplace content...');
-        execFileSync('git', ['-C', marketplacePath, 'pull'], { stdio: 'inherit' });
+        const repoUrl = globalConfig.marketplace?.repoUrl;
+        const token = globalConfig.marketplace?.token;
+        const gitArgs = ['-C', marketplacePath];
+        if (repoUrl && token) {
+          gitArgs.push('-c', `remote.origin.url=${injectTokenIntoUrl(repoUrl, token)}`);
+        }
+        gitArgs.push('pull');
+        execFileSync('git', gitArgs, { stdio: 'inherit' });
 
         const pluginChoices = resolvePluginChoices(marketplacePath);
         if (pluginChoices.length === 0) {
