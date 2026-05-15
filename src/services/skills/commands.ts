@@ -14,7 +14,12 @@ import type { GlobalConfig } from '../../types/config.js';
  * x-token-auth scheme: https://x-token-auth:<token>@host/path
  */
 export function injectTokenIntoUrl(url: string, token: string): string {
-  const parsed = new URL(url);
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`--token requires an HTTPS clone URL; got: ${url}`);
+  }
   parsed.username = 'x-token-auth';
   parsed.password = token;
   return parsed.toString();
@@ -222,7 +227,12 @@ export function registerSkillsCommands(program: Command): void {
         } else {
           warn(`Cloning ${url} (branch: ${opts.branch}) → ${resolvedPath}...`);
           const cloneUrl = opts.token ? injectTokenIntoUrl(url, opts.token) : url;
-          execFileSync('git', ['clone', '--branch', opts.branch, cloneUrl, resolvedPath], { stdio: 'inherit' });
+          try {
+            execFileSync('git', ['clone', '--branch', opts.branch, cloneUrl, resolvedPath], { stdio: ['inherit', 'inherit', 'pipe'] });
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            throw new Error(msg.replace(/x-token-auth:[^@]+@/g, 'x-token-auth:***@'));
+          }
         }
 
         const configPath = getGlobalConfigPath();
@@ -260,7 +270,12 @@ export function registerSkillsCommands(program: Command): void {
           gitArgs.push('-c', `remote.origin.url=${injectTokenIntoUrl(repoUrl, token)}`);
         }
         gitArgs.push('pull');
-        execFileSync('git', gitArgs, { stdio: 'inherit' });
+        try {
+          execFileSync('git', gitArgs, { stdio: ['inherit', 'inherit', 'pipe'] });
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          throw new Error(msg.replace(/x-token-auth:[^@]+@/g, 'x-token-auth:***@'));
+        }
 
         const pluginChoices = resolvePluginChoices(marketplacePath);
         if (pluginChoices.length === 0) {

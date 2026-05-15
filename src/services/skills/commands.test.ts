@@ -22,9 +22,9 @@ describe('injectTokenIntoUrl', () => {
     const result = injectTokenIntoUrl('https://bitbucket.example.com/scm/proj/repo.git', 'tok@en/sp ec');
     expect(result).toContain('x-token-auth:');
     expect(result).toContain('@bitbucket.example.com');
-    // token with special chars should be encoded
+    // token with special chars should be encoded; URL.password returns percent-encoded form
     const parsed = new URL(result);
-    expect(parsed.password).toBe('tok@en/sp ec');
+    expect(decodeURIComponent(parsed.password)).toBe('tok@en/sp ec');
   });
 
   it('preserves the path and query string', () => {
