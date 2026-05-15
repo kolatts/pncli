@@ -127,7 +127,6 @@ jobs:
                   - MANDATORY: Immediately create a PR — do this before commenting on the issue:
                     `gh pr create --title "<title>" --body "Closes #${{ github.event.issue.number }}" --repo ${{ github.repository }}`
                     The last line of output is the PR URL. Save it.
-                  - Verify the PR was created: `gh pr view --repo ${{ github.repository }} --json url,state`
                   - Comment on the issue using this format:
                     "Implemented in PR: <PR URL>
 
@@ -157,11 +156,11 @@ jobs:
             --model sonnet --max-turns 300 --allowedTools "Read,Glob,Grep,Edit,Write,Bash(gh issue list:*),Bash(gh issue comment:*),Bash(gh issue close:*),Bash(gh issue edit:*),Bash(gh label create:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(npm run build:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(npm test:*),Bash(git checkout -b:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
 
       - name: Create PR if branch was pushed without one
-        if: always()
+        if: success() || failure()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          BRANCH=$(git branch -r --list "origin/claude/issue-${{ github.event.issue.number }}-*" | head -1 | tr -d ' ')
+          BRANCH=$(git branch -r --list "origin/claude/issue-${{ github.event.issue.number }}*" | head -1 | tr -d ' ')
           if [ -z "$BRANCH" ]; then
             echo "No claude branch found for issue ${{ github.event.issue.number }}, skipping"
             exit 0
