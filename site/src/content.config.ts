@@ -28,8 +28,9 @@ const skills = defineCollection({
     providers:   z.enum(['both', 'bitbucket', 'ado', 'none']).optional(),
     category:    z.enum(['setup', 'pr-workflow', 'security', 'planning', 'code-quality', 'other']).optional(),
     services:      z.string().optional(),
-    userInvocable: z.boolean().optional(),
-    generatedAt:   z.string().optional(),
+    userInvocable:  z.boolean().optional(),
+    distributable:  z.boolean().optional(),
+    generatedAt:    z.string().optional(),
   }),
 });
 

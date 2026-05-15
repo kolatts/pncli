@@ -1,10 +1,18 @@
 version: 2
 settings:
   issueRules:
-    # Suppresses ALL urlStrings findings for this package — not scoped to specific endpoints.
-    # pncli is a multi-service CLI that intentionally embeds base URLs for every integration
-    # (OSV.dev, Sonatype OSS Index, Contrast Security, and user-supplied on-prem hosts).
-    # The trade-off is accepted: any future hardcoded URL added to this package will also be
-    # silently ignored by socket. Review new outbound fetch() call sites during code review.
+    # TLS certificate verification is opt-in for enterprise environments where
+    # corporate SSL inspection proxies break standard certificate chains.
+    # Users opt back in with PNCLI_VERIFY_TLS=1 (see src/cli.ts).
+    envSet:
+      action: ignore
+    # pncli embeds base URLs only for public API endpoints listed below.
+    # All service hosts (Jira, Bitbucket, Contrast, etc.) are user-supplied
+    # at runtime via PNCLI_*_BASE_URL env vars or `pncli config set` — none
+    # are hardcoded in the binary.
+    # Approved hardcoded endpoints:
+    #   - https://api.osv.dev            (OSV vulnerability database)
+    #   - https://ossindex.sonatype.org  (Sonatype OSS Index)
+    # Any new hardcoded URL added to this package must be reviewed here.
     urlStrings:
       action: ignore

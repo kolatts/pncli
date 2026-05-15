@@ -8,8 +8,9 @@ pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI codin
 
 - `src/` — TypeScript source (CLI entry: `src/cli.ts`, services in `src/services/`)
 - `site/` — Astro static site for GitHub Pages documentation
-- `skills/` — Consumer-facing Claude Code skills distributed via `pncli skills install`
-- `.claude/skills/` — Skills active in this repo. `ship/` is repo-internal (GitHub only); all others are symlinks into `skills/`
+- `skills/pncli/` — The one distributed skill. `SKILL.md` is a lightweight index; individual `<service>.md` files hold per-service setup docs. Installed via `pncli skills install`.
+- `example-skills/` — Workflow skills shown on the website as examples but not distributed by the installer (`ship`, `code-review`, `plan`, `security-review`, `address-pr-feedback`).
+- `.claude/skills/` — Skills active in this repo. `ship/` is repo-internal (GitHub only); all others are pointer files into `skills/` or `example-skills/`.
 
 ## Build & Test
 
@@ -40,12 +41,13 @@ When adding a new service integration (new entry under `src/services/`), these f
 
 1. **`src/types/config.ts`** — add config interface and wire into `GlobalConfig` / `ResolvedConfig`
 2. **`src/lib/config.ts`** — add env-var resolution for the new service's fields
-3. **`src/lib/http.ts`** — add `private <service>Headers()` and `async <service><T>()` methods
+3. **`src/lib/http.ts`** — add `private <service>Headers()` and `async <service><T>()` methods. Do NOT add a hardcoded default `baseUrl` — all service hosts must be user-supplied.
 4. **`src/services/config/commands.ts`** — add the service to `config init` prompts and `config check` / `config test` output
 5. **`src/cli.ts`** — import, register, and add to the help text block
-6. **`skills/local-setup/SKILL.md`** — add setup instructions for the new service in Step 4 (optional services), including all config keys and what they enable
+6. **`skills/pncli/<service>.md`** — create a service reference file with both config levels (env vars and `pncli config set`), all required keys, and example values
+7. **`skills/pncli/SKILL.md`** — add the service to the index table with a one-line description
 
-Never ship a new integration without updating all six of these. The local-setup skill is the onboarding contract — if it's missing a service, new users won't know it exists.
+Never ship a new integration without updating all seven of these. The `skills/pncli/` skill is the onboarding contract — review the index and service file on every service addition or credential change. If a service is missing or its config keys are wrong, new users won't know it exists or how to authenticate.
 
 ## Self-Containment Rule
 

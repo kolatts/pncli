@@ -87,9 +87,13 @@ export function registerSkillsCommands(program: Command): void {
           }
 
           try {
-            const content = fs.readFileSync(path.join(bundledDir, skillName, 'SKILL.md'), 'utf8');
+            const mdFiles = fs.readdirSync(path.join(bundledDir, skillName))
+              .filter(f => f.endsWith('.md'));
             fs.mkdirSync(skillDir, { recursive: true });
-            fs.writeFileSync(path.join(skillDir, 'SKILL.md'), content, 'utf8');
+            for (const mdFile of mdFiles) {
+              const content = fs.readFileSync(path.join(bundledDir, skillName, mdFile), 'utf8');
+              fs.writeFileSync(path.join(skillDir, mdFile), content, 'utf8');
+            }
             installed.push(skillName);
           } catch {
             failed.push(skillName);

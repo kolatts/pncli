@@ -72,16 +72,31 @@ if (startIdxNoH1 === -1 || endIdxNoH1 === -1) {
 
   const after = escapeMdxOutsideFences(afterRaw);
 
-  // Keep everything up to "## Common Workflows", inject setup callout, then
-  // replace the workflow recipes with a <SkillGallery /> component.
+  // Keep everything up to "## Common Workflows", inject setup callout before
+  // "## Provider Detection" so it appears early, then replace workflow recipes
+  // with a Skills section.
   const WORKFLOWS_HEADING = '\n\n## Common Workflows';
   const workflowsIdx = beforeRaw.indexOf(WORKFLOWS_HEADING);
 
   let bodyBefore;
   if (workflowsIdx !== -1) {
-    const preWorkflows = escapeMdxOutsideFences(beforeRaw.slice(0, workflowsIdx));
-    bodyBefore = preWorkflows
-      + '\n\n<ConfigSetupCallout />'
+    const preWorkflows = beforeRaw.slice(0, workflowsIdx);
+
+    // Inject ConfigSetupCallout before "## Provider Detection" so users see
+    // first-time setup instructions before usage guidance.
+    const PROVIDER_HEADING = '\n\n## Provider Detection';
+    const providerIdx = preWorkflows.indexOf(PROVIDER_HEADING);
+
+    let escapedBody;
+    if (providerIdx !== -1) {
+      const beforeProvider = escapeMdxOutsideFences(preWorkflows.slice(0, providerIdx));
+      const fromProvider   = escapeMdxOutsideFences(preWorkflows.slice(providerIdx));
+      escapedBody = beforeProvider + '\n\n<ConfigSetupCallout />' + fromProvider;
+    } else {
+      escapedBody = escapeMdxOutsideFences(preWorkflows) + '\n\n<ConfigSetupCallout />';
+    }
+
+    bodyBefore = escapedBody
       + '\n\n## Skills'
       + '\n\nEach workflow is packaged as a Claude Code skill. Run `pncli skills install` to download them into your repo (default: `.agents/skills/` for Copilot; add `--agent claude-code` for Claude Code). Skills marked `/invoke` can be called directly by name once installed.'
       + '\n\nBrowse all skills at [/skills](/pncli/skills/).';
