@@ -82,7 +82,7 @@ export function registerGitCommands(program: Command): void {
     .command('report')
     .description('Report lines of code and commit counts for a branch, optionally filtered by date')
     .option('--branch <name>', 'Branch to report on (defaults to current branch)')
-    .option('--base <ref>', 'Base ref to compare against, e.g. "main" (uses range base..branch)')
+    .option('--base <ref>', 'Base ref to compare against, e.g. "main" (base..branch, or base..HEAD if --branch is omitted)')
     .option('--since <date>', 'Include commits on or after this date (e.g. "2024-01-01")')
     .option('--until <date>', 'Include commits on or before this date (e.g. "2024-12-31")')
     .option('--csv', 'Output as CSV instead of JSON')
