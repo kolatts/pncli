@@ -322,4 +322,4 @@ export function maskConfig(config: ResolvedConfig): unknown {
   };
 }
 
-export { getGlobalConfigPath };
+export { getGlobalConfigPath, loadJsonFile };

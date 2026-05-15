@@ -493,7 +493,9 @@ pncli deps frisk
   transitive) (default: false)
   --include-dev            Include dev/test dependencies (default: false)
   --source <source>        Vulnerability source (choices: "osv", "sonatype",
-  "all", default: "osv")
+  "sonatypeiq", "all", default: "osv")
+  --application-id <id>    Sonatype IQ Server application ID (required when
+  --source sonatypeiq)
 
 pncli deps scan
   --ecosystem <ecosystem>  Filter to one ecosystem: npm, nuget, maven, all
@@ -905,6 +907,21 @@ pncli contrast findings get
   --trace <trace-id>  Trace/finding UUID
 ```
 
+### Sonatypeiq
+
+```
+pncli sonatypeiq applications list
+  --organization-id <id>  Filter by organization ID
+
+pncli sonatypeiq applications get
+  --public-id <id>  Application public ID
+
+pncli sonatypeiq organizations list
+
+pncli sonatypeiq policies list
+  --organization-id <id>  Filter by organization ID
+```
+
 ### Skills
 
 ```
@@ -919,6 +936,12 @@ pncli skills list
   "github-copilot")
   --scope <scope>  Installation scope: project | user (default: "project")
   --target <dir>   Override skills directory to scan
+
+pncli skills marketplace setup
+  --branch <branch>  Branch to clone (default: "master")
+
+pncli skills marketplace sync
+  --claude    Install to ~/.claude/skills instead of ~/.agents/skills
 ```
 
 <!-- COMMAND-REFERENCE:END -->
