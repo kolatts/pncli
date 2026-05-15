@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.11.0](https://github.com/kolatts/pncli/compare/v1.10.1...v1.11.0) (2026-05-15)
+
+
+### Features
+
+* **git:** add report command with date filtering and CSV export ([#148](https://github.com/kolatts/pncli/issues/148)) ([b1f40e1](https://github.com/kolatts/pncli/commit/b1f40e17a2f4e373716c45734fccb747335304f8))
+* **skills:** add --token option to marketplace setup for Bitbucket HTTP access tokens ([#151](https://github.com/kolatts/pncli/issues/151)) ([666e514](https://github.com/kolatts/pncli/commit/666e51472d4f66c9673733740e7bc62f263148bd))
+* **skills:** add marketplace setup and sync commands ([#144](https://github.com/kolatts/pncli/issues/144)) ([29951a2](https://github.com/kolatts/pncli/commit/29951a21a6346aa59983ce1e4778da1c7b3347d2))
+* **skills:** revamp to single distributable pncli skill + example-skills split ([#146](https://github.com/kolatts/pncli/issues/146)) ([122b137](https://github.com/kolatts/pncli/commit/122b1373c5347b0ac5a63ffcb8971bccfe259410))
+
+
+### Bug Fixes
+
+* **ci:** strengthen claude-triage PR gate ([#153](https://github.com/kolatts/pncli/issues/153)) ([2c04388](https://github.com/kolatts/pncli/commit/2c04388c36e47fadd5159079ff50017b3697fa39))
+
 ## [1.10.1](https://github.com/kolatts/pncli/compare/v1.10.0...v1.10.1) (2026-05-14)
 
 
