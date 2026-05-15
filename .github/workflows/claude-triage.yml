@@ -166,7 +166,7 @@ jobs:
             exit 0
           fi
           BRANCH_NAME="${BRANCH#origin/}"
-          EXISTING=$(gh pr list --head "$BRANCH_NAME" --repo "${{ github.repository }}" --json number --jq '.[0].number' 2>/dev/null || echo "")
+          EXISTING=$(gh pr list --head "$BRANCH_NAME" --repo "${{ github.repository }}" --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
           if [ -n "$EXISTING" ]; then
             echo "PR #$EXISTING already exists for $BRANCH_NAME"
             exit 0
