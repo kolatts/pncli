@@ -9,6 +9,7 @@ deploy.zip
 .envrc
 *.local
 .claude/settings.local.json
+scheduled_tasks.lock
 
 # Astro site
 site/.astro/
