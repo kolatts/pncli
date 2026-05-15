@@ -4,6 +4,10 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
+import { select } from '@inquirer/prompts';
+import { writeGlobalConfig, getGlobalConfigPath } from '../../lib/config.js';
+import type { GlobalConfig } from '../../types/config.js';
 
 const AGENT_PATHS: Record<string, { project: string; user: string }> = {
   'github-copilot': { project: '.agents/skills',  user: path.join(os.homedir(), '.copilot/skills') },
@@ -177,6 +181,149 @@ export function registerSkillsCommands(program: Command): void {
         success({ skills: skillsList, total: skillsList.length }, 'skills', 'list', start);
       } catch (err) {
         fail(err, 'skills', 'list', start);
+      }
+    });
+
+  const marketplace = skills.command('marketplace').description('Manage a Bitbucket-hosted skills marketplace');
+
+  marketplace
+    .command('setup')
+    .description('Clone a skills marketplace repo and register it in global config')
+    .argument('<url>', 'Git clone URL of the marketplace repository')
+    .argument('<localPath>', 'Local directory to clone the marketplace into')
+    .option('--branch <branch>', 'Branch to clone', 'master')
+    .action(async (url: string, localPath: string, opts: { branch: string }) => {
+      const start = Date.now();
+      try {
+        const resolvedPath = path.resolve(localPath);
+
+        if (fs.existsSync(resolvedPath)) {
+          const entries = fs.readdirSync(resolvedPath);
+          if (entries.length > 0 && !fs.existsSync(path.join(resolvedPath, '.git'))) {
+            throw new Error(`Directory already exists and is not a git repo: ${resolvedPath}`);
+          }
+          if (fs.existsSync(path.join(resolvedPath, '.git'))) {
+            warn(`Directory already contains a git repo at ${resolvedPath} — skipping clone, updating config only.`);
+          } else {
+            warn(`Cloning ${url} (branch: ${opts.branch}) → ${resolvedPath}...`);
+            execSync(`git clone --branch ${opts.branch} ${url} ${resolvedPath}`, { stdio: 'inherit' });
+          }
+        } else {
+          warn(`Cloning ${url} (branch: ${opts.branch}) → ${resolvedPath}...`);
+          execSync(`git clone --branch ${opts.branch} ${url} ${resolvedPath}`, { stdio: 'inherit' });
+        }
+
+        const configPath = getGlobalConfigPath();
+        let existing: GlobalConfig = {};
+        try {
+          existing = JSON.parse(fs.readFileSync(configPath, 'utf8')) as GlobalConfig;
+        } catch { /* config file may not exist yet */ }
+
+        existing.marketplace = { repoUrl: url, localPath: resolvedPath };
+        writeGlobalConfig(existing, configPath);
+
+        success({ repoUrl: url, localPath: resolvedPath, branch: opts.branch }, 'skills', 'marketplace-setup', start);
+      } catch (err) {
+        fail(err, 'skills', 'marketplace-setup', start);
+      }
+    });
+
+  marketplace
+    .command('sync')
+    .description('Pull latest marketplace content and install a plugin\'s skills')
+    .argument('[plugin]', 'Plugin name to install (skips interactive selection)')
+    .option('--claude', 'Install to ~/.claude/skills instead of ~/.agents/skills')
+    .action(async (plugin: string | undefined, opts: { claude?: boolean }) => {
+      const start = Date.now();
+      try {
+        const configPath = getGlobalConfigPath();
+        let globalConfig: GlobalConfig = {};
+        try {
+          globalConfig = JSON.parse(fs.readFileSync(configPath, 'utf8')) as GlobalConfig;
+        } catch { /* ignore */ }
+
+        const marketplacePath = globalConfig.marketplace?.localPath;
+        if (!marketplacePath || !fs.existsSync(marketplacePath)) {
+          throw new Error('Marketplace not configured. Run: pncli skills marketplace setup <url> <localPath>');
+        }
+
+        warn('Fetching latest marketplace content...');
+        execSync(`git -C ${marketplacePath} fetch`, { stdio: 'inherit' });
+        execSync(`git -C ${marketplacePath} pull`, { stdio: 'inherit' });
+
+        // Resolve plugin list from marketplace.json, falling back to directory scan
+        const marketplaceJsonPath = path.join(marketplacePath, '.claude-plugin', 'marketplace.json');
+        let pluginChoices: { name: string; description: string }[] = [];
+
+        if (fs.existsSync(marketplaceJsonPath)) {
+          const meta = JSON.parse(fs.readFileSync(marketplaceJsonPath, 'utf8')) as {
+            plugins?: { name: string; description?: string }[];
+          };
+          if (Array.isArray(meta.plugins)) {
+            pluginChoices = meta.plugins.map(p => ({ name: p.name, description: p.description ?? '' }));
+          }
+        }
+
+        if (pluginChoices.length === 0) {
+          const pluginsDir = path.join(marketplacePath, 'plugins');
+          if (fs.existsSync(pluginsDir)) {
+            pluginChoices = fs.readdirSync(pluginsDir)
+              .filter(name => fs.statSync(path.join(pluginsDir, name)).isDirectory())
+              .map(name => ({ name, description: '' }));
+          }
+        }
+
+        if (pluginChoices.length === 0) {
+          throw new Error('No plugins found in marketplace. Check the marketplace repository structure.');
+        }
+
+        let selectedPlugin: string;
+        if (plugin) {
+          if (!pluginChoices.some(p => p.name === plugin)) {
+            throw new Error(`Plugin "${plugin}" not found. Available: ${pluginChoices.map(p => p.name).join(', ')}`);
+          }
+          selectedPlugin = plugin;
+        } else {
+          selectedPlugin = await select({
+            message: 'Select a plugin to install:',
+            choices: pluginChoices.map(p => ({
+              value: p.name,
+              name: p.description ? `${p.name} — ${p.description}` : p.name,
+            })),
+          });
+        }
+
+        const skillsSrc = path.join(marketplacePath, 'plugins', selectedPlugin, 'skills');
+        if (!fs.existsSync(skillsSrc)) {
+          throw new Error(`No skills directory found at ${skillsSrc}`);
+        }
+
+        const targetDir = opts.claude
+          ? path.join(os.homedir(), '.claude', 'skills')
+          : path.join(os.homedir(), '.agents', 'skills');
+
+        fs.mkdirSync(targetDir, { recursive: true });
+
+        const skillNames = fs.readdirSync(skillsSrc).filter(name =>
+          fs.statSync(path.join(skillsSrc, name)).isDirectory()
+        );
+
+        const installed: string[] = [];
+        for (const skillName of skillNames) {
+          const dest = path.join(targetDir, skillName);
+          fs.rmSync(dest, { recursive: true, force: true });
+          fs.cpSync(path.join(skillsSrc, skillName), dest, { recursive: true });
+          installed.push(skillName);
+        }
+
+        success({
+          plugin: selectedPlugin,
+          installed,
+          total: installed.length,
+          target: targetDir,
+        }, 'skills', 'marketplace-sync', start);
+      } catch (err) {
+        fail(err, 'skills', 'marketplace-sync', start);
       }
     });
 }

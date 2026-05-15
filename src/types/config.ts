@@ -119,6 +119,11 @@ export interface SonatypeIqConfig {
   passcode?: string;
 }
 
+export interface MarketplaceConfig {
+  repoUrl?: string;
+  localPath?: string;
+}
+
 export interface UdeployDefaults {
   application?: string;
   environment?: string;
@@ -153,6 +158,7 @@ export interface GlobalConfig {
   servicenow?: ServiceNowConfig;
   contrast?: ContrastConfig;
   sonatypeiq?: SonatypeIqConfig;
+  marketplace?: MarketplaceConfig;
   defaults?: Defaults;
 }
 
