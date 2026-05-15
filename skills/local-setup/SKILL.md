@@ -197,6 +197,26 @@ The `userCode` and `passcode` are User Token credentials generated in your IQ Se
 
 Once configured, use `pncli sonatypeiq applications list` to discover application IDs, then run `pncli deps frisk --source sonatypeiq --application-id <id>` to scan dependencies against your IQ Server policies.
 
+**Skills Marketplace** — "Do you have an internal Claude Code skills marketplace hosted in a git repository (e.g. on-premise Bitbucket)?"
+
+```
+pncli skills marketplace setup <git-clone-url> <local-path>
+```
+
+Use `--branch main` if the default branch is `main` instead of `master`. This clones the marketplace repo to `<local-path>` and stores the mapping in your pncli global config.
+
+To install plugins from the marketplace into `~/.agents/skills` (GitHub Copilot / Codex):
+
+```
+pncli skills marketplace sync
+```
+
+Pass a plugin name to skip the interactive picker, or add `--claude` to install to `~/.claude/skills` instead:
+
+```
+pncli skills marketplace sync <plugin-name> --claude
+```
+
 **Step 5 — Set repo-level defaults.**
 
 Ask the user for project-specific defaults:
