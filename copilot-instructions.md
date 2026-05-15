@@ -937,11 +937,11 @@ pncli skills list
   --scope <scope>  Installation scope: project | user (default: "project")
   --target <dir>   Override skills directory to scan
 
-pncli skills marketplace setup <url> <localPath>
+pncli skills marketplace setup
   --branch <branch>  Branch to clone (default: "master")
 
-pncli skills marketplace sync [plugin]
-  --claude  Install to ~/.claude/skills instead of ~/.agents/skills
+pncli skills marketplace sync
+  --claude    Install to ~/.claude/skills instead of ~/.agents/skills
 ```
 
 <!-- COMMAND-REFERENCE:END -->
