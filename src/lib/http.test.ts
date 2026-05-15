@@ -420,7 +420,7 @@ describe('HttpClient — Contrast', () => {
   });
 
   it('throws PncliError with status 0 on dry-run', async () => {
-    const config = baseConfig({ contrast: { baseUrl: undefined, orgUuid: 'org', apiKey: 'k', serviceKey: 's', username: 'u' } });
+    const config = baseConfig({ contrast: { baseUrl: 'https://app.contrastsecurity.com', orgUuid: 'org', apiKey: 'k', serviceKey: 's', username: 'u' } });
     const client = new HttpClient(config, true);
     await expect(client.contrast('/Contrast/api/ng/org/applications')).rejects.toMatchObject({ status: 0, message: 'dry-run' });
   });

@@ -1010,7 +1010,8 @@ async function initGlobalConfig(start: number): Promise<void> {
     process.stderr.write('  Find your credentials in Contrast under User Settings → Your Keys.\n');
 
     contrastBaseUrl = await input({
-      message: 'Contrast base URL (leave blank for cloud: https://app.contrastsecurity.com):',
+      message: 'Contrast base URL (e.g. https://app.contrastsecurity.com for cloud SaaS):',
+      validate: (v: string) => v.trim() ? true : 'Base URL is required',
       default: ''
     });
 
