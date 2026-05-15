@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { getStatus, getDiff, getLog, getBranches } from './client.js';
+import { getStatus, getDiff, getLog, getBranches, getBranchReport, formatBranchReportCsv } from './client.js';
 import { getRepoRoot, getCurrentBranch } from '../../lib/git-context.js';
 import { success, fail } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
@@ -75,6 +75,34 @@ export function registerGitCommands(program: Command): void {
         success(data, 'git', 'branch', start);
       } catch (err) {
         fail(err, 'git', 'branch', start);
+      }
+    });
+
+  git
+    .command('report')
+    .description('Report lines of code and commit counts for a branch, optionally filtered by date')
+    .option('--branch <name>', 'Branch to report on (defaults to current branch)')
+    .option('--base <ref>', 'Base ref to compare against, e.g. "main" (uses range base..branch)')
+    .option('--since <date>', 'Include commits on or after this date (e.g. "2024-01-01")')
+    .option('--until <date>', 'Include commits on or before this date (e.g. "2024-12-31")')
+    .option('--csv', 'Output as CSV instead of JSON')
+    .action((opts: { branch?: string; base?: string; since?: string; until?: string; csv?: boolean }) => {
+      const start = Date.now();
+      try {
+        const root = requireRepoRoot();
+        const report = getBranchReport(root, {
+          branch: opts.branch,
+          base: opts.base,
+          since: opts.since,
+          until: opts.until
+        });
+        if (opts.csv) {
+          process.stdout.write(formatBranchReportCsv(report));
+        } else {
+          success(report, 'git', 'report', start);
+        }
+      } catch (err) {
+        fail(err, 'git', 'report', start);
       }
     });
 

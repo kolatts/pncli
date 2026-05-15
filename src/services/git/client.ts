@@ -197,3 +197,162 @@ export function getBranches(root: string): BranchResult {
 
   return { current, local, remote };
 }
+
+export interface CommitStats {
+  hash: string;
+  date: string;
+  author: string;
+  message: string;
+  filesChanged: number;
+  insertions: number;
+  deletions: number;
+  netLines: number;
+}
+
+export interface BranchReport {
+  branch: string;
+  since: string | null;
+  until: string | null;
+  commits: CommitStats[];
+  summary: {
+    commitCount: number;
+    totalInsertions: number;
+    totalDeletions: number;
+    totalNetLines: number;
+    totalFilesChanged: number;
+  };
+}
+
+const COMMIT_PREFIX = '__PNCLI_COMMIT__';
+
+// Exported for unit testing
+export function parseBranchReportOutput(
+  raw: string,
+  branchName: string,
+  opts: { since?: string; until?: string }
+): BranchReport {
+  const commits: CommitStats[] = [];
+  let current: CommitStats | null = null;
+
+  for (const line of raw.split('\n')) {
+    if (line.startsWith(COMMIT_PREFIX)) {
+      if (current) commits.push(current);
+      const parts = line.slice(COMMIT_PREFIX.length).split('\t');
+      current = {
+        hash: parts[0] ?? '',
+        author: parts[1] ?? '',
+        date: parts[2] ?? '',
+        message: parts[3] ?? '',
+        filesChanged: 0,
+        insertions: 0,
+        deletions: 0,
+        netLines: 0
+      };
+    } else if (current && /^(\d+|-)\t(\d+|-)/.test(line)) {
+      // numstat line: insertions\tdeletions\tfilename
+      const [ins, del] = line.split('\t');
+      const insertions = ins === '-' ? 0 : parseInt(ins ?? '0', 10);
+      const deletions = del === '-' ? 0 : parseInt(del ?? '0', 10);
+      if (!isNaN(insertions) && !isNaN(deletions)) {
+        current.insertions += insertions;
+        current.deletions += deletions;
+        current.filesChanged++;
+        current.netLines = current.insertions - current.deletions;
+      }
+    }
+  }
+
+  if (current) commits.push(current);
+
+  const totalInsertions = commits.reduce((sum, c) => sum + c.insertions, 0);
+  const totalDeletions = commits.reduce((sum, c) => sum + c.deletions, 0);
+
+  return {
+    branch: branchName,
+    since: opts.since ?? null,
+    until: opts.until ?? null,
+    commits,
+    summary: {
+      commitCount: commits.length,
+      totalInsertions,
+      totalDeletions,
+      totalNetLines: totalInsertions - totalDeletions,
+      totalFilesChanged: commits.reduce((sum, c) => sum + c.filesChanged, 0)
+    }
+  };
+}
+
+export function getBranchReport(
+  root: string,
+  opts: { branch?: string; since?: string; until?: string; base?: string }
+): BranchReport {
+  const fmt = `${COMMIT_PREFIX}%H\t%an\t%aI\t%s`;
+  const args = ['log', `--format=${fmt}`, '--numstat'];
+
+  if (opts.since) args.push(`--since=${opts.since}`);
+  if (opts.until) args.push(`--until=${opts.until}`);
+
+  if (opts.base && opts.branch) {
+    args.push(`${opts.base}..${opts.branch}`);
+  } else if (opts.branch) {
+    args.push(opts.branch);
+  }
+
+  let raw = '';
+  try {
+    raw = execFileSync('git', args, { encoding: 'utf8', cwd: root }).trim();
+  } catch {
+    // no commits or invalid ref — return empty report
+  }
+
+  let branchName = opts.branch ?? '';
+  if (!branchName) {
+    try {
+      branchName = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+        encoding: 'utf8',
+        cwd: root
+      }).trim();
+    } catch {
+      branchName = 'HEAD';
+    }
+  }
+
+  return parseBranchReportOutput(raw, branchName, opts);
+}
+
+function escapeCsvField(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+export function formatBranchReportCsv(report: BranchReport): string {
+  const header = 'hash,date,author,message,files_changed,insertions,deletions,net_lines';
+  const rows = report.commits.map(c =>
+    [
+      c.hash,
+      c.date,
+      escapeCsvField(c.author),
+      escapeCsvField(c.message),
+      c.filesChanged,
+      c.insertions,
+      c.deletions,
+      c.netLines
+    ].join(',')
+  );
+
+  const s = report.summary;
+  const totalRow = [
+    'TOTAL',
+    '',
+    '',
+    escapeCsvField(`commits:${s.commitCount}`),
+    s.totalFilesChanged,
+    s.totalInsertions,
+    s.totalDeletions,
+    s.totalNetLines
+  ].join(',');
+
+  return [header, ...rows, totalRow].join('\n') + '\n';
+}
