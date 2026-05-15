@@ -2,12 +2,68 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills } from './commands.js';
+import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, buildAuthenticatedUrl } from './commands.js';
 
 type ReaddirResult = ReturnType<typeof fs.readdirSync>;
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+// ── buildAuthenticatedUrl ─────────────────────────────────────────────────────
+
+describe('buildAuthenticatedUrl', () => {
+  it('returns the original URL when no credentials are supplied', () => {
+    const url = 'https://git.example.com/scm/skills-repo.git';
+    expect(buildAuthenticatedUrl(url)).toBe(url);
+  });
+
+  it('embeds username and PAT into the URL userinfo', () => {
+    const result = buildAuthenticatedUrl(
+      'https://git.example.com/scm/skills-repo.git',
+      'myuser',
+      'simpletoken'
+    );
+    expect(result).toBe('https://myuser:simpletoken@git.example.com/scm/skills-repo.git');
+  });
+
+  it('percent-encodes @ in username (e.g. domain\\user style accounts)', () => {
+    const result = buildAuthenticatedUrl(
+      'https://git.example.com/repo.git',
+      'user@domain',
+      'token'
+    );
+    expect(result).toContain('user%40domain');
+  });
+
+  it('percent-encodes @ in PAT', () => {
+    const result = buildAuthenticatedUrl(
+      'https://git.example.com/repo.git',
+      'user',
+      'tok@en'
+    );
+    expect(result).toContain('tok%40en');
+  });
+
+  it('percent-encodes : in PAT to avoid splitting username/password', () => {
+    const result = buildAuthenticatedUrl(
+      'https://git.example.com/repo.git',
+      'user',
+      'tok:en'
+    );
+    expect(result).toContain('tok%3Aen');
+  });
+
+  it('embeds only username when pat is omitted', () => {
+    const result = buildAuthenticatedUrl('https://git.example.com/repo.git', 'user');
+    expect(result).toContain('user@');
+    expect(result).not.toContain(':@');
+  });
+
+  it('embeds only PAT when username is omitted', () => {
+    const result = buildAuthenticatedUrl('https://git.example.com/repo.git', undefined, 'mytoken');
+    expect(result).toContain(':mytoken@');
+  });
 });
 
 // ── resolvePluginChoices ──────────────────────────────────────────────────────

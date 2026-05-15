@@ -196,7 +196,9 @@ export function registerSkillsCommands(program: Command): void {
     .argument('<url>', 'Git clone URL of the marketplace repository')
     .argument('<localPath>', 'Local directory to clone the marketplace into')
     .option('--branch <branch>', 'Branch to clone', 'master')
-    .action(async (url: string, localPath: string, opts: { branch: string }) => {
+    .option('--username <username>', 'Username for authenticated clone (percent-encoded into the URL)')
+    .option('--pat <pat>', 'Personal access token for authenticated clone (percent-encoded into the URL)')
+    .action(async (url: string, localPath: string, opts: { branch: string; username?: string; pat?: string }) => {
       const start = Date.now();
       try {
         const resolvedPath = path.resolve(localPath);
@@ -209,7 +211,8 @@ export function registerSkillsCommands(program: Command): void {
           warn(`Directory already contains a git repo at ${resolvedPath} — skipping clone, updating config only.`);
         } else {
           warn(`Cloning ${url} (branch: ${opts.branch}) → ${resolvedPath}...`);
-          execFileSync('git', ['clone', '--branch', opts.branch, url, resolvedPath], { stdio: 'inherit' });
+          const cloneUrl = buildAuthenticatedUrl(url, opts.username, opts.pat);
+          execFileSync('git', ['clone', '--branch', opts.branch, cloneUrl, resolvedPath], { stdio: 'inherit' });
         }
 
         const configPath = getGlobalConfigPath();
@@ -320,6 +323,14 @@ export function resolveSkillsSrc(marketplacePath: string, selectedPlugin: string
     throw new Error(`Invalid plugin name: "${selectedPlugin}"`);
   }
   return skillsSrc;
+}
+
+export function buildAuthenticatedUrl(url: string, username?: string, pat?: string): string {
+  if (!username && !pat) return url;
+  const parsed = new URL(url);
+  if (username) parsed.username = username;
+  if (pat) parsed.password = pat;
+  return parsed.toString();
 }
 
 export function copyPluginSkills(skillsSrc: string, targetDir: string): { installed: string[]; failed: string[] } {
