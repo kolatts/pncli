@@ -29,7 +29,7 @@ describe('resolvePluginChoices', () => {
       return s.endsWith('marketplace.json') || s.endsWith('plugins');
     });
     vi.spyOn(fs, 'readFileSync').mockReturnValue('not valid json{{{{');
-    vi.spyOn(fs, 'readdirSync').mockReturnValue(['plugin-a'] as any);
+    vi.spyOn(fs, 'readdirSync').mockReturnValue(['plugin-a'] as unknown as fs.Dirent[]);
     vi.spyOn(fs, 'statSync').mockReturnValue({ isDirectory: () => true } as fs.Stats);
 
     const choices = resolvePluginChoices('/market');
@@ -42,7 +42,7 @@ describe('resolvePluginChoices', () => {
       return s.endsWith('marketplace.json') || s.endsWith('plugins');
     });
     vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({ name: 'marketplace' }));
-    vi.spyOn(fs, 'readdirSync').mockReturnValue(['plugin-b'] as any);
+    vi.spyOn(fs, 'readdirSync').mockReturnValue(['plugin-b'] as unknown as fs.Dirent[]);
     vi.spyOn(fs, 'statSync').mockReturnValue({ isDirectory: () => true } as fs.Stats);
 
     const choices = resolvePluginChoices('/market');
@@ -61,7 +61,7 @@ describe('resolvePluginChoices', () => {
       const s = String(p);
       return !s.endsWith('marketplace.json') && s.endsWith('plugins');
     });
-    vi.spyOn(fs, 'readdirSync').mockReturnValue(['plugin-a', 'README.md'] as any);
+    vi.spyOn(fs, 'readdirSync').mockReturnValue(['plugin-a', 'README.md'] as unknown as fs.Dirent[]);
     vi.spyOn(fs, 'statSync').mockImplementation(p =>
       ({ isDirectory: () => !String(p).endsWith('README.md') } as fs.Stats)
     );
@@ -96,7 +96,7 @@ describe('copyPluginSkills', () => {
 
   it('copies skill directories and returns installed list', () => {
     vi.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
-    vi.spyOn(fs, 'readdirSync').mockReturnValue(['skill-one', 'skill-two'] as any);
+    vi.spyOn(fs, 'readdirSync').mockReturnValue(['skill-one', 'skill-two'] as unknown as fs.Dirent[]);
     vi.spyOn(fs, 'statSync').mockReturnValue({ isDirectory: () => true } as fs.Stats);
     vi.spyOn(fs, 'rmSync').mockReturnValue(undefined);
     vi.spyOn(fs, 'cpSync').mockReturnValue(undefined);
@@ -108,7 +108,7 @@ describe('copyPluginSkills', () => {
 
   it('skips and tracks skills with traversal names', () => {
     vi.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
-    vi.spyOn(fs, 'readdirSync').mockReturnValue(['good-skill', '../evil'] as any);
+    vi.spyOn(fs, 'readdirSync').mockReturnValue(['good-skill', '../evil'] as unknown as fs.Dirent[]);
     vi.spyOn(fs, 'statSync').mockReturnValue({ isDirectory: () => true } as fs.Stats);
     const rmSpy = vi.spyOn(fs, 'rmSync').mockReturnValue(undefined);
     const cpSpy = vi.spyOn(fs, 'cpSync').mockReturnValue(undefined);
@@ -122,7 +122,7 @@ describe('copyPluginSkills', () => {
 
   it('returns empty installed when source dir has no skill directories', () => {
     vi.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
-    vi.spyOn(fs, 'readdirSync').mockReturnValue([] as any);
+    vi.spyOn(fs, 'readdirSync').mockReturnValue([] as unknown as fs.Dirent[]);
 
     const { installed, failed } = copyPluginSkills('/market/plugins/sunny/skills', targetDir);
     expect(installed).toEqual([]);
