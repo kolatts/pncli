@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { fileURLToPath } from 'url';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { select } from '@inquirer/prompts';
 import { writeGlobalConfig, getGlobalConfigPath } from '../../lib/config.js';
 import type { GlobalConfig } from '../../types/config.js';
@@ -197,20 +197,15 @@ export function registerSkillsCommands(program: Command): void {
       try {
         const resolvedPath = path.resolve(localPath);
 
-        if (fs.existsSync(resolvedPath)) {
-          const entries = fs.readdirSync(resolvedPath);
-          if (entries.length > 0 && !fs.existsSync(path.join(resolvedPath, '.git'))) {
-            throw new Error(`Directory already exists and is not a git repo: ${resolvedPath}`);
-          }
-          if (fs.existsSync(path.join(resolvedPath, '.git'))) {
-            warn(`Directory already contains a git repo at ${resolvedPath} — skipping clone, updating config only.`);
-          } else {
-            warn(`Cloning ${url} (branch: ${opts.branch}) → ${resolvedPath}...`);
-            execSync(`git clone --branch ${opts.branch} ${url} ${resolvedPath}`, { stdio: 'inherit' });
-          }
+        const hasGit = fs.existsSync(path.join(resolvedPath, '.git'));
+        if (fs.existsSync(resolvedPath) && !hasGit && fs.readdirSync(resolvedPath).length > 0) {
+          throw new Error(`Directory already exists and is not a git repo: ${resolvedPath}`);
+        }
+        if (hasGit) {
+          warn(`Directory already contains a git repo at ${resolvedPath} — skipping clone, updating config only.`);
         } else {
           warn(`Cloning ${url} (branch: ${opts.branch}) → ${resolvedPath}...`);
-          execSync(`git clone --branch ${opts.branch} ${url} ${resolvedPath}`, { stdio: 'inherit' });
+          execFileSync('git', ['clone', '--branch', opts.branch, url, resolvedPath], { stdio: 'inherit' });
         }
 
         const configPath = getGlobalConfigPath();
@@ -248,8 +243,8 @@ export function registerSkillsCommands(program: Command): void {
         }
 
         warn('Fetching latest marketplace content...');
-        execSync(`git -C ${marketplacePath} fetch`, { stdio: 'inherit' });
-        execSync(`git -C ${marketplacePath} pull`, { stdio: 'inherit' });
+        execFileSync('git', ['-C', marketplacePath, 'fetch'], { stdio: 'inherit' });
+        execFileSync('git', ['-C', marketplacePath, 'pull'], { stdio: 'inherit' });
 
         // Resolve plugin list from marketplace.json, falling back to directory scan
         const marketplaceJsonPath = path.join(marketplacePath, '.claude-plugin', 'marketplace.json');
@@ -293,7 +288,11 @@ export function registerSkillsCommands(program: Command): void {
           });
         }
 
-        const skillsSrc = path.join(marketplacePath, 'plugins', selectedPlugin, 'skills');
+        const pluginsBase = path.resolve(marketplacePath, 'plugins');
+        const skillsSrc = path.resolve(pluginsBase, selectedPlugin, 'skills');
+        if (!skillsSrc.startsWith(pluginsBase + path.sep)) {
+          throw new Error(`Invalid plugin name: "${selectedPlugin}"`);
+        }
         if (!fs.existsSync(skillsSrc)) {
           throw new Error(`No skills directory found at ${skillsSrc}`);
         }
@@ -304,13 +303,15 @@ export function registerSkillsCommands(program: Command): void {
 
         fs.mkdirSync(targetDir, { recursive: true });
 
+        const resolvedTarget = path.resolve(targetDir);
         const skillNames = fs.readdirSync(skillsSrc).filter(name =>
           fs.statSync(path.join(skillsSrc, name)).isDirectory()
         );
 
         const installed: string[] = [];
         for (const skillName of skillNames) {
-          const dest = path.join(targetDir, skillName);
+          const dest = path.resolve(targetDir, skillName);
+          if (!dest.startsWith(resolvedTarget + path.sep)) continue;
           fs.rmSync(dest, { recursive: true, force: true });
           fs.cpSync(path.join(skillsSrc, skillName), dest, { recursive: true });
           installed.push(skillName);
