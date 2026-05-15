@@ -123,6 +123,14 @@ pncli git log
 
 pncli git branch
 
+pncli git report
+  --branch <name>  Branch to report on (defaults to current branch)
+  --base <ref>     Base ref to compare against, e.g. "main" (base..branch, or
+  base..HEAD if --branch is omitted)
+  --since <date>   Include commits on or after this date (e.g. "2024-01-01")
+  --until <date>   Include commits on or before this date (e.g. "2024-12-31")
+  --csv            Output as CSV instead of JSON
+
 pncli git current-pr
 ```
 
@@ -939,6 +947,8 @@ pncli skills list
 
 pncli skills marketplace setup
   --branch <branch>  Branch to clone (default: "master")
+  --token <token>    Bitbucket HTTP access token for authenticated clone and
+  pull
 
 pncli skills marketplace sync
   --claude    Install to ~/.claude/skills instead of ~/.agents/skills

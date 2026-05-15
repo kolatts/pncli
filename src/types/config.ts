@@ -122,6 +122,7 @@ export interface SonatypeIqConfig {
 export interface MarketplaceConfig {
   repoUrl?: string;
   localPath?: string;
+  token?: string;
 }
 
 export interface UdeployDefaults {
