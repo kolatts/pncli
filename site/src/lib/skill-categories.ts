@@ -4,7 +4,7 @@ export const categories: Record<string, { label: string; order: string[] }> = {
   'setup': {
     label: 'Getting Started',
     order: [
-      'local-setup',
+      'pncli',
     ],
   },
   'pr-workflow': {

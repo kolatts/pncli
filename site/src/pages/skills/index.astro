@@ -5,7 +5,9 @@ import SkillCard from '../../components/SkillCard.astro';
 import { categories, categoryOrder, getSkillsForCategory, getUncategorizedSkills } from '../../lib/skill-categories';
 
 const entries = await getCollection('skills');
-const uncategorized = getUncategorizedSkills(entries);
+const distributableEntries = entries.filter(e => e.data.distributable !== false);
+const exampleEntries = entries.filter(e => e.data.distributable === false);
+const uncategorized = getUncategorizedSkills(distributableEntries);
 ---
 
 <Base
@@ -13,31 +15,37 @@ const uncategorized = getUncategorizedSkills(entries);
   description="Claude Code skills for common engineering workflows — works with Bitbucket and Azure DevOps."
 >
   <div class="max-w-4xl mx-auto px-6 py-16">
-    <div class="mb-10">
+    <div class="mb-6">
       <p class="font-mono text-xs uppercase tracking-wider text-ink/40 mb-2">Skills</p>
       <h1 class="font-display text-5xl font-bold text-ink mb-3">Skills</h1>
       <p class="text-ink/50 text-lg max-w-xl">
-        Step-by-step Claude Code skills for common engineering workflows. Install them into any repo and invoke with <code class="font-mono text-sm bg-ink/5 px-1.5 py-0.5 rounded">/skill pncli:&lt;name&gt;</code>.
+        Step-by-step Claude Code skills for common engineering workflows. Install with <code class="font-mono text-sm bg-ink/5 px-1.5 py-0.5 rounded">pncli skills install --agent claude-code</code> and invoke by name.
       </p>
     </div>
 
-    <div class="mb-8">
-      <details class="group text-sm">
-        <summary class="cursor-pointer font-mono text-ink/40 hover:text-ink transition-colors list-none flex items-center gap-1.5">
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-open:rotate-90" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-          How to install
-        </summary>
-        <div class="mt-3 pl-5 border-l border-ink/10 space-y-2 text-ink/60">
-          <p>Run <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">pncli skills install</code> from your repo root. Default installs to <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">.agents/skills/</code> (GitHub Copilot). For Claude Code, add <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">--agent claude-code</code>. For user-scope, add <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">--scope user</code>.</p>
-          <p>Skills marked <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">/invoke</code> can be called directly by name (e.g. <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">/ship</code>) once installed.</p>
-          <p>Claude Code automatically discovers skills in <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">.claude/skills/</code> and <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">~/.claude/skills/</code>.</p>
+    <div class="mb-10 rounded-xl border border-ink/10 overflow-hidden">
+      <div class="bg-ink/5 border-b border-ink/10 px-5 py-2.5">
+        <span class="font-mono text-xs text-ink/40">Install &amp; test</span>
+      </div>
+      <div class="bg-ink divide-y divide-cream/5">
+        <div class="px-6 py-4">
+          <code class="font-mono text-sm text-cream/90">pncli skills install --agent claude-code</code>
+          <p class="text-xs text-cream/35 mt-1">Install to <code class="font-mono text-[11px]">.claude/skills/</code> in the current repo. Add <code class="font-mono text-[11px]">--scope user</code> for global access.</p>
         </div>
-      </details>
+        <div class="px-6 py-4">
+          <code class="font-mono text-sm text-cream/90">pncli skills install</code>
+          <p class="text-xs text-cream/35 mt-1">Install to <code class="font-mono text-[11px]">.agents/skills/</code> for GitHub Copilot.</p>
+        </div>
+        <div class="px-6 py-4">
+          <code class="font-mono text-sm text-cream/90">pncli config test</code>
+          <p class="text-xs text-cream/35 mt-1">Verify all configured service connections are reachable.</p>
+        </div>
+      </div>
     </div>
 
     {categoryOrder.map(catKey => {
       const cat = categories[catKey];
-      const skills = getSkillsForCategory(entries, catKey);
+      const skills = getSkillsForCategory(distributableEntries, catKey);
       if (!skills.length) return null;
       return (
         <div class="mb-10">
@@ -51,6 +59,7 @@ const uncategorized = getUncategorizedSkills(entries);
                 services={skill.data.services ?? ''}
                 slug={skill.id}
                 userInvocable={skill.data.userInvocable}
+                distributable={skill.data.distributable}
               />
             ))}
           </div>
@@ -70,6 +79,31 @@ const uncategorized = getUncategorizedSkills(entries);
               services={skill.data.services ?? ''}
               slug={skill.id}
               userInvocable={skill.data.userInvocable}
+              distributable={skill.data.distributable}
+            />
+          ))}
+        </div>
+      </div>
+    )}
+
+    {exampleEntries.length > 0 && (
+      <div class="mt-16">
+        <div class="mb-6">
+          <h2 class="font-display text-2xl font-bold text-ink mb-2">Example Skills</h2>
+          <p class="text-ink/50 text-sm max-w-xl">
+            Reference implementations showing how to build skills for common PR and planning workflows. Not distributed by <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">pncli skills install</code> — use as a starting point for your own skills.
+          </p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {exampleEntries.map(skill => (
+            <SkillCard
+              title={skill.data.title}
+              description={skill.data.description}
+              providers={skill.data.providers ?? 'none'}
+              services={skill.data.services ?? ''}
+              slug={skill.id}
+              userInvocable={skill.data.userInvocable}
+              distributable={false}
             />
           ))}
         </div>

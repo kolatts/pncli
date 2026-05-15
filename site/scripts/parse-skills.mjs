@@ -1,11 +1,15 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const skillsDir = join(__dirname, '../../skills');
 const outDir    = join(__dirname, '../src/content/skills');
+
+const sources = [
+  { dir: join(__dirname, '../../skills'),         distributable: true  },
+  { dir: join(__dirname, '../../example-skills'), distributable: false },
+];
 
 function parseFrontmatter(content) {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
@@ -73,35 +77,39 @@ function escapeMdxOutsideFences(text) {
 mkdirSync(outDir, { recursive: true });
 
 let count = 0;
-for (const entry of readdirSync(skillsDir).sort()) {
-  const skillPath = join(skillsDir, entry, 'SKILL.md');
-  try {
-    statSync(skillPath);
-  } catch {
-    continue;
+for (const { dir, distributable } of sources) {
+  if (!existsSync(dir)) continue;
+  for (const entry of readdirSync(dir).sort()) {
+    const skillPath = join(dir, entry, 'SKILL.md');
+    try {
+      statSync(skillPath);
+    } catch {
+      continue;
+    }
+
+    const raw              = readFileSync(skillPath, 'utf8');
+    const { data, body }   = parseFrontmatter(raw);
+    const slug             = entry;
+
+    const mdx = [
+      '---',
+      `title: ${JSON.stringify(data.name || entry)}`,
+      `description: ${JSON.stringify(data.description || '')}`,
+      `providers: ${JSON.stringify(data.providers || 'none')}`,
+      `category: ${JSON.stringify(data.category || 'other')}`,
+      `services: ${JSON.stringify(data.services || '')}`,
+      `userInvocable: ${data['user-invocable'] === 'true'}`,
+      `distributable: ${distributable}`,
+      `generatedAt: ${JSON.stringify(new Date().toISOString())}`,
+      '---',
+      '',
+      escapeMdxOutsideFences(body.trim()),
+      '',
+    ].join('\n');
+
+    writeFileSync(join(outDir, `${slug}.mdx`), mdx);
+    count++;
   }
-
-  const raw              = readFileSync(skillPath, 'utf8');
-  const { data, body }   = parseFrontmatter(raw);
-  const slug             = entry;
-
-  const mdx = [
-    '---',
-    `title: ${JSON.stringify(data.name || entry)}`,
-    `description: ${JSON.stringify(data.description || '')}`,
-    `providers: ${JSON.stringify(data.providers || 'none')}`,
-    `category: ${JSON.stringify(data.category || 'other')}`,
-    `services: ${JSON.stringify(data.services || '')}`,
-    `userInvocable: ${data['user-invocable'] === 'true'}`,
-    `generatedAt: ${JSON.stringify(new Date().toISOString())}`,
-    '---',
-    '',
-    escapeMdxOutsideFences(body.trim()),
-    '',
-  ].join('\n');
-
-  writeFileSync(join(outDir, `${slug}.mdx`), mdx);
-  count++;
 }
 
 console.log(`parse-skills: wrote ${count} skill(s)`);

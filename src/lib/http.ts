@@ -815,7 +815,9 @@ export class HttpClient {
     path: string,
     opts: HttpRequestOptions = {}
   ): Promise<T> {
-    const baseUrl = this.config.contrast.baseUrl ?? 'https://app.contrastsecurity.com';
+    const { baseUrl } = this.config.contrast;
+    if (!baseUrl) throw new PncliError('Contrast base URL not configured. Run: pncli config set contrast.baseUrl <url>');
+
 
     const url = buildUrl(baseUrl, path, opts.params);
     const headers = this.contrastHeaders();
