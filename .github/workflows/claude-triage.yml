@@ -117,12 +117,17 @@ jobs:
 
                a) If FEASIBLE, FITS the project, and appropriate to implement:
                   - Implement the change following existing patterns in src/.
-                  - Run `npm run typecheck` and `npm run lint` to validate your changes.
+                  - Run all three checks and fix any failures before continuing:
+                    1. `npm run typecheck`
+                    2. `npm run lint`
+                    3. `npm test`
+                    Do NOT proceed to branch/commit/PR if any check fails.
                   - Create a branch named `claude/issue-${{ github.event.issue.number }}`.
                   - Commit your changes and push the branch.
-                  - MANDATORY (only when code changes were made): Create a PR immediately:
+                  - MANDATORY: Immediately create a PR — do this before commenting on the issue:
                     `gh pr create --title "<title>" --body "Closes #${{ github.event.issue.number }}" --repo ${{ github.repository }}`
-                    Capture the PR URL from the output (it is the last line printed).
+                    The last line of output is the PR URL. Save it.
+                  - Verify the PR was created: `gh pr view --repo ${{ github.repository }} --json url,state`
                   - Comment on the issue using this format:
                     "Implemented in PR: <PR URL>
 
@@ -149,7 +154,30 @@ jobs:
             unless the issue specifically requests it. Make the narrowest change that
             addresses the issue.
           claude_args: |
-            --model sonnet --max-turns 300 --allowedTools "Read,Glob,Grep,Edit,Write,Bash(gh issue list:*),Bash(gh issue comment:*),Bash(gh issue close:*),Bash(gh issue edit:*),Bash(gh label create:*),Bash(gh pr create:*),Bash(npm run build:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(git checkout -b:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
+            --model sonnet --max-turns 300 --allowedTools "Read,Glob,Grep,Edit,Write,Bash(gh issue list:*),Bash(gh issue comment:*),Bash(gh issue close:*),Bash(gh issue edit:*),Bash(gh label create:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(npm run build:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(npm test:*),Bash(git checkout -b:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
+
+      - name: Create PR if branch was pushed without one
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH=$(git branch -r --list "origin/claude/issue-${{ github.event.issue.number }}-*" | head -1 | tr -d ' ')
+          if [ -z "$BRANCH" ]; then
+            echo "No claude branch found for issue ${{ github.event.issue.number }}, skipping"
+            exit 0
+          fi
+          BRANCH_NAME="${BRANCH#origin/}"
+          EXISTING=$(gh pr list --head "$BRANCH_NAME" --repo "${{ github.repository }}" --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -n "$EXISTING" ]; then
+            echo "PR #$EXISTING already exists for $BRANCH_NAME"
+            exit 0
+          fi
+          echo "No PR found for $BRANCH_NAME — creating fallback PR"
+          gh pr create \
+            --title "fix: issue #${{ github.event.issue.number }} (automated)" \
+            --body "Closes #${{ github.event.issue.number }}" \
+            --head "$BRANCH_NAME" \
+            --repo "${{ github.repository }}"
 
       - name: Write job summary
         if: always()
