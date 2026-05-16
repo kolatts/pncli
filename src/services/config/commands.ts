@@ -1,5 +1,7 @@
 import { Command } from 'commander';
-import { input, password, confirm } from '@inquirer/prompts';
+import input from '@inquirer/input';
+import password from '@inquirer/password';
+import confirm from '@inquirer/confirm';
 import {
   loadConfig,
   writeGlobalConfig,

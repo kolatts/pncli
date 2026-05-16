@@ -5,7 +5,7 @@ import path from 'path';
 import os from 'os';
 import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
-import { select } from '@inquirer/prompts';
+import select from '@inquirer/select';
 import { writeGlobalConfig, getGlobalConfigPath, loadJsonFile } from '../../lib/config.js';
 import type { GlobalConfig } from '../../types/config.js';
 

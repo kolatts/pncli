@@ -19,7 +19,10 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@inquirer/prompts": "^7.5.0",
+    "@inquirer/confirm": "^6.0.13",
+    "@inquirer/input": "^5.0.13",
+    "@inquirer/password": "^5.0.13",
+    "@inquirer/select": "^5.1.5",
     "chalk": "^5.4.1",
     "commander": "^13.1.0"
   },
