@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.1](https://github.com/kolatts/pncli/compare/v1.11.0...v1.11.1) (2026-05-16)
+
+
+### Bug Fixes
+
+* **deps:** replace @inquirer/prompts with individual packages ([#155](https://github.com/kolatts/pncli/issues/155)) ([c21ea66](https://github.com/kolatts/pncli/commit/c21ea66ec3694049c24b1b1af7fdd1229683a01d)), closes [#154](https://github.com/kolatts/pncli/issues/154)
+
 ## [1.11.0](https://github.com/kolatts/pncli/compare/v1.10.1...v1.11.0) (2026-05-15)
 
 
