@@ -3,7 +3,7 @@ import { JiraClient } from './client.js';
 import { buildFieldMap, translateJql, translateFieldsInOutput, formatFieldValue } from './custom-fields.js';
 import { createHttpClient } from '../../lib/http.js';
 import { loadConfig } from '../../lib/config.js';
-import { success, fail, warn } from '../../lib/output.js';
+import { success, fail } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
 import type { CustomFieldMap } from '../../types/jira.js';
 
@@ -61,12 +61,15 @@ export function registerJiraCommands(program: Command): void {
     .option('--priority <name>', 'Priority name')
     .option('--assignee <accountId>', 'Assignee account ID')
     .option('--labels <labels>', 'Comma-separated labels')
-    .option('--parent <key>', 'Parent issue key — creates an "is child of" link after creation')
+    .option('--parent <key>', 'Parent issue key — sets fields.parent in the create payload')
     .option('--field <Name=value>', 'Custom field value (repeatable)', (val: string, acc: string[]) => [...acc, val], [] as string[])
     .action(async (opts: { project?: string; type?: string; summary: string; description?: string; priority?: string; assignee?: string; labels?: string; parent?: string; field: string[] }) => {
       const start = Date.now();
+      let fieldMap = buildFieldMap([]);
       try {
-        const { client, fieldMap } = getClientAndFields(program);
+        const resolved = getClientAndFields(program);
+        const client = resolved.client;
+        fieldMap = resolved.fieldMap;
         const defaults = getDefaults(program);
         const project = opts.project ?? defaults.project;
         const issueType = opts.type ?? defaults.issueType ?? 'Task';
@@ -74,17 +77,9 @@ export function registerJiraCommands(program: Command): void {
         if (!project) throw new PncliError('--project required (or set defaults.jira.project in config)', 1);
         const labels = opts.labels ? opts.labels.split(',').map(s => s.trim()) : undefined;
         const customFieldValues = parseFieldArgs(opts.field, fieldMap);
-        const data = await client.createIssue({ project, issueType, summary: opts.summary, description: opts.description, priority, assignee: opts.assignee, labels, customFieldValues });
+        const data = await client.createIssue({ project, issueType, summary: opts.summary, description: opts.description, priority, assignee: opts.assignee, labels, parent: opts.parent, customFieldValues });
         success(data, 'jira', 'create-issue', start);
-        if (opts.parent) {
-          try {
-            await client.linkIssue({ key: data.key, linkType: 'is child of', target: opts.parent });
-          } catch (linkErr) {
-            warn(`Created ${data.key} but failed to link to parent ${opts.parent}: ${linkErr instanceof Error ? linkErr.message : linkErr}`);
-          }
-        }
-        return;
-      } catch (err) { fail(err, 'jira', 'create-issue', start); }
+      } catch (err) { fail(translateFieldErrors(err, fieldMap), 'jira', 'create-issue', start); }
     });
 
   jira.command('update-issue')
@@ -98,13 +93,16 @@ export function registerJiraCommands(program: Command): void {
     .option('--field <Name=value>', 'Custom field value (repeatable)', (val: string, acc: string[]) => [...acc, val], [] as string[])
     .action(async (opts: { key: string; summary?: string; description?: string; priority?: string; assignee?: string; labels?: string; field: string[] }) => {
       const start = Date.now();
+      let fieldMap = buildFieldMap([]);
       try {
-        const { client, fieldMap } = getClientAndFields(program);
+        const resolved = getClientAndFields(program);
+        const client = resolved.client;
+        fieldMap = resolved.fieldMap;
         const labels = opts.labels ? opts.labels.split(',').map(s => s.trim()) : undefined;
         const customFieldValues = parseFieldArgs(opts.field, fieldMap);
         await client.updateIssue(opts.key, { summary: opts.summary, description: opts.description, priority: opts.priority, assignee: opts.assignee, labels, customFieldValues });
         success({ updated: opts.key }, 'jira', 'update-issue', start);
-      } catch (err) { fail(err, 'jira', 'update-issue', start); }
+      } catch (err) { fail(translateFieldErrors(err, fieldMap), 'jira', 'update-issue', start); }
     });
 
   jira.command('transition-issue')
@@ -215,12 +213,16 @@ export function registerJiraCommands(program: Command): void {
     .description('List custom fields (configured or discovered from Jira API) (consider --output-file for large results)')
     .option('--discover', 'Fetch field metadata from Jira API')
     .option('--custom-only', 'Show only custom fields (requires --discover)')
-    .action(async (opts: { discover?: boolean; customOnly?: boolean }) => {
+    .option('--project <key>', 'Project key — fetches allowedValues for select fields via createmeta (requires --discover)')
+    .option('--issue-type <type>', 'Filter allowedValues to a specific issue type (requires --project)')
+    .action(async (opts: { discover?: boolean; customOnly?: boolean; project?: string; issueType?: string }) => {
       const start = Date.now();
       try {
         if (opts.discover) {
           const client = getClient(program);
-          const fields = await client.fetchFields();
+          const fields = opts.project
+            ? await client.fetchFieldsWithAllowedValues(opts.project, opts.issueType)
+            : await client.fetchFields();
           const result = opts.customOnly ? fields.filter(f => f.custom) : fields;
           success(result, 'jira', 'fields', start);
         } else {
@@ -241,9 +243,26 @@ function parseFieldArgs(
     if (eq === -1) throw new PncliError(`Invalid --field format (expected Name=value): ${arg}`, 1);
     const name = arg.slice(0, eq).trim();
     const value = arg.slice(eq + 1);
-    const def = fieldMap.byName.get(name.toLowerCase());
-    if (!def) throw new PncliError(`Unknown custom field: "${name}". Run: pncli jira fields`, 1);
+    const def = fieldMap.byName.get(name.toLowerCase()) ?? fieldMap.byId.get(name);
+    if (!def) throw new PncliError(
+      `Unknown custom field: "${name}". Fields must be registered in config by friendly name or ID. Run: pncli jira fields`,
+      1
+    );
     result[def.id] = formatFieldValue(value, def.type);
   }
   return result;
+}
+
+/**
+ * Translate customfield_XXXXX IDs in a Jira error message to their friendly names.
+ * Returns the original error unchanged if no translation is possible.
+ */
+function translateFieldErrors(err: unknown, fieldMap: CustomFieldMap): unknown {
+  if (!(err instanceof PncliError) || fieldMap.byId.size === 0) return err;
+  const translated = err.message.replace(/\bcustomfield_\d+\b/g, (id) => {
+    const def = fieldMap.byId.get(id);
+    return def ? `${def.name} (${id})` : id;
+  });
+  if (translated === err.message) return err;
+  return new PncliError(translated, err.status, err.url);
 }

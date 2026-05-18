@@ -64,6 +64,8 @@ export function formatFieldValue(value: string, type: CustomFieldType): unknown 
       return { value };
     case 'multi-select':
       return value.split(',').map(v => ({ value: v.trim() }));
+    case 'option-id':
+      return { id: value };
     case 'labels':
       return value.split(',').map(v => v.trim());
     case 'user':
