@@ -27,10 +27,10 @@ export async function buildAdoFetcher(
     fetch(url, {
       ...init,
       headers: {
-        ...(init?.headers as Record<string, string> | undefined),
-        'Authorization': authHeader,
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        ...(init?.headers as Record<string, string> | undefined),
+        'Authorization': authHeader
       }
     });
 }
