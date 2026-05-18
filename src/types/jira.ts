@@ -7,6 +7,7 @@ export type CustomFieldType =
   | 'datetime'
   | 'select'
   | 'multi-select'
+  | 'option-id'
   | 'user'
   | 'labels'
   | 'url'
@@ -30,6 +31,7 @@ export interface JiraFieldInfo {
   name: string;
   custom: boolean;
   schema?: { type: string; custom?: string };
+  allowedValues?: Array<{ id: string; value?: string; name?: string }>;
 }
 
 export interface JiraIssue {

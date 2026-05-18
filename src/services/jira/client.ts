@@ -18,6 +18,7 @@ export interface CreateIssueOpts {
   priority?: string;
   assignee?: string;
   labels?: string[];
+  parent?: string;
   customFieldValues?: Record<string, unknown>;
 }
 
@@ -53,6 +54,7 @@ export class JiraClient {
         ...(opts.priority ? { priority: { name: opts.priority } } : {}),
         ...(opts.assignee ? { assignee: { name: opts.assignee } } : {}),
         ...(opts.labels?.length ? { labels: opts.labels } : {}),
+        ...(opts.parent ? { parent: { key: opts.parent } } : {}),
         ...(opts.customFieldValues ?? {})
       }
     };
@@ -138,6 +140,49 @@ export class JiraClient {
 
   async fetchFields(): Promise<JiraFieldInfo[]> {
     return this.http.jira<JiraFieldInfo[]>(`${API}/field`);
+  }
+
+  async fetchFieldsWithAllowedValues(project: string, issueType?: string): Promise<JiraFieldInfo[]> {
+    const [fields, meta] = await Promise.all([
+      this.fetchFields(),
+      this.http.jira<{
+        projects: Array<{
+          issuetypes: Array<{
+            name: string;
+            fields: Record<string, { allowedValues?: Array<{ id: string; value?: string; name?: string }> }>;
+          }>;
+        }>;
+      }>(`${API}/issue/createmeta`, {
+        params: { projectKeys: project, expand: 'projects.issuetypes.fields' }
+      })
+    ]);
+
+    // Collect allowedValues per field ID across all matching issue types
+    const allowedValuesMap = new Map<string, Array<{ id: string; value?: string; name?: string }>>();
+    for (const proj of meta.projects) {
+      for (const it of proj.issuetypes) {
+        if (issueType && it.name.toLowerCase() !== issueType.toLowerCase()) continue;
+        for (const [fieldId, fieldMeta] of Object.entries(it.fields)) {
+          if (fieldMeta.allowedValues?.length) {
+            const existing = allowedValuesMap.get(fieldId) ?? [];
+            // Merge unique values by id
+            const seen = new Set(existing.map(v => v.id));
+            for (const av of fieldMeta.allowedValues) {
+              if (!seen.has(av.id)) {
+                existing.push(av);
+                seen.add(av.id);
+              }
+            }
+            allowedValuesMap.set(fieldId, existing);
+          }
+        }
+      }
+    }
+
+    return fields.map(f => {
+      const av = allowedValuesMap.get(f.id);
+      return av ? { ...f, allowedValues: av } : f;
+    });
   }
 
   async assignIssue(key: string, accountId: string): Promise<void> {
