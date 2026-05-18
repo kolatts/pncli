@@ -274,6 +274,40 @@ describe('HttpClient — adoPaginate', () => {
   });
 });
 
+describe('HttpClient — ADO Content-Type override', () => {
+  it('sends application/json-patch+json when caller passes that Content-Type', async () => {
+    const capturedHeaders: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
+      return new Response('{}', { status: 200 });
+    });
+    try {
+      const config = baseConfig();
+      const client = new HttpClient(config);
+      await client.ado('/test', { method: 'PATCH', body: [], headers: { 'Content-Type': 'application/json-patch+json' } });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(capturedHeaders[0]?.['content-type']).toBe('application/json-patch+json');
+  });
+
+  it('defaults to application/json when no Content-Type override is supplied', async () => {
+    const capturedHeaders: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
+      return new Response('{}', { status: 200 });
+    });
+    try {
+      const config = baseConfig();
+      const client = new HttpClient(config);
+      await client.ado('/test');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(capturedHeaders[0]?.['content-type']).toBe('application/json');
+  });
+});
+
 describe('HttpClient — artifactory URL with path-component base URL', () => {
   it('preserves /artifactory base path when building Artifactory URL', async () => {
     const capturedUrls: string[] = [];
