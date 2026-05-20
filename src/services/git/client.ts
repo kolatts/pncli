@@ -404,13 +404,25 @@ export function parseBranchReportOutput(
   };
 }
 
+// Normalize a date-only string (YYYY-MM-DD) to include an explicit time
+// component so that git's date parser uses its strict ISO 8601 path on all
+// platforms. Without the time component, some Windows git versions mis-parse
+// previous-year dates via the approxidate fuzzy parser, silently returning no
+// commits. Strings that already contain a time component are returned as-is.
+function normalizeGitDate(dateStr: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return `${dateStr}T00:00:00`;
+  }
+  return dateStr;
+}
+
 // Exported for unit testing — pure arg construction with no I/O
 export function buildReportArgs(opts: { branch?: string; since?: string; until?: string; base?: string }): string[] {
   const fmt = `${COMMIT_PREFIX}%H\t%an\t%aI\t%s`;
   const args = ['log', `--format=${fmt}`, '--numstat'];
 
-  if (opts.since) args.push(`--since=${opts.since}`);
-  if (opts.until) args.push(`--until=${opts.until}`);
+  if (opts.since) args.push(`--since=${normalizeGitDate(opts.since)}`);
+  if (opts.until) args.push(`--until=${normalizeGitDate(opts.until)}`);
 
   if (opts.base && opts.branch) {
     args.push(`${opts.base}..${opts.branch}`);
