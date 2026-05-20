@@ -237,15 +237,60 @@ describe('buildReportArgs', () => {
     expect(args).not.toContain('..');
   });
 
-  it('adds --since and --until flags', () => {
+  it('adds --since and --until flags with time component appended', () => {
     const args = buildReportArgs({ since: '2024-01-01', until: '2024-12-31' });
-    expect(args).toContain('--since=2024-01-01');
-    expect(args).toContain('--until=2024-12-31');
+    expect(args).toContain('--since=2024-01-01T00:00:00');
+    expect(args).toContain('--until=2024-12-31T00:00:00');
+  });
+
+  it('normalizes date-only --since from a previous year', () => {
+    const args = buildReportArgs({ since: '2025-05-20' });
+    expect(args).toContain('--since=2025-05-20T00:00:00');
+    expect(args.some(a => a === '--since=2025-05-20')).toBe(false);
+  });
+
+  it('passes through --since values that already include a time component', () => {
+    const args = buildReportArgs({ since: '2025-05-20T10:30:00+05:30' });
+    expect(args).toContain('--since=2025-05-20T10:30:00+05:30');
   });
 
   it('adds no range arg when no base, branch, since, or until', () => {
     const args = buildReportArgs({});
     expect(args).not.toContain('..');
     expect(args.some(a => a.startsWith('--since'))).toBe(false);
+  });
+});
+
+describe('year-boundary weekly breakdown', () => {
+  it('correctly groups commits spanning the Dec/Jan year boundary', () => {
+    const raw = [
+      `${COMMIT_PREFIX}aaa\tAlice\t2025-12-29T10:00:00Z\tLast week of 2025`,
+      '2\t0\tfile.ts',
+      `${COMMIT_PREFIX}bbb\tAlice\t2026-01-05T10:00:00Z\tFirst full week of 2026`,
+      '3\t1\tfile.ts'
+    ].join('\n');
+    const report = parseBranchReportOutput(raw, 'main', {});
+    expect(report.commits).toHaveLength(2);
+    expect(report.summary.commitCount).toBe(2);
+    // Dec 29, 2025 falls in ISO week 2026-W01 (its Thursday is Jan 1, 2026)
+    expect(report.weeks).toHaveLength(2);
+    expect(report.weeks[0]!.week).toBe('2026-W01');
+    expect(report.weeks[0]!.weekStart).toBe('2025-12-29');
+    // Jan 5, 2026 falls in ISO week 2026-W02
+    expect(report.weeks[1]!.week).toBe('2026-W02');
+    expect(report.weeks[1]!.weekStart).toBe('2026-01-05');
+  });
+
+  it('handles a commit in the last ISO week of 2025 (2025-W52)', () => {
+    // Dec 22, 2025 is a Monday. Its Thursday is Dec 25, 2025 (in 2025),
+    // so ISO year = 2025 and it stays in 2025-W52, not crossing into 2026.
+    const raw = [
+      `${COMMIT_PREFIX}ccc\tBob\t2025-12-22T10:00:00Z\tLast week of 2025`,
+      '1\t0\tfile.ts'
+    ].join('\n');
+    const report = parseBranchReportOutput(raw, 'main', {});
+    expect(report.commits).toHaveLength(1);
+    expect(report.weeks[0]!.weekStart).toBe('2025-12-22');
+    expect(report.weeks[0]!.week).toBe('2025-W52');
   });
 });
