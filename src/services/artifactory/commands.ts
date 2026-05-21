@@ -126,7 +126,7 @@ export function registerArtifactoryCommands(program: Command): void {
   // ── Builds ────────────────────────────────────────────────────────────────
 
   art.command('builds')
-    .description('List all build names in Artifactory')
+    .description('List builds registered in Artifactory Build Integration (names may differ from ADO pipeline or uDeploy component names; use "search --repo" when empty)')
     .action(async () => {
       const start = Date.now();
       try {
