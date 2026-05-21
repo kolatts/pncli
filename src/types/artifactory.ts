@@ -100,10 +100,12 @@ export interface ArtifactoryBuildInfo {
 
 export interface ArtifactoryBuildList {
   builds: Array<{
+    name: string;
     uri: string;
     lastStarted: string;
   }>;
   uri: string;
+  hint?: string;
 }
 
 export interface ArtifactoryBuildRuns {
