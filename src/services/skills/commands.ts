@@ -270,11 +270,29 @@ export function registerSkillsCommands(program: Command): void {
           gitArgs.push('-c', `remote.origin.url=${injectTokenIntoUrl(repoUrl, token)}`);
         }
         gitArgs.push('pull');
+        let pullOutput: string;
         try {
-          execFileSync('git', gitArgs, { stdio: ['inherit', 'inherit', 'pipe'] });
+          pullOutput = execFileSync('git', gitArgs, { encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'], env: { ...process.env, LANG: 'C', LC_ALL: 'C' } });
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
           throw new Error(msg.replace(/x-token-auth:[^@]+@/g, 'x-token-auth:***@'));
+        }
+
+        const marketplaceUpdated = !pullOutput.includes('Already up to date');
+        if (pullOutput.trim() && marketplaceUpdated) {
+          warn(pullOutput.trim());
+        }
+        warn(marketplaceUpdated ? 'Marketplace updated.' : 'Marketplace already up to date — no changes to sync.');
+
+        if (!marketplaceUpdated && !plugin) {
+          success({
+            marketplace: marketplacePath,
+            marketplaceUpdated: false,
+            updated: false,
+            skipped: true,
+            message: 'No marketplace changes detected — skipping plugin selection and install.',
+          }, 'skills', 'marketplace-sync', start);
+          return;
         }
 
         const pluginChoices = resolvePluginChoices(marketplacePath);
@@ -318,6 +336,7 @@ export function registerSkillsCommands(program: Command): void {
           failed,
           total: installed.length,
           target: targetDir,
+          marketplaceUpdated,
         }, 'skills', 'marketplace-sync', start);
       } catch (err) {
         fail(err, 'skills', 'marketplace-sync', start);
