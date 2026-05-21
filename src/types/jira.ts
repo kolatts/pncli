@@ -8,6 +8,7 @@ export type CustomFieldType =
   | 'select'
   | 'multi-select'
   | 'option-id'
+  | 'cascading-select'
   | 'user'
   | 'labels'
   | 'url'
@@ -31,7 +32,9 @@ export interface JiraFieldInfo {
   name: string;
   custom: boolean;
   schema?: { type: string; custom?: string };
-  allowedValues?: Array<{ id: string; value?: string; name?: string }>;
+  allowedValues?: Array<{ id: string; value?: string; name?: string; children?: Array<{ id: string; value: string }> }>;
+  /** Suggested pncli config type inferred from the Jira field schema. */
+  pncliType?: CustomFieldType;
 }
 
 export interface JiraIssue {
