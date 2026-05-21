@@ -272,22 +272,22 @@ export function registerSkillsCommands(program: Command): void {
         gitArgs.push('pull');
         let pullOutput: string;
         try {
-          pullOutput = execFileSync('git', gitArgs, { encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'] });
+          pullOutput = execFileSync('git', gitArgs, { encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'], env: { ...process.env, LANG: 'C', LC_ALL: 'C' } });
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
           throw new Error(msg.replace(/x-token-auth:[^@]+@/g, 'x-token-auth:***@'));
         }
 
-        if (pullOutput.trim()) {
+        const marketplaceUpdated = !pullOutput.includes('Already up to date');
+        if (pullOutput.trim() && marketplaceUpdated) {
           warn(pullOutput.trim());
         }
-
-        const marketplaceUpdated = !pullOutput.includes('Already up to date');
         warn(marketplaceUpdated ? 'Marketplace updated.' : 'Marketplace already up to date — no changes to sync.');
 
         if (!marketplaceUpdated && !plugin) {
           success({
             marketplace: marketplacePath,
+            marketplaceUpdated: false,
             updated: false,
             skipped: true,
             message: 'No marketplace changes detected — skipping plugin selection and install.',
