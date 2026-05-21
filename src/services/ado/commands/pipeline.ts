@@ -101,8 +101,14 @@ export function registerAdoPipelineCommands(ado: Command): void {
         const { collection, project, buildClient } = getAdoContext(ado);
 
         let definitionId: number | undefined;
+        if (opts.definition && opts.name) {
+          throw new PncliError('Cannot specify both --definition and --name. Use one or the other.', 1);
+        }
         if (opts.definition) {
           definitionId = parseInt(opts.definition, 10);
+          if (isNaN(definitionId)) {
+            throw new PncliError(`--definition must be a numeric ID. Got "${opts.definition}". Use --name to filter by pipeline name instead.`, 1);
+          }
         } else if (opts.name) {
           const defs = await buildClient.listDefinitions(collection, project);
           const match = defs.find(d => d.name.toLowerCase() === opts.name!.toLowerCase());
