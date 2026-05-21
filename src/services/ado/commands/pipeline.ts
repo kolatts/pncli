@@ -91,15 +91,38 @@ export function registerAdoPipelineCommands(ado: Command): void {
     .command('list-runs')
     .description('List pipeline runs')
     .option('--definition <id>', 'Filter by definition ID')
+    .option('--name <name>', 'Filter by pipeline name (resolved to definition ID; use pipeline list to see names)')
     .option('--branch <ref>', 'Filter by branch name')
     .option('--status <filter>', 'Filter by status (inProgress|completed|cancelling|...)')
     .option('--top <n>', 'Maximum results', '50')
-    .action(async (opts: { definition?: string; branch?: string; status?: string; top: string }) => {
+    .action(async (opts: { definition?: string; name?: string; branch?: string; status?: string; top: string }) => {
       const start = Date.now();
       try {
         const { collection, project, buildClient } = getAdoContext(ado);
+
+        let definitionId: number | undefined;
+        if (opts.definition && opts.name) {
+          throw new PncliError('Cannot specify both --definition and --name. Use one or the other.', 1);
+        }
+        if (opts.definition) {
+          definitionId = parseInt(opts.definition, 10);
+          if (isNaN(definitionId)) {
+            throw new PncliError(`--definition must be a numeric ID. Got "${opts.definition}". Use --name to filter by pipeline name instead.`, 1);
+          }
+        } else if (opts.name) {
+          const defs = await buildClient.listDefinitions(collection, project);
+          const match = defs.find(d => d.name.toLowerCase() === opts.name!.toLowerCase());
+          if (!match) {
+            throw new PncliError(
+              `Pipeline "${opts.name}" not found. Run 'pncli ado pipeline list' to see available pipelines.`,
+              1
+            );
+          }
+          definitionId = match.id;
+        }
+
         const data = await buildClient.listBuilds(collection, project, {
-          definitionIds: opts.definition ? [parseInt(opts.definition, 10)] : undefined,
+          definitionIds: definitionId !== undefined ? [definitionId] : undefined,
           branchName: opts.branch,
           statusFilter: opts.status,
           top: parseInt(opts.top, 10)

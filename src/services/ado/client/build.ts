@@ -59,7 +59,7 @@ export class AdoBuildClient {
     return this.http.adoPaginate<AdoBuild>(async (token) => {
       const params: Record<string, string | number | boolean | undefined> = {
         'api-version': API,
-        ...(opts.definitionIds?.length ? { definitionIds: opts.definitionIds.join(',') } : {}),
+        ...(opts.definitionIds?.length ? { definitions: opts.definitionIds.join(',') } : {}),
         ...(opts.branchName ? { branchName: opts.branchName } : {}),
         ...(opts.statusFilter ? { statusFilter: opts.statusFilter } : {}),
         ...(opts.top ? { '$top': opts.top } : {}),
