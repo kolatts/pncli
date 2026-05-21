@@ -55,6 +55,9 @@ export function translateFieldsInOutput(
 
 /**
  * Format a CLI string value into the shape Jira's API expects for a given field type.
+ *
+ * For `cascading-select`, pass the parent option ID alone or `parentId:childId`
+ * to also set the child option. Example: `10001` or `10001:10002`.
  */
 export function formatFieldValue(value: string, type: CustomFieldType): unknown {
   switch (type) {
@@ -66,6 +69,13 @@ export function formatFieldValue(value: string, type: CustomFieldType): unknown 
       return value.split(',').map(v => ({ value: v.trim() }));
     case 'option-id':
       return { id: value };
+    case 'cascading-select': {
+      const colon = value.indexOf(':');
+      if (colon !== -1) {
+        return { id: value.slice(0, colon).trim(), child: { id: value.slice(colon + 1).trim() } };
+      }
+      return { id: value.trim() };
+    }
     case 'labels':
       return value.split(',').map(v => v.trim());
     case 'user':
