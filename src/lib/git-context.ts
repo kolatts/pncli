@@ -124,7 +124,7 @@ export function parseAdoRemote(
   const markerIdx = gitIdx !== -1 ? gitIdx : sshIdx;
   if (markerIdx === -1) return null;
 
-  const repo = path.slice(markerIdx + 6); // skip /_git/ or /_ssh/
+  const repo = decodeURIComponent(path.slice(markerIdx + 6)); // skip /_git/ or /_ssh/
   if (!repo) return null;
 
   // Everything before the marker: /<prefix>/<collection>/<project>
@@ -132,8 +132,8 @@ export function parseAdoRemote(
   const parts = before.split('/').filter(Boolean);
   if (parts.length < 2) return null;
 
-  const project = parts[parts.length - 1]!;
-  const collection = parts[parts.length - 2]!;
+  const project = decodeURIComponent(parts[parts.length - 1]!);
+  const collection = decodeURIComponent(parts[parts.length - 2]!);
 
   return { collection, project, repo };
 }
