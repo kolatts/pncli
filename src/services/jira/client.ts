@@ -5,7 +5,8 @@ import type {
   JiraComment,
   JiraSearchResult,
   JiraFieldInfo,
-  CustomFieldDefinition
+  CustomFieldDefinition,
+  CustomFieldType
 } from '../../types/jira.js';
 
 const API = '/rest/api/2';
@@ -139,50 +140,84 @@ export class JiraClient {
   }
 
   async fetchFields(): Promise<JiraFieldInfo[]> {
-    return this.http.jira<JiraFieldInfo[]>(`${API}/field`);
+    const fields = await this.http.jira<JiraFieldInfo[]>(`${API}/field`);
+    return fields.map(f => ({ ...f, pncliType: schemaToPncliType(f.schema) }));
   }
 
   async fetchFieldsWithAllowedValues(project: string, issueType?: string): Promise<JiraFieldInfo[]> {
-    const [fields, meta] = await Promise.all([
-      this.fetchFields(),
-      this.http.jira<{
-        projects: Array<{
-          issuetypes: Array<{
-            name: string;
-            fields: Record<string, { allowedValues?: Array<{ id: string; value?: string; name?: string }> }>;
-          }>;
-        }>;
-      }>(`${API}/issue/createmeta`, {
-        params: { projectKeys: project, expand: 'projects.issuetypes.fields' }
-      })
-    ]);
+    const fields = await this.fetchFields();
 
-    // Collect allowedValues per field ID across all matching issue types
-    const allowedValuesMap = new Map<string, Array<{ id: string; value?: string; name?: string }>>();
-    for (const proj of meta.projects) {
-      for (const it of proj.issuetypes) {
-        if (issueType && it.name.toLowerCase() !== issueType.toLowerCase()) continue;
-        for (const [fieldId, fieldMeta] of Object.entries(it.fields)) {
-          if (fieldMeta.allowedValues?.length) {
-            const existing = allowedValuesMap.get(fieldId) ?? [];
-            // Merge unique values by id
-            const seen = new Set(existing.map(v => v.id));
-            for (const av of fieldMeta.allowedValues) {
-              if (!seen.has(av.id)) {
-                existing.push(av);
-                seen.add(av.id);
-              }
-            }
-            allowedValuesMap.set(fieldId, existing);
-          }
-        }
+    type AllowedValue = { id: string; value?: string; name?: string; children?: Array<{ id: string; value: string }> };
+    type CreateMetaField = { allowedValues?: AllowedValue[] };
+    type CreateMetaResponse = {
+      projects: Array<{
+        issuetypes: Array<{
+          name: string;
+          fields: Record<string, CreateMetaField>;
+        }>;
+      }>;
+    };
+
+    let metaFields: Record<string, CreateMetaField> = {};
+    try {
+      const meta = await this.http.jira<CreateMetaResponse>(`${API}/issue/createmeta`, {
+        params: { projectKeys: project, expand: 'projects.issuetypes.fields' }
+      });
+      metaFields = collectMetaFields(meta.projects, issueType);
+    } catch {
+      // createmeta returns 404 on some Jira Datacenter instances — try the paginated fallback
+      try {
+        metaFields = await this.fetchCreateMetaViaIssuetypes(project, issueType);
+      } catch {
+        // Both endpoints failed — return fields without allowedValues (pncliType still annotated)
       }
     }
 
     return fields.map(f => {
-      const av = allowedValuesMap.get(f.id);
-      return av ? { ...f, allowedValues: av } : f;
+      const av = metaFields[f.id]?.allowedValues;
+      return av?.length ? { ...f, allowedValues: av } : f;
     });
+  }
+
+  /**
+   * Fallback for instances where the classic createmeta endpoint returns 404.
+   * Uses the paginated endpoint available in Jira Datacenter 8.4+.
+   */
+  private async fetchCreateMetaViaIssuetypes(
+    project: string,
+    issueType?: string
+  ): Promise<Record<string, { allowedValues?: Array<{ id: string; value?: string; name?: string; children?: Array<{ id: string; value: string }> }> }>> {
+    type IssueTypeEntry = { id: string; name: string };
+    const itList = await this.http.jira<{ values: IssueTypeEntry[] }>(
+      `${API}/issue/createmeta/${encodeURIComponent(project)}/issuetypes`
+    );
+
+    const matchingTypes = issueType
+      ? itList.values.filter(it => it.name.toLowerCase() === issueType.toLowerCase())
+      : itList.values;
+
+    type FieldEntry = { fieldId: string; allowedValues?: Array<{ id: string; value?: string; name?: string; children?: Array<{ id: string; value: string }> }> };
+    const result: Record<string, { allowedValues?: Array<{ id: string; value?: string; name?: string; children?: Array<{ id: string; value: string }> }> }> = {};
+
+    for (const it of matchingTypes) {
+      const fieldList = await this.http.jira<{ values: FieldEntry[] }>(
+        `${API}/issue/createmeta/${encodeURIComponent(project)}/issuetypes/${it.id}`
+      );
+      for (const field of fieldList.values) {
+        if (!field.allowedValues?.length) continue;
+        const existing = result[field.fieldId]?.allowedValues ?? [];
+        const seen = new Set(existing.map((v) => v.id));
+        for (const av of field.allowedValues) {
+          if (!seen.has(av.id)) {
+            existing.push(av);
+            seen.add(av.id);
+          }
+        }
+        result[field.fieldId] = { allowedValues: existing };
+      }
+    }
+
+    return result;
   }
 
   async assignIssue(key: string, accountId: string): Promise<void> {
@@ -217,4 +252,55 @@ export class JiraClient {
       }
     });
   }
+}
+
+/** Map a Jira field schema to the recommended pncli CustomFieldType. */
+function schemaToPncliType(schema?: { type: string; custom?: string }): CustomFieldType | undefined {
+  if (!schema) return undefined;
+  const custom = schema.custom ?? '';
+  if (custom.includes('cascadingselect')) return 'cascading-select';
+  if (custom.includes('multicheckboxes') || custom.includes('multiselect')) return 'multi-select';
+  if (custom.includes('select') || custom.includes('radiobuttons')) return 'select';
+  if (custom.includes('userpicker') || custom.includes('multiuserpicker')) return 'user';
+  if (custom.includes('labels')) return 'labels';
+  if (custom.includes('url')) return 'url';
+  if (custom.includes('textarea') || custom.includes('textfield')) return 'textarea';
+  if (schema.type === 'number') return 'number';
+  if (schema.type === 'date') return 'date';
+  if (schema.type === 'datetime') return 'datetime';
+  if (schema.type === 'string') return 'string';
+  return undefined;
+}
+
+type AllowedValue = { id: string; value?: string; name?: string; children?: Array<{ id: string; value: string }> };
+type CreateMetaProject = {
+  issuetypes: Array<{
+    name: string;
+    fields: Record<string, { allowedValues?: AllowedValue[] }>;
+  }>;
+};
+
+function collectMetaFields(
+  projects: CreateMetaProject[],
+  issueType?: string
+): Record<string, { allowedValues?: AllowedValue[] }> {
+  const result: Record<string, { allowedValues?: AllowedValue[] }> = {};
+  for (const proj of projects) {
+    for (const it of proj.issuetypes) {
+      if (issueType && it.name.toLowerCase() !== issueType.toLowerCase()) continue;
+      for (const [fieldId, fieldMeta] of Object.entries(it.fields)) {
+        if (!fieldMeta.allowedValues?.length) continue;
+        const existing = result[fieldId]?.allowedValues ?? [];
+        const seen = new Set(existing.map(v => v.id));
+        for (const av of fieldMeta.allowedValues) {
+          if (!seen.has(av.id)) {
+            existing.push(av);
+            seen.add(av.id);
+          }
+        }
+        result[fieldId] = { allowedValues: existing };
+      }
+    }
+  }
+  return result;
 }
