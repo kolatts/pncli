@@ -308,6 +308,26 @@ describe('HttpClient — ADO Content-Type override', () => {
   });
 });
 
+describe('HttpClient — ADO URL encoding', () => {
+  it('does not double-encode percent-signs in ADO path (spaces in project name)', async () => {
+    const capturedUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrls.push(url);
+      return new Response('{}', { status: 200 });
+    });
+    try {
+      const config = baseConfig();
+      const client = new HttpClient(config);
+      // Simulate what git.ts does: encodeURIComponent('My Project') = 'My%20Project'
+      await client.ado('/myorg/My%20Project/_apis/git/repositories?api-version=7.1');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(capturedUrls[0]).toContain('/My%20Project/');
+    expect(capturedUrls[0]).not.toContain('%2520');
+  });
+});
+
 describe('HttpClient — artifactory URL with path-component base URL', () => {
   it('preserves /artifactory base path when building Artifactory URL', async () => {
     const capturedUrls: string[] = [];
