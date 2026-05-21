@@ -6,15 +6,18 @@ import { getGitContext } from '../../lib/git-context.js';
 import { success, fail } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
 
-function getClient(program: Command): { client: BitbucketClient; project: string; repo: string } {
+function getClient(
+  program: Command,
+  overrides?: { project?: string; repo?: string }
+): { client: BitbucketClient; project: string; repo: string } {
   const opts = program.optsWithGlobals();
   const config = loadConfig({ configPath: opts.config });
   const http = createHttpClient(config, Boolean(opts.dryRun));
   const client = new BitbucketClient(http);
   const ctx = getGitContext(config);
 
-  const project: string = opts.project ?? ctx?.project ?? config.defaults.bitbucket?.project ?? '';
-  const repo: string = opts.repo ?? ctx?.repo ?? config.defaults.bitbucket?.repo ?? '';
+  const project: string = overrides?.project ?? opts.project ?? ctx?.project ?? config.defaults.bitbucket?.project ?? '';
+  const repo: string = overrides?.repo ?? opts.repo ?? ctx?.repo ?? config.defaults.bitbucket?.repo ?? '';
 
   if (!project || !repo) {
     throw new PncliError(
@@ -68,10 +71,12 @@ export function registerBitbucketCommands(program: Command): void {
     .option('--target <branch>', 'Target branch (defaults to config)')
     .option('--description <desc>', 'PR description')
     .option('--reviewers <users>', 'Comma-separated reviewer usernames')
-    .action(async (opts: { title: string; source: string; target?: string; description?: string; reviewers?: string }) => {
+    .option('--project <key>', 'Bitbucket project key (overrides parent --project; use ~username for personal repos)')
+    .option('--repo <slug>', 'Bitbucket repository slug (overrides parent --repo)')
+    .action(async (opts: { title: string; source: string; target?: string; description?: string; reviewers?: string; project?: string; repo?: string }) => {
       const start = Date.now();
       try {
-        const { client, project, repo } = getClient(bb);
+        const { client, project, repo } = getClient(bb, { project: opts.project, repo: opts.repo });
         const config = loadConfig({ configPath: bb.optsWithGlobals().config });
         const target = opts.target ?? config.defaults.bitbucket?.targetBranch ?? 'main';
         const reviewers = opts.reviewers ? opts.reviewers.split(',').map(s => s.trim()) : [];
