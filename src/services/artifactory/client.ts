@@ -103,7 +103,17 @@ export class ArtifactoryClient {
   }
 
   async listBuilds(): Promise<ArtifactoryBuildList> {
-    return this.http.artifactory<ArtifactoryBuildList>(`${API}/build`);
+    const raw = await this.http.artifactory<{ builds?: Array<{ uri: string; lastStarted: string }>; uri: string }>(`${API}/build`);
+    const builds = (raw.builds ?? []).map(b => ({
+      name: b.uri.replace(/^\/|\/$/g, ''),
+      uri: b.uri,
+      lastStarted: b.lastStarted
+    }));
+    const result: ArtifactoryBuildList = { builds, uri: raw.uri };
+    if (builds.length === 0) {
+      result.hint = 'No builds are registered in Artifactory Build Integration. Build names may differ from ADO pipeline or uDeploy component names. Use "artifactory repos" to list repositories, then "artifactory search --repo <repo>" to locate artifacts directly.';
+    }
+    return result;
   }
 
   async listBuildRuns(buildName: string): Promise<ArtifactoryBuildRuns> {
