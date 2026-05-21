@@ -18,9 +18,10 @@ function jobPath(name: string): string {
 export class JenkinsClient {
   constructor(private http: HttpClient) {}
 
-  async listJobs(): Promise<JenkinsJob[]> {
+  async listJobs(folder?: string): Promise<JenkinsJob[]> {
+    const endpoint = folder ? `/job/${jobPath(folder)}/api/json` : '/api/json';
     const data = await this.http.jenkins<JenkinsListJobsResponse>(
-      '/api/json',
+      endpoint,
       { params: { tree: 'jobs[name,url,color,description,buildable,lastBuild[number,url,result]]' } }
     );
     return data.jobs;
