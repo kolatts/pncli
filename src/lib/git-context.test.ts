@@ -123,4 +123,28 @@ describe('parseAdoRemote', () => {
     );
     expect(result).toBeNull();
   });
+
+  it('decodes percent-encoded project name from HTTPS URL', () => {
+    const result = parseAdoRemote(
+      'https://tfs.example.com/col/My%20Project/_git/myrepo',
+      'https://tfs.example.com'
+    );
+    expect(result).toEqual({ collection: 'col', project: 'My Project', repo: 'myrepo' });
+  });
+
+  it('decodes percent-encoded collection and repo names', () => {
+    const result = parseAdoRemote(
+      'https://tfs.example.com/My%20Org/My%20Project/_git/My%20Repo',
+      'https://tfs.example.com'
+    );
+    expect(result).toEqual({ collection: 'My Org', project: 'My Project', repo: 'My Repo' });
+  });
+
+  it('decodes percent-encoded project name from SSH URL', () => {
+    const result = parseAdoRemote(
+      'ssh://git@tfs.example.com:22/col/My%20Project/_ssh/myrepo',
+      'https://tfs.example.com'
+    );
+    expect(result).toEqual({ collection: 'col', project: 'My Project', repo: 'myrepo' });
+  });
 });
