@@ -55,12 +55,13 @@ export function registerJenkinsCommands(program: Command): void {
 
   pipeline
     .command('list')
-    .description('List all jobs on the Jenkins instance')
-    .action(async () => {
+    .description('List all jobs on the Jenkins instance (or within a folder)')
+    .option('--folder <name>', 'Folder name to enumerate (supports nested folders: parentFolder/childFolder)')
+    .action(async (opts: { folder?: string }) => {
       const start = Date.now();
       try {
         const client = getClient(program);
-        const data = await client.listJobs();
+        const data = await client.listJobs(opts.folder);
         success(data, 'jenkins', 'pipeline-list', start);
       } catch (err) { fail(err, 'jenkins', 'pipeline-list', start); }
     });
@@ -68,7 +69,7 @@ export function registerJenkinsCommands(program: Command): void {
   pipeline
     .command('get')
     .description('Get details for a specific job')
-    .requiredOption('--name <job>', 'Job name')
+    .requiredOption('--name <job>', 'Job name (use folder/job for folder-scoped jobs)')
     .action(async (opts: { name: string }) => {
       const start = Date.now();
       try {
@@ -81,7 +82,7 @@ export function registerJenkinsCommands(program: Command): void {
   pipeline
     .command('run')
     .description('Trigger a build')
-    .requiredOption('--name <job>', 'Job name')
+    .requiredOption('--name <job>', 'Job name (use folder/job for folder-scoped jobs)')
     .option('--parameter <k=v>', 'Build parameter (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
     .option('--wait', 'Wait for the build to complete before returning')
     .option('--timeout <s>', 'Max wait time in seconds per phase (queue-wait and build-wait each get this budget; default 600)', '600')
@@ -129,7 +130,7 @@ export function registerJenkinsCommands(program: Command): void {
   pipeline
     .command('list-runs')
     .description('List recent builds for a job')
-    .requiredOption('--name <job>', 'Job name')
+    .requiredOption('--name <job>', 'Job name (use folder/job for folder-scoped jobs)')
     .option('--top <n>', 'Maximum number of builds to return (default 25)', '25')
     .action(async (opts: { name: string; top: string }) => {
       const start = Date.now();
@@ -145,7 +146,7 @@ export function registerJenkinsCommands(program: Command): void {
   pipeline
     .command('get-run')
     .description('Get details for a specific build')
-    .requiredOption('--name <job>', 'Job name')
+    .requiredOption('--name <job>', 'Job name (use folder/job for folder-scoped jobs)')
     .requiredOption('--number <n>', 'Build number')
     .action(async (opts: { name: string; number: string }) => {
       const start = Date.now();
@@ -161,7 +162,7 @@ export function registerJenkinsCommands(program: Command): void {
   pipeline
     .command('logs')
     .description('Fetch console log for a build (consider --output-file for large logs)')
-    .requiredOption('--name <job>', 'Job name')
+    .requiredOption('--name <job>', 'Job name (use folder/job for folder-scoped jobs)')
     .requiredOption('--number <n>', 'Build number')
     .action(async (opts: { name: string; number: string }) => {
       const start = Date.now();
