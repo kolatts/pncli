@@ -56,15 +56,27 @@ export class AdoBuildClient {
     project: string,
     opts: { definitionIds?: number[]; branchName?: string; statusFilter?: string; top?: number } = {}
   ): Promise<AdoBuild[]> {
+    const baseParams: Record<string, string | number | boolean | undefined> = {
+      'api-version': API,
+      ...(opts.definitionIds?.length ? { definitions: opts.definitionIds.join(',') } : {}),
+      ...(opts.branchName ? { branchName: opts.branchName } : {}),
+      ...(opts.statusFilter ? { statusFilter: opts.statusFilter } : {}),
+      ...(opts.top ? { '$top': opts.top } : {})
+    };
+
+    // When top is specified, use a single request so the API-level $top limit is
+    // honoured exactly. adoPaginate follows continuation tokens and can return far
+    // more items than requested.
+    if (opts.top) {
+      const { data } = await this.http.adoRaw(
+        `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/build/builds`,
+        { params: baseParams }
+      ) as { data: { value: AdoBuild[] }; headers: Headers };
+      return (data.value ?? []).slice(0, opts.top);
+    }
+
     return this.http.adoPaginate<AdoBuild>(async (token) => {
-      const params: Record<string, string | number | boolean | undefined> = {
-        'api-version': API,
-        ...(opts.definitionIds?.length ? { definitions: opts.definitionIds.join(',') } : {}),
-        ...(opts.branchName ? { branchName: opts.branchName } : {}),
-        ...(opts.statusFilter ? { statusFilter: opts.statusFilter } : {}),
-        ...(opts.top ? { '$top': opts.top } : {}),
-        ...(token ? { continuationToken: token } : {})
-      };
+      const params = { ...baseParams, ...(token ? { continuationToken: token } : {}) };
       return this.http.adoRaw(
         `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/build/builds`,
         { params }
