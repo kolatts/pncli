@@ -132,7 +132,9 @@ export function registerArtifactoryCommands(program: Command): void {
       const start = Date.now();
       try {
         const client = getClient(program);
-        const timeoutMs = parseInt(opts.timeout, 10) * 1000;
+        const timeoutSecs = parseInt(opts.timeout, 10);
+        if (isNaN(timeoutSecs) || timeoutSecs <= 0) throw new PncliError('--timeout must be a positive integer (seconds)', 1);
+        const timeoutMs = timeoutSecs * 1000;
         const data = await client.listBuilds({ timeoutMs });
         success(data, 'artifactory', 'builds', start);
       } catch (err) { fail(err, 'artifactory', 'builds', start); }
