@@ -1,3 +1,4 @@
+import { readFileSync } from 'fs';
 import { Command } from 'commander';
 import { JiraClient } from './client.js';
 import { buildFieldMap, translateJql, translateFieldsInOutput, formatFieldValue } from './custom-fields.js';
@@ -62,8 +63,9 @@ export function registerJiraCommands(program: Command): void {
     .option('--assignee <accountId>', 'Assignee account ID')
     .option('--labels <labels>', 'Comma-separated labels')
     .option('--parent <key>', 'Parent issue key — sets fields.parent in the create payload')
-    .option('--field <Name=value>', 'Custom field value (repeatable)', (val: string, acc: string[]) => [...acc, val], [] as string[])
-    .action(async (opts: { project?: string; type?: string; summary: string; description?: string; priority?: string; assignee?: string; labels?: string; parent?: string; field: string[] }) => {
+    .option('--field <Name=value>', 'Custom field value; use Name=@file.json to read value from file (repeatable)', (val: string, acc: string[]) => [...acc, val], [] as string[])
+    .option('--fields-file <path>', 'Path to a JSON file mapping field names/IDs to their Jira API values')
+    .action(async (opts: { project?: string; type?: string; summary: string; description?: string; priority?: string; assignee?: string; labels?: string; parent?: string; field: string[]; fieldsFile?: string }) => {
       const start = Date.now();
       let fieldMap = buildFieldMap([]);
       try {
@@ -76,7 +78,8 @@ export function registerJiraCommands(program: Command): void {
         const priority = opts.priority ?? defaults.priority;
         if (!project) throw new PncliError('--project required (or set defaults.jira.project in config)', 1);
         const labels = opts.labels ? opts.labels.split(',').map(s => s.trim()) : undefined;
-        const customFieldValues = parseFieldArgs(opts.field, fieldMap);
+        const fileFields = opts.fieldsFile ? parseFieldsFile(opts.fieldsFile, fieldMap) : {};
+        const customFieldValues = { ...fileFields, ...parseFieldArgs(opts.field, fieldMap) };
         const data = await client.createIssue({ project, issueType, summary: opts.summary, description: opts.description, priority, assignee: opts.assignee, labels, parent: opts.parent, customFieldValues });
         success(data, 'jira', 'create-issue', start);
       } catch (err) { fail(translateFieldErrors(err, fieldMap), 'jira', 'create-issue', start); }
@@ -90,8 +93,9 @@ export function registerJiraCommands(program: Command): void {
     .option('--priority <name>', 'New priority')
     .option('--assignee <accountId>', 'New assignee account ID')
     .option('--labels <labels>', 'Comma-separated labels')
-    .option('--field <Name=value>', 'Custom field value (repeatable)', (val: string, acc: string[]) => [...acc, val], [] as string[])
-    .action(async (opts: { key: string; summary?: string; description?: string; priority?: string; assignee?: string; labels?: string; field: string[] }) => {
+    .option('--field <Name=value>', 'Custom field value; use Name=@file.json to read value from file (repeatable)', (val: string, acc: string[]) => [...acc, val], [] as string[])
+    .option('--fields-file <path>', 'Path to a JSON file mapping field names/IDs to their Jira API values')
+    .action(async (opts: { key: string; summary?: string; description?: string; priority?: string; assignee?: string; labels?: string; field: string[]; fieldsFile?: string }) => {
       const start = Date.now();
       let fieldMap = buildFieldMap([]);
       try {
@@ -99,7 +103,8 @@ export function registerJiraCommands(program: Command): void {
         const client = resolved.client;
         fieldMap = resolved.fieldMap;
         const labels = opts.labels ? opts.labels.split(',').map(s => s.trim()) : undefined;
-        const customFieldValues = parseFieldArgs(opts.field, fieldMap);
+        const fileFields = opts.fieldsFile ? parseFieldsFile(opts.fieldsFile, fieldMap) : {};
+        const customFieldValues = { ...fileFields, ...parseFieldArgs(opts.field, fieldMap) };
         await client.updateIssue(opts.key, { summary: opts.summary, description: opts.description, priority: opts.priority, assignee: opts.assignee, labels, customFieldValues });
         success({ updated: opts.key }, 'jira', 'update-issue', start);
       } catch (err) { fail(translateFieldErrors(err, fieldMap), 'jira', 'update-issue', start); }
@@ -233,7 +238,7 @@ export function registerJiraCommands(program: Command): void {
     });
 }
 
-function parseFieldArgs(
+export function parseFieldArgs(
   fieldArgs: string[],
   fieldMap: CustomFieldMap
 ): Record<string, unknown> {
@@ -248,7 +253,50 @@ function parseFieldArgs(
       `Unknown custom field: "${name}". Fields must be registered in config by friendly name or ID. Run: pncli jira fields`,
       1
     );
-    result[def.id] = formatFieldValue(value, def.type);
+    if (value.startsWith('@')) {
+      const filePath = value.slice(1);
+      let raw: string;
+      try {
+        raw = readFileSync(filePath, 'utf8').trim();
+      } catch (e) {
+        throw new PncliError(`Cannot read file "${filePath}": ${(e as NodeJS.ErrnoException).message}`, 1);
+      }
+      try {
+        result[def.id] = JSON.parse(raw);
+      } catch {
+        result[def.id] = raw;
+      }
+    } else {
+      result[def.id] = formatFieldValue(value, def.type);
+    }
+  }
+  return result;
+}
+
+export function parseFieldsFile(filePath: string, fieldMap: CustomFieldMap): Record<string, unknown> {
+  let raw: string;
+  try {
+    raw = readFileSync(filePath, 'utf8');
+  } catch (e) {
+    throw new PncliError(`Cannot read fields file "${filePath}": ${(e as NodeJS.ErrnoException).message}`, 1);
+  }
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new PncliError(`Fields file "${filePath}" must be a valid JSON object`, 1);
+  }
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    throw new PncliError(`Fields file "${filePath}" must be a JSON object`, 1);
+  }
+  const result: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(data as Record<string, unknown>)) {
+    const def = fieldMap.byName.get(key.toLowerCase()) ?? fieldMap.byId.get(key);
+    if (!def) throw new PncliError(
+      `Unknown field in "${filePath}": "${key}". Fields must be registered in config by friendly name or ID. Run: pncli jira fields`,
+      1
+    );
+    result[def.id] = val;
   }
   return result;
 }
