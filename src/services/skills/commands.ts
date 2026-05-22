@@ -249,9 +249,10 @@ export function registerSkillsCommands(program: Command): void {
   marketplace
     .command('sync')
     .description('Pull latest marketplace content and install a plugin\'s skills')
-    .argument('[plugin]', 'Plugin name to install (skips interactive selection)')
+    .argument('[plugin]', 'Plugin name to install, or "all" to install every plugin (skips interactive selection)')
     .option('--claude', 'Install to ~/.claude/skills instead of ~/.agents/skills')
-    .action(async (plugin: string | undefined, opts: { claude?: boolean }) => {
+    .option('--force', 'Force reinstall even if the marketplace repo has no new changes')
+    .action(async (plugin: string | undefined, opts: { claude?: boolean; force?: boolean }) => {
       const start = Date.now();
       try {
         const configPath = getGlobalConfigPath();
@@ -284,7 +285,7 @@ export function registerSkillsCommands(program: Command): void {
         }
         warn(marketplaceUpdated ? 'Marketplace updated.' : 'Marketplace already up to date — no changes to sync.');
 
-        if (!marketplaceUpdated && !plugin) {
+        if (!marketplaceUpdated && !plugin && !opts.force) {
           success({
             marketplace: marketplacePath,
             marketplaceUpdated: false,
@@ -298,6 +299,38 @@ export function registerSkillsCommands(program: Command): void {
         const pluginChoices = resolvePluginChoices(marketplacePath);
         if (pluginChoices.length === 0) {
           throw new Error('No plugins found in marketplace. Check the marketplace repository structure.');
+        }
+
+        const targetDir = opts.claude
+          ? path.join(os.homedir(), '.claude', 'skills')
+          : path.join(os.homedir(), '.agents', 'skills');
+
+        if (plugin === 'all') {
+          const results: Record<string, { installed: string[]; failed: string[] }> = {};
+          let totalInstalled = 0;
+
+          for (const pluginChoice of pluginChoices) {
+            const skillsSrc = resolveSkillsSrc(marketplacePath, pluginChoice.name);
+            if (!fs.existsSync(skillsSrc)) {
+              results[pluginChoice.name] = { installed: [], failed: [] };
+              warn(`No skills directory found for plugin "${pluginChoice.name}" — skipping.`);
+              continue;
+            }
+            const { installed, failed } = copyPluginSkills(skillsSrc, targetDir);
+            results[pluginChoice.name] = { installed, failed };
+            totalInstalled += installed.length;
+            if (failed.length > 0) {
+              warn(`Skipped ${failed.length} skill(s) with invalid names in "${pluginChoice.name}": ${failed.join(', ')}`);
+            }
+          }
+
+          success({
+            plugins: results,
+            total: totalInstalled,
+            target: targetDir,
+            marketplaceUpdated,
+          }, 'skills', 'marketplace-sync', start);
+          return;
         }
 
         let selectedPlugin: string;
@@ -320,10 +353,6 @@ export function registerSkillsCommands(program: Command): void {
         if (!fs.existsSync(skillsSrc)) {
           throw new Error(`No skills directory found at ${skillsSrc}`);
         }
-
-        const targetDir = opts.claude
-          ? path.join(os.homedir(), '.claude', 'skills')
-          : path.join(os.homedir(), '.agents', 'skills');
 
         const { installed, failed } = copyPluginSkills(skillsSrc, targetDir);
         if (failed.length > 0) {
