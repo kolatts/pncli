@@ -160,13 +160,16 @@ export function registerAdoPipelineCommands(ado: Command): void {
   pipeline
     .command('logs')
     .description('List or retrieve build logs (consider --output-file for large logs)')
-    .requiredOption('--id <n>', 'Build ID')
+    .option('--build-id <n>', 'Build (run) ID — from pipeline list-runs or get-run')
+    .option('--id <n>', 'Build (run) ID — alias for --build-id (kept for backwards compatibility)')
     .option('--log-id <n>', 'Specific log ID (omit to list all logs)')
-    .action(async (opts: { id: string; logId?: string }) => {
+    .action(async (opts: { buildId?: string; id?: string; logId?: string }) => {
       const start = Date.now();
       try {
+        const rawId = opts.buildId ?? opts.id;
+        if (!rawId) throw new PncliError('--build-id is required (build run ID from pipeline list-runs or get-run)', 1);
         const { collection, project, buildClient } = getAdoContext(ado);
-        const buildId = parseInt(opts.id, 10);
+        const buildId = parseInt(rawId, 10);
         if (opts.logId) {
           const data = await buildClient.getLog(collection, project, buildId, parseInt(opts.logId, 10));
           success({ log: data }, 'ado', 'pipeline-logs', start);

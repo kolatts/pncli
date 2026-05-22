@@ -127,11 +127,13 @@ export function registerArtifactoryCommands(program: Command): void {
 
   art.command('builds')
     .description('List builds registered in Artifactory Build Integration (names may differ from ADO pipeline or uDeploy component names; use "search --repo" when empty)')
-    .action(async () => {
+    .option('--timeout <s>', 'Request timeout in seconds (default 60; increase for large Artifactory instances)', '60')
+    .action(async (opts: { timeout: string }) => {
       const start = Date.now();
       try {
         const client = getClient(program);
-        const data = await client.listBuilds();
+        const timeoutMs = parseInt(opts.timeout, 10) * 1000;
+        const data = await client.listBuilds({ timeoutMs });
         success(data, 'artifactory', 'builds', start);
       } catch (err) { fail(err, 'artifactory', 'builds', start); }
     });
