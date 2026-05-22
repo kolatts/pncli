@@ -102,8 +102,8 @@ export class ArtifactoryClient {
     });
   }
 
-  async listBuilds(): Promise<ArtifactoryBuildList> {
-    const raw = await this.http.artifactory<{ builds?: Array<{ uri: string; lastStarted: string }>; uri: string }>(`${API}/build`);
+  async listBuilds(opts: { timeoutMs?: number } = {}): Promise<ArtifactoryBuildList> {
+    const raw = await this.http.artifactory<{ builds?: Array<{ uri: string; lastStarted: string }>; uri: string }>(`${API}/build`, { timeoutMs: opts.timeoutMs });
     const builds = (raw.builds ?? []).map(b => ({
       name: b.uri.replace(/^\/|\/$/g, ''),
       uri: b.uri,
