@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl } from './commands.js';
+import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath } from './commands.js';
 
 type ReaddirResult = ReturnType<typeof fs.readdirSync>;
 
@@ -13,9 +13,14 @@ afterEach(() => {
 // ── injectTokenIntoUrl ────────────────────────────────────────────────────────
 
 describe('injectTokenIntoUrl', () => {
-  it('injects token into an https URL using x-token-auth scheme', () => {
+  it('injects token into a Bitbucket URL using x-token-auth scheme', () => {
     const result = injectTokenIntoUrl('https://bitbucket.example.com/scm/proj/repo.git', 'mytoken123');
     expect(result).toBe('https://x-token-auth:mytoken123@bitbucket.example.com/scm/proj/repo.git');
+  });
+
+  it('injects token into a GitHub URL using x-access-token scheme', () => {
+    const result = injectTokenIntoUrl('https://github.com/owner/my-repo.git', 'ghp_abc123');
+    expect(result).toBe('https://x-access-token:ghp_abc123@github.com/owner/my-repo.git');
   });
 
   it('URL-encodes special characters in the token', () => {
@@ -34,6 +39,40 @@ describe('injectTokenIntoUrl', () => {
 
   it('throws on a non-http URL', () => {
     expect(() => injectTokenIntoUrl('git@bitbucket.example.com:proj/repo.git', 'tok')).toThrow();
+  });
+});
+
+// ── repoNameFromUrl ───────────────────────────────────────────────────────────
+
+describe('repoNameFromUrl', () => {
+  it('extracts repo name from a GitHub HTTPS URL', () => {
+    expect(repoNameFromUrl('https://github.com/owner/my-marketplace.git')).toBe('my-marketplace');
+  });
+
+  it('extracts repo name from a Bitbucket URL', () => {
+    expect(repoNameFromUrl('https://bitbucket.example.com/scm/proj/repo.git')).toBe('repo');
+  });
+
+  it('handles URLs without .git suffix', () => {
+    expect(repoNameFromUrl('https://github.com/owner/my-repo')).toBe('my-repo');
+  });
+
+  it('falls back to "marketplace" for invalid URLs', () => {
+    expect(repoNameFromUrl('not-a-url')).toBe('marketplace');
+  });
+});
+
+// ── defaultMarketplacePath ────────────────────────────────────────────────────
+
+describe('defaultMarketplacePath', () => {
+  it('returns ~/.agents/marketplaces/<repoName>', () => {
+    const result = defaultMarketplacePath('https://github.com/owner/my-marketplace.git');
+    expect(result).toBe(path.join(os.homedir(), '.agents', 'marketplaces', 'my-marketplace'));
+  });
+
+  it('falls back to "marketplace" for an unrecognised URL', () => {
+    const result = defaultMarketplacePath('not-a-url');
+    expect(result).toBe(path.join(os.homedir(), '.agents', 'marketplaces', 'marketplace'));
   });
 });
 
