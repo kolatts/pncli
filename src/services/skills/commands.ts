@@ -307,7 +307,7 @@ export function registerSkillsCommands(program: Command): void {
           pullOutput = execFileSync('git', gitArgs, { encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'], env: { ...process.env, LANG: 'C', LC_ALL: 'C' } });
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
-          throw new Error(msg.replace(/x-token-auth:[^@]+@/g, 'x-token-auth:***@'));
+          throw new Error(msg.replace(/x-(?:token-auth|access-token):[^@]+@/g, 'x-token-auth:***@'));
         }
 
         const marketplaceUpdated = !pullOutput.includes('Already up to date');
