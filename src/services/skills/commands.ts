@@ -10,8 +10,11 @@ import { writeGlobalConfig, getGlobalConfigPath, loadJsonFile } from '../../lib/
 import type { GlobalConfig } from '../../types/config.js';
 
 /**
- * Injects a Bitbucket HTTP access token into a git clone URL using the
- * x-token-auth scheme: https://x-token-auth:<token>@host/path
+ * Injects an HTTP access token into a git clone URL.
+ * - GitHub (github.com): uses the x-access-token scheme
+ *   https://x-access-token:<token>@github.com/owner/repo.git
+ * - All other hosts (Bitbucket, self-hosted, etc.): uses the x-token-auth scheme
+ *   https://x-token-auth:<token>@host/path
  */
 export function injectTokenIntoUrl(url: string, token: string): string {
   let parsed: URL;
@@ -20,9 +23,33 @@ export function injectTokenIntoUrl(url: string, token: string): string {
   } catch {
     throw new Error(`--token requires an HTTPS clone URL; got: ${url}`);
   }
-  parsed.username = 'x-token-auth';
+  parsed.username = parsed.hostname === 'github.com' ? 'x-access-token' : 'x-token-auth';
   parsed.password = token;
   return parsed.toString();
+}
+
+/**
+ * Derives a local directory name from a git clone URL by taking the last
+ * path segment and stripping a trailing .git extension.
+ * e.g. https://github.com/owner/my-marketplace.git → "my-marketplace"
+ */
+export function repoNameFromUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const segment = parsed.pathname.split('/').filter(Boolean).pop() ?? 'marketplace';
+    return segment.replace(/\.git$/i, '') || 'marketplace';
+  } catch {
+    return 'marketplace';
+  }
+}
+
+/**
+ * Returns the default local path for a marketplace clone:
+ *   <homedir>/.agents/marketplaces/<repoName>
+ * Works cross-platform (os.homedir() resolves correctly on Windows too).
+ */
+export function defaultMarketplacePath(url: string): string {
+  return path.join(os.homedir(), '.agents', 'marketplaces', repoNameFromUrl(url));
 }
 
 const AGENT_PATHS: Record<string, { project: string; user: string }> = {
@@ -210,13 +237,13 @@ export function registerSkillsCommands(program: Command): void {
     .command('setup')
     .description('Clone a skills marketplace repo and register it in global config')
     .argument('<url>', 'Git clone URL of the marketplace repository')
-    .argument('<localPath>', 'Local directory to clone the marketplace into')
-    .option('--branch <branch>', 'Branch to clone', 'master')
-    .option('--token <token>', 'Bitbucket HTTP access token for authenticated clone and pull')
-    .action(async (url: string, localPath: string, opts: { branch: string; token?: string }) => {
+    .argument('[localPath]', 'Local directory to clone into (default: ~/.agents/marketplaces/<repo-name>)')
+    .option('--branch <branch>', 'Branch to clone (default: remote HEAD)')
+    .option('--token <token>', 'HTTP access token for authenticated clone and pull (GitHub PAT or Bitbucket token)')
+    .action(async (url: string, localPath: string | undefined, opts: { branch?: string; token?: string }) => {
       const start = Date.now();
       try {
-        const resolvedPath = path.resolve(localPath);
+        const resolvedPath = path.resolve(localPath ?? defaultMarketplacePath(url));
 
         const hasGit = fs.existsSync(path.join(resolvedPath, '.git'));
         if (fs.existsSync(resolvedPath) && !hasGit && fs.readdirSync(resolvedPath).length > 0) {
@@ -225,13 +252,17 @@ export function registerSkillsCommands(program: Command): void {
         if (hasGit) {
           warn(`Directory already contains a git repo at ${resolvedPath} — skipping clone, updating config only.`);
         } else {
-          warn(`Cloning ${url} (branch: ${opts.branch}) → ${resolvedPath}...`);
+          const branchLabel = opts.branch ?? 'remote default';
+          warn(`Cloning ${url} (branch: ${branchLabel}) → ${resolvedPath}...`);
           const cloneUrl = opts.token ? injectTokenIntoUrl(url, opts.token) : url;
+          const cloneArgs = ['clone'];
+          if (opts.branch) cloneArgs.push('--branch', opts.branch);
+          cloneArgs.push(cloneUrl, resolvedPath);
           try {
-            execFileSync('git', ['clone', '--branch', opts.branch, cloneUrl, resolvedPath], { stdio: ['inherit', 'inherit', 'pipe'] });
+            execFileSync('git', cloneArgs, { stdio: ['inherit', 'inherit', 'pipe'] });
           } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : String(e);
-            throw new Error(msg.replace(/x-token-auth:[^@]+@/g, 'x-token-auth:***@'));
+            throw new Error(msg.replace(/x-(?:token-auth|access-token):[^@]+@/g, 'x-token-auth:***@'));
           }
         }
 
@@ -240,7 +271,7 @@ export function registerSkillsCommands(program: Command): void {
         existing.marketplace = { repoUrl: url, localPath: resolvedPath, ...(opts.token ? { token: opts.token } : {}) };
         writeGlobalConfig(existing, configPath);
 
-        success({ repoUrl: url, localPath: resolvedPath, branch: opts.branch, tokenConfigured: !!opts.token }, 'skills', 'marketplace-setup', start);
+        success({ repoUrl: url, localPath: resolvedPath, branch: opts.branch ?? null, tokenConfigured: !!opts.token }, 'skills', 'marketplace-setup', start);
       } catch (err) {
         fail(err, 'skills', 'marketplace-setup', start);
       }
@@ -276,7 +307,7 @@ export function registerSkillsCommands(program: Command): void {
           pullOutput = execFileSync('git', gitArgs, { encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'], env: { ...process.env, LANG: 'C', LC_ALL: 'C' } });
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
-          throw new Error(msg.replace(/x-token-auth:[^@]+@/g, 'x-token-auth:***@'));
+          throw new Error(msg.replace(/x-(?:token-auth|access-token):[^@]+@/g, 'x-token-auth:***@'));
         }
 
         const marketplaceUpdated = !pullOutput.includes('Already up to date');
