@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.12.0](https://github.com/kolatts/pncli/compare/v1.11.1...v1.12.0) (2026-05-23)
+
+
+### Features
+
+* **jenkins:** add --folder flag to pipeline list for folder-scoped job enumeration ([#171](https://github.com/kolatts/pncli/issues/171)) ([0107ae6](https://github.com/kolatts/pncli/commit/0107ae698e858092dc955b92e655c318a917d5bc))
+* **jira:** support [@file](https://github.com/file) syntax and --fields-file for large custom field payloads ([#180](https://github.com/kolatts/pncli/issues/180)) ([a2512ca](https://github.com/kolatts/pncli/commit/a2512ca96d4644f3448c61cd445faf0ae5d33ced)), closes [#179](https://github.com/kolatts/pncli/issues/179)
+* **skills:** add --force flag and all-plugins sync to marketplace sync ([#184](https://github.com/kolatts/pncli/issues/184)) ([2087f7a](https://github.com/kolatts/pncli/commit/2087f7aecce2cbc28f7d75c3c803ba2cd491f6cc)), closes [#183](https://github.com/kolatts/pncli/issues/183)
+* **skills:** skip marketplace sync prompt when no git changes ([#165](https://github.com/kolatts/pncli/issues/165)) ([e895df6](https://github.com/kolatts/pncli/commit/e895df650494674af8b5188dc82eb54f44a0b516))
+
+
+### Bug Fixes
+
+* **ado:** decode URL components in parseAdoRemote to prevent double-encoding ([#167](https://github.com/kolatts/pncli/issues/167)) ([0556b1c](https://github.com/kolatts/pncli/commit/0556b1c963e3529c4fce588021fd766d7928d764)), closes [#166](https://github.com/kolatts/pncli/issues/166)
+* **ado:** honour caller Content-Type in ADO fetcher ([#158](https://github.com/kolatts/pncli/issues/158)) ([ee4a1d4](https://github.com/kolatts/pncli/commit/ee4a1d45a9b8d0b410703aedb0c965d26593dc67)), closes [#157](https://github.com/kolatts/pncli/issues/157)
+* **ado:** pipeline list-runs --definition filter and add --name support ([#173](https://github.com/kolatts/pncli/issues/173)) ([eb45153](https://github.com/kolatts/pncli/commit/eb45153d4672b17b6c340f6cd69b19f31079723d))
+* **artifactory,ado:** builds timeout, list-runs top limit, pipeline logs --build-id alias ([#182](https://github.com/kolatts/pncli/issues/182)) ([acf8c97](https://github.com/kolatts/pncli/commit/acf8c978ceb30d777dd099cc80bf9dc493c307c5))
+* **artifactory:** parse build names from URIs and hint on empty builds list ([#172](https://github.com/kolatts/pncli/issues/172)) ([cca720a](https://github.com/kolatts/pncli/commit/cca720a9cdb3368f891720dd38291f3606d3d106)), closes [#170](https://github.com/kolatts/pncli/issues/170)
+* **bitbucket:** add --project/--repo flags to create-pr subcommand ([#175](https://github.com/kolatts/pncli/issues/175)) ([8cbda27](https://github.com/kolatts/pncli/commit/8cbda277788580e64d25fb00e9463ac873b1faf4)), closes [#174](https://github.com/kolatts/pncli/issues/174)
+* **git:** normalize date-only --since/--until to include time component ([#163](https://github.com/kolatts/pncli/issues/163)) ([cdf8b98](https://github.com/kolatts/pncli/commit/cdf8b98982ce80599967fe4b9218d24ba82d932e)), closes [#162](https://github.com/kolatts/pncli/issues/162)
+* issue [#185](https://github.com/kolatts/pncli/issues/185) (automated) ([#186](https://github.com/kolatts/pncli/issues/186)) ([f953eb5](https://github.com/kolatts/pncli/commit/f953eb5e262cad1f13b4716d5cebebc013f377d9))
+* **jira:** fix parent field, raw field IDs, error messages, and allowedValues (BUG-13–16) ([#160](https://github.com/kolatts/pncli/issues/160)) ([92154b3](https://github.com/kolatts/pncli/commit/92154b39ff0e6779bfa2b6434b9b9b86b24acddb))
+* **jira:** support cascading-select fields in create-issue and fields discovery ([#177](https://github.com/kolatts/pncli/issues/177)) ([04f34d2](https://github.com/kolatts/pncli/commit/04f34d2744d054dde5fd28e9471b6c25e4ed8b4d)), closes [#176](https://github.com/kolatts/pncli/issues/176)
+* **workflows:** allow all bots in claude review workflow ([#178](https://github.com/kolatts/pncli/issues/178)) ([9c961db](https://github.com/kolatts/pncli/commit/9c961dbd7080494f24c2b0163a939c378d0b9376))
+
 ## [1.11.1](https://github.com/kolatts/pncli/compare/v1.11.0...v1.11.1) (2026-05-16)
 
 
