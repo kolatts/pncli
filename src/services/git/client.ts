@@ -384,22 +384,39 @@ export function parseBranchReportOutput(
 
   if (current) commits.push(current);
 
-  const totalInsertions = commits.reduce((sum, c) => sum + c.insertions, 0);
-  const totalDeletions = commits.reduce((sum, c) => sum + c.deletions, 0);
+  // git --since/--until uses committer date for traversal, but we display and
+  // report on author date (%aI). Apply a secondary filter by author date so
+  // the output is consistent with the user-supplied range. Only applied for
+  // absolute YYYY-MM-DD dates; relative values like "2 weeks ago" are left to
+  // git alone since they cannot be parsed here.
+  const isAbsoluteDate = (s: string): boolean => /^\d{4}-\d{2}-\d{2}/.test(s);
+  const sinceDate = opts.since && isAbsoluteDate(opts.since) ? opts.since.slice(0, 10) : null;
+  const untilDate = opts.until && isAbsoluteDate(opts.until) ? opts.until.slice(0, 10) : null;
+  const filteredCommits = (sinceDate || untilDate)
+    ? commits.filter(c => {
+        const d = c.date.slice(0, 10);
+        if (sinceDate && d < sinceDate) return false;
+        if (untilDate && d > untilDate) return false;
+        return true;
+      })
+    : commits;
+
+  const totalInsertions = filteredCommits.reduce((sum, c) => sum + c.insertions, 0);
+  const totalDeletions = filteredCommits.reduce((sum, c) => sum + c.deletions, 0);
 
   return {
     branch: branchName,
     since: opts.since ?? null,
     until: opts.until ?? null,
-    commits,
-    weeks: buildWeeklyBreakdown(commits),
-    byAuthor: buildByAuthor(commits),
+    commits: filteredCommits,
+    weeks: buildWeeklyBreakdown(filteredCommits),
+    byAuthor: buildByAuthor(filteredCommits),
     summary: {
-      commitCount: commits.length,
+      commitCount: filteredCommits.length,
       totalInsertions,
       totalDeletions,
       totalNetLines: totalInsertions - totalDeletions,
-      totalFilesChanged: commits.reduce((sum, c) => sum + c.filesChanged, 0)
+      totalFilesChanged: filteredCommits.reduce((sum, c) => sum + c.filesChanged, 0)
     }
   };
 }
