@@ -482,6 +482,49 @@ describe('HttpClient — ServiceNow', () => {
   });
 });
 
+describe('HttpClient — jiraUpload', () => {
+  it('throws PncliError with status 0 on dry-run', async () => {
+    const client = new HttpClient(baseConfig(), true);
+    const form = new FormData();
+    await expect(client.jiraUpload('/rest/api/2/issue/TEST-1/attachments', form)).rejects.toMatchObject({ status: 0, message: 'dry-run' });
+  });
+
+  it('throws on missing jira apiToken', async () => {
+    const config = baseConfig();
+    config.jira = { baseUrl: 'https://jira.example.com', apiToken: undefined, customFields: [] };
+    const client = new HttpClient(config);
+    const form = new FormData();
+    await expect(client.jiraUpload('/rest/api/2/issue/TEST-1/attachments', form)).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('throws on missing jira baseUrl', async () => {
+    const config = baseConfig();
+    config.jira = { baseUrl: undefined, apiToken: 'tok', customFields: [] };
+    const client = new HttpClient(config);
+    const form = new FormData();
+    await expect(client.jiraUpload('/rest/api/2/issue/TEST-1/attachments', form)).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('sends Bearer auth and X-Atlassian-Token: no-check header', async () => {
+    const capturedHeaders: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
+      return new Response(JSON.stringify([{ id: '10001', filename: 'test.txt' }]), { status: 200 });
+    });
+    try {
+      const client = new HttpClient(baseConfig());
+      const form = new FormData();
+      form.append('file', new Blob(['hello'], { type: 'text/plain' }), 'test.txt');
+      await client.jiraUpload('/rest/api/2/issue/TEST-1/attachments', form);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(capturedHeaders[0]?.['authorization']).toBe('Bearer tok');
+    expect(capturedHeaders[0]?.['x-atlassian-token']).toBe('no-check');
+    expect(capturedHeaders[0]?.['content-type']).toBeUndefined();
+  });
+});
+
 describe('HttpClient — Contrast', () => {
   it('throws on missing credentials', async () => {
     const config = baseConfig({ contrast: { baseUrl: undefined, orgUuid: 'org', apiKey: undefined, serviceKey: undefined, username: undefined } });
