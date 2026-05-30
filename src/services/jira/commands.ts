@@ -187,6 +187,34 @@ export function registerJiraCommands(program: Command): void {
       } catch (err) { fail(err, 'jira', 'search', start); }
     });
 
+  jira.command('add-label')
+    .description('Add one or more labels to a Jira issue (non-destructive)')
+    .requiredOption('--key <issue-key>', 'Issue key')
+    .requiredOption('--labels <labels>', 'Comma-separated labels to add')
+    .action(async (opts: { key: string; labels: string }) => {
+      const start = Date.now();
+      try {
+        const client = getClient(program);
+        const labels = opts.labels.split(',').map(s => s.trim()).filter(Boolean);
+        await client.addLabels(opts.key, labels);
+        success({ updated: opts.key, labelsAdded: labels }, 'jira', 'add-label', start);
+      } catch (err) { fail(err, 'jira', 'add-label', start); }
+    });
+
+  jira.command('remove-label')
+    .description('Remove one or more labels from a Jira issue (non-destructive)')
+    .requiredOption('--key <issue-key>', 'Issue key')
+    .requiredOption('--labels <labels>', 'Comma-separated labels to remove')
+    .action(async (opts: { key: string; labels: string }) => {
+      const start = Date.now();
+      try {
+        const client = getClient(program);
+        const labels = opts.labels.split(',').map(s => s.trim()).filter(Boolean);
+        await client.removeLabels(opts.key, labels);
+        success({ updated: opts.key, labelsRemoved: labels }, 'jira', 'remove-label', start);
+      } catch (err) { fail(err, 'jira', 'remove-label', start); }
+    });
+
   jira.command('assign')
     .description('Assign a Jira issue to a user')
     .requiredOption('--key <issue-key>', 'Issue key')

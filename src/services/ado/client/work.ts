@@ -67,6 +67,24 @@ export class AdoWorkClient {
     );
   }
 
+  async addTags(collection: string, id: number, tags: string[]): Promise<AdoWorkItem> {
+    const item = await this.getWorkItem(collection, id);
+    const existing = ((item.fields as Record<string, unknown>)['System.Tags'] as string | undefined) ?? '';
+    const current = existing.split(';').map(t => t.trim()).filter(Boolean);
+    const merged = Array.from(new Set([...current, ...tags]));
+    const patch: JsonPatchOp[] = [{ op: 'add', path: '/fields/System.Tags', value: merged.join('; ') }];
+    return this.updateWorkItem(collection, id, patch);
+  }
+
+  async removeTags(collection: string, id: number, tags: string[]): Promise<AdoWorkItem> {
+    const item = await this.getWorkItem(collection, id);
+    const existing = ((item.fields as Record<string, unknown>)['System.Tags'] as string | undefined) ?? '';
+    const lower = new Set(tags.map(t => t.toLowerCase()));
+    const remaining = existing.split(';').map(t => t.trim()).filter(t => t && !lower.has(t.toLowerCase()));
+    const patch: JsonPatchOp[] = [{ op: 'add', path: '/fields/System.Tags', value: remaining.join('; ') }];
+    return this.updateWorkItem(collection, id, patch);
+  }
+
   async listWorkItemTypes(collection: string, project: string): Promise<AdoWorkItemType[]> {
     const result = await this.http.ado<AdoPageResponse<AdoWorkItemType>>(
       `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/wit/workitemtypes?api-version=${API}`
