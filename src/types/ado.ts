@@ -306,6 +306,18 @@ export interface AdoGitStatus {
   updatedDate?: string;
 }
 
+// ── Work Item Attachments ────────────────────────────────────────────
+
+export interface AdoWorkItemAttachment {
+  id: string;
+  name: string;
+  url: string;
+  comment?: string;
+  resourceSize?: number;
+  resourceCreatedDate?: string;
+  resourceModifiedDate?: string;
+}
+
 // ── Shared pagination wrapper ────────────────────────────────────────
 
 export interface AdoPageResponse<T> {
