@@ -693,20 +693,25 @@ export class HttpClient {
   }
 
   async confluencePaginate<T>(
-    fetchPage: (start: number, limit: number) => Promise<{ results: T[]; start: number; limit: number; size: number; _links: { next?: string } }>
+    fetchPage: (start: number, limit: number) => Promise<{ results: T[]; start: number; limit: number; size: number; _links: { next?: string } }>,
+    maxTotal?: number
   ): Promise<T[]> {
     const results: T[] = [];
     let start = 0;
-    const limit = 25;
+    const defaultPageSize = 25;
 
     while (true) {
-      const page = await fetchPage(start, limit);
+      const pageLimit = maxTotal !== undefined
+        ? Math.min(maxTotal - results.length, defaultPageSize)
+        : defaultPageSize;
+      const page = await fetchPage(start, pageLimit);
       results.push(...page.results);
+      if (maxTotal !== undefined && results.length >= maxTotal) break;
       if (!page._links.next) break;
       start += page.size;
     }
 
-    return results;
+    return maxTotal !== undefined ? results.slice(0, maxTotal) : results;
   }
 
   async paginate<T>(

@@ -370,6 +370,42 @@ describe('HttpClient — confluencePaginate', () => {
     expect(results).toEqual(['x', 'y']);
     expect(starts).toEqual([0, 25]);
   });
+
+  it('stops after maxTotal results and does not fetch more pages', async () => {
+    const client = new HttpClient(baseConfig());
+    let calls = 0;
+    const results = await client.confluencePaginate(async (start, limit) => {
+      calls++;
+      expect(limit).toBeLessThanOrEqual(3);
+      // Simulate a large space with many pages
+      const items = Array.from({ length: limit }, (_, i) => `item-${start + i}`);
+      return { results: items, start, limit, size: limit, _links: { next: '/next' } };
+    }, 3);
+    expect(results).toHaveLength(3);
+    expect(calls).toBe(1);
+  });
+
+  it('returns all results when maxTotal exceeds available items', async () => {
+    const client = new HttpClient(baseConfig());
+    const results = await client.confluencePaginate(async (start) => {
+      if (start === 0) return { results: ['a', 'b'], start: 0, limit: 25, size: 2, _links: { next: '/next' } };
+      return { results: ['c'], start: 2, limit: 25, size: 1, _links: {} };
+    }, 100);
+    expect(results).toEqual(['a', 'b', 'c']);
+  });
+
+  it('passes page-sized limit when maxTotal is set across multiple pages', async () => {
+    const client = new HttpClient(baseConfig());
+    const limits: number[] = [];
+    const results = await client.confluencePaginate(async (start, limit) => {
+      limits.push(limit);
+      if (start === 0) return { results: ['a', 'b', 'c', 'd', 'e'], start: 0, limit, size: 5, _links: { next: '/next' } };
+      return { results: ['f', 'g', 'h'], start: 5, limit, size: 3, _links: {} };
+    }, 7);
+    expect(results).toHaveLength(7);
+    expect(limits[0]).toBe(7); // first page: min(7, 25) = 7
+    expect(limits[1]).toBe(2); // second page: min(7-5, 25) = 2
+  });
 });
 
 describe('HttpClient — ServiceNow', () => {
