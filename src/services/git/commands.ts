@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { getStatus, getDiff, getLog, getBranches, getBranchReport, formatBranchReportCsv } from './client.js';
 import { getRepoRoot, getCurrentBranch } from '../../lib/git-context.js';
-import { success, fail } from '../../lib/output.js';
+import { success, fail, writeRawOutput } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
 import { loadConfig } from '../../lib/config.js';
 import { createHttpClient } from '../../lib/http.js';
@@ -97,7 +97,7 @@ export function registerGitCommands(program: Command): void {
           until: opts.until
         });
         if (opts.csv) {
-          process.stdout.write(formatBranchReportCsv(report));
+          writeRawOutput(formatBranchReportCsv(report));
         } else {
           success(report, 'git', 'report', start);
         }

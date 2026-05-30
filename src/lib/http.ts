@@ -131,11 +131,15 @@ export class HttpClient {
     this.dryRun = dryRun;
   }
 
-  private jiraHeaders(): Record<string, string> {
+  private jiraToken(): string {
     const { apiToken } = this.config.jira;
     if (!apiToken) throw new PncliError('Jira credentials not configured. Run: pncli config init');
+    return apiToken;
+  }
+
+  private jiraHeaders(): Record<string, string> {
     return {
-      'Authorization': `Bearer ${apiToken}`,
+      'Authorization': `Bearer ${this.jiraToken()}`,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'Connection': 'close'
@@ -178,6 +182,33 @@ export class HttpClient {
     }
 
     return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
+  async jiraUpload<T>(
+    path: string,
+    formData: FormData,
+    opts: { timeoutMs?: number } = {}
+  ): Promise<T> {
+    const baseUrl = this.config.jira.baseUrl;
+    if (!baseUrl) throw new PncliError('Jira baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path);
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${this.jiraToken()}`,
+      'X-Atlassian-Token': 'no-check',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: POST ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\nBody: <multipart/form-data>\n`;
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, { method: 'POST', headers, body: formData }, opts.timeoutMs ?? 60000);
   }
 
   async bitbucket<T>(
@@ -693,20 +724,25 @@ export class HttpClient {
   }
 
   async confluencePaginate<T>(
-    fetchPage: (start: number, limit: number) => Promise<{ results: T[]; start: number; limit: number; size: number; _links: { next?: string } }>
+    fetchPage: (start: number, limit: number) => Promise<{ results: T[]; start: number; limit: number; size: number; _links: { next?: string } }>,
+    maxTotal?: number
   ): Promise<T[]> {
     const results: T[] = [];
     let start = 0;
-    const limit = 25;
+    const defaultPageSize = 25;
 
     while (true) {
-      const page = await fetchPage(start, limit);
+      const pageLimit = maxTotal !== undefined
+        ? Math.min(maxTotal - results.length, defaultPageSize)
+        : defaultPageSize;
+      const page = await fetchPage(start, pageLimit);
       results.push(...page.results);
+      if (maxTotal !== undefined && results.length >= maxTotal) break;
       if (!page._links.next) break;
       start += page.size;
     }
 
-    return results;
+    return maxTotal !== undefined ? results.slice(0, maxTotal) : results;
   }
 
   async paginate<T>(

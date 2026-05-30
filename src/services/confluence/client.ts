@@ -64,9 +64,9 @@ export class ConfluenceClient {
     const initialStart = opts.start ?? 0;
     return this.http.confluencePaginate<ConfluencePage>(async (start, limit) => {
       return this.http.confluence<ConfluencePageResponse<ConfluencePage>>(`${API}/content`, {
-        params: { spaceKey, type: 'page', expand: 'version', start: initialStart + start, limit: opts.limit ?? limit }
+        params: { spaceKey, type: 'page', expand: 'version', start: initialStart + start, limit }
       });
-    });
+    }, opts.limit);
   }
 
   async getPageChildren(id: string): Promise<ConfluencePage[]> {
@@ -180,11 +180,11 @@ export class ConfluenceClient {
       return this.http.confluence<ConfluencePageResponse<ConfluenceSpace>>(`${API}/space`, {
         params: {
           start: initialStart + start,
-          limit: opts.limit ?? limit,
+          limit,
           ...(opts.type ? { type: opts.type } : {})
         }
       });
-    });
+    }, opts.limit);
   }
 
   async getSpace(key: string): Promise<ConfluenceSpace> {
