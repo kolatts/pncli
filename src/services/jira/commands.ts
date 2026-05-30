@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { Command } from 'commander';
 import { JiraClient } from './client.js';
 import { buildFieldMap, translateJql, translateFieldsInOutput, formatFieldValue } from './custom-fields.js';
@@ -212,6 +212,20 @@ export function registerJiraCommands(program: Command): void {
         await client.linkIssue({ key: opts.key, linkType: opts.linkType, target: opts.target });
         success({ linked: opts.key, to: opts.target, type: opts.linkType }, 'jira', 'link-issue', start);
       } catch (err) { fail(err, 'jira', 'link-issue', start); }
+    });
+
+  jira.command('add-attachment')
+    .description('Upload a file as an attachment to a Jira issue')
+    .requiredOption('--key <issue-key>', 'Issue key (e.g. PROJ-123)')
+    .requiredOption('--file <path>', 'Path to the file to upload')
+    .action(async (opts: { key: string; file: string }) => {
+      const start = Date.now();
+      try {
+        if (!existsSync(opts.file)) throw new PncliError(`File not found: ${opts.file}`, 1);
+        const client = getClient(program);
+        const data = await client.uploadAttachment(opts.key, opts.file);
+        success(data, 'jira', 'add-attachment', start);
+      } catch (err) { fail(err, 'jira', 'add-attachment', start); }
     });
 
   jira.command('fields')
