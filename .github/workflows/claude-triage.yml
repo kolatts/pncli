@@ -148,6 +148,10 @@ jobs:
 
             6. Write a concise markdown summary of your triage decision to /tmp/triage-summary.md.
                Include: verdict (feasible/not feasible), reasoning, and action taken.
+               IMPORTANT: Write the summary ONLY to /tmp/triage-summary.md. Do NOT commit this file
+               to the repository. Do NOT create a triage-summary.md file in the repository root or
+               any other location in the working tree. The /tmp/ location is ephemeral and used only
+               for the workflow job summary.
 
             Keep your scope minimal. Do not refactor unrelated code. Do not modify tests
             unless the issue specifically requests it. Make the narrowest change that
