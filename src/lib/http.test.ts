@@ -461,6 +461,14 @@ describe('HttpClient — jiraUpload', () => {
     await expect(client.jiraUpload('/rest/api/2/issue/TEST-1/attachments', form)).rejects.toMatchObject({ name: 'PncliError' });
   });
 
+  it('throws on missing jira baseUrl', async () => {
+    const config = baseConfig();
+    config.jira = { baseUrl: undefined, apiToken: 'tok', customFields: [] };
+    const client = new HttpClient(config);
+    const form = new FormData();
+    await expect(client.jiraUpload('/rest/api/2/issue/TEST-1/attachments', form)).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
   it('sends Bearer auth and X-Atlassian-Token: no-check header', async () => {
     const capturedHeaders: Record<string, string>[] = [];
     vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {

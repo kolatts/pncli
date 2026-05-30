@@ -131,11 +131,15 @@ export class HttpClient {
     this.dryRun = dryRun;
   }
 
-  private jiraHeaders(): Record<string, string> {
+  private jiraToken(): string {
     const { apiToken } = this.config.jira;
     if (!apiToken) throw new PncliError('Jira credentials not configured. Run: pncli config init');
+    return apiToken;
+  }
+
+  private jiraHeaders(): Record<string, string> {
     return {
-      'Authorization': `Bearer ${apiToken}`,
+      'Authorization': `Bearer ${this.jiraToken()}`,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'Connection': 'close'
@@ -187,12 +191,10 @@ export class HttpClient {
   ): Promise<T> {
     const baseUrl = this.config.jira.baseUrl;
     if (!baseUrl) throw new PncliError('Jira baseUrl not configured. Run: pncli config init');
-    const { apiToken } = this.config.jira;
-    if (!apiToken) throw new PncliError('Jira credentials not configured. Run: pncli config init');
 
     const url = buildUrl(baseUrl, path);
     const headers: Record<string, string> = {
-      'Authorization': `Bearer ${apiToken}`,
+      'Authorization': `Bearer ${this.jiraToken()}`,
       'X-Atlassian-Token': 'no-check',
       'Accept': 'application/json',
       'Connection': 'close'
