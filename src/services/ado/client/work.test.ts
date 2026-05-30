@@ -102,6 +102,30 @@ describe('AdoWorkClient — addTags', () => {
     const patch = capturedBodies[0] as Array<{ op: string; path: string; value: string }>;
     expect(patch[0].value).toBe('new-tag');
   });
+
+  it('is case-insensitive when deduplicating tags', async () => {
+    const capturedBodies: unknown[] = [];
+    let callIndex = 0;
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      callIndex++;
+      if (callIndex === 1) {
+        return new Response(JSON.stringify(makeWorkItem('Backend; Frontend')), { status: 200 });
+      }
+      capturedBodies.push(JSON.parse(init.body as string));
+      return new Response(JSON.stringify(makeWorkItem('Backend; Frontend')), { status: 200 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new AdoWorkClient(http);
+    await client.addTags('myorg', 42, ['backend', 'FRONTEND', 'NewTag']);
+
+    const patch = capturedBodies[0] as Array<{ op: string; path: string; value: string }>;
+    const tagList = patch[0].value.split(';').map((t: string) => t.trim()).filter(Boolean);
+    expect(tagList).toHaveLength(3);
+    expect(tagList[0]).toBe('Backend');
+    expect(tagList[1]).toBe('Frontend');
+    expect(tagList[2]).toBe('NewTag');
+  });
 });
 
 describe('AdoWorkClient — removeTags', () => {

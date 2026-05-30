@@ -71,7 +71,9 @@ export class AdoWorkClient {
     const item = await this.getWorkItem(collection, id);
     const existing = ((item.fields as Record<string, unknown>)['System.Tags'] as string | undefined) ?? '';
     const current = existing.split(';').map(t => t.trim()).filter(Boolean);
-    const merged = Array.from(new Set([...current, ...tags]));
+    const lowerSet = new Set(current.map(t => t.toLowerCase()));
+    const toAdd = tags.filter(t => !lowerSet.has(t.toLowerCase()));
+    const merged = [...current, ...toAdd];
     const patch: JsonPatchOp[] = [{ op: 'add', path: '/fields/System.Tags', value: merged.join('; ') }];
     return this.updateWorkItem(collection, id, patch);
   }
