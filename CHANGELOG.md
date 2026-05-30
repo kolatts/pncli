@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.13.0](https://github.com/kolatts/pncli/compare/v1.12.0...v1.13.0) (2026-05-30)
+
+
+### Features
+
+* **ado,jira:** add attachment list and download commands ([#199](https://github.com/kolatts/pncli/issues/199)) ([85c6055](https://github.com/kolatts/pncli/commit/85c605503e250b18ee0bd73a366bd99a409b6695))
+* **jira,ado:** add label and tag management commands ([#196](https://github.com/kolatts/pncli/issues/196)) ([6884ed5](https://github.com/kolatts/pncli/commit/6884ed514634d868b5d8603a2d93d6cf965456e3))
+* **jira:** add add-attachment command ([#192](https://github.com/kolatts/pncli/issues/192)) ([ca10258](https://github.com/kolatts/pncli/commit/ca10258b14d435af37f01be7c1be271d126846a7))
+* **skills:** print per-skill copy paths during marketplace sync ([#194](https://github.com/kolatts/pncli/issues/194)) ([256f94c](https://github.com/kolatts/pncli/commit/256f94c1e132a2b50ac0bddd99fb186eb9d0de24)), closes [#193](https://github.com/kolatts/pncli/issues/193)
+
+
+### Bug Fixes
+
+* **confluence:** make --limit cap total results in list-spaces and list-pages ([#190](https://github.com/kolatts/pncli/issues/190)) ([8524679](https://github.com/kolatts/pncli/commit/8524679cbbb524745ad4742fb17ed4a7e865a42b)), closes [#189](https://github.com/kolatts/pncli/issues/189)
+* **git:** filter report commits by author date and route CSV through --output-file ([#188](https://github.com/kolatts/pncli/issues/188)) ([817ce47](https://github.com/kolatts/pncli/commit/817ce47112c03fdc2c464f32255628a3423ad5b9)), closes [#187](https://github.com/kolatts/pncli/issues/187)
+
 ## [1.12.0](https://github.com/kolatts/pncli/compare/v1.11.1...v1.12.0) (2026-05-23)
 
 
