@@ -196,3 +196,111 @@ describe('AdoWorkClient — removeTags', () => {
     expect(patch[0].value).toBe('');
   });
 });
+
+describe('AdoWorkClient — listAttachments', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('returns attachments from AttachedFile relations', async () => {
+    const workItemWithAttachments = {
+      id: 42,
+      fields: {},
+      relations: [
+        {
+          rel: 'AttachedFile',
+          url: 'https://ado.example.com/myorg/_apis/wit/attachments/abc-123',
+          attributes: {
+            id: 'abc-123',
+            name: 'screenshot.png',
+            comment: 'Bug screenshot',
+            resourceSize: 4096,
+            resourceCreatedDate: '2024-01-01T00:00:00Z',
+            resourceModifiedDate: '2024-01-01T00:00:00Z'
+          }
+        },
+        {
+          rel: 'System.LinkTypes.Related',
+          url: 'https://ado.example.com/myorg/_apis/wit/workitems/99',
+          attributes: {}
+        }
+      ],
+      url: 'https://ado.example.com/myorg/_apis/wit/workitems/42'
+    };
+
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify(workItemWithAttachments), { status: 200 })
+    );
+
+    const http = new HttpClient(makeConfig());
+    const client = new AdoWorkClient(http);
+    const attachments = await client.listAttachments('myorg', 42);
+
+    expect(attachments).toHaveLength(1);
+    expect(attachments[0].id).toBe('abc-123');
+    expect(attachments[0].name).toBe('screenshot.png');
+    expect(attachments[0].url).toBe('https://ado.example.com/myorg/_apis/wit/attachments/abc-123');
+    expect(attachments[0].comment).toBe('Bug screenshot');
+    expect(attachments[0].resourceSize).toBe(4096);
+  });
+
+  it('returns an empty array when the work item has no attachments', async () => {
+    const workItemNoAttachments = {
+      id: 42,
+      fields: {},
+      relations: [
+        {
+          rel: 'System.LinkTypes.Related',
+          url: 'https://ado.example.com/myorg/_apis/wit/workitems/99',
+          attributes: {}
+        }
+      ],
+      url: 'https://ado.example.com/myorg/_apis/wit/workitems/42'
+    };
+
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify(workItemNoAttachments), { status: 200 })
+    );
+
+    const http = new HttpClient(makeConfig());
+    const client = new AdoWorkClient(http);
+    const attachments = await client.listAttachments('myorg', 42);
+
+    expect(attachments).toHaveLength(0);
+  });
+
+  it('returns an empty array when relations is undefined', async () => {
+    const workItemNoRelations = {
+      id: 42,
+      fields: {},
+      url: 'https://ado.example.com/myorg/_apis/wit/workitems/42'
+    };
+
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify(workItemNoRelations), { status: 200 })
+    );
+
+    const http = new HttpClient(makeConfig());
+    const client = new AdoWorkClient(http);
+    const attachments = await client.listAttachments('myorg', 42);
+
+    expect(attachments).toHaveLength(0);
+  });
+});
+
+describe('AdoWorkClient — downloadAttachment', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('returns a Buffer of the downloaded binary content', async () => {
+    const binaryContent = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]); // PNG header
+    vi.stubGlobal('fetch', async () =>
+      new Response(binaryContent.buffer, { status: 200 })
+    );
+
+    const http = new HttpClient(makeConfig());
+    const client = new AdoWorkClient(http);
+    const buffer = await client.downloadAttachment('https://ado.example.com/myorg/_apis/wit/attachments/abc-123');
+
+    expect(buffer).toBeInstanceOf(Buffer);
+    expect(buffer.length).toBe(8);
+    expect(buffer[0]).toBe(137);
+  });
+});

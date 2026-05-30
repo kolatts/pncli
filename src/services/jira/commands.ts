@@ -1,4 +1,5 @@
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
+import path from 'path';
 import { Command } from 'commander';
 import { JiraClient } from './client.js';
 import { buildFieldMap, translateJql, translateFieldsInOutput, formatFieldValue } from './custom-fields.js';
@@ -254,6 +255,39 @@ export function registerJiraCommands(program: Command): void {
         const data = await client.uploadAttachment(opts.key, opts.file);
         success(data, 'jira', 'add-attachment', start);
       } catch (err) { fail(err, 'jira', 'add-attachment', start); }
+    });
+
+  jira.command('list-attachments')
+    .description('List attachments on a Jira issue')
+    .requiredOption('--key <issue-key>', 'Issue key (e.g. PROJ-123)')
+    .action(async (opts: { key: string }) => {
+      const start = Date.now();
+      try {
+        const client = getClient(program);
+        const data = await client.listAttachments(opts.key);
+        success(data, 'jira', 'list-attachments', start);
+      } catch (err) { fail(err, 'jira', 'list-attachments', start); }
+    });
+
+  jira.command('download-attachment')
+    .description('Download a Jira issue attachment to .pncli/ (or --dir)')
+    .requiredOption('--key <issue-key>', 'Issue key (e.g. PROJ-123)')
+    .requiredOption('--attachment-id <id>', 'Attachment ID from list-attachments output')
+    .option('--dir <path>', 'Output directory (default: .pncli relative to cwd)')
+    .action(async (opts: { key: string; attachmentId: string; dir?: string }) => {
+      const start = Date.now();
+      try {
+        const client = getClient(program);
+        const attachments = await client.listAttachments(opts.key);
+        const attachment = attachments.find(a => a.id === opts.attachmentId);
+        if (!attachment) throw new PncliError(`Attachment not found: ${opts.attachmentId}`, 1);
+        const outDir = opts.dir ?? path.join(process.cwd(), '.pncli');
+        mkdirSync(outDir, { recursive: true });
+        const outPath = path.join(outDir, attachment.filename);
+        const buffer = await client.downloadAttachment(attachment.content);
+        writeFileSync(outPath, buffer);
+        success({ saved: outPath, filename: attachment.filename, size: buffer.length }, 'jira', 'download-attachment', start);
+      } catch (err) { fail(err, 'jira', 'download-attachment', start); }
     });
 
   jira.command('fields')

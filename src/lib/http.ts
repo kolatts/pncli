@@ -184,6 +184,47 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
+  async jiraBuffer(absoluteUrl: string, opts: { timeoutMs?: number } = {}): Promise<Buffer> {
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${this.jiraToken()}`,
+      'Connection': 'close'
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: GET ${absoluteUrl}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`;
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const response = await fetchWithTimeout(absoluteUrl, { headers }, opts.timeoutMs ?? 60000);
+    if (!response.ok) {
+      throw new PncliError(`HTTP ${response.status} ${response.statusText}`, response.status, absoluteUrl);
+    }
+    return Buffer.from(await response.arrayBuffer());
+  }
+
+  async adoBuffer(absoluteUrl: string, opts: { timeoutMs?: number } = {}): Promise<Buffer> {
+    if (this.dryRun) {
+      fs.writeSync(process.stderr.fd, `DRY RUN: GET ${absoluteUrl}\n`);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const fetcher = await this.getAdoFetcher();
+    const response = await fetchWithTimeout(
+      absoluteUrl,
+      { headers: { Accept: 'application/octet-stream' } },
+      opts.timeoutMs ?? 60000,
+      fetcher
+    );
+    if (!response.ok) {
+      throw new PncliError(`HTTP ${response.status} ${response.statusText}`, response.status, absoluteUrl);
+    }
+    return Buffer.from(await response.arrayBuffer());
+  }
+
   async jiraUpload<T>(
     path: string,
     formData: FormData,

@@ -6,7 +6,8 @@ import type {
   AdoWorkItemTypeState,
   AdoField,
   AdoWiqlResult,
-  AdoPageResponse
+  AdoPageResponse,
+  AdoWorkItemAttachment
 } from '../../../types/ado.js';
 
 const API = '7.1';
@@ -116,5 +117,27 @@ export class AdoWorkClient {
       `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/wit/workitemtypes/${encodeURIComponent(type)}/fields?api-version=${API}`
     );
     return result.value ?? [];
+  }
+
+  async listAttachments(collection: string, workItemId: number): Promise<AdoWorkItemAttachment[]> {
+    const item = await this.getWorkItem(collection, workItemId);
+    return (item.relations ?? [])
+      .filter(r => r.rel === 'AttachedFile')
+      .map(r => {
+        const attrs = (r.attributes ?? {}) as Record<string, unknown>;
+        return {
+          id: String(attrs['id'] ?? ''),
+          name: String(attrs['name'] ?? ''),
+          url: r.url,
+          comment: attrs['comment'] !== undefined ? String(attrs['comment']) : undefined,
+          resourceSize: typeof attrs['resourceSize'] === 'number' ? attrs['resourceSize'] : undefined,
+          resourceCreatedDate: attrs['resourceCreatedDate'] !== undefined ? String(attrs['resourceCreatedDate']) : undefined,
+          resourceModifiedDate: attrs['resourceModifiedDate'] !== undefined ? String(attrs['resourceModifiedDate']) : undefined
+        };
+      });
+  }
+
+  async downloadAttachment(absoluteUrl: string): Promise<Buffer> {
+    return this.http.adoBuffer(absoluteUrl);
   }
 }

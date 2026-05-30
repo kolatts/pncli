@@ -246,6 +246,18 @@ export class JiraClient {
     return this.http.jiraUpload<JiraAttachment[]>(`${API}/issue/${key}/attachments`, formData);
   }
 
+  async listAttachments(key: string): Promise<JiraAttachment[]> {
+    const result = await this.http.jira<{ fields: { attachment?: JiraAttachment[] } }>(
+      `${API}/issue/${key}`,
+      { params: { fields: 'attachment' } }
+    );
+    return result.fields.attachment ?? [];
+  }
+
+  async downloadAttachment(contentUrl: string): Promise<Buffer> {
+    return this.http.jiraBuffer(contentUrl);
+  }
+
   async assignIssue(key: string, accountId: string): Promise<void> {
     await this.http.jira<void>(`${API}/issue/${key}/assignee`, {
       method: 'PUT',

@@ -1,8 +1,11 @@
+import fs from 'fs';
+import path from 'path';
 import { Command } from 'commander';
 import { getAdoContext, fieldArgsToPatch } from '../helpers.js';
 import { discoverFields, discoverTypeFields, discoverTypes, buildDefaultAliases } from '../discovery.js';
 import { success, fail, warn } from '../../../lib/output.js';
 import { loadConfig, getGlobalConfigPath } from '../../../lib/config.js';
+import { PncliError } from '../../../lib/errors.js';
 
 export function registerAdoWorkCommands(ado: Command): void {
   const work = ado
@@ -227,6 +230,43 @@ export function registerAdoWorkCommands(ado: Command): void {
         const data = await workClient.removeTags(collection, parseInt(opts.id, 10), tags);
         success(data, 'ado', 'work-remove-tag', start);
       } catch (err) { fail(err, 'ado', 'work-remove-tag', start); }
+    });
+
+  // ── Attachments ───────────────────────────────────────────────────
+
+  work
+    .command('list-attachments')
+    .description('List attachments on a work item')
+    .requiredOption('--id <n>', 'Work item ID')
+    .action(async (opts: { id: string }) => {
+      const start = Date.now();
+      try {
+        const { collection, workClient } = getAdoContext(ado);
+        const data = await workClient.listAttachments(collection, parseInt(opts.id, 10));
+        success(data, 'ado', 'work-list-attachments', start);
+      } catch (err) { fail(err, 'ado', 'work-list-attachments', start); }
+    });
+
+  work
+    .command('download-attachment')
+    .description('Download a work item attachment to .pncli/ (or --dir)')
+    .requiredOption('--id <n>', 'Work item ID')
+    .requiredOption('--attachment-id <guid>', 'Attachment ID from work list-attachments output')
+    .option('--dir <path>', 'Output directory (default: .pncli relative to cwd)')
+    .action(async (opts: { id: string; attachmentId: string; dir?: string }) => {
+      const start = Date.now();
+      try {
+        const { collection, workClient } = getAdoContext(ado);
+        const attachments = await workClient.listAttachments(collection, parseInt(opts.id, 10));
+        const attachment = attachments.find(a => a.id === opts.attachmentId);
+        if (!attachment) throw new PncliError(`Attachment not found: ${opts.attachmentId}`, 1);
+        const outDir = opts.dir ?? path.join(process.cwd(), '.pncli');
+        fs.mkdirSync(outDir, { recursive: true });
+        const outPath = path.join(outDir, attachment.name);
+        const buffer = await workClient.downloadAttachment(attachment.url);
+        fs.writeFileSync(outPath, buffer);
+        success({ saved: outPath, name: attachment.name, size: buffer.length }, 'ado', 'work-download-attachment', start);
+      } catch (err) { fail(err, 'ado', 'work-download-attachment', start); }
     });
 
   // ── Type / Field discovery ────────────────────────────────────────
