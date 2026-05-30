@@ -95,3 +95,71 @@ describe('JiraClient — removeLabels', () => {
     });
   });
 });
+
+describe('JiraClient — listAttachments', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('returns attachments from the issue fields', async () => {
+    const capturedUrls: string[] = [];
+    const mockAttachments = [
+      {
+        id: '10001',
+        filename: 'screenshot.png',
+        author: { accountId: 'user1', displayName: 'Alice' },
+        created: '2024-01-01T00:00:00.000Z',
+        size: 4096,
+        mimeType: 'image/png',
+        content: 'https://jira.example.com/secure/attachment/10001/screenshot.png'
+      }
+    ];
+
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrls.push(url);
+      return new Response(
+        JSON.stringify({ fields: { attachment: mockAttachments } }),
+        { status: 200 }
+      );
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    const attachments = await client.listAttachments('PROJ-1');
+
+    expect(capturedUrls[0]).toContain('/rest/api/2/issue/PROJ-1');
+    expect(capturedUrls[0]).toContain('fields=attachment');
+    expect(attachments).toHaveLength(1);
+    expect(attachments[0].id).toBe('10001');
+    expect(attachments[0].filename).toBe('screenshot.png');
+  });
+
+  it('returns an empty array when there are no attachments', async () => {
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify({ fields: { attachment: [] } }), { status: 200 })
+    );
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    const attachments = await client.listAttachments('PROJ-2');
+
+    expect(attachments).toHaveLength(0);
+  });
+});
+
+describe('JiraClient — downloadAttachment', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('returns a Buffer of the downloaded content', async () => {
+    const binaryContent = new Uint8Array([255, 216, 255, 224]); // JPEG header
+    vi.stubGlobal('fetch', async () =>
+      new Response(binaryContent.buffer, { status: 200 })
+    );
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    const buffer = await client.downloadAttachment('https://jira.example.com/secure/attachment/10001/file.jpg');
+
+    expect(buffer).toBeInstanceOf(Buffer);
+    expect(buffer.length).toBe(4);
+    expect(buffer[0]).toBe(255);
+  });
+});
