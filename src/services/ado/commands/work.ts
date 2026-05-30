@@ -262,7 +262,7 @@ export function registerAdoWorkCommands(ado: Command): void {
         if (!attachment) throw new PncliError(`Attachment not found: ${opts.attachmentId}`, 1);
         const outDir = opts.dir ?? path.join(process.cwd(), '.pncli');
         fs.mkdirSync(outDir, { recursive: true });
-        const outPath = path.join(outDir, attachment.name);
+        const outPath = path.join(outDir, path.basename(attachment.name));
         const buffer = await workClient.downloadAttachment(attachment.url);
         fs.writeFileSync(outPath, buffer);
         success({ saved: outPath, name: attachment.name, size: buffer.length }, 'ado', 'work-download-attachment', start);

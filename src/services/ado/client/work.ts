@@ -126,7 +126,7 @@ export class AdoWorkClient {
       .map(r => {
         const attrs = (r.attributes ?? {}) as Record<string, unknown>;
         return {
-          id: String(attrs['id'] ?? ''),
+          id: new URL(r.url).pathname.split('/').pop() ?? '',
           name: String(attrs['name'] ?? ''),
           url: r.url,
           comment: attrs['comment'] !== undefined ? String(attrs['comment']) : undefined,

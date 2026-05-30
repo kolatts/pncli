@@ -283,7 +283,7 @@ export function registerJiraCommands(program: Command): void {
         if (!attachment) throw new PncliError(`Attachment not found: ${opts.attachmentId}`, 1);
         const outDir = opts.dir ?? path.join(process.cwd(), '.pncli');
         mkdirSync(outDir, { recursive: true });
-        const outPath = path.join(outDir, attachment.filename);
+        const outPath = path.join(outDir, path.basename(attachment.filename));
         const buffer = await client.downloadAttachment(attachment.content);
         writeFileSync(outPath, buffer);
         success({ saved: outPath, filename: attachment.filename, size: buffer.length }, 'jira', 'download-attachment', start);

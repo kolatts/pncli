@@ -209,7 +209,6 @@ describe('AdoWorkClient — listAttachments', () => {
           rel: 'AttachedFile',
           url: 'https://ado.example.com/myorg/_apis/wit/attachments/abc-123',
           attributes: {
-            id: 'abc-123',
             name: 'screenshot.png',
             comment: 'Bug screenshot',
             resourceSize: 4096,
