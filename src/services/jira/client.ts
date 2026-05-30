@@ -223,6 +223,20 @@ export class JiraClient {
     return result;
   }
 
+  async addLabels(key: string, labels: string[]): Promise<void> {
+    await this.http.jira<void>(`${API}/issue/${key}`, {
+      method: 'PUT',
+      body: { update: { labels: labels.map(l => ({ add: l })) } }
+    });
+  }
+
+  async removeLabels(key: string, labels: string[]): Promise<void> {
+    await this.http.jira<void>(`${API}/issue/${key}`, {
+      method: 'PUT',
+      body: { update: { labels: labels.map(l => ({ remove: l })) } }
+    });
+  }
+
   async uploadAttachment(key: string, filePath: string): Promise<JiraAttachment[]> {
     const fileContent = readFileSync(filePath);
     const fileName = basename(filePath);

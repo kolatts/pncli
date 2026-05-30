@@ -197,6 +197,38 @@ export function registerAdoWorkCommands(ado: Command): void {
       } catch (err) { fail(err, 'ado', 'work-add-comment', start); }
     });
 
+  // ── Tags ──────────────────────────────────────────────────────────
+
+  work
+    .command('add-tag')
+    .description('Add one or more tags to a work item (non-destructive)')
+    .requiredOption('--id <n>', 'Work item ID')
+    .requiredOption('--tags <tags>', 'Semicolon- or comma-separated tags to add')
+    .action(async (opts: { id: string; tags: string }) => {
+      const start = Date.now();
+      try {
+        const { collection, workClient } = getAdoContext(ado);
+        const tags = opts.tags.split(/[;,]/).map(t => t.trim()).filter(Boolean);
+        const data = await workClient.addTags(collection, parseInt(opts.id, 10), tags);
+        success(data, 'ado', 'work-add-tag', start);
+      } catch (err) { fail(err, 'ado', 'work-add-tag', start); }
+    });
+
+  work
+    .command('remove-tag')
+    .description('Remove one or more tags from a work item (non-destructive)')
+    .requiredOption('--id <n>', 'Work item ID')
+    .requiredOption('--tags <tags>', 'Semicolon- or comma-separated tags to remove')
+    .action(async (opts: { id: string; tags: string }) => {
+      const start = Date.now();
+      try {
+        const { collection, workClient } = getAdoContext(ado);
+        const tags = opts.tags.split(/[;,]/).map(t => t.trim()).filter(Boolean);
+        const data = await workClient.removeTags(collection, parseInt(opts.id, 10), tags);
+        success(data, 'ado', 'work-remove-tag', start);
+      } catch (err) { fail(err, 'ado', 'work-remove-tag', start); }
+    });
+
   // ── Type / Field discovery ────────────────────────────────────────
 
   work
