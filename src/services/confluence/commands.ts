@@ -48,7 +48,7 @@ export function registerConfluenceCommands(program: Command): void {
   confluence.command('list-pages')
     .description('List pages in a Confluence space (consider --output-file for large results)')
     .requiredOption('--space <key>', 'Space key')
-    .option('--limit <n>', 'Max results per page (default: all)')
+    .option('--limit <n>', 'Max total pages to return (default: all)')
     .option('--start <n>', 'Offset for first result')
     .action(async (opts: { space: string; limit?: string; start?: string }) => {
       const start = Date.now();
@@ -229,7 +229,7 @@ export function registerConfluenceCommands(program: Command): void {
   confluence.command('list-spaces')
     .description('List Confluence spaces')
     .option('--type <type>', 'Space type: global or personal')
-    .option('--limit <n>', 'Max results (default: all)')
+    .option('--limit <n>', 'Max total spaces to return (default: all)')
     .action(async (opts: { type?: string; limit?: string }) => {
       const start = Date.now();
       try {
