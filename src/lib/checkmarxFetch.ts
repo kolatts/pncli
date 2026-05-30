@@ -4,7 +4,7 @@ import { PncliError } from './errors.js';
 
 const CX_CLIENT_ID = 'resource_owner_client';
 const CX_CLIENT_SECRET = '014DF517-39D1-4453-B7B3-9930C563627C';
-const CX_SCOPE = 'sast_api offline_access';
+const CX_DEFAULT_SCOPE = 'sast_api offline_access';
 
 interface TokenCache {
   value: string;
@@ -18,7 +18,7 @@ interface TokenCache {
  * when within 60s of expiry.
  */
 export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
-  const { baseUrl, username, password } = config.checkmarx;
+  const { baseUrl, username, password, scope } = config.checkmarx;
 
   if (!baseUrl) throw new PncliError('Checkmarx baseUrl not configured. Run: pncli config init', 1);
   if (!username) throw new PncliError('Checkmarx username not configured. Run: pncli config init', 1);
@@ -27,6 +27,7 @@ export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
   // Capture as definite strings for use inside the closure (TypeScript can't narrow across closures)
   const resolvedUsername: string = username;
   const resolvedPassword: string = password;
+  const resolvedScope: string = scope ?? CX_DEFAULT_SCOPE;
   const tokenUrl = `${baseUrl.replace(/\/$/, '')}/cxrestapi/auth/identity/connect/token`;
   let cache: TokenCache | null = null;
 
@@ -40,7 +41,7 @@ export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
       grant_type: 'password',
       client_id: CX_CLIENT_ID,
       client_secret: CX_CLIENT_SECRET,
-      scope: CX_SCOPE,
+      scope: resolvedScope,
       username: resolvedUsername,
       password: resolvedPassword
     });
@@ -53,8 +54,11 @@ export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
+      const hint = text.includes('invalid_scope')
+        ? ' — try setting a different scope with: pncli config set checkmarx.scope "sast_api"'
+        : '';
       throw new PncliError(
-        `Checkmarx token exchange failed (${response.status}): ${text || response.statusText}`,
+        `Checkmarx token exchange failed (${response.status}): ${text || response.statusText}${hint}`,
         response.status
       );
     }

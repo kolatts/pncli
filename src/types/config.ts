@@ -96,6 +96,7 @@ export interface CheckmarxConfig {
   baseUrl?: string;
   username?: string;
   password?: string;
+  scope?: string;
 }
 
 export interface ServiceNowConfig {
@@ -219,6 +220,7 @@ export interface ResolvedConfig {
     baseUrl: string | undefined;
     username: string | undefined;
     password: string | undefined;
+    scope: string | undefined;
   };
   servicenow: {
     baseUrl: string | undefined;
