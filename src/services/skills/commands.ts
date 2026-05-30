@@ -350,6 +350,9 @@ export function registerSkillsCommands(program: Command): void {
             const { installed, failed } = copyPluginSkills(skillsSrc, targetDir);
             results[pluginChoice.name] = { installed, failed };
             totalInstalled += installed.length;
+            for (const skill of installed) {
+              warn(`  ${skill}: ${path.join(skillsSrc, skill)} → ${path.join(targetDir, skill)}`);
+            }
             if (failed.length > 0) {
               warn(`Skipped ${failed.length} skill(s) with invalid names in "${pluginChoice.name}": ${failed.join(', ')}`);
             }
@@ -386,6 +389,9 @@ export function registerSkillsCommands(program: Command): void {
         }
 
         const { installed, failed } = copyPluginSkills(skillsSrc, targetDir);
+        for (const skill of installed) {
+          warn(`  ${skill}: ${path.join(skillsSrc, skill)} → ${path.join(targetDir, skill)}`);
+        }
         if (failed.length > 0) {
           warn(`Skipped ${failed.length} skill(s) with invalid names: ${failed.join(', ')}`);
         }
