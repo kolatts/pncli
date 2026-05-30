@@ -180,6 +180,35 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
+  async jiraUpload<T>(
+    path: string,
+    formData: FormData,
+    opts: { timeoutMs?: number } = {}
+  ): Promise<T> {
+    const baseUrl = this.config.jira.baseUrl;
+    if (!baseUrl) throw new PncliError('Jira baseUrl not configured. Run: pncli config init');
+    const { apiToken } = this.config.jira;
+    if (!apiToken) throw new PncliError('Jira credentials not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path);
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${apiToken}`,
+      'X-Atlassian-Token': 'no-check',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: POST ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\nBody: <multipart/form-data>\n`;
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, { method: 'POST', headers, body: formData }, opts.timeoutMs ?? 60000);
+  }
+
   async bitbucket<T>(
     path: string,
     opts: HttpRequestOptions = {}

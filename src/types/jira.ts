@@ -76,3 +76,13 @@ export interface JiraSearchResult {
   startAt: number;
   maxResults: number;
 }
+
+export interface JiraAttachment {
+  id: string;
+  filename: string;
+  author: { accountId: string; displayName: string };
+  created: string;
+  size: number;
+  mimeType: string;
+  content: string;
+}
