@@ -34,6 +34,7 @@ const ENV_KEYS = {
   CHECKMARX_BASE_URL: 'PNCLI_CHECKMARX_BASE_URL',
   CHECKMARX_USERNAME: 'PNCLI_CHECKMARX_USERNAME',
   CHECKMARX_PASSWORD: 'PNCLI_CHECKMARX_PASSWORD',
+  CHECKMARX_SCOPE: 'PNCLI_CHECKMARX_SCOPE',
   SERVICENOW_BASE_URL: 'PNCLI_SERVICENOW_BASE_URL',
   SERVICENOW_USERNAME: 'PNCLI_SERVICENOW_USERNAME',
   SERVICENOW_PASSWORD: 'PNCLI_SERVICENOW_PASSWORD',
@@ -182,6 +183,7 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       baseUrl: process.env[ENV_KEYS.CHECKMARX_BASE_URL] ?? globalConfig.checkmarx?.baseUrl,
       username: process.env[ENV_KEYS.CHECKMARX_USERNAME] ?? globalConfig.checkmarx?.username,
       password: process.env[ENV_KEYS.CHECKMARX_PASSWORD] ?? globalConfig.checkmarx?.password,
+      scope: process.env[ENV_KEYS.CHECKMARX_SCOPE] ?? globalConfig.checkmarx?.scope,
     },
     servicenow: {
       baseUrl: process.env[ENV_KEYS.SERVICENOW_BASE_URL] ?? globalConfig.servicenow?.baseUrl,

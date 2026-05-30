@@ -18,6 +18,7 @@ function makeConfig(overrides: Partial<ResolvedConfig['checkmarx']> = {}): Resol
       baseUrl: 'https://cx.example.com',
       username: 'admin',
       password: 'secret',
+      scope: undefined,
       ...overrides
     },
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
@@ -69,7 +70,7 @@ describe('buildCheckmarxFetcher', () => {
     const body = tokenCall[1]?.body as string;
     expect(body).toContain('grant_type=password');
     expect(body).toContain('client_id=resource_owner_client');
-    expect(body).toContain('scope=sast_api');
+    expect(body).toContain('scope=sast_api+offline_access');
     expect(body).toContain('username=admin');
     expect(body).toContain('password=secret');
   });
@@ -124,6 +125,21 @@ describe('buildCheckmarxFetcher', () => {
     expect(tokenCalls).toHaveLength(2);
   });
 
+  it('uses a custom scope when configured', async () => {
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(makeTokenResponse()), { status: 200 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+    vi.stubGlobal('fetch', mockFetch);
+
+    const fetcher = buildCheckmarxFetcher(makeConfig({ scope: 'sast_api' }));
+    await fetcher('https://cx.example.com/cxrestapi/projects');
+
+    const body = mockFetch.mock.calls[0][1]?.body as string;
+    expect(body).toContain('scope=sast_api');
+    expect(body).not.toContain('offline_access');
+  });
+
   it('surfaces a useful error when token endpoint returns 4xx', async () => {
     const mockFetch = vi.fn().mockResolvedValueOnce(
       new Response('{"message":"Invalid username or password"}', { status: 400 })
@@ -133,6 +149,19 @@ describe('buildCheckmarxFetcher', () => {
 
     const fetcher = buildCheckmarxFetcher(makeConfig());
     await expect(fetcher('https://cx.example.com/cxrestapi/projects')).rejects.toThrow('400');
+  });
+
+  it('includes a scope hint in the error when server returns invalid_scope', async () => {
+    const mockFetch = vi.fn().mockResolvedValueOnce(
+      new Response('{"error":"invalid_scope"}', { status: 400 })
+    );
+
+    vi.stubGlobal('fetch', mockFetch);
+
+    const fetcher = buildCheckmarxFetcher(makeConfig());
+    await expect(fetcher('https://cx.example.com/cxrestapi/projects')).rejects.toThrow(
+      'pncli config set checkmarx.scope'
+    );
   });
 
   it('does not cache a token after a failed token exchange', async () => {
