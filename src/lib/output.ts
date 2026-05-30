@@ -91,6 +91,14 @@ export function fail(
   throw new PncliError(errorDetail.message, errorDetail.status);
 }
 
+export function writeRawOutput(content: string): void {
+  if (outputFile) {
+    writeToFile(outputFile, content);
+  } else {
+    process.stdout.write(content);
+  }
+}
+
 export function log(message: string): void {
   if (globalOptions.verbose) {
     process.stderr.write(

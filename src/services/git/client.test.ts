@@ -86,6 +86,58 @@ describe('parseBranchReportOutput', () => {
     expect(report.since).toBeNull();
     expect(report.until).toBeNull();
   });
+
+  it('filters out commits whose author date is before --since', () => {
+    const raw = [
+      `${COMMIT_PREFIX}aaa\tAlice\t2024-09-16T10:00:00Z\tOld commit`,
+      '2\t1\tfile.ts',
+      `${COMMIT_PREFIX}bbb\tBob\t2025-02-01T10:00:00Z\tNew commit`,
+      '3\t0\tfile.ts'
+    ].join('\n');
+    const report = parseBranchReportOutput(raw, 'main', { since: '2025-01-01' });
+    expect(report.commits).toHaveLength(1);
+    expect(report.commits[0]!.hash).toBe('bbb');
+    expect(report.summary.commitCount).toBe(1);
+    expect(report.summary.totalInsertions).toBe(3);
+  });
+
+  it('filters out commits whose author date is after --until', () => {
+    const raw = [
+      `${COMMIT_PREFIX}aaa\tAlice\t2024-11-01T10:00:00Z\tBefore cutoff`,
+      '2\t0\tfile.ts',
+      `${COMMIT_PREFIX}bbb\tBob\t2025-03-01T10:00:00Z\tAfter cutoff`,
+      '1\t1\tfile.ts'
+    ].join('\n');
+    const report = parseBranchReportOutput(raw, 'main', { until: '2024-12-31' });
+    expect(report.commits).toHaveLength(1);
+    expect(report.commits[0]!.hash).toBe('aaa');
+    expect(report.summary.totalInsertions).toBe(2);
+  });
+
+  it('filters using both --since and --until', () => {
+    const raw = [
+      `${COMMIT_PREFIX}aaa\tAlice\t2024-06-15T10:00:00Z\tBefore range`,
+      '1\t0\tfile.ts',
+      `${COMMIT_PREFIX}bbb\tBob\t2025-02-01T10:00:00Z\tIn range`,
+      '2\t1\tfile.ts',
+      `${COMMIT_PREFIX}ccc\tCarol\t2025-06-01T10:00:00Z\tAfter range`,
+      '3\t2\tfile.ts'
+    ].join('\n');
+    const report = parseBranchReportOutput(raw, 'main', { since: '2025-01-01', until: '2025-03-31' });
+    expect(report.commits).toHaveLength(1);
+    expect(report.commits[0]!.hash).toBe('bbb');
+    expect(report.summary.commitCount).toBe(1);
+  });
+
+  it('does not filter when since/until are not absolute dates', () => {
+    const raw = [
+      `${COMMIT_PREFIX}aaa\tAlice\t2024-09-16T10:00:00Z\tOld commit`,
+      '2\t1\tfile.ts'
+    ].join('\n');
+    // Relative dates like "2 weeks ago" cannot be post-filtered — git handles those
+    const report = parseBranchReportOutput(raw, 'main', { since: '2 weeks ago' });
+    expect(report.commits).toHaveLength(1);
+  });
 });
 
 describe('weekly and author breakdown', () => {
