@@ -27,6 +27,7 @@ import { registerServiceNowCommands } from './services/servicenow/commands.js';
 import { registerContrastCommands } from './services/contrast/commands.js';
 import { registerSonatypeIqCommands } from './services/sonatypeiq/commands.js';
 import { registerSkillsCommands } from './services/skills/commands.js';
+import { registerJwtCommands } from './services/jwt/commands.js';
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,6 +80,7 @@ registerServiceNowCommands(program);
 registerContrastCommands(program);
 registerSonatypeIqCommands(program);
 registerSkillsCommands(program);
+registerJwtCommands(program);
 
 program.addHelpText('after', `
 Services:
@@ -99,6 +101,7 @@ Services:
   sonatypeiq   Sonatype IQ Server (applications, organizations, policies)
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills
+  jwt          JWT token utilities (decode header and payload)
 `);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
