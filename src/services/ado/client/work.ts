@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { basename, extname } from 'path';
 import type { HttpClient } from '../../../lib/http.js';
 import type {
   AdoWorkItem,
@@ -140,4 +142,63 @@ export class AdoWorkClient {
   async downloadAttachment(absoluteUrl: string): Promise<Buffer> {
     return this.http.adoBuffer(absoluteUrl);
   }
+
+  async uploadAttachment(
+    collection: string,
+    workItemId: number,
+    filePath: string,
+    comment?: string
+  ): Promise<AdoWorkItemAttachment> {
+    const fileContent = readFileSync(filePath);
+    const fileName = basename(filePath);
+    const mimeType = guessMimeType(filePath);
+
+    // Step 1: Upload the file to ADO's attachment store
+    const attachment = await this.http.adoUpload<AdoWorkItemAttachment>(
+      `/${encodeURIComponent(collection)}/_apis/wit/attachments?fileName=${encodeURIComponent(fileName)}&api-version=${API}`,
+      fileContent,
+      mimeType
+    );
+
+    // Step 2: Link the uploaded attachment to the work item
+    const relationValue: Record<string, unknown> = {
+      rel: 'AttachedFile',
+      url: attachment.url,
+      ...(comment ? { attributes: { comment } } : {})
+    };
+    await this.http.ado<AdoWorkItem>(
+      `/${encodeURIComponent(collection)}/_apis/wit/workitems/${workItemId}?api-version=${API}`,
+      { method: 'PATCH', body: [{ op: 'add', path: '/relations/-', value: relationValue }], headers: { 'Content-Type': 'application/json-patch+json' } }
+    );
+
+    return attachment;
+  }
+}
+
+function guessMimeType(filePath: string): string {
+  const ext = extname(filePath).toLowerCase();
+  const map: Record<string, string> = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.pdf': 'application/pdf',
+    '.txt': 'text/plain',
+    '.log': 'text/plain',
+    '.csv': 'text/csv',
+    '.json': 'application/json',
+    '.xml': 'application/xml',
+    '.zip': 'application/zip',
+    '.tar': 'application/x-tar',
+    '.gz': 'application/gzip',
+    '.md': 'text/markdown',
+    '.html': 'text/html',
+    '.htm': 'text/html',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  };
+  return map[ext] ?? 'application/octet-stream';
 }
