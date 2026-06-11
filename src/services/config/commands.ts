@@ -243,6 +243,17 @@ export function registerConfigCommands(program: Command): void {
           results.sonatypeiq = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.openshift.baseUrl && cfg.openshift.token) {
+          try {
+            await http.openshift<unknown>('/api/v1/namespaces');
+            results.openshift = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.openshift = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.openshift = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -464,6 +475,20 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        // OpenShift / Kubernetes
+        if (!cfg.openshift.token) {
+          results.openshift = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.openshift.baseUrl) {
+          results.openshift = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.openshift<unknown>('/api/v1/namespaces', { timeoutMs: 10_000 });
+            results.openshift = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.openshift = categorize(err);
+          }
+        }
+
         // Exit code: prefer AUTH_ERROR if any invalid, else NETWORK_ERROR if any errors
         const statuses = Object.values(results).map(r => r.status);
         if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
@@ -471,7 +496,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq'] as const;
+          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -489,7 +514,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq'] as const;
+            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -1059,6 +1084,47 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── OpenShift / Kubernetes ────────────────────────\n');
+  const useOpenShift = await confirm({
+    message: 'Configure OpenShift / Kubernetes for pod health monitoring?',
+    default: false
+  });
+
+  let openShiftBaseUrl = '';
+  let openShiftToken = '';
+
+  if (useOpenShift) {
+    process.stderr.write('  Service account token: cat /var/run/secrets/kubernetes.io/serviceaccount/token\n');
+
+    openShiftBaseUrl = await input({
+      message: 'OpenShift API server URL (e.g. https://api.cluster.example.com:6443):',
+      default: ''
+    });
+
+    openShiftToken = await password({
+      message: 'Service account token:'
+    });
+
+    if (openShiftBaseUrl && openShiftToken) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          openshift: {
+            baseUrl: normalizeBaseUrl(openShiftBaseUrl),
+            token: openShiftToken
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.openshift<unknown>('/api/v1/namespaces');
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to OpenShift: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your URL and token and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -1179,6 +1245,12 @@ async function initGlobalConfig(start: number): Promise<void> {
         baseUrl: normalizeBaseUrl(sonatypeIqBaseUrl),
         userCode: sonatypeIqUserCode || undefined,
         passcode: sonatypeIqPasscode || undefined
+      }
+    } : {}),
+    ...(useOpenShift && openShiftBaseUrl ? {
+      openshift: {
+        baseUrl: normalizeBaseUrl(openShiftBaseUrl),
+        token: openShiftToken || undefined
       }
     } : {}),
     defaults: {

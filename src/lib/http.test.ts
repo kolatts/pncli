@@ -18,6 +18,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
+    openshift: { baseUrl: undefined, token: undefined },
     defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
     ...overrides
   };
