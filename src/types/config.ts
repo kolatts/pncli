@@ -119,6 +119,11 @@ export interface SonatypeIqConfig {
   passcode?: string;
 }
 
+export interface OpenShiftConfig {
+  baseUrl?: string;
+  token?: string;
+}
+
 export interface MarketplaceConfig {
   repoUrl?: string;
   localPath?: string;
@@ -159,6 +164,7 @@ export interface GlobalConfig {
   servicenow?: ServiceNowConfig;
   contrast?: ContrastConfig;
   sonatypeiq?: SonatypeIqConfig;
+  openshift?: OpenShiftConfig;
   marketplace?: MarketplaceConfig;
   defaults?: Defaults;
 }
@@ -237,6 +243,10 @@ export interface ResolvedConfig {
     baseUrl: string | undefined;
     userCode: string | undefined;
     passcode: string | undefined;
+  };
+  openshift: {
+    baseUrl: string | undefined;
+    token: string | undefined;
   };
   defaults: {
     jira: JiraDefaults;

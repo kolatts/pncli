@@ -27,6 +27,7 @@ import { registerServiceNowCommands } from './services/servicenow/commands.js';
 import { registerContrastCommands } from './services/contrast/commands.js';
 import { registerSonatypeIqCommands } from './services/sonatypeiq/commands.js';
 import { registerSkillsCommands } from './services/skills/commands.js';
+import { registerOpenShiftCommands } from './services/openshift/commands.js';
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,6 +80,7 @@ registerServiceNowCommands(program);
 registerContrastCommands(program);
 registerSonatypeIqCommands(program);
 registerSkillsCommands(program);
+registerOpenShiftCommands(program);
 
 program.addHelpText('after', `
 Services:
@@ -97,6 +99,7 @@ Services:
   servicenow   ServiceNow (change requests)
   contrast     Contrast IAST (applications, vulnerability findings)
   sonatypeiq   Sonatype IQ Server (applications, organizations, policies)
+  openshift    OpenShift / Kubernetes (pods, events, logs, metrics)
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills
 `);
