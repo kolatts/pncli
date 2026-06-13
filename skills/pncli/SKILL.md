@@ -9,7 +9,7 @@ metadata:
   services: config
 ---
 
-pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, IBM UrbanCode Deploy, Checkmarx, ServiceNow, Contrast Security IAST, and Sonatype IQ Server.
+pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, IBM UrbanCode Deploy, Checkmarx, ServiceNow, Contrast Security IAST, Sonatype IQ Server, and OpenShift / Kubernetes.
 
 ## Two config levels
 
@@ -48,6 +48,7 @@ For detailed setup of any service, read the included file for that service.
 | ServiceNow | `servicenow.md` | Change requests, incidents |
 | Contrast IAST | `contrast.md` | Runtime vulnerability findings |
 | Sonatype IQ | `sonatypeiq.md` | Dependency policy enforcement |
+| OpenShift / Kubernetes | `openshift.md` | Pod health, events, logs, metrics |
 | Skills Marketplace | `marketplace.md` | Install org-internal skills |
 
 ## Setup walkthrough

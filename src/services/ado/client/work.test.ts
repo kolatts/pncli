@@ -1,3 +1,6 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { AdoWorkClient } from './work.js';
 import { HttpClient } from '../../../lib/http.js';
@@ -19,6 +22,7 @@ function makeConfig(): ResolvedConfig {
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
+    openshift: { baseUrl: undefined, token: undefined },
     defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} }
   };
 }
@@ -301,5 +305,87 @@ describe('AdoWorkClient — downloadAttachment', () => {
     expect(buffer).toBeInstanceOf(Buffer);
     expect(buffer.length).toBe(8);
     expect(buffer[0]).toBe(137);
+  });
+});
+
+describe('AdoWorkClient — uploadAttachment', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('uploads the file and links it to the work item', async () => {
+    const tmpFile = path.join(os.tmpdir(), 'pncli-test-report.txt');
+    fs.writeFileSync(tmpFile, 'file content');
+
+    const capturedRequests: Array<{ url: string; method: string; body: unknown; contentType?: string }> = [];
+    const attachmentResponse = {
+      id: 'att-guid-123',
+      url: 'https://ado.example.com/myorg/_apis/wit/attachments/att-guid-123',
+      name: 'pncli-test-report.txt'
+    };
+
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      const contentType = (init.headers as Record<string, string>)['Content-Type'] ?? '';
+      let body: unknown = undefined;
+      if (typeof init.body === 'string') {
+        body = JSON.parse(init.body);
+      }
+      capturedRequests.push({ url: String(url), method: String(init.method), body, contentType });
+
+      if (String(url).includes('attachments?fileName')) {
+        return new Response(JSON.stringify(attachmentResponse), { status: 200 });
+      }
+      return new Response(JSON.stringify(makeWorkItem('')), { status: 200 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new AdoWorkClient(http);
+    const result = await client.uploadAttachment('myorg', 42, tmpFile);
+
+    fs.unlinkSync(tmpFile);
+
+    expect(result.id).toBe('att-guid-123');
+    expect(result.url).toBe('https://ado.example.com/myorg/_apis/wit/attachments/att-guid-123');
+
+    // First request: upload to attachments endpoint
+    expect(capturedRequests[0].url).toContain('_apis/wit/attachments');
+    expect(capturedRequests[0].url).toContain('fileName=pncli-test-report.txt');
+    expect(capturedRequests[0].method).toBe('POST');
+    expect(capturedRequests[0].contentType).toBe('text/plain');
+
+    // Second request: PATCH work item to link the attachment
+    expect(capturedRequests[1].url).toContain('_apis/wit/workitems/42');
+    expect(capturedRequests[1].method).toBe('PATCH');
+    const patch = capturedRequests[1].body as Array<{ op: string; path: string; value: { rel: string; url: string } }>;
+    expect(patch[0].op).toBe('add');
+    expect(patch[0].path).toBe('/relations/-');
+    expect(patch[0].value.rel).toBe('AttachedFile');
+    expect(patch[0].value.url).toBe(attachmentResponse.url);
+  });
+
+  it('includes comment in the relation attributes when provided', async () => {
+    const tmpFile = path.join(os.tmpdir(), 'pncli-test-notes.txt');
+    fs.writeFileSync(tmpFile, 'meeting notes');
+
+    const capturedBodies: unknown[] = [];
+
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      if (String(url).includes('attachments?fileName')) {
+        return new Response(JSON.stringify({
+          id: 'att-guid-456',
+          url: 'https://ado.example.com/myorg/_apis/wit/attachments/att-guid-456',
+          name: 'pncli-test-notes.txt'
+        }), { status: 200 });
+      }
+      capturedBodies.push(JSON.parse(init.body as string));
+      return new Response(JSON.stringify(makeWorkItem('')), { status: 200 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new AdoWorkClient(http);
+    await client.uploadAttachment('myorg', 42, tmpFile, 'Meeting notes');
+
+    fs.unlinkSync(tmpFile);
+
+    const patch = capturedBodies[0] as Array<{ op: string; path: string; value: { rel: string; attributes?: { comment: string } } }>;
+    expect(patch[0].value.attributes?.comment).toBe('Meeting notes');
   });
 });
