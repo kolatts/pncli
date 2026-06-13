@@ -245,7 +245,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cfg.openshift.baseUrl && cfg.openshift.token) {
           try {
-            await http.openshift<unknown>('/api/v1/namespaces');
+            await http.openshift<unknown>('/api/v1');
             results.openshift = { ok: true, message: 'connected' };
           } catch (err) {
             results.openshift = { ok: false, message: err instanceof Error ? err.message : String(err) };
@@ -482,7 +482,7 @@ export function registerConfigCommands(program: Command): void {
           results.openshift = { status: 'error', message: 'baseUrl not configured' };
         } else {
           try {
-            await http.openshift<unknown>('/api/v1/namespaces', { timeoutMs: 10_000 });
+            await http.openshift<unknown>('/api/v1', { timeoutMs: 10_000 });
             results.openshift = { status: 'valid', message: 'ok' };
           } catch (err) {
             results.openshift = categorize(err);
@@ -1116,7 +1116,7 @@ async function initGlobalConfig(start: number): Promise<void> {
           }
         };
         const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
-        await tempHttp.openshift<unknown>('/api/v1/namespaces');
+        await tempHttp.openshift<unknown>('/api/v1');
         process.stderr.write('  Connected.\n');
       } catch (err) {
         warn(`Could not connect to OpenShift: ${err instanceof Error ? err.message : String(err)}`);

@@ -282,7 +282,7 @@ export function registerOpenShiftCommands(program: Command): void {
         const http = getHttp(program);
         const lines = opts.lines ? parseInt(opts.lines, 10) : 100;
 
-        const logText = await http.openShiftText(
+        const logText = await http.openshiftText(
           `/api/v1/namespaces/${encodeURIComponent(opts.namespace)}/pods/${encodeURIComponent(opts.pod)}/log`,
           {
             lines,

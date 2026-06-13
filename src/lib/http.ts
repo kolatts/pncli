@@ -955,7 +955,7 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
-  private openShiftHeaders(): Record<string, string> {
+  private openshiftHeaders(): Record<string, string> {
     const { token } = this.config.openshift;
     if (!token) throw new PncliError('OpenShift credentials not configured. Run: pncli config init');
     return {
@@ -974,7 +974,7 @@ export class HttpClient {
     if (!baseUrl) throw new PncliError('OpenShift baseUrl not configured. Run: pncli config init');
 
     const url = buildUrl(baseUrl, path, opts.params);
-    const headers = this.openShiftHeaders();
+    const headers = this.openshiftHeaders();
     const init: RequestInit = {
       method: opts.method ?? 'GET',
       headers,
@@ -993,7 +993,7 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
-  async openShiftText(
+  async openshiftText(
     path: string,
     opts: HttpRequestOptions & { lines?: number } = {}
   ): Promise<string> {
@@ -1005,7 +1005,7 @@ export class HttpClient {
 
     const url = buildUrl(baseUrl, path, params);
     const headers: Record<string, string> = {
-      'Authorization': `Bearer ${this.openShiftHeaders()['Authorization']}`,
+      'Authorization': this.openshiftHeaders()['Authorization'],
       'Accept': 'text/plain',
       'Connection': 'close'
     };
