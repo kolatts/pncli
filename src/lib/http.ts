@@ -980,6 +980,81 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
+  private openshiftHeaders(): Record<string, string> {
+    const { token } = this.config.openshift;
+    if (!token) throw new PncliError('OpenShift credentials not configured. Run: pncli config init');
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+  }
+
+  async openshift<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.openshift.baseUrl;
+    if (!baseUrl) throw new PncliError('OpenShift baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.openshiftHeaders();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
+  async openshiftText(
+    path: string,
+    opts: HttpRequestOptions & { lines?: number } = {}
+  ): Promise<string> {
+    const baseUrl = this.config.openshift.baseUrl;
+    if (!baseUrl) throw new PncliError('OpenShift baseUrl not configured. Run: pncli config init');
+
+    const params: Record<string, string | number | boolean | undefined> = { ...opts.params };
+    if (opts.lines !== undefined) params['tailLines'] = opts.lines;
+
+    const url = buildUrl(baseUrl, path, params);
+    const headers: Record<string, string> = {
+      'Authorization': this.openshiftHeaders()['Authorization'],
+      'Accept': 'text/plain',
+      'Connection': 'close'
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      fs.writeSync(process.stderr.fd, `DRY RUN: GET ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const response = await fetchWithTimeout(url, { method: 'GET', headers }, opts.timeoutMs ?? 30000);
+    if (!response.ok) {
+      let message = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const parsed = JSON.parse(await response.text());
+        if (parsed.message) message = String(parsed.message);
+      } catch { /* ignore */ }
+      throw new PncliError(message, response.status, url);
+    }
+
+    return response.text();
+  }
+
   async checkmarx<T>(
     path: string,
     opts: HttpRequestOptions = {}

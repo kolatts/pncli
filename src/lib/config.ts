@@ -46,6 +46,8 @@ const ENV_KEYS = {
   SONATYPEIQ_BASE_URL: 'PNCLI_SONATYPEIQ_BASE_URL',
   SONATYPEIQ_USER_CODE: 'PNCLI_SONATYPEIQ_USER_CODE',
   SONATYPEIQ_PASSCODE: 'PNCLI_SONATYPEIQ_PASSCODE',
+  OPENSHIFT_BASE_URL: 'PNCLI_OPENSHIFT_BASE_URL',
+  OPENSHIFT_TOKEN: 'PNCLI_OPENSHIFT_TOKEN',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -201,6 +203,10 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       userCode: process.env[ENV_KEYS.SONATYPEIQ_USER_CODE] ?? globalConfig.sonatypeiq?.userCode,
       passcode: process.env[ENV_KEYS.SONATYPEIQ_PASSCODE] ?? globalConfig.sonatypeiq?.passcode,
     },
+    openshift: {
+      baseUrl: process.env[ENV_KEYS.OPENSHIFT_BASE_URL] ?? globalConfig.openshift?.baseUrl,
+      token: process.env[ENV_KEYS.OPENSHIFT_TOKEN] ?? globalConfig.openshift?.token,
+    },
     defaults: mergedDefaults
   };
 }
@@ -318,6 +324,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     sonatypeiq: {
       ...config.sonatypeiq,
       passcode: config.sonatypeiq.passcode ? '***' : undefined
+    },
+    openshift: {
+      ...config.openshift,
+      token: config.openshift.token ? '***' : undefined
     }
   };
 }
