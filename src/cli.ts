@@ -27,6 +27,7 @@ import { registerServiceNowCommands } from './services/servicenow/commands.js';
 import { registerContrastCommands } from './services/contrast/commands.js';
 import { registerSonatypeIqCommands } from './services/sonatypeiq/commands.js';
 import { registerSkillsCommands } from './services/skills/commands.js';
+import { registerJwtCommands } from './services/jwt/commands.js';
 import { registerOpenShiftCommands } from './services/openshift/commands.js';
 
 const require = createRequire(import.meta.url);
@@ -80,6 +81,7 @@ registerServiceNowCommands(program);
 registerContrastCommands(program);
 registerSonatypeIqCommands(program);
 registerSkillsCommands(program);
+registerJwtCommands(program);
 registerOpenShiftCommands(program);
 
 program.addHelpText('after', `
@@ -102,6 +104,7 @@ Services:
   openshift    OpenShift / Kubernetes (pods, events, logs, metrics)
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills
+  jwt          JWT token utilities (decode header and payload)
 `);
 
 program.parseAsync(process.argv).catch((err: unknown) => {

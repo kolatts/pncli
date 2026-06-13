@@ -38,6 +38,7 @@ For detailed setup of any service, read the included file for that service.
 | Bitbucket | `bitbucket.md` | Repos, PRs, diffs |
 | Azure DevOps | `ado.md` | Work items, repos, PRs, pipelines |
 | Confluence | `confluence.md` | Pages, spaces |
+| JWT | `jwt.md` | Decode JWT tokens |
 | SonarQube | `sonarqube.md` | Code quality issues |
 | SDElements | `sde.md` | Threat model tasks |
 | Checkmarx | `checkmarx.md` | SAST findings |
