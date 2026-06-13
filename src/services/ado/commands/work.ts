@@ -248,6 +248,21 @@ export function registerAdoWorkCommands(ado: Command): void {
     });
 
   work
+    .command('add-attachment')
+    .description('Upload a local file and attach it to a work item')
+    .requiredOption('--id <n>', 'Work item ID')
+    .requiredOption('--file <path>', 'Path to the file to upload')
+    .option('--comment <text>', 'Optional comment for the attachment')
+    .action(async (opts: { id: string; file: string; comment?: string }) => {
+      const start = Date.now();
+      try {
+        const { collection, workClient } = getAdoContext(ado);
+        const data = await workClient.uploadAttachment(collection, parseInt(opts.id, 10), opts.file, opts.comment);
+        success(data, 'ado', 'work-add-attachment', start);
+      } catch (err) { fail(err, 'ado', 'work-add-attachment', start); }
+    });
+
+  work
     .command('download-attachment')
     .description('Download a work item attachment to .pncli/ (or --dir)')
     .requiredOption('--id <n>', 'Work item ID')
