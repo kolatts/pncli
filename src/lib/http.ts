@@ -205,6 +205,31 @@ export class HttpClient {
     return Buffer.from(await response.arrayBuffer());
   }
 
+  async adoUpload<T>(
+    path: string,
+    buffer: Buffer,
+    contentType: string,
+    opts: { timeoutMs?: number } = {}
+  ): Promise<T> {
+    const baseUrl = this.config.ado.baseUrl;
+    if (!baseUrl) throw new PncliError('Azure DevOps baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path);
+
+    if (this.dryRun) {
+      fs.writeSync(process.stderr.fd, `DRY RUN: POST ${url}\nBody: <binary ${buffer.length} bytes>\n`);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const fetcher = await this.getAdoFetcher();
+    return request<T>(url, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': contentType },
+      body: buffer
+    }, opts.timeoutMs ?? 60000, fetcher);
+  }
+
   async adoBuffer(absoluteUrl: string, opts: { timeoutMs?: number } = {}): Promise<Buffer> {
     if (this.dryRun) {
       fs.writeSync(process.stderr.fd, `DRY RUN: GET ${absoluteUrl}\n`);
