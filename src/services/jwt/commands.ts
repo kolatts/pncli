@@ -8,6 +8,13 @@ export interface DecodedJwt {
   signature: string;
 }
 
+function base64urlDecode(input: string): string {
+  // Convert base64url to base64
+  const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+  return Buffer.from(padded, 'base64').toString('utf8');
+}
+
 export function decodeJwt(token: string): DecodedJwt {
   const parts = token.split('.');
   if (parts.length !== 3) {
@@ -15,13 +22,6 @@ export function decodeJwt(token: string): DecodedJwt {
   }
 
   const [rawHeader, rawPayload, signature] = parts;
-
-  function base64urlDecode(input: string): string {
-    // Convert base64url to base64
-    const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-    return Buffer.from(padded, 'base64').toString('utf8');
-  }
 
   let header: Record<string, unknown>;
   let payload: Record<string, unknown>;
