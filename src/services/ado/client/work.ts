@@ -1,7 +1,6 @@
 import { readFileSync } from 'fs';
 import { basename } from 'path';
 import type { HttpClient } from '../../../lib/http.js';
-import { guessMimeType } from '../../../lib/mime.js';
 import type {
   AdoWorkItem,
   AdoWorkItemComment,
@@ -152,13 +151,14 @@ export class AdoWorkClient {
   ): Promise<AdoWorkItemAttachment> {
     const fileContent = readFileSync(filePath);
     const fileName = basename(filePath);
-    const mimeType = guessMimeType(filePath);
 
-    // Step 1: Upload the file to ADO's attachment store
+    // Step 1: Upload the file to ADO's attachment store.
+    // ADO's /_apis/wit/attachments endpoint only accepts application/octet-stream
+    // for file uploads — sending any other content type (e.g. text/plain) returns HTTP 400.
     const attachment = await this.http.adoUpload<AdoWorkItemAttachment>(
       `/${encodeURIComponent(collection)}/_apis/wit/attachments?fileName=${encodeURIComponent(fileName)}&api-version=${API}`,
       fileContent,
-      mimeType
+      'application/octet-stream'
     );
 
     // Step 2: Link the uploaded attachment to the work item
