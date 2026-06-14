@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.14.0](https://github.com/kolatts/pncli/compare/v1.13.0...v1.14.0) (2026-06-13)
+
+
+### Features
+
+* **ado:** add work item attachment upload ([#205](https://github.com/kolatts/pncli/issues/205)) ([701acf9](https://github.com/kolatts/pncli/commit/701acf9a5e99c53d3e7e5cfaca0eb9f880df32a6))
+* **jwt:** add jwt decode command ([#203](https://github.com/kolatts/pncli/issues/203)) ([8f0bc50](https://github.com/kolatts/pncli/commit/8f0bc50f81b048c3f120a632478845f84491c350))
+* **openshift:** OpenShift/Kubernetes service integration and health-checker skill ([#207](https://github.com/kolatts/pncli/issues/207)) ([64303f3](https://github.com/kolatts/pncli/commit/64303f32a6497fa9261bebfe996a36e96214640d))
+
 ## [1.13.0](https://github.com/kolatts/pncli/compare/v1.12.0...v1.13.0) (2026-05-30)
 
 
