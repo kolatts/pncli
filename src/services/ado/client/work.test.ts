@@ -349,7 +349,7 @@ describe('AdoWorkClient — uploadAttachment', () => {
     expect(capturedRequests[0].url).toContain('_apis/wit/attachments');
     expect(capturedRequests[0].url).toContain('fileName=pncli-test-report.txt');
     expect(capturedRequests[0].method).toBe('POST');
-    expect(capturedRequests[0].contentType).toBe('text/plain');
+    expect(capturedRequests[0].contentType).toBe('application/octet-stream');
 
     // Second request: PATCH work item to link the attachment
     expect(capturedRequests[1].url).toContain('_apis/wit/workitems/42');
