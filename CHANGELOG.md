@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.1](https://github.com/kolatts/pncli/compare/v1.14.0...v1.14.1) (2026-06-14)
+
+
+### Bug Fixes
+
+* **ado:** always send application/octet-stream for work item attachments ([#210](https://github.com/kolatts/pncli/issues/210)) ([51d668c](https://github.com/kolatts/pncli/commit/51d668c581101da3fde4d691c813dcbdb4efb6c1)), closes [#209](https://github.com/kolatts/pncli/issues/209)
+
 ## [1.14.0](https://github.com/kolatts/pncli/compare/v1.13.0...v1.14.0) (2026-06-13)
 
 
