@@ -1031,7 +1031,7 @@ export class HttpClient {
     const url = buildUrl(baseUrl, path, params);
     const headers: Record<string, string> = {
       'Authorization': this.openshiftHeaders()['Authorization'],
-      'Accept': 'text/plain',
+      'Accept': '*/*',
       'Connection': 'close'
     };
 
