@@ -559,3 +559,21 @@ describe('HttpClient — Contrast', () => {
     await expect(client.contrast('/Contrast/api/ng/org/applications')).rejects.toMatchObject({ status: 0, message: 'dry-run' });
   });
 });
+
+describe('HttpClient — openshiftText Accept header', () => {
+  it('sends Accept: */* so OpenShift content-negotiation middleware does not reject with 406', async () => {
+    const capturedHeaders: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
+      return new Response('log line 1\nlog line 2\n', { status: 200 });
+    });
+    try {
+      const config = baseConfig({ openshift: { baseUrl: 'https://api.cluster.example.com:6443', token: 'oc-tok' } });
+      const client = new HttpClient(config);
+      await client.openshiftText('/api/v1/namespaces/default/pods/my-pod/log', { lines: 10 });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(capturedHeaders[0]?.['accept']).toBe('*/*');
+  });
+});
