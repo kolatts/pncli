@@ -463,7 +463,7 @@ export function getBranchReport(
 
   let raw = '';
   try {
-    raw = execFileSync('git', args, { encoding: 'utf8', cwd: root }).trim();
+    raw = execFileSync('git', args, { encoding: 'utf8', cwd: root, maxBuffer: 200 * 1024 * 1024 }).trim();
   } catch {
     // no commits or invalid ref — return empty report
   }
