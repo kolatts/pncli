@@ -421,14 +421,17 @@ export function parseBranchReportOutput(
   };
 }
 
-// Normalize a date-only string (YYYY-MM-DD) to include an explicit time
-// component so that git's date parser uses its strict ISO 8601 path on all
-// platforms. Without the time component, some Windows git versions mis-parse
-// previous-year dates via the approxidate fuzzy parser, silently returning no
-// commits. Strings that already contain a time component are returned as-is.
+// Normalize a date-only string (YYYY-MM-DD) to include an explicit time and
+// UTC timezone component so that git's date parser uses its strict ISO 8601
+// path on all platforms. Without a timezone suffix, some git versions fall
+// back to the approxidate fuzzy parser, which can mis-parse previous-year
+// dates and exit non-zero — the silent try/catch in getBranchReport then
+// returns raw="" and the report shows zero commits. Adding +00:00 forces the
+// strict parser on every git version. Strings that already contain a time
+// component are returned as-is.
 function normalizeGitDate(dateStr: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    return `${dateStr}T00:00:00`;
+    return `${dateStr}T00:00:00+00:00`;
   }
   return dateStr;
 }
