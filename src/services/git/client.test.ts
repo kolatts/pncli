@@ -289,16 +289,27 @@ describe('buildReportArgs', () => {
     expect(args).not.toContain('..');
   });
 
-  it('adds --since and --until flags with time component appended', () => {
+  it('adds --since and --until flags with time component and UTC timezone appended', () => {
     const args = buildReportArgs({ since: '2024-01-01', until: '2024-12-31' });
-    expect(args).toContain('--since=2024-01-01T00:00:00');
-    expect(args).toContain('--until=2024-12-31T00:00:00');
+    expect(args).toContain('--since=2024-01-01T00:00:00+00:00');
+    expect(args).toContain('--until=2024-12-31T00:00:00+00:00');
   });
 
-  it('normalizes date-only --since from a previous year', () => {
+  it('normalizes date-only --since from a previous year with UTC timezone', () => {
     const args = buildReportArgs({ since: '2025-05-20' });
-    expect(args).toContain('--since=2025-05-20T00:00:00');
+    expect(args).toContain('--since=2025-05-20T00:00:00+00:00');
     expect(args.some(a => a === '--since=2025-05-20')).toBe(false);
+    // must not contain the old form without timezone (issue #214)
+    expect(args.some(a => a === '--since=2025-05-20T00:00:00')).toBe(false);
+  });
+
+  it('normalizes a previous-calendar-year --since with UTC timezone (regression for issue #214)', () => {
+    // Previous-year dates without +00:00 triggered git's approxidate fuzzy
+    // parser on some git versions, causing a non-zero exit that the try/catch
+    // swallowed — resulting in 0 commits even though commits existed.
+    const args = buildReportArgs({ since: '2025-01-01' });
+    expect(args).toContain('--since=2025-01-01T00:00:00+00:00');
+    expect(args.some(a => a.startsWith('--since=2025-01-01') && !a.includes('+00:00'))).toBe(false);
   });
 
   it('passes through --since values that already include a time component', () => {
