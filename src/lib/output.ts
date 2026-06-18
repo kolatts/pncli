@@ -4,13 +4,17 @@ import type { Meta, SuccessEnvelope, ErrorEnvelope, ErrorDetail } from '../types
 import { PncliError } from './errors.js';
 import { ExitCode, exitCodeFromStatus } from './exitCodes.js';
 
-let globalOptions = { pretty: false, verbose: false };
+let globalOptions = { pretty: false, verbose: false, debug: false };
 let globalUser: { email: string | undefined; userId: string | undefined } = { email: undefined, userId: undefined };
 let outputFile: string | undefined;
 
-export function setGlobalOptions(opts: { pretty: boolean; verbose: boolean; outputFile?: string }): void {
-  globalOptions = { pretty: opts.pretty, verbose: opts.verbose };
+export function setGlobalOptions(opts: { pretty: boolean; verbose: boolean; debug?: boolean; outputFile?: string }): void {
+  globalOptions = { pretty: opts.pretty, verbose: opts.verbose, debug: opts.debug ?? false };
   outputFile = opts.outputFile;
+}
+
+export function isDebugEnabled(): boolean {
+  return globalOptions.debug;
 }
 
 export function setGlobalUser(user: { email: string | undefined; userId: string | undefined }): void {
@@ -103,6 +107,14 @@ export function log(message: string): void {
   if (globalOptions.verbose) {
     process.stderr.write(
       (globalOptions.pretty ? chalk.gray('▸ ') : '') + message + '\n'
+    );
+  }
+}
+
+export function debug(message: string): void {
+  if (globalOptions.debug) {
+    process.stderr.write(
+      (globalOptions.pretty ? chalk.cyan('⬡ ') : '') + message + '\n'
     );
   }
 }
