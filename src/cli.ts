@@ -44,6 +44,7 @@ program
   .version(`${pkg.version as string} — ${TAGLINE}`, '-v, --version')
   .option('--pretty', 'Human-readable formatted output', false)
   .option('--verbose', 'Include full response metadata', false)
+  .option('--debug', 'Print diagnostic traces (method, URL, status) for all API calls — does not log credentials', false)
   .option('--dry-run', 'Print API requests without executing', false)
   .option('--config <path>', 'Override global config file location')
   .option('--output-file <path>', 'Write JSON output to file instead of stdout');
@@ -54,6 +55,7 @@ program.hook('preAction', (thisCommand) => {
   setGlobalOptions({
     pretty: Boolean(opts.pretty),
     verbose: Boolean(opts.verbose),
+    debug: Boolean(opts.debug),
     outputFile: opts.outputFile as string | undefined
   });
   try {

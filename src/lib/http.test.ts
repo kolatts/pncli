@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { HttpClient } from './http.js';
+import { setGlobalOptions } from './output.js';
 import type { ResolvedConfig } from '../types/config.js';
 
 function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
@@ -575,5 +576,50 @@ describe('HttpClient — openshiftText Accept header', () => {
       vi.unstubAllGlobals();
     }
     expect(capturedHeaders[0]?.['accept']).toBe('*/*');
+  });
+});
+
+describe('HttpClient — --debug mode', () => {
+  beforeEach(() => {
+    setGlobalOptions({ pretty: false, verbose: false, debug: true });
+  });
+
+  afterEach(() => {
+    setGlobalOptions({ pretty: false, verbose: false, debug: false });
+    vi.unstubAllGlobals();
+  });
+
+  it('writes redacted request/response trace to stderr when debug is enabled', async () => {
+    const stderrLines: string[] = [];
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      stderrLines.push(String(chunk));
+      return true;
+    });
+    vi.stubGlobal('fetch', async () => new Response('{"key":"val"}', { status: 200, statusText: 'OK' }));
+
+    const client = new HttpClient(baseConfig());
+    await client.jira('/rest/api/2/issue/TEST-1');
+
+    const combined = stderrLines.join('');
+    expect(combined).toContain('GET');
+    expect(combined).toContain('TEST-1');
+    expect(combined).toContain('[REDACTED]');
+    expect(combined).toContain('200');
+    expect(combined).not.toContain('tok'); // PAT must not appear
+  });
+
+  it('does not write debug traces when debug is disabled', async () => {
+    setGlobalOptions({ pretty: false, verbose: false, debug: false });
+    const stderrLines: string[] = [];
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      stderrLines.push(String(chunk));
+      return true;
+    });
+    vi.stubGlobal('fetch', async () => new Response('{"key":"val"}', { status: 200, statusText: 'OK' }));
+
+    const client = new HttpClient(baseConfig());
+    await client.jira('/rest/api/2/issue/TEST-1');
+
+    expect(stderrLines.join('')).toBe('');
   });
 });

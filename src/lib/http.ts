@@ -2,7 +2,7 @@ import fs from 'fs';
 import type { ResolvedConfig } from '../types/config.js';
 import { PncliError } from './errors.js';
 import { ExitCode } from './exitCodes.js';
-import { log } from './output.js';
+import { log, debug, isDebugEnabled } from './output.js';
 import { buildAdoFetcher } from './adoFetch.js';
 import { buildCheckmarxFetcher } from './checkmarxFetch.js';
 
@@ -21,6 +21,23 @@ export interface HttpError {
   status: number;
   message: string;
   url: string;
+}
+
+const SENSITIVE_HEADERS = new Set(['authorization', 'api-key']);
+
+function redactHeaders(headers: RequestInit['headers']): Record<string, string> {
+  if (!headers) return {};
+  let entries: [string, string][];
+  if (headers instanceof Headers) {
+    entries = [...headers.entries()];
+  } else if (Array.isArray(headers)) {
+    entries = (headers as string[][]) as [string, string][];
+  } else {
+    entries = Object.entries(headers as Record<string, string>);
+  }
+  return Object.fromEntries(
+    entries.map(([k, v]) => [k, SENSITIVE_HEADERS.has(k.toLowerCase()) ? '[REDACTED]' : v])
+  );
 }
 
 function buildUrl(base: string, path: string, params?: Record<string, string | number | boolean | undefined>): string {
@@ -53,17 +70,28 @@ async function request<T>(
 ): Promise<T> {
   let lastError: unknown;
 
+  if (isDebugEnabled()) {
+    const method = (init.method ?? 'GET').toUpperCase();
+    const safeHeaders = redactHeaders(init.headers);
+    debug(`→ ${method} ${url}`);
+    debug(`  Headers: ${JSON.stringify(safeHeaders)}`);
+  }
+
   for (let attempt = 0; attempt < 3; attempt++) {
     let response: Response;
+    const reqStart = Date.now();
     try {
       response = await fetchWithTimeout(url, init, timeoutMs, fetcher);
     } catch (err) {
+      debug(`  Error: ${err instanceof Error ? err.message : String(err)}`);
       throw new PncliError(
         `Request failed: ${err instanceof Error ? err.message : String(err)}`,
         0,
         url
       );
     }
+
+    debug(`← ${response.status} ${response.statusText} (${Date.now() - reqStart}ms)`);
 
     if (response.status === 429) {
       const retryAfter = response.headers.get('Retry-After');
