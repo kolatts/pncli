@@ -282,7 +282,7 @@ export function registerSkillsCommands(program: Command): void {
     .command('sync')
     .description('Pull latest marketplace content and install a plugin\'s skills')
     .argument('[plugin]', 'Plugin name to install, or "all" to install every plugin (skips interactive selection)')
-    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: claude-code)')
+    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--force', 'Force reinstall even if the marketplace repo has no new changes')
     .action(async (plugin: string | undefined, opts: { agent?: string; claude?: boolean; force?: boolean }) => {
@@ -334,7 +334,7 @@ export function registerSkillsCommands(program: Command): void {
           throw new Error('No plugins found in marketplace. Check the marketplace repository structure.');
         }
 
-        const agentName = opts.claude ? 'claude-code' : (opts.agent ?? 'claude-code');
+        const agentName = opts.claude ? 'claude-code' : (opts.agent ?? 'github-copilot');
         const agentConfig = AGENT_PATHS[agentName];
         if (!agentConfig) {
           throw new Error(`Unknown agent: "${agentName}". Use: ${Object.keys(AGENT_PATHS).join(' | ')}`);
