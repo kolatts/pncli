@@ -271,6 +271,7 @@ export function registerSkillsCommands(program: Command): void {
         existing.marketplace = { repoUrl: url, localPath: resolvedPath, ...(opts.token ? { token: opts.token } : {}) };
         writeGlobalConfig(existing, configPath);
 
+        warn('Marketplace ready. Run: pncli skills marketplace sync to install skills.');
         success({ repoUrl: url, localPath: resolvedPath, branch: opts.branch ?? null, tokenConfigured: !!opts.token }, 'skills', 'marketplace-setup', start);
       } catch (err) {
         fail(err, 'skills', 'marketplace-setup', start);
@@ -281,9 +282,10 @@ export function registerSkillsCommands(program: Command): void {
     .command('sync')
     .description('Pull latest marketplace content and install a plugin\'s skills')
     .argument('[plugin]', 'Plugin name to install, or "all" to install every plugin (skips interactive selection)')
-    .option('--claude', 'Install to ~/.claude/skills instead of ~/.agents/skills')
+    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
+    .option('--claude', 'Shorthand for --agent claude-code')
     .option('--force', 'Force reinstall even if the marketplace repo has no new changes')
-    .action(async (plugin: string | undefined, opts: { claude?: boolean; force?: boolean }) => {
+    .action(async (plugin: string | undefined, opts: { agent?: string; claude?: boolean; force?: boolean }) => {
       const start = Date.now();
       try {
         const configPath = getGlobalConfigPath();
@@ -316,7 +318,7 @@ export function registerSkillsCommands(program: Command): void {
         }
         warn(marketplaceUpdated ? 'Marketplace updated.' : 'Marketplace already up to date — no changes to sync.');
 
-        if (!marketplaceUpdated && !plugin && !opts.force) {
+        if (!marketplaceUpdated && plugin === 'all' && !opts.force) {
           success({
             marketplace: marketplacePath,
             marketplaceUpdated: false,
@@ -332,9 +334,12 @@ export function registerSkillsCommands(program: Command): void {
           throw new Error('No plugins found in marketplace. Check the marketplace repository structure.');
         }
 
-        const targetDir = opts.claude
-          ? path.join(os.homedir(), '.claude', 'skills')
-          : path.join(os.homedir(), '.agents', 'skills');
+        const agentName = opts.claude ? 'claude-code' : (opts.agent ?? 'github-copilot');
+        const agentConfig = AGENT_PATHS[agentName];
+        if (!agentConfig) {
+          throw new Error(`Unknown agent: "${agentName}". Use: ${Object.keys(AGENT_PATHS).join(' | ')}`);
+        }
+        const targetDir = agentConfig.user;
 
         if (plugin === 'all') {
           const results: Record<string, { installed: string[]; failed: string[] }> = {};

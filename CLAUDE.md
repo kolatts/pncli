@@ -12,6 +12,8 @@ pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI codin
 - `example-skills/` — Workflow skills shown on the website as examples but not distributed by the installer (`ship`, `code-review`, `plan`, `security-review`, `address-pr-feedback`).
 - `.claude/skills/` — Skills active in this repo. `ship/` is repo-internal (GitHub only); all others are pointer files into `skills/` or `example-skills/`.
 
+When documenting or choosing default install targets for skills, prefer `.agents/skills` because it works for GitHub Copilot and Codex. Keep Claude Code support available via `.claude/skills` and `--agent claude-code` / `--claude`.
+
 ## Build & Test
 
 ```bash
