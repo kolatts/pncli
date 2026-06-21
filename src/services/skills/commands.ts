@@ -318,17 +318,6 @@ export function registerSkillsCommands(program: Command): void {
         }
         warn(marketplaceUpdated ? 'Marketplace updated.' : 'Marketplace already up to date — no changes to sync.');
 
-        if (!marketplaceUpdated && plugin === 'all' && !opts.force) {
-          success({
-            marketplace: marketplacePath,
-            marketplaceUpdated: false,
-            updated: false,
-            skipped: true,
-            message: 'No marketplace changes detected — skipping plugin selection and install.',
-          }, 'skills', 'marketplace-sync', start);
-          return;
-        }
-
         const pluginChoices = resolvePluginChoices(marketplacePath);
         if (pluginChoices.length === 0) {
           throw new Error('No plugins found in marketplace. Check the marketplace repository structure.');
@@ -341,7 +330,37 @@ export function registerSkillsCommands(program: Command): void {
         }
         const targetDir = agentConfig.user;
 
-        if (plugin === 'all') {
+        let selectedPlugin: string;
+        if (plugin) {
+          if (plugin !== 'all' && !pluginChoices.some(p => p.name === plugin)) {
+            throw new Error(`Plugin "${plugin}" not found. Available: ${pluginChoices.map(p => p.name).join(', ')}`);
+          }
+          selectedPlugin = plugin;
+        } else {
+          selectedPlugin = await select({
+            message: 'Select a plugin to install:',
+            choices: [
+              { value: 'all', name: 'All — install every plugin' },
+              ...pluginChoices.map(p => ({
+                value: p.name,
+                name: p.description ? `${p.name} — ${p.description}` : p.name,
+              })),
+            ],
+          });
+        }
+
+        if (selectedPlugin === 'all') {
+          if (!marketplaceUpdated && !opts.force) {
+            success({
+              marketplace: marketplacePath,
+              marketplaceUpdated: false,
+              updated: false,
+              skipped: true,
+              message: 'No marketplace changes detected — skipping install.',
+            }, 'skills', 'marketplace-sync', start);
+            return;
+          }
+
           const results: Record<string, { installed: string[]; failed: string[] }> = {};
           let totalInstalled = 0;
 
@@ -370,22 +389,6 @@ export function registerSkillsCommands(program: Command): void {
             marketplaceUpdated,
           }, 'skills', 'marketplace-sync', start);
           return;
-        }
-
-        let selectedPlugin: string;
-        if (plugin) {
-          if (!pluginChoices.some(p => p.name === plugin)) {
-            throw new Error(`Plugin "${plugin}" not found. Available: ${pluginChoices.map(p => p.name).join(', ')}`);
-          }
-          selectedPlugin = plugin;
-        } else {
-          selectedPlugin = await select({
-            message: 'Select a plugin to install:',
-            choices: pluginChoices.map(p => ({
-              value: p.name,
-              name: p.description ? `${p.name} — ${p.description}` : p.name,
-            })),
-          });
         }
 
         const skillsSrc = resolveSkillsSrc(marketplacePath, selectedPlugin);
