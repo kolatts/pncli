@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.15.0](https://github.com/kolatts/pncli/compare/v1.14.1...v1.15.0) (2026-06-21)
+
+
+### Features
+
+* **cli:** add --debug global option for API call traces ([#222](https://github.com/kolatts/pncli/issues/222)) ([9941d4c](https://github.com/kolatts/pncli/commit/9941d4c2a1e4dcd4280dd7734655ff1834a13c8e)), closes [#221](https://github.com/kolatts/pncli/issues/221)
+* **skills:** add "All" option to interactive marketplace sync menu ([#225](https://github.com/kolatts/pncli/issues/225)) ([370c992](https://github.com/kolatts/pncli/commit/370c992ec1c4fbfce132cb5aed7f7f598b9bf955))
+
+
+### Bug Fixes
+
+* **git:** add UTC timezone to normalized git dates to prevent previous-year parse failures ([#215](https://github.com/kolatts/pncli/issues/215)) ([0023fae](https://github.com/kolatts/pncli/commit/0023fae57620f10cb0ce82f21a05c0b6663518c4)), closes [#214](https://github.com/kolatts/pncli/issues/214)
+* **git:** increase execFileSync maxBuffer to 200 MB to prevent ENOBUFS on large repos ([#218](https://github.com/kolatts/pncli/issues/218)) ([f07292e](https://github.com/kolatts/pncli/commit/f07292e7b18d18a2ca01629c73ff05c74ea958e5)), closes [#217](https://github.com/kolatts/pncli/issues/217)
+* **openshift:** send Accept: */* in openshiftText to avoid HTTP 406 ([#213](https://github.com/kolatts/pncli/issues/213)) ([ffa2a77](https://github.com/kolatts/pncli/commit/ffa2a77ba788be395f95ce4c3d423019601d503a)), closes [#212](https://github.com/kolatts/pncli/issues/212)
+* **skills:** always prompt for plugin in sync, keep .agents default, add setup hint ([#223](https://github.com/kolatts/pncli/issues/223)) ([ed23034](https://github.com/kolatts/pncli/commit/ed230341d086797eab107bf4979df8e6eee5779a))
+
 ## [1.14.1](https://github.com/kolatts/pncli/compare/v1.14.0...v1.14.1) (2026-06-14)
 
 
