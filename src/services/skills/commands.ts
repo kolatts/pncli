@@ -235,12 +235,14 @@ export function registerSkillsCommands(program: Command): void {
 
   marketplace
     .command('setup')
-    .description('Clone a skills marketplace repo and register it in global config')
+    .description('Clone a skills marketplace repo, register it in global config, and install all plugins')
     .argument('<url>', 'Git clone URL of the marketplace repository')
     .argument('[localPath]', 'Local directory to clone into (default: ~/.agents/marketplaces/<repo-name>)')
     .option('--branch <branch>', 'Branch to clone (default: remote HEAD)')
     .option('--token <token>', 'HTTP access token for authenticated clone and pull (GitHub PAT or Bitbucket token)')
-    .action(async (url: string, localPath: string | undefined, opts: { branch?: string; token?: string }) => {
+    .option('--agent <agent>', 'Target agent host for plugin install: github-copilot | claude-code (default: github-copilot)')
+    .option('--claude', 'Shorthand for --agent claude-code')
+    .action(async (url: string, localPath: string | undefined, opts: { branch?: string; token?: string; agent?: string; claude?: boolean }) => {
       const start = Date.now();
       try {
         const resolvedPath = path.resolve(localPath ?? defaultMarketplacePath(url));
@@ -271,8 +273,51 @@ export function registerSkillsCommands(program: Command): void {
         existing.marketplace = { repoUrl: url, localPath: resolvedPath, ...(opts.token ? { token: opts.token } : {}) };
         writeGlobalConfig(existing, configPath);
 
-        warn('Marketplace ready. Run: pncli skills marketplace sync to install skills.');
-        success({ repoUrl: url, localPath: resolvedPath, branch: opts.branch ?? null, tokenConfigured: !!opts.token }, 'skills', 'marketplace-setup', start);
+        // Determine install target
+        const agentName = opts.claude ? 'claude-code' : (opts.agent ?? 'github-copilot');
+        const agentConfig = AGENT_PATHS[agentName];
+        if (!agentConfig) {
+          throw new Error(`Unknown agent: "${agentName}". Use: ${Object.keys(AGENT_PATHS).join(' | ')}`);
+        }
+        const targetDir = agentConfig.user;
+
+        // Install all plugins from the marketplace
+        const pluginChoices = resolvePluginChoices(resolvedPath);
+        const pluginResults: Record<string, { installed: string[]; failed: string[] }> = {};
+        let totalInstalled = 0;
+
+        if (pluginChoices.length === 0) {
+          warn('No plugins found in marketplace. Check the marketplace repository structure.');
+        } else {
+          warn(`Installing ${pluginChoices.length} plugin(s) to ${targetDir}...`);
+          for (const pluginChoice of pluginChoices) {
+            const skillsSrc = resolveSkillsSrc(resolvedPath, pluginChoice.name);
+            if (!fs.existsSync(skillsSrc)) {
+              pluginResults[pluginChoice.name] = { installed: [], failed: [] };
+              warn(`No skills directory found for plugin "${pluginChoice.name}" — skipping.`);
+              continue;
+            }
+            const { installed, failed } = copyPluginSkills(skillsSrc, targetDir);
+            pluginResults[pluginChoice.name] = { installed, failed };
+            totalInstalled += installed.length;
+            for (const skill of installed) {
+              warn(`  ${skill}: ${path.join(skillsSrc, skill)} → ${path.join(targetDir, skill)}`);
+            }
+            if (failed.length > 0) {
+              warn(`Skipped ${failed.length} skill(s) with invalid names in "${pluginChoice.name}": ${failed.join(', ')}`);
+            }
+          }
+        }
+
+        success({
+          repoUrl: url,
+          localPath: resolvedPath,
+          branch: opts.branch ?? null,
+          tokenConfigured: !!opts.token,
+          plugins: pluginResults,
+          total: totalInstalled,
+          target: targetDir,
+        }, 'skills', 'marketplace-setup', start);
       } catch (err) {
         fail(err, 'skills', 'marketplace-setup', start);
       }
