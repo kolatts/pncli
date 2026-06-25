@@ -8,6 +8,7 @@ function makeConfig(): ResolvedConfig {
     user: { email: undefined, userId: undefined },
     jira: { baseUrl: 'https://jira.example.com', apiToken: 'tok', customFields: [] },
     bitbucket: { baseUrl: 'https://bb.example.com', pat: 'tok' },
+    github: { baseUrl: undefined, token: undefined },
     confluence: { baseUrl: 'https://conf.example.com', apiToken: 'tok', apiTokenExplicit: true },
     artifactory: {},
     sonar: { baseUrl: 'https://sonar.example.com', token: 'tok' },
@@ -20,7 +21,7 @@ function makeConfig(): ResolvedConfig {
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
     openshift: { baseUrl: undefined, token: undefined },
-    defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} }
+    defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} }
   };
 }
 

@@ -9,6 +9,8 @@ export interface GitContext {
   repo: string | null;
   // Azure DevOps Server-resolved fields
   ado: { collection: string; project: string; repo: string } | null;
+  // GitHub-resolved fields
+  github: { owner: string; repo: string } | null;
 }
 
 export function getRepoRoot(): string | null {
@@ -138,6 +140,56 @@ export function parseAdoRemote(
   return { collection, project, repo };
 }
 
+/**
+ * Parses a GitHub remote URL into { owner, repo }.
+ *
+ * Supported formats:
+ *   HTTPS : https://github.com/{owner}/{repo}[.git]
+ *           https://{githubHost}/{owner}/{repo}[.git]
+ *   SSH   : git@github.com:{owner}/{repo}[.git]
+ *           git@{githubHost}:{owner}/{repo}[.git]
+ *
+ * When baseUrl is provided (for GitHub Enterprise), only URLs matching that host are accepted.
+ * When baseUrl is undefined, only github.com URLs are matched.
+ */
+export function parseGitHubRemote(
+  remoteUrl: string,
+  baseUrl: string | undefined
+): { owner: string; repo: string } | null {
+  // Determine which host(s) to match
+  let targetHost: string;
+  if (baseUrl) {
+    try {
+      const normalizedBase = /^https?:\/\//i.test(baseUrl) ? baseUrl : `https://${baseUrl}`;
+      targetHost = new URL(normalizedBase).hostname.toLowerCase();
+    } catch {
+      targetHost = baseUrl.replace(/\/$/, '').replace(/^https?:\/\//i, '').split(/[:/]/)[0]!.toLowerCase();
+    }
+  } else {
+    targetHost = 'github.com';
+  }
+
+  // SSH format: git@{host}:{owner}/{repo}[.git]
+  const sshMatch = remoteUrl.match(/^git@([^:]+):([^/]+)\/([^/]+?)(?:\.git)?$/);
+  if (sshMatch) {
+    const [, host, owner, repo] = sshMatch;
+    if (host!.toLowerCase() === targetHost) {
+      return { owner: owner!, repo: repo! };
+    }
+  }
+
+  // HTTPS format: https://{host}/{owner}/{repo}[.git]
+  const httpsMatch = remoteUrl.match(/^https?:\/\/([^/:]+)(?::\d+)?\/([^/]+)\/([^/]+?)(?:\.git)?$/);
+  if (httpsMatch) {
+    const [, host, owner, repo] = httpsMatch;
+    if (host!.toLowerCase() === targetHost) {
+      return { owner: owner!, repo: repo! };
+    }
+  }
+
+  return null;
+}
+
 function getRemoteUrls(repoRoot: string): string[] {
   try {
     const output = execSync('git remote -v', { encoding: 'utf8', cwd: repoRoot });
@@ -180,5 +232,15 @@ export function getGitContext(config: ResolvedConfig): GitContext | null {
     }
   }
 
-  return { root, branch, project, repo, ado: adoContext };
+  // GitHub: disambiguated by github.com host or configured baseUrl
+  let githubContext: GitContext['github'] = null;
+  for (const url of remoteUrls) {
+    const parsed = parseGitHubRemote(url, config.github.baseUrl);
+    if (parsed) {
+      githubContext = parsed;
+      break;
+    }
+  }
+
+  return { root, branch, project, repo, ado: adoContext, github: githubContext };
 }

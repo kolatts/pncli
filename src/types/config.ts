@@ -34,6 +34,11 @@ export interface BitbucketConfig {
   pat?: string;
 }
 
+export interface GitHubConfig {
+  baseUrl?: string;
+  token?: string;
+}
+
 export interface ConfluenceConfig {
   baseUrl?: string;
   apiToken?: string;
@@ -48,6 +53,12 @@ export interface JiraDefaults {
 export interface BitbucketDefaults {
   project?: string | null;
   repo?: string | null;
+  targetBranch?: string;
+}
+
+export interface GitHubDefaults {
+  owner?: string;
+  repo?: string;
   targetBranch?: string;
 }
 
@@ -138,6 +149,7 @@ export interface UdeployDefaults {
 export interface Defaults {
   jira?: JiraDefaults;
   bitbucket?: BitbucketDefaults;
+  github?: GitHubDefaults;
   sonar?: SonarDefaults;
   sde?: SdeDefaults;
   ado?: AdoDefaults;
@@ -153,6 +165,7 @@ export interface GlobalConfig {
   user?: UserConfig;
   jira?: JiraConfig;
   bitbucket?: BitbucketConfig;
+  github?: GitHubConfig;
   confluence?: ConfluenceConfig;
   artifactory?: ArtifactoryConfig;
   sonar?: SonarConfig;
@@ -187,6 +200,10 @@ export interface ResolvedConfig {
   bitbucket: {
     baseUrl: string | undefined;
     pat: string | undefined;
+  };
+  github: {
+    baseUrl: string | undefined;
+    token: string | undefined;
   };
   confluence: {
     baseUrl: string | undefined;
@@ -251,6 +268,7 @@ export interface ResolvedConfig {
   defaults: {
     jira: JiraDefaults;
     bitbucket: BitbucketDefaults;
+    github: GitHubDefaults;
     sonar: SonarDefaults;
     sde: SdeDefaults;
     ado: AdoDefaults;

@@ -185,6 +185,18 @@ export class HttpClient {
     };
   }
 
+  private githubHeaders(): Record<string, string> {
+    const { token } = this.config.github;
+    if (!token) throw new PncliError('GitHub credentials not configured. Run: pncli config init');
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Connection': 'close'
+    };
+  }
+
   async jira<T>(
     path: string,
     opts: HttpRequestOptions = {}
@@ -303,6 +315,92 @@ export class HttpClient {
     }
 
     return request<T>(url, { method: 'POST', headers, body: formData }, opts.timeoutMs ?? 60000);
+  }
+
+  async github<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.github.baseUrl;
+    if (!baseUrl) throw new PncliError('GitHub baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.githubHeaders();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
+  async githubText(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<string> {
+    const baseUrl = this.config.github.baseUrl;
+    if (!baseUrl) throw new PncliError('GitHub baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const token = this.config.github.token;
+    if (!token) throw new PncliError('GitHub credentials not configured. Run: pncli config init');
+
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github.v3.diff',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Connection': 'close'
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      fs.writeSync(process.stderr.fd, `DRY RUN: ${opts.method ?? 'GET'} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const response = await fetchWithTimeout(url, {
+      method: opts.method ?? 'GET',
+      headers
+    }, opts.timeoutMs ?? 30000);
+
+    if (!response.ok) {
+      let message = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const parsed = JSON.parse(await response.text());
+        if (parsed.message) message = String(parsed.message);
+      } catch { /* ignore */ }
+      throw new PncliError(message, response.status, url);
+    }
+
+    return response.text();
+  }
+
+  async githubPaginate<T>(
+    fetchPage: (page: number, perPage: number) => Promise<T[]>
+  ): Promise<T[]> {
+    const results: T[] = [];
+    let page = 1;
+    const perPage = 100;
+
+    while (true) {
+      const items = await fetchPage(page, perPage);
+      results.push(...items);
+      if (items.length < perPage) break;
+      page++;
+    }
+
+    return results;
   }
 
   async bitbucket<T>(
