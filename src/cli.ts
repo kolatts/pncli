@@ -13,6 +13,7 @@ import { loadConfig } from './lib/config.js';
 import { registerGitCommands } from './services/git/commands.js';
 import { registerJiraCommands } from './services/jira/commands.js';
 import { registerBitbucketCommands } from './services/bitbucket/commands.js';
+import { registerGitHubCommands } from './services/github/commands.js';
 import { registerConfluenceCommands } from './services/confluence/commands.js';
 import { registerSonarCommands } from './services/sonar/commands.js';
 import { registerSdeCommands } from './services/sde/commands.js';
@@ -69,6 +70,7 @@ program.hook('preAction', (thisCommand) => {
 registerGitCommands(program);
 registerJiraCommands(program);
 registerBitbucketCommands(program);
+registerGitHubCommands(program);
 registerConfluenceCommands(program);
 registerSonarCommands(program);
 registerSdeCommands(program);
@@ -92,6 +94,7 @@ Services:
   deps         Dependency scanning, CVE detection, license auditing
   jira         Jira Data Cloud
   bitbucket    Bitbucket Server
+  github       GitHub (PRs, reviews, comments, checks)
   confluence   Confluence
   sonar        SonarQube Server (quality gates, issues, metrics, hotspots)
   sde          SDElements (threat modeling, countermeasures, compliance)

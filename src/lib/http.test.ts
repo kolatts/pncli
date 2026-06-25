@@ -8,6 +8,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     user: { email: undefined, userId: undefined },
     jira: { baseUrl: 'https://jira.example.com', apiToken: 'tok', customFields: [] },
     bitbucket: { baseUrl: 'https://bb.example.com', pat: 'tok' },
+    github: { baseUrl: 'https://api.github.com', token: 'tok' },
     confluence: { baseUrl: 'https://conf.example.com', apiToken: 'tok', apiTokenExplicit: true },
     artifactory: {},
     sonar: { baseUrl: 'https://sonar.example.com', token: 'tok' },
@@ -20,7 +21,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
     openshift: { baseUrl: undefined, token: undefined },
-    defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
+    defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
     ...overrides
   };
 }
@@ -34,6 +35,11 @@ describe('HttpClient — dry-run', () => {
   it('throws PncliError with status 0 on bitbucket dry-run', async () => {
     const client = new HttpClient(baseConfig(), true);
     await expect(client.bitbucket('/rest/api/1.0/projects')).rejects.toMatchObject({ status: 0 });
+  });
+
+  it('throws PncliError with status 0 on github dry-run', async () => {
+    const client = new HttpClient(baseConfig(), true);
+    await expect(client.github('/user')).rejects.toMatchObject({ status: 0 });
   });
 
   it('throws PncliError with status 0 on sonar dry-run', async () => {
@@ -74,6 +80,20 @@ describe('HttpClient — missing credentials', () => {
     config.bitbucket = { baseUrl: 'https://bb.example.com', pat: undefined };
     const client = new HttpClient(config);
     await expect(client.bitbucket('/rest/api/1.0/projects')).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('throws on missing github baseUrl', async () => {
+    const config = baseConfig();
+    config.github = { baseUrl: undefined, token: 'tok' };
+    const client = new HttpClient(config);
+    await expect(client.github('/user')).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('throws on missing github token', async () => {
+    const config = baseConfig();
+    config.github = { baseUrl: 'https://api.github.com', token: undefined };
+    const client = new HttpClient(config);
+    await expect(client.github('/user')).rejects.toMatchObject({ name: 'PncliError' });
   });
 
   it('throws on missing ado baseUrl', async () => {

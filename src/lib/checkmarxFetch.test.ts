@@ -7,6 +7,7 @@ function makeConfig(overrides: Partial<ResolvedConfig['checkmarx']> = {}): Resol
     user: { email: undefined, userId: undefined },
     jira: { baseUrl: undefined, apiToken: undefined, customFields: [] },
     bitbucket: { baseUrl: undefined, pat: undefined },
+    github: { baseUrl: undefined, token: undefined },
     confluence: { baseUrl: undefined, apiToken: undefined, apiTokenExplicit: false },
     artifactory: {},
     sonar: { baseUrl: undefined, token: undefined },
@@ -24,7 +25,7 @@ function makeConfig(overrides: Partial<ResolvedConfig['checkmarx']> = {}): Resol
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
     openshift: { baseUrl: undefined, token: undefined },
-    defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} }
+    defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} }
   };
 }
 

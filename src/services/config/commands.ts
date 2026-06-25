@@ -117,6 +117,17 @@ export function registerConfigCommands(program: Command): void {
           results.bitbucket = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.github.baseUrl) {
+          try {
+            await http.github<unknown>('/user');
+            results.github = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.github = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.github = { ok: null, message: 'not configured' };
+        }
+
         if (cfg.confluence.baseUrl) {
           try {
             await http.confluence<unknown>('/rest/api/space', { params: { limit: 1 } });
@@ -315,6 +326,20 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        // GitHub
+        if (!cfg.github.token) {
+          results.github = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.github.baseUrl) {
+          results.github = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.github<unknown>('/user', { timeoutMs: 10_000 });
+            results.github = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.github = categorize(err);
+          }
+        }
+
         // Confluence — distinguish explicit token from Jira fallback
         if (!cfg.confluence.apiTokenExplicit && !cfg.jira.apiToken) {
           results.confluence = { status: 'blank', message: 'not configured' };
@@ -496,7 +521,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift'] as const;
+          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -514,7 +539,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift'] as const;
+            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -577,6 +602,45 @@ async function initGlobalConfig(start: number): Promise<void> {
   const bitbucketPat = await password({
     message: 'Bitbucket personal access token:'
   });
+
+  process.stderr.write('\n── GitHub ────────────────────────────────────────\n');
+  const useGitHub = await confirm({
+    message: 'Configure GitHub for PR operations?',
+    default: false
+  });
+
+  let githubBaseUrl = '';
+  let githubToken = '';
+
+  if (useGitHub) {
+    githubBaseUrl = await input({
+      message: 'GitHub API base URL\n  GitHub.com: api.github.com\n  GitHub Enterprise: <host>/api/v3\n  URL: ',
+      default: ''
+    });
+
+    githubToken = await password({
+      message: 'GitHub personal access token (classic or fine-grained):'
+    });
+
+    if (githubBaseUrl && githubToken) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          github: {
+            baseUrl: normalizeBaseUrl(githubBaseUrl),
+            token: githubToken
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.github<unknown>('/user');
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to GitHub: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your URL and token and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
 
   process.stderr.write('\n── Confluence ────────────────────────────────────\n');
   const confluenceBaseUrl = await input({
@@ -1166,6 +1230,12 @@ async function initGlobalConfig(start: number): Promise<void> {
       baseUrl: normalizeBaseUrl(bitbucketBaseUrl) || undefined,
       pat: bitbucketPat || undefined
     },
+    ...(useGitHub && githubBaseUrl ? {
+      github: {
+        baseUrl: normalizeBaseUrl(githubBaseUrl),
+        token: githubToken || undefined
+      }
+    } : {}),
     ...(confluenceBaseUrl || confluenceApiToken ? {
       confluence: {
         baseUrl: normalizeBaseUrl(confluenceBaseUrl) || undefined,

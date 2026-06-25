@@ -7,6 +7,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     user: { email: 'user@example.com', userId: 'user1' },
     jira: { baseUrl: 'https://jira.example.com', apiToken: 'secret-jira', customFields: [] },
     bitbucket: { baseUrl: 'https://bb.example.com', pat: 'secret-bb' },
+    github: { baseUrl: 'https://api.github.com', token: 'secret-gh' },
     confluence: { baseUrl: 'https://confluence.example.com', apiToken: 'secret-confluence', apiTokenExplicit: true },
     artifactory: { baseUrl: 'https://art.example.com', token: 'secret-art', npmRepo: 'npm', nugetRepo: 'nuget', mavenRepo: 'maven' },
     sonar: { baseUrl: 'https://sonar.example.com', token: 'secret-sonar' },
@@ -19,7 +20,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
     openshift: { baseUrl: undefined, token: undefined },
-    defaults: { jira: {}, bitbucket: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
+    defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
     ...overrides
   };
 }
@@ -33,6 +34,18 @@ describe('maskConfig', () => {
   it('masks bitbucket pat', () => {
     const masked = maskConfig(baseConfig()) as ResolvedConfig;
     expect(masked.bitbucket.pat).toBe('***');
+  });
+
+  it('masks github token', () => {
+    const masked = maskConfig(baseConfig()) as ResolvedConfig;
+    expect(masked.github.token).toBe('***');
+  });
+
+  it('sets absent github token to undefined rather than ***', () => {
+    const config = baseConfig();
+    config.github.token = undefined;
+    const masked = maskConfig(config) as ResolvedConfig;
+    expect(masked.github.token).toBeUndefined();
   });
 
   it('masks confluence apiToken', () => {
