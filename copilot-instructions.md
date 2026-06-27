@@ -317,6 +317,98 @@ pncli bitbucket get-build-status
   --commit <sha>  Commit SHA
 ```
 
+### Github
+
+```
+pncli github list-prs
+  --state <state>  PR state (choices: "open", "closed", "all", default: "open")
+  --head <branch>  Filter by head branch (user:branch)
+  --base <branch>  Filter by base branch
+
+pncli github get-pr
+  --number <n>  Pull request number
+
+pncli github create-pr
+  --title <title>  PR title
+  --head <branch>  Source branch (or user:branch for forks)
+  --base <branch>  Target branch (defaults to config or main)
+  --body <body>    PR description
+  --draft          Create as draft PR
+  --owner <owner>  GitHub owner (overrides parent --owner)
+  --repo <repo>    GitHub repository name (overrides parent --repo)
+
+pncli github update-pr
+  --number <n>     Pull request number
+  --title <title>  New title
+  --body <body>    New description
+  --base <branch>  New base branch
+
+pncli github merge-pr
+  --number <n>            Pull request number
+  --method <method>       Merge method (choices: "merge", "squash", "rebase",
+  default: "merge")
+  --commit-title <title>  Commit title for merge/squash
+  --commit-message <msg>  Commit message for merge/squash
+
+pncli github close-pr
+  --number <n>  Pull request number
+
+pncli github list-comments
+  --number <n>  Pull request number
+
+pncli github add-comment
+  --number <n>   Pull request number
+  --body <text>  Comment text
+
+pncli github list-review-comments
+  --number <n>  Pull request number
+
+pncli github add-inline-comment
+  --number <n>    Pull request number
+  --commit <sha>  Commit SHA the comment is on
+  --file <path>   File path
+  --line <n>      Line number
+  --body <text>   Comment text
+  --side <side>   Comment side (choices: "LEFT", "RIGHT", default: "RIGHT")
+
+pncli github reply-comment
+  --number <n>       Pull request number
+  --comment-id <id>  Review comment ID to reply to
+  --body <text>      Reply text
+
+pncli github delete-comment
+  --comment-id <id>  Comment ID
+
+pncli github delete-review-comment
+  --comment-id <id>  Review comment ID
+
+pncli github diff
+  --number <n>  Pull request number
+
+pncli github list-files
+  --number <n>  Pull request number
+
+pncli github list-reviews
+  --number <n>  Pull request number
+
+pncli github approve
+  --number <n>   Pull request number
+  --body <text>  Review body text
+
+pncli github request-changes
+  --number <n>   Pull request number
+  --body <text>  Review feedback text
+
+pncli github list-reviewers
+  --number <n>  Pull request number
+
+pncli github get-status
+  --ref <ref>  Git ref (branch, tag, or commit SHA)
+
+pncli github list-checks
+  --ref <ref>  Git ref (branch, tag, or commit SHA)
+```
+
 ### Confluence
 
 ```

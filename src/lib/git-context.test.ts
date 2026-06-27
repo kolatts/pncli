@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRemote, parseAdoRemote } from './git-context.js';
+import { parseRemote, parseAdoRemote, parseGitHubRemote } from './git-context.js';
 
 describe('parseRemote', () => {
   it('returns null when bitbucketBaseUrl is undefined', () => {
@@ -146,5 +146,46 @@ describe('parseAdoRemote', () => {
       'https://tfs.example.com'
     );
     expect(result).toEqual({ collection: 'col', project: 'My Project', repo: 'myrepo' });
+  });
+});
+
+describe('parseGitHubRemote', () => {
+  it('parses git@ SSH format on github.com', () => {
+    expect(parseGitHubRemote('git@github.com:kolatts/pncli.git', undefined))
+      .toEqual({ owner: 'kolatts', repo: 'pncli' });
+  });
+
+  it('parses HTTPS format on github.com', () => {
+    expect(parseGitHubRemote('https://github.com/kolatts/pncli.git', undefined))
+      .toEqual({ owner: 'kolatts', repo: 'pncli' });
+  });
+
+  it('parses ssh:// protocol format on github.com', () => {
+    expect(parseGitHubRemote('ssh://git@github.com/kolatts/pncli.git', undefined))
+      .toEqual({ owner: 'kolatts', repo: 'pncli' });
+  });
+
+  it('parses ssh:// protocol format with a port', () => {
+    expect(parseGitHubRemote('ssh://git@github.com:22/kolatts/pncli.git', undefined))
+      .toEqual({ owner: 'kolatts', repo: 'pncli' });
+  });
+
+  it('matches a GitHub Enterprise host when baseUrl is provided', () => {
+    expect(parseGitHubRemote('ssh://git@ghe.example.com/org/repo.git', 'https://ghe.example.com'))
+      .toEqual({ owner: 'org', repo: 'repo' });
+    expect(parseGitHubRemote('git@ghe.example.com:org/repo.git', 'https://ghe.example.com'))
+      .toEqual({ owner: 'org', repo: 'repo' });
+  });
+
+  it('matches github.com remotes when baseUrl is api.github.com', () => {
+    expect(parseGitHubRemote('git@github.com:kolatts/pncli.git', 'https://api.github.com'))
+      .toEqual({ owner: 'kolatts', repo: 'pncli' });
+    expect(parseGitHubRemote('https://github.com/kolatts/pncli.git', 'https://api.github.com'))
+      .toEqual({ owner: 'kolatts', repo: 'pncli' });
+  });
+
+  it('returns null when the host does not match the target', () => {
+    expect(parseGitHubRemote('git@gitlab.com:org/repo.git', undefined)).toBeNull();
+    expect(parseGitHubRemote('ssh://git@gitlab.com/org/repo.git', undefined)).toBeNull();
   });
 });
