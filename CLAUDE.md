@@ -37,6 +37,10 @@ When working on pncli, always use the repo-internal `/ship`.
 Always use `kolatts/<description>` or `kolatts/<issue#>-<description>`.
 - Example: `kolatts/add-ship-skill` or `kolatts/75-add-ship-skill`
 
+## GitHub Issues
+
+Every new branch that represents a work request must have a corresponding GitHub issue. Create the issue before or immediately after creating the branch. Use the issue number in the branch name where possible (`kolatts/<issue#>-<description>`).
+
 ## Adding a New Service Integration
 
 When adding a new service integration (new entry under `src/services/`), these files must all be updated together:

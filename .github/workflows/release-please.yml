@@ -50,3 +50,18 @@ jobs:
       - run: npm publish --access=public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Notify Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/v${VERSION}"
+          NPM_URL="https://www.npmjs.com/package/@kolatts/pncli/v/${VERSION}"
+          jq -n \
+            --arg title "@kolatts/pncli v${VERSION} published" \
+            --arg url "$RELEASE_URL" \
+            --arg desc "[Release notes](${RELEASE_URL}) · [npm](${NPM_URL})" \
+            --argjson color 16750848 \
+            '{"embeds":[{"title":$title,"url":$url,"description":$desc,"color":$color}]}' \
+          | curl -sf -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" -d @-
