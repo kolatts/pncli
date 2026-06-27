@@ -36,6 +36,7 @@ For detailed setup of any service, read the included file for that service.
 |---------|------|-------------------|
 | Jira | `jira.md` | Issues, sprints, custom fields |
 | Bitbucket | `bitbucket.md` | Repos, PRs, diffs |
+| GitHub | `github.md` | PRs, reviews, comments, checks |
 | Azure DevOps | `ado.md` | Work items, repos, PRs, pipelines |
 | Confluence | `confluence.md` | Pages, spaces |
 | JWT | `jwt.md` | Decode JWT tokens |
@@ -68,7 +69,7 @@ Ask: "Does this org use Jira or Azure DevOps for work items?" See `jira.md` or `
 
 **Step 3 — Source control**
 
-Ask: "Does this org use Bitbucket or Azure DevOps for PRs?" See `bitbucket.md` or `ado.md`.
+Ask: "Does this org use GitHub, Bitbucket, or Azure DevOps for PRs?" See `github.md`, `bitbucket.md`, or `ado.md`.
 
 **Step 4 — Optional services**
 

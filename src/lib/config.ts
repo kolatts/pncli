@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
-import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, SonarDefaults, SdeDefaults, AdoDefaults, UdeployDefaults } from '../types/config.js';
+import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, GitHubDefaults, SonarDefaults, SdeDefaults, AdoDefaults, UdeployDefaults } from '../types/config.js';
 import type { CustomFieldDefinition } from '../types/jira.js';
 
 const ENV_KEYS = {
@@ -12,6 +12,8 @@ const ENV_KEYS = {
   JIRA_API_TOKEN: 'PNCLI_JIRA_API_TOKEN',
   BITBUCKET_BASE_URL: 'PNCLI_BITBUCKET_BASE_URL',
   BITBUCKET_PAT: 'PNCLI_BITBUCKET_PAT',
+  GITHUB_BASE_URL: 'PNCLI_GITHUB_BASE_URL',
+  GITHUB_TOKEN: 'PNCLI_GITHUB_TOKEN',
   CONFLUENCE_BASE_URL: 'PNCLI_CONFLUENCE_BASE_URL',
   CONFLUENCE_API_TOKEN: 'PNCLI_CONFLUENCE_API_TOKEN',
   ARTIFACTORY_BASE_URL: 'PNCLI_ARTIFACTORY_BASE_URL',
@@ -97,10 +99,11 @@ function mergeCustomFields(
 function mergeDefaults(
   global: GlobalConfig['defaults'],
   repo: RepoConfig['defaults']
-): { jira: JiraDefaults; bitbucket: BitbucketDefaults; sonar: SonarDefaults; sde: SdeDefaults; ado: AdoDefaults; udeploy: UdeployDefaults } {
+): { jira: JiraDefaults; bitbucket: BitbucketDefaults; github: GitHubDefaults; sonar: SonarDefaults; sde: SdeDefaults; ado: AdoDefaults; udeploy: UdeployDefaults } {
   return {
     jira: { ...global?.jira, ...repo?.jira },
     bitbucket: { ...global?.bitbucket, ...repo?.bitbucket },
+    github: { ...global?.github, ...repo?.github },
     sonar: { ...global?.sonar, ...repo?.sonar },
     sde: { ...global?.sde, ...repo?.sde },
     ado: { ...global?.ado, ...repo?.ado },
@@ -137,6 +140,10 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
     bitbucket: {
       baseUrl: process.env[ENV_KEYS.BITBUCKET_BASE_URL] ?? globalConfig.bitbucket?.baseUrl,
       pat: process.env[ENV_KEYS.BITBUCKET_PAT] ?? globalConfig.bitbucket?.pat
+    },
+    github: {
+      baseUrl: process.env[ENV_KEYS.GITHUB_BASE_URL] ?? globalConfig.github?.baseUrl,
+      token: process.env[ENV_KEYS.GITHUB_TOKEN] ?? globalConfig.github?.token
     },
     confluence: {
       baseUrl: process.env[ENV_KEYS.CONFLUENCE_BASE_URL] ?? globalConfig.confluence?.baseUrl,
@@ -277,6 +284,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     bitbucket: {
       ...config.bitbucket,
       pat: config.bitbucket.pat ? '***' : undefined
+    },
+    github: {
+      ...config.github,
+      token: config.github.token ? '***' : undefined
     },
     confluence: {
       ...config.confluence,
