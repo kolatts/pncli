@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.16.0](https://github.com/kolatts/pncli/compare/v1.15.0...v1.16.0) (2026-06-27)
+
+
+### Features
+
+* add GitHub integration with PR, review, and comment operations ([#231](https://github.com/kolatts/pncli/issues/231)) ([8410e45](https://github.com/kolatts/pncli/commit/8410e45190819f68082442841c1cc506a044d69d))
+* **ci:** Discord notifications for issues and NPM releases ([#238](https://github.com/kolatts/pncli/issues/238)) ([c933caa](https://github.com/kolatts/pncli/commit/c933caa01fa0ba285fc328d7fda070db8df3f98e))
+* **site:** add Beyond Boring Discord link to footer and feedback page ([#236](https://github.com/kolatts/pncli/issues/236)) ([4a062f0](https://github.com/kolatts/pncli/commit/4a062f08252fc23f878f3f9d42831f7eb57b1786))
+
+
+### Bug Fixes
+
+* **functions:** send close-reason email when GitHub issues are resolved ([#235](https://github.com/kolatts/pncli/issues/235)) ([d5ba032](https://github.com/kolatts/pncli/commit/d5ba03234aa35081c625ee6be5e7dd8d2778f4bb)), closes [#233](https://github.com/kolatts/pncli/issues/233)
+* **skills:** marketplace setup now clones and copies all plugins ([#227](https://github.com/kolatts/pncli/issues/227)) ([a5221e2](https://github.com/kolatts/pncli/commit/a5221e2b307beb929a477f9b0714d74e69e4f9d9))
+
 ## [1.15.0](https://github.com/kolatts/pncli/compare/v1.14.1...v1.15.0) (2026-06-21)
 
 
