@@ -196,6 +196,8 @@ export class GitHubClient {
   }
 
   async getDiff(owner: string, repo: string, pullNumber: number): Promise<string> {
+    // GitHub returns diff content when Accept: application/vnd.github.v3.diff is set —
+    // githubText() sets that header, so the same path as getPR gives the raw diff.
     return this.http.githubText(`/repos/${owner}/${repo}/pulls/${pullNumber}`);
   }
 
@@ -241,10 +243,21 @@ export class GitHubClient {
   }
 
   async listCheckRuns(owner: string, repo: string, ref: string): Promise<GitHubCheckRun[]> {
-    const result = await this.http.github<{ check_runs: GitHubCheckRun[] }>(
-      `/repos/${owner}/${repo}/commits/${ref}/check-runs`,
-      { params: { per_page: 100 } }
-    );
-    return result.check_runs ?? [];
+    // The check-runs payload is { total_count, check_runs: [] }, not a plain array,
+    // so githubPaginate() can't be used — paginate manually until a short page.
+    const results: GitHubCheckRun[] = [];
+    let page = 1;
+    const perPage = 100;
+    while (true) {
+      const result = await this.http.github<{ check_runs: GitHubCheckRun[] }>(
+        `/repos/${owner}/${repo}/commits/${ref}/check-runs`,
+        { params: { per_page: perPage, page } }
+      );
+      const runs = result.check_runs ?? [];
+      results.push(...runs);
+      if (runs.length < perPage) break;
+      page++;
+    }
+    return results;
   }
 }

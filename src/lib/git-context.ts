@@ -148,6 +148,7 @@ export function parseAdoRemote(
  *           https://{githubHost}/{owner}/{repo}[.git]
  *   SSH   : git@github.com:{owner}/{repo}[.git]
  *           git@{githubHost}:{owner}/{repo}[.git]
+ *           ssh://git@{githubHost}[:port]/{owner}/{repo}[.git]
  *
  * When baseUrl is provided (for GitHub Enterprise), only URLs matching that host are accepted.
  * When baseUrl is undefined, only github.com URLs are matched.
@@ -173,6 +174,15 @@ export function parseGitHubRemote(
   const sshMatch = remoteUrl.match(/^git@([^:]+):([^/]+)\/([^/]+?)(?:\.git)?$/);
   if (sshMatch) {
     const [, host, owner, repo] = sshMatch;
+    if (host!.toLowerCase() === targetHost) {
+      return { owner: owner!, repo: repo! };
+    }
+  }
+
+  // ssh:// protocol form: ssh://git@{host}[:port]/{owner}/{repo}[.git]
+  const sshProtoMatch = remoteUrl.match(/^ssh:\/\/git@([^/:]+)(?::\d+)?\/([^/]+)\/([^/]+?)(?:\.git)?$/);
+  if (sshProtoMatch) {
+    const [, host, owner, repo] = sshProtoMatch;
     if (host!.toLowerCase() === targetHost) {
       return { owner: owner!, repo: repo! };
     }

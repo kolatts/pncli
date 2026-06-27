@@ -352,14 +352,11 @@ export class HttpClient {
     if (!baseUrl) throw new PncliError('GitHub baseUrl not configured. Run: pncli config init');
 
     const url = buildUrl(baseUrl, path, opts.params);
-    const token = this.config.github.token;
-    if (!token) throw new PncliError('GitHub credentials not configured. Run: pncli config init');
-
+    // Reuse githubHeaders() (which enforces the token check) and override Accept so
+    // GitHub returns the raw unified diff instead of JSON.
     const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/vnd.github.v3.diff',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'Connection': 'close'
+      ...this.githubHeaders(),
+      'Accept': 'application/vnd.github.v3.diff'
     };
 
     if (this.dryRun) {

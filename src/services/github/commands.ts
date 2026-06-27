@@ -1,4 +1,5 @@
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
+import type { ResolvedConfig } from '../../types/config.js';
 import { GitHubClient } from './client.js';
 import { createHttpClient } from '../../lib/http.js';
 import { loadConfig } from '../../lib/config.js';
@@ -9,7 +10,7 @@ import { PncliError } from '../../lib/errors.js';
 function getClient(
   program: Command,
   overrides?: { owner?: string; repo?: string }
-): { client: GitHubClient; owner: string; repo: string } {
+): { client: GitHubClient; owner: string; repo: string; config: ResolvedConfig } {
   const opts = program.optsWithGlobals();
   const config = loadConfig({ configPath: opts.config });
   const http = createHttpClient(config, Boolean(opts.dryRun));
@@ -26,7 +27,7 @@ function getClient(
     );
   }
 
-  return { client, owner, repo };
+  return { client, owner, repo, config };
 }
 
 export function registerGitHubCommands(program: Command): void {
@@ -40,7 +41,7 @@ export function registerGitHubCommands(program: Command): void {
 
   gh.command('list-prs')
     .description('List pull requests')
-    .option('--state <state>', 'PR state: open|closed|all', 'open')
+    .addOption(new Option('--state <state>', 'PR state').choices(['open', 'closed', 'all']).default('open'))
     .option('--head <branch>', 'Filter by head branch (user:branch)')
     .option('--base <branch>', 'Filter by base branch')
     .action(async (opts: { state?: string; head?: string; base?: string }) => {
@@ -82,8 +83,7 @@ export function registerGitHubCommands(program: Command): void {
     .action(async (opts: { title: string; head: string; base?: string; body?: string; draft?: boolean; owner?: string; repo?: string }) => {
       const start = Date.now();
       try {
-        const { client, owner, repo } = getClient(gh, { owner: opts.owner, repo: opts.repo });
-        const config = loadConfig({ configPath: gh.optsWithGlobals().config });
+        const { client, owner, repo, config } = getClient(gh, { owner: opts.owner, repo: opts.repo });
         const base = opts.base ?? config.defaults.github?.targetBranch ?? 'main';
         const data = await client.createPR({
           owner,
@@ -200,7 +200,7 @@ export function registerGitHubCommands(program: Command): void {
     .requiredOption('--file <path>', 'File path')
     .requiredOption('--line <n>', 'Line number')
     .requiredOption('--body <text>', 'Comment text')
-    .option('--side <side>', 'Comment side: LEFT|RIGHT (default RIGHT)', 'RIGHT')
+    .addOption(new Option('--side <side>', 'Comment side').choices(['LEFT', 'RIGHT']).default('RIGHT'))
     .action(async (opts: { number: string; commit: string; file: string; line: string; body: string; side?: string }) => {
       const start = Date.now();
       try {
