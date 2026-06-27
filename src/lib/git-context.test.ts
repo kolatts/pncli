@@ -177,6 +177,13 @@ describe('parseGitHubRemote', () => {
       .toEqual({ owner: 'org', repo: 'repo' });
   });
 
+  it('matches github.com remotes when baseUrl is api.github.com', () => {
+    expect(parseGitHubRemote('git@github.com:kolatts/pncli.git', 'https://api.github.com'))
+      .toEqual({ owner: 'kolatts', repo: 'pncli' });
+    expect(parseGitHubRemote('https://github.com/kolatts/pncli.git', 'https://api.github.com'))
+      .toEqual({ owner: 'kolatts', repo: 'pncli' });
+  });
+
   it('returns null when the host does not match the target', () => {
     expect(parseGitHubRemote('git@gitlab.com:org/repo.git', undefined)).toBeNull();
     expect(parseGitHubRemote('ssh://git@gitlab.com/org/repo.git', undefined)).toBeNull();

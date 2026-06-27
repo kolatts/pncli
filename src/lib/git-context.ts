@@ -162,7 +162,9 @@ export function parseGitHubRemote(
   if (baseUrl) {
     try {
       const normalizedBase = /^https?:\/\//i.test(baseUrl) ? baseUrl : `https://${baseUrl}`;
-      targetHost = new URL(normalizedBase).hostname.toLowerCase();
+      const hostname = new URL(normalizedBase).hostname.toLowerCase();
+      // api.github.com is the REST API host but git remotes use github.com
+      targetHost = hostname === 'api.github.com' ? 'github.com' : hostname;
     } catch {
       targetHost = baseUrl.replace(/\/$/, '').replace(/^https?:\/\//i, '').split(/[:/]/)[0]!.toLowerCase();
     }

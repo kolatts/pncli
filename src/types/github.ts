@@ -45,10 +45,10 @@ export interface GitHubPR {
   merged_at?: string;
   closed_at?: string;
   merge_commit_sha?: string;
-  commits: number;
-  additions: number;
-  deletions: number;
-  changed_files: number;
+  commits?: number;
+  additions?: number;
+  deletions?: number;
+  changed_files?: number;
 }
 
 export interface GitHubComment {

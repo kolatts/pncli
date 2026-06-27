@@ -123,7 +123,7 @@ export function registerGitHubCommands(program: Command): void {
   gh.command('merge-pr')
     .description('Merge a pull request')
     .requiredOption('--number <n>', 'Pull request number')
-    .option('--method <method>', 'Merge method: merge|squash|rebase', 'merge')
+    .addOption(new Option('--method <method>', 'Merge method').choices(['merge', 'squash', 'rebase']).default('merge'))
     .option('--commit-title <title>', 'Commit title for merge/squash')
     .option('--commit-message <msg>', 'Commit message for merge/squash')
     .action(async (opts: { number: string; method?: string; commitTitle?: string; commitMessage?: string }) => {
