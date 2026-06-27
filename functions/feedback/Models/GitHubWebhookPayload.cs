@@ -24,6 +24,10 @@ public record GitHubWebhookIssue
 
     [JsonPropertyName("labels")]
     public List<GitHubWebhookLabel> Labels { get; init; } = [];
+
+    /// <summary>"completed", "not_planned", or null for legacy closes.</summary>
+    [JsonPropertyName("state_reason")]
+    public string? StateReason { get; init; }
 }
 
 public record GitHubWebhookLabel

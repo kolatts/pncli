@@ -44,21 +44,45 @@ public sealed class EmailService
                 "Confirmation email sent to {Email} for issue #{Number}", toEmail, issueNumber));
     }
 
-    public async Task<bool> SendClosedNotificationAsync(string toEmail, int issueNumber, string issueUrl, string title)
+    public async Task<bool> SendClosedNotificationAsync(
+        string toEmail, int issueNumber, string issueUrl, string title,
+        string? stateReason = null, string? closingComment = null)
     {
         var encodedTitle = WebUtility.HtmlEncode(title);
-        var subject      = $"Your feedback has been resolved — Issue #{issueNumber}";
+
+        var (heading, subject, blurb) = stateReason switch
+        {
+            "completed"   => ("Your feedback has been resolved!",
+                              $"Your feedback has been resolved — Issue #{issueNumber}",
+                              "We've addressed it."),
+            "not_planned" => ("A decision has been made on your feedback",
+                              $"Update on your feedback — Issue #{issueNumber}",
+                              "This issue was closed as not planned. See the issue for details."),
+            _             => ("Your issue has been closed",
+                              $"Your feedback has been closed — Issue #{issueNumber}",
+                              "This issue has been closed."),
+        };
+
+        var commentHtml = closingComment is not null
+            ? EmailTemplates.Quote(WebUtility.HtmlEncode(TruncateComment(closingComment)))
+            : "";
+
+        var commentPlain = closingComment is not null
+            ? $"\n\nNote from the team:\n{TruncateComment(closingComment)}"
+            : "";
 
         var bodyHtml =
-            EmailTemplates.Heading("Your issue has been resolved!") +
-            EmailTemplates.Para($"<strong>{encodedTitle}</strong> ({EmailTemplates.IssueLink(issueNumber, issueUrl)}) has been closed.") +
+            EmailTemplates.Heading(heading) +
+            EmailTemplates.Para($"<strong>{encodedTitle}</strong> ({EmailTemplates.IssueLink(issueNumber, issueUrl)}) — {blurb}") +
+            commentHtml +
             EmailTemplates.Para("Thanks for helping improve pncli!") +
             EmailTemplates.Button(issueUrl, "View Resolution →");
 
         var plain = $"""
-            Your issue has been resolved!
+            {heading}
 
-            "{title}" (issue #{issueNumber}) has been closed.
+            "{title}" (issue #{issueNumber}) — {blurb}{commentPlain}
+
             See the details here: {issueUrl}
 
             Thanks for helping improve pncli!
@@ -70,6 +94,9 @@ public sealed class EmailService
             onSuccess: () => _logger.LogInformation(
                 "Closed notification sent to {Email} for issue #{Number}", toEmail, issueNumber));
     }
+
+    private static string TruncateComment(string text, int maxLength = 500) =>
+        text.Length <= maxLength ? text : text[..maxLength] + "…";
 
     private async Task<bool> SendAsync(string toEmail, string subject, string plain, string html, Action onSuccess)
     {
