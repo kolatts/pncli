@@ -1103,6 +1103,9 @@ pncli skills marketplace setup
   --branch <branch>  Branch to clone (default: remote HEAD)
   --token <token>    HTTP access token for authenticated clone and pull (GitHub
   PAT or Bitbucket token)
+  --agent <agent>    Target agent host for plugin install: github-copilot |
+  claude-code (default: github-copilot)
+  --claude           Shorthand for --agent claude-code
 
 pncli skills marketplace sync
   --agent <agent>  Target agent host: github-copilot | claude-code (default:
