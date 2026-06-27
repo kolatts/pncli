@@ -7,6 +7,7 @@ using Feedback.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using Octokit;
 
 namespace Feedback;
 
@@ -18,6 +19,7 @@ namespace Feedback;
 public class IssueWebhookFunction(
     ILogger<IssueWebhookFunction> logger,
     IssueEmailStore issueEmailStore,
+    GitHubClient github,
     EmailService? emailService = null)
 {
     [Function("IssueWebhook")]
@@ -88,18 +90,42 @@ public class IssueWebhookFunction(
             return req.CreateResponse(HttpStatusCode.OK);
         }
 
-        // ── Send closed notification ──────────────────────────────────────────
-        if (emailService is not null)
+        // ── Fetch last comment as closing context ─────────────────────────────
+        string? closingComment = null;
+        try
         {
-            await emailService.SendClosedNotificationAsync(
-                mapping.Email,
-                payload.Issue.Number,
-                payload.Issue.HtmlUrl,
-                mapping.Title);
+            var repoStr = Environment.GetEnvironmentVariable("GITHUB_REPO") ?? "kolatts/pncli";
+            var parts   = repoStr.Split('/');
+            if (parts.Length == 2)
+            {
+                var comments = await github.Issue.Comment.GetAllForIssue(parts[0], parts[1], payload.Issue.Number);
+                closingComment = comments.LastOrDefault()?.Body;
+            }
         }
-        else
+        catch (Exception ex)
         {
-            logger.LogWarning("EmailService not configured — cannot send closed notification for issue #{Number}", payload.Issue.Number);
+            logger.LogWarning(ex, "Could not fetch closing comment for issue #{Number}", payload.Issue.Number);
+        }
+
+        // ── Send closed notification ──────────────────────────────────────────
+        if (emailService is null)
+        {
+            logger.LogError("EmailService not configured — cannot send closed notification for issue #{Number}", payload.Issue.Number);
+            return req.CreateResponse(HttpStatusCode.InternalServerError);
+        }
+
+        var sent = await emailService.SendClosedNotificationAsync(
+            mapping.Email,
+            payload.Issue.Number,
+            payload.Issue.HtmlUrl,
+            mapping.Title,
+            payload.Issue.StateReason,
+            closingComment);
+
+        if (!sent)
+        {
+            logger.LogError("Failed to send closed notification for issue #{Number} — returning 500 for GitHub retry", payload.Issue.Number);
+            return req.CreateResponse(HttpStatusCode.InternalServerError);
         }
 
         return req.CreateResponse(HttpStatusCode.OK);
