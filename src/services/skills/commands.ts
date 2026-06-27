@@ -252,7 +252,7 @@ export function registerSkillsCommands(program: Command): void {
           throw new Error(`Directory already exists and is not a git repo: ${resolvedPath}`);
         }
         if (hasGit) {
-          warn(`Directory already contains a git repo at ${resolvedPath} — skipping clone, updating config only.`);
+          warn(`Directory already contains a git repo at ${resolvedPath} — skipping clone, updating config and re-installing plugins.`);
         } else {
           const branchLabel = opts.branch ?? 'remote default';
           warn(`Cloning ${url} (branch: ${branchLabel}) → ${resolvedPath}...`);
