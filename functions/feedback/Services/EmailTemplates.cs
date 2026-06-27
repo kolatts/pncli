@@ -83,6 +83,10 @@ internal static class EmailTemplates
     public static string IssueLink(int number, string url) =>
         $"""<a href="{url}" style="color:{Violet};text-decoration:none;font-family:'JetBrains Mono',Menlo,Monaco,'Courier New',monospace;font-size:14px">#{number}</a>""";
 
+    /// <param name="text">Must be HTML-encoded by the caller.</param>
+    public static string Quote(string text) =>
+        $"""<blockquote style="margin:0 0 16px 0;padding:12px 16px;background-color:{OuterBg};border-left:4px solid {Violet};border-radius:0 4px 4px 0"><p style="margin:0;font-size:14px;line-height:1.6;color:{Ink};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;white-space:pre-wrap">{text}</p></blockquote>""";
+
     public static string Button(string url, string label) => $"""
         <table cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px">
           <tr>
