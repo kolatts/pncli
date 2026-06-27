@@ -148,9 +148,12 @@ pncli jira create-issue
   --priority <name>       Priority name
   --assignee <accountId>  Assignee account ID
   --labels <labels>       Comma-separated labels
-  --parent <key>          Parent issue key — creates an "is child of" link after
-  creation
-  --field <Name=value>    Custom field value (repeatable) (default: [])
+  --parent <key>          Parent issue key — sets fields.parent in the create
+  payload
+  --field <Name=value>    Custom field value; use Name=@file.json to read value
+  from file (repeatable) (default: [])
+  --fields-file <path>    Path to a JSON file mapping field names/IDs to their
+  Jira API values
 
 pncli jira update-issue
   --key <issue-key>       Issue key
@@ -159,7 +162,10 @@ pncli jira update-issue
   --priority <name>       New priority
   --assignee <accountId>  New assignee account ID
   --labels <labels>       Comma-separated labels
-  --field <Name=value>    Custom field value (repeatable) (default: [])
+  --field <Name=value>    Custom field value; use Name=@file.json to read value
+  from file (repeatable) (default: [])
+  --fields-file <path>    Path to a JSON file mapping field names/IDs to their
+  Jira API values
 
 pncli jira transition-issue
   --key <issue-key>          Issue key
@@ -179,6 +185,14 @@ pncli jira search
   --jql <query>      JQL query string
   --max-results <n>  Maximum number of results
 
+pncli jira add-label
+  --key <issue-key>  Issue key
+  --labels <labels>  Comma-separated labels to add
+
+pncli jira remove-label
+  --key <issue-key>  Issue key
+  --labels <labels>  Comma-separated labels to remove
+
 pncli jira assign
   --key <issue-key>       Issue key
   --assignee <accountId>  Assignee account ID
@@ -188,9 +202,25 @@ pncli jira link-issue
   --link-type <type>    Link type name or ID
   --target <issue-key>  Target issue key
 
+pncli jira add-attachment
+  --key <issue-key>  Issue key (e.g. PROJ-123)
+  --file <path>      Path to the file to upload
+
+pncli jira list-attachments
+  --key <issue-key>  Issue key (e.g. PROJ-123)
+
+pncli jira download-attachment
+  --key <issue-key>     Issue key (e.g. PROJ-123)
+  --attachment-id <id>  Attachment ID from list-attachments output
+  --dir <path>          Output directory (default: .pncli relative to cwd)
+
 pncli jira fields
-  --discover     Fetch field metadata from Jira API
-  --custom-only  Show only custom fields (requires --discover)
+  --discover           Fetch field metadata from Jira API
+  --custom-only        Show only custom fields (requires --discover)
+  --project <key>      Project key — fetches allowedValues for select fields via
+  createmeta (requires --discover)
+  --issue-type <type>  Filter allowedValues to a specific issue type (requires
+  --project)
 ```
 
 ### Bitbucket
@@ -210,6 +240,9 @@ pncli bitbucket create-pr
   --target <branch>     Target branch (defaults to config)
   --description <desc>  PR description
   --reviewers <users>   Comma-separated reviewer usernames
+  --project <key>       Bitbucket project key (overrides parent --project; use
+  ~username for personal repos)
+  --repo <slug>         Bitbucket repository slug (overrides parent --repo)
 
 pncli bitbucket update-pr
   --id <pr-id>          Pull request ID
@@ -298,7 +331,7 @@ pncli confluence get-page-by-title
 
 pncli confluence list-pages
   --space <key>  Space key
-  --limit <n>    Max results per page (default: all)
+  --limit <n>    Max total pages to return (default: all)
   --start <n>    Offset for first result
 
 pncli confluence get-page-children
@@ -352,7 +385,7 @@ pncli confluence remove-label
 
 pncli confluence list-spaces
   --type <type>  Space type: global or personal
-  --limit <n>    Max results (default: all)
+  --limit <n>    Max total spaces to return (default: all)
 
 pncli confluence get-space
   --key <space-key>  Space key
@@ -605,6 +638,27 @@ pncli ado work add-comment
   --id <n>       Work item ID
   --body <text>  Comment text
 
+pncli ado work add-tag
+  --id <n>       Work item ID
+  --tags <tags>  Semicolon- or comma-separated tags to add
+
+pncli ado work remove-tag
+  --id <n>       Work item ID
+  --tags <tags>  Semicolon- or comma-separated tags to remove
+
+pncli ado work list-attachments
+  --id <n>    Work item ID
+
+pncli ado work add-attachment
+  --id <n>          Work item ID
+  --file <path>     Path to the file to upload
+  --comment <text>  Optional comment for the attachment
+
+pncli ado work download-attachment
+  --id <n>                Work item ID
+  --attachment-id <guid>  Attachment ID from work list-attachments output
+  --dir <path>            Output directory (default: .pncli relative to cwd)
+
 pncli ado work types
   --discover  Fetch from server (always true for this command)
   --save      Save discovered types to ~/.pncli/config.json
@@ -723,6 +777,8 @@ pncli ado pipeline run
 
 pncli ado pipeline list-runs
   --definition <id>  Filter by definition ID
+  --name <name>      Filter by pipeline name (resolved to definition ID; use
+  pipeline list to see names)
   --branch <ref>     Filter by branch name
   --status <filter>  Filter by status (inProgress|completed|cancelling|...)
   --top <n>          Maximum results (default: "50")
@@ -734,20 +790,24 @@ pncli ado pipeline cancel-run
   --id <n>    Build ID
 
 pncli ado pipeline logs
-  --id <n>      Build ID
-  --log-id <n>  Specific log ID (omit to list all logs)
+  --build-id <n>  Build (run) ID — from pipeline list-runs or get-run
+  --id <n>        Build (run) ID — alias for --build-id (kept for backwards
+  compatibility)
+  --log-id <n>    Specific log ID (omit to list all logs)
 ```
 
 ### Jenkins
 
 ```
 pncli jenkins pipeline list
+  --folder <name>  Folder name to enumerate (supports nested folders:
+  parentFolder/childFolder)
 
 pncli jenkins pipeline get
-  --name <job>  Job name
+  --name <job>  Job name (use folder/job for folder-scoped jobs)
 
 pncli jenkins pipeline run
-  --name <job>       Job name
+  --name <job>       Job name (use folder/job for folder-scoped jobs)
   --parameter <k=v>  Build parameter (repeatable) (default: [])
   --wait             Wait for the build to complete before returning
   --timeout <s>      Max wait time in seconds per phase (queue-wait and
@@ -756,15 +816,15 @@ pncli jenkins pipeline run
   --poll <s>         Poll interval in seconds (default 10) (default: "10")
 
 pncli jenkins pipeline list-runs
-  --name <job>  Job name
+  --name <job>  Job name (use folder/job for folder-scoped jobs)
   --top <n>     Maximum number of builds to return (default 25) (default: "25")
 
 pncli jenkins pipeline get-run
-  --name <job>  Job name
+  --name <job>  Job name (use folder/job for folder-scoped jobs)
   --number <n>  Build number
 
 pncli jenkins pipeline logs
-  --name <job>  Job name
+  --name <job>  Job name (use folder/job for folder-scoped jobs)
   --number <n>  Build number
 ```
 
@@ -795,6 +855,8 @@ pncli artifactory search
   --properties      Include artifact properties in results (default: false)
 
 pncli artifactory builds
+  --timeout <s>  Request timeout in seconds (default 60; increase for large
+  Artifactory instances) (default: "60")
 
 pncli artifactory build-runs
 
@@ -946,12 +1008,51 @@ pncli skills list
   --target <dir>   Override skills directory to scan
 
 pncli skills marketplace setup
-  --branch <branch>  Branch to clone (default: "master")
-  --token <token>    Bitbucket HTTP access token for authenticated clone and
-  pull
+  --branch <branch>  Branch to clone (default: remote HEAD)
+  --token <token>    HTTP access token for authenticated clone and pull (GitHub
+  PAT or Bitbucket token)
+  --agent <agent>    Target agent host for plugin install: github-copilot |
+  claude-code (default: github-copilot)
+  --claude           Shorthand for --agent claude-code
 
 pncli skills marketplace sync
-  --claude    Install to ~/.claude/skills instead of ~/.agents/skills
+  --agent <agent>  Target agent host: github-copilot | claude-code (default:
+  github-copilot)
+  --claude         Shorthand for --agent claude-code
+  --force          Force reinstall even if the marketplace repo has no new
+  changes
+```
+
+### Jwt
+
+```
+pncli jwt decode
+```
+
+### Openshift
+
+```
+pncli openshift pods
+  --namespace <ns>             Kubernetes namespace
+  --label-selector <selector>  Label selector (e.g. app=my-app)
+
+pncli openshift events
+  --namespace <ns>             Kubernetes namespace
+  --field-selector <selector>  Additional field selector (e.g.
+  involvedObject.name=my-pod)
+  --all                        Include Normal events in addition to Warning
+  events (default: false)
+
+pncli openshift logs
+  --namespace <ns>    Kubernetes namespace
+  --pod <name>        Pod name
+  --container <name>  Container name (defaults to first container)
+  --lines <n>         Number of most-recent lines to return (default: "100")
+  --previous          Return logs from the previous container instance (default:
+  false)
+
+pncli openshift pod-metrics
+  --namespace <ns>  Kubernetes namespace
 ```
 
 <!-- COMMAND-REFERENCE:END -->
