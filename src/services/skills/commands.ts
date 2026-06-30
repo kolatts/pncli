@@ -263,8 +263,20 @@ export function registerSkillsCommands(program: Command): void {
           try {
             execFileSync('git', cloneArgs, { stdio: ['inherit', 'inherit', 'pipe'] });
           } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : String(e);
-            throw new Error(msg.replace(/x-(?:token-auth|access-token):[^@]+@/g, 'x-token-auth:***@'));
+            // On some platforms (e.g. Windows with Git Credential Manager), git may
+            // write authentication warnings to stderr and exit non-zero even though
+            // the clone was successfully written to disk.  Verify by running
+            // `git rev-parse HEAD` at the destination; if that succeeds the repo is
+            // valid and we continue rather than surfacing a spurious error.
+            let cloneActuallySucceeded = false;
+            try {
+              execFileSync('git', ['-C', resolvedPath, 'rev-parse', 'HEAD'], { stdio: 'pipe' });
+              cloneActuallySucceeded = true;
+            } catch { /* repo not valid — fall through and re-throw original error */ }
+            if (!cloneActuallySucceeded) {
+              const msg = e instanceof Error ? e.message : String(e);
+              throw new Error(msg.replace(/x-(?:token-auth|access-token):[^@]+@/g, 'x-token-auth:***@'));
+            }
           }
         }
 
