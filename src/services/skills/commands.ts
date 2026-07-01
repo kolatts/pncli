@@ -64,9 +64,13 @@ function scrubToken(msg: string): string {
   return msg.replace(/x-(?:token-auth|access-token):[^@]+@/g, 'x-token-auth:***@');
 }
 
-/** Throws a clear error instead of hanging when an interactive prompt would otherwise block a non-TTY caller. */
+/**
+ * Throws a clear error instead of hanging when an interactive prompt would otherwise block a
+ * non-TTY caller. Only stdin needs to be a TTY — pncli's stdout is JSON and piping it (to a file,
+ * `jq`, etc.) is a normal, fully-interactive usage pattern.
+ */
 function assertInteractive(hint: string): void {
-  if (!process.stdout.isTTY || !process.stdin.isTTY) {
+  if (!process.stdin.isTTY) {
     throw new Error(`This selection requires an interactive terminal. ${hint}`);
   }
 }
@@ -208,14 +212,15 @@ function loadMarketplaces(configPath: string): MarketplaceConfig[] {
  * Adds or updates a marketplace entry in-place, refusing to silently clobber an unrelated
  * marketplace when its name or repo URL collides with an existing entry's identity.
  */
-function upsertMarketplace(all: MarketplaceConfig[], entry: MarketplaceConfig): void {
+export function upsertMarketplace(all: MarketplaceConfig[], entry: MarketplaceConfig): void {
   const idxByUrl = all.findIndex(m => m.repoUrl === entry.repoUrl);
   const idxByName = all.findIndex(m => m.name === entry.name);
   if (idxByUrl !== -1) {
     if (idxByName !== -1 && idxByName !== idxByUrl) {
       throw new Error(`Marketplace name "${entry.name}" is already used by a different marketplace (${all[idxByName].repoUrl}). Choose a different --name.`);
     }
-    all[idxByUrl] = entry;
+    // Re-running `add` without --token shouldn't silently wipe a previously stored token.
+    all[idxByUrl] = { ...entry, token: entry.token ?? all[idxByUrl].token };
   } else if (idxByName !== -1) {
     throw new Error(`Marketplace name "${entry.name}" is already registered for a different repo (${all[idxByName].repoUrl}). Choose a different --name, or remove the existing marketplace first.`);
   } else {
@@ -341,35 +346,41 @@ function installAllPlugins(resolvedPath: string, marketplaceName: string, url: s
  */
 function syncMarketplacePlugins(m: MarketplaceConfig, targetDir: string, force: boolean, pluginFilter: string): Record<string, unknown> {
   const marketplaceName = marketplaceLabel(m);
-  const marketplacePath = m.localPath;
-  if (!marketplacePath || !fs.existsSync(marketplacePath)) {
-    warn(`Marketplace "${marketplaceName}" local path not found — skipping.`);
-    return { marketplace: marketplaceName, skipped: true, message: 'Local path not found.' };
-  }
+  try {
+    const marketplacePath = m.localPath;
+    if (!marketplacePath || !fs.existsSync(marketplacePath)) {
+      warn(`Marketplace "${marketplaceName}" local path not found — skipping.`);
+      return { marketplace: marketplaceName, skipped: true, message: 'Local path not found.' };
+    }
 
-  const { updated } = pullMarketplace(marketplacePath, m.repoUrl, m.token, marketplaceName);
-  if (!updated && !force) {
-    return { marketplace: marketplaceName, marketplaceUpdated: false, skipped: true, message: 'No changes detected — skipping install. Use --force to reinstall anyway.' };
-  }
+    const { updated } = pullMarketplace(marketplacePath, m.repoUrl, m.token, marketplaceName);
+    if (!updated && !force) {
+      return { marketplace: marketplaceName, marketplaceUpdated: false, skipped: true, message: 'No changes detected — skipping install. Use --force to reinstall anyway.' };
+    }
 
-  const pluginChoices = resolvePluginChoices(marketplacePath);
-  if (pluginChoices.length === 0) {
-    warn(`No plugins found in marketplace "${marketplaceName}" — skipping.`);
-    return { marketplace: marketplaceName, skipped: true, message: 'No plugins found.' };
-  }
+    const pluginChoices = resolvePluginChoices(marketplacePath);
+    if (pluginChoices.length === 0) {
+      warn(`No plugins found in marketplace "${marketplaceName}" — skipping.`);
+      return { marketplace: marketplaceName, skipped: true, message: 'No plugins found.' };
+    }
 
-  let pluginNames: string[];
-  if (pluginFilter === 'all') {
-    pluginNames = pluginChoices.map(p => p.name);
-  } else if (pluginChoices.some(p => p.name === pluginFilter)) {
-    pluginNames = [pluginFilter];
-  } else {
-    warn(`Plugin "${pluginFilter}" not found in "${marketplaceName}" — skipping.`);
-    return { marketplace: marketplaceName, skipped: true, message: `Plugin "${pluginFilter}" not found.` };
-  }
+    let pluginNames: string[];
+    if (pluginFilter === 'all') {
+      pluginNames = pluginChoices.map(p => p.name);
+    } else if (pluginChoices.some(p => p.name === pluginFilter)) {
+      pluginNames = [pluginFilter];
+    } else {
+      warn(`Plugin "${pluginFilter}" not found in "${marketplaceName}" — skipping.`);
+      return { marketplace: marketplaceName, skipped: true, message: `Plugin "${pluginFilter}" not found.` };
+    }
 
-  const { results, totalInstalled } = installPluginsForMarketplace(marketplacePath, marketplaceName, m.repoUrl, pluginNames, targetDir);
-  return { marketplace: marketplaceName, plugins: results, total: totalInstalled, marketplaceUpdated: updated };
+    const { results, totalInstalled } = installPluginsForMarketplace(marketplacePath, marketplaceName, m.repoUrl, pluginNames, targetDir);
+    return { marketplace: marketplaceName, plugins: results, total: totalInstalled, marketplaceUpdated: updated };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    warn(`Marketplace "${marketplaceName}" failed — skipping. ${message}`);
+    return { marketplace: marketplaceName, skipped: true, error: message };
+  }
 }
 
 interface MarketplaceAddOptions {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills } from './commands.js';
+import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace } from './commands.js';
 import type { GlobalConfig } from '../../types/config.js';
 
 type ReaddirResult = ReturnType<typeof fs.readdirSync>;
@@ -282,6 +282,52 @@ describe('getAllMarketplaces', () => {
     expect(result[0].name).toBe('skills');
     expect(result[1].name).toBe('skills-2');
     expect(result[1].repoUrl).toBe('https://bitbucket.example.com/scm/other/skills.git');
+  });
+});
+
+// ── upsertMarketplace ──────────────────────────────────────────────────────────
+
+describe('upsertMarketplace', () => {
+  it('adds a new entry when neither name nor repoUrl match an existing one', () => {
+    const all: ReturnType<typeof getAllMarketplaces> = [];
+    upsertMarketplace(all, { name: 'alpha', repoUrl: 'https://github.com/org/alpha.git', localPath: '/p/alpha' });
+    expect(all).toHaveLength(1);
+    expect(all[0].name).toBe('alpha');
+  });
+
+  it('updates the existing entry in place when repoUrl matches', () => {
+    const all = [{ name: 'alpha', repoUrl: 'https://github.com/org/alpha.git', localPath: '/p/alpha' }];
+    upsertMarketplace(all, { name: 'alpha', repoUrl: 'https://github.com/org/alpha.git', localPath: '/p/alpha-new' });
+    expect(all).toHaveLength(1);
+    expect(all[0].localPath).toBe('/p/alpha-new');
+  });
+
+  it('preserves a previously stored token when re-adding without --token', () => {
+    const all = [{ name: 'alpha', repoUrl: 'https://github.com/org/alpha.git', localPath: '/p/alpha', token: 'secret123' }];
+    upsertMarketplace(all, { name: 'alpha', repoUrl: 'https://github.com/org/alpha.git', localPath: '/p/alpha' });
+    expect(all[0].token).toBe('secret123');
+  });
+
+  it('overwrites the stored token when a new one is supplied', () => {
+    const all = [{ name: 'alpha', repoUrl: 'https://github.com/org/alpha.git', localPath: '/p/alpha', token: 'old' }];
+    upsertMarketplace(all, { name: 'alpha', repoUrl: 'https://github.com/org/alpha.git', localPath: '/p/alpha', token: 'new' });
+    expect(all[0].token).toBe('new');
+  });
+
+  it('throws when --name collides with a different registered repo', () => {
+    const all = [{ name: 'shared', repoUrl: 'https://github.com/org/a.git', localPath: '/p/a' }];
+    expect(() => upsertMarketplace(all, { name: 'shared', repoUrl: 'https://github.com/org/b.git', localPath: '/p/b' })).toThrow('already registered for a different repo');
+    expect(all).toHaveLength(1);
+  });
+
+  it('throws when an existing repoUrl is renamed to a name already used by a different marketplace', () => {
+    const all = [
+      { name: 'alpha', repoUrl: 'https://github.com/org/alpha.git', localPath: '/p/alpha' },
+      { name: 'beta', repoUrl: 'https://github.com/org/beta.git', localPath: '/p/beta' },
+    ];
+    expect(() => upsertMarketplace(all, { name: 'alpha', repoUrl: 'https://github.com/org/beta.git', localPath: '/p/beta' })).toThrow('already used by a different marketplace');
+    expect(all).toHaveLength(2);
+    expect(all[1].name).toBe('beta');
   });
 });
 
