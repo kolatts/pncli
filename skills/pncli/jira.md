@@ -1,6 +1,6 @@
 # Jira
 
-Enables: `pncli jira issue`, `pncli jira sprint`, `pncli jira project`, `pncli jira user` — list and get issues, sprints, custom fields, and project members.
+Enables: `pncli jira get-issue`, `create-issue`, `update-issue`, `search`, `list-boards`, `list-sprints`, `set-sprint`, and more — get, create, and update issues, transitions, comments, attachments, custom fields, and sprints.
 
 ## Required config
 
@@ -29,7 +29,20 @@ export PNCLI_JIRA_API_TOKEN=<token>
 pncli config set --repo defaults.jira.project ACME
 ```
 
+## Sprints
+
+Sprints live behind the Jira Agile API, not the issue API — list boards first, then sprints on a board (or resolve straight from a project key):
+
+```
+pncli jira list-boards --project ACME
+pncli jira list-sprints --project ACME [--state active,future,closed]
+pncli jira list-sprints --board <id> [--state active,future,closed]
+pncli jira set-sprint --key ACME-123 --sprint <sprint-id>
+```
+
+`list-sprints` output includes `startDate`/`endDate`/`state`/`goal` for each sprint.
+
 ## Notes
 
 - Jira Cloud and Jira Data Center both work; token format differs (API token vs PAT)
-- Custom fields discovered with `pncli jira project fields`
+- Custom fields discovered with `pncli jira fields --discover`

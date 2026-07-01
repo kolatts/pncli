@@ -86,3 +86,18 @@ export interface JiraAttachment {
   mimeType: string;
   content: string;
 }
+
+export interface JiraBoard {
+  id: number;
+  name: string;
+  type: string;
+}
+
+export interface JiraSprint {
+  id: number;
+  name: string;
+  state: string;
+  startDate?: string;
+  endDate?: string;
+  goal?: string;
+}

@@ -9,11 +9,14 @@ import type {
   JiraSearchResult,
   JiraFieldInfo,
   JiraAttachment,
+  JiraBoard,
+  JiraSprint,
   CustomFieldDefinition,
   CustomFieldType
 } from '../../types/jira.js';
 
 const API = '/rest/api/2';
+const AGILE_API = '/rest/agile/1.0';
 
 export interface CreateIssueOpts {
   project: string;
@@ -289,6 +292,45 @@ export class JiraClient {
         inwardIssue: { key: opts.key },
         outwardIssue: { key: opts.target }
       }
+    });
+  }
+
+  async listBoards(project: string): Promise<JiraBoard[]> {
+    return this.http.jiraPaginate<JiraBoard>(async (startAt, maxResults) => {
+      return this.http.jira<{ values: JiraBoard[]; total: number; startAt: number; maxResults: number }>(
+        `${AGILE_API}/board`,
+        { params: { projectKeyOrId: project, startAt, maxResults } }
+      );
+    });
+  }
+
+  async listSprintsForBoard(boardId: number, states?: string[]): Promise<JiraSprint[]> {
+    return this.http.jiraPaginate<JiraSprint>(async (startAt, maxResults) => {
+      return this.http.jira<{ values: JiraSprint[]; total: number; startAt: number; maxResults: number }>(
+        `${AGILE_API}/board/${boardId}/sprint`,
+        { params: { startAt, maxResults, ...(states?.length ? { state: states.join(',') } : {}) } }
+      );
+    });
+  }
+
+  async listSprintsForProject(project: string, states?: string[]): Promise<JiraSprint[]> {
+    const boards = await this.listBoards(project);
+    const sprints: JiraSprint[] = [];
+    const seen = new Set<number>();
+    for (const board of boards) {
+      for (const sprint of await this.listSprintsForBoard(board.id, states)) {
+        if (seen.has(sprint.id)) continue;
+        seen.add(sprint.id);
+        sprints.push(sprint);
+      }
+    }
+    return sprints;
+  }
+
+  async setSprint(sprintId: number, issueKeys: string[]): Promise<void> {
+    await this.http.jira<void>(`${AGILE_API}/sprint/${sprintId}/issue`, {
+      method: 'POST',
+      body: { issues: issueKeys }
     });
   }
 }

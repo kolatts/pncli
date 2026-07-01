@@ -312,6 +312,49 @@ export function registerJiraCommands(program: Command): void {
         }
       } catch (err) { fail(err, 'jira', 'fields', start); }
     });
+
+  jira.command('list-boards')
+    .description('List Agile boards for a project')
+    .requiredOption('--project <key>', 'Project key')
+    .action(async (opts: { project: string }) => {
+      const start = Date.now();
+      try {
+        const client = getClient(program);
+        const data = await client.listBoards(opts.project);
+        success(data, 'jira', 'list-boards', start);
+      } catch (err) { fail(err, 'jira', 'list-boards', start); }
+    });
+
+  jira.command('list-sprints')
+    .description('List sprints for a board or project, including start/end dates')
+    .option('--board <id>', 'Board ID')
+    .option('--project <key>', 'Project key — resolves to that project\'s board(s)')
+    .option('--state <states>', 'Comma-separated states to filter (active,future,closed)')
+    .action(async (opts: { board?: string; project?: string; state?: string }) => {
+      const start = Date.now();
+      try {
+        if (!opts.board && !opts.project) throw new PncliError('Either --board or --project is required', 1);
+        const client = getClient(program);
+        const states = opts.state ? opts.state.split(',').map(s => s.trim()) : undefined;
+        const data = opts.board
+          ? await client.listSprintsForBoard(parseInt(opts.board, 10), states)
+          : await client.listSprintsForProject(opts.project as string, states);
+        success(data, 'jira', 'list-sprints', start);
+      } catch (err) { fail(err, 'jira', 'list-sprints', start); }
+    });
+
+  jira.command('set-sprint')
+    .description('Move a Jira issue into a sprint')
+    .requiredOption('--key <issue-key>', 'Issue key')
+    .requiredOption('--sprint <id>', 'Sprint ID (from list-sprints)')
+    .action(async (opts: { key: string; sprint: string }) => {
+      const start = Date.now();
+      try {
+        const client = getClient(program);
+        await client.setSprint(parseInt(opts.sprint, 10), [opts.key]);
+        success({ updated: opts.key, sprint: opts.sprint }, 'jira', 'set-sprint', start);
+      } catch (err) { fail(err, 'jira', 'set-sprint', start); }
+    });
 }
 
 export function parseFieldArgs(
