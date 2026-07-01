@@ -1099,7 +1099,17 @@ pncli skills list
   --scope <scope>  Installation scope: project | user (default: "project")
   --target <dir>   Override skills directory to scan
 
-pncli skills marketplace setup
+pncli skills uninstall
+  --agent <agent>  Target agent host: github-copilot | claude-code (default:
+  "github-copilot")
+  --scope <scope>  Installation scope to uninstall from: project | user
+  (default: "user")
+  --claude         Shorthand for --agent claude-code
+  --target <dir>   Override skills directory
+
+pncli skills marketplace add
+  --name <name>      Human-readable name for this marketplace (default: derived
+  from URL)
   --branch <branch>  Branch to clone (default: remote HEAD)
   --token <token>    HTTP access token for authenticated clone and pull (GitHub
   PAT or Bitbucket token)
@@ -1107,12 +1117,30 @@ pncli skills marketplace setup
   claude-code (default: github-copilot)
   --claude           Shorthand for --agent claude-code
 
+pncli skills marketplace setup
+  --name <name>      Human-readable name for this marketplace (default: derived
+  from URL)
+  --branch <branch>  Branch to clone (default: remote HEAD)
+  --token <token>    HTTP access token for authenticated clone and pull (GitHub
+  PAT or Bitbucket token)
+  --agent <agent>    Target agent host for plugin install: github-copilot |
+  claude-code (default: github-copilot)
+  --claude           Shorthand for --agent claude-code
+
+pncli skills marketplace list
+
+pncli skills marketplace plugins
+
+pncli skills marketplace remove
+
 pncli skills marketplace sync
-  --agent <agent>  Target agent host: github-copilot | claude-code (default:
-  github-copilot)
-  --claude         Shorthand for --agent claude-code
-  --force          Force reinstall even if the marketplace repo has no new
-  changes
+  --marketplace <name>  Marketplace name to sync, or "all" to sync every
+  registered marketplace (skips interactive selection)
+  --agent <agent>       Target agent host: github-copilot | claude-code
+  (default: github-copilot)
+  --claude              Shorthand for --agent claude-code
+  --force               Reinstall even if a marketplace has no new changes
+  (applies to single-plugin and "all" installs alike)
 ```
 
 ### Jwt
