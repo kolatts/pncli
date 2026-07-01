@@ -2,7 +2,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath } from './commands.js';
+import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills } from './commands.js';
+import type { GlobalConfig } from '../../types/config.js';
 
 type ReaddirResult = ReturnType<typeof fs.readdirSync>;
 
@@ -195,5 +196,131 @@ describe('copyPluginSkills', () => {
     const { installed, failed } = copyPluginSkills('/market/plugins/sunny/skills', targetDir);
     expect(installed).toEqual([]);
     expect(failed).toEqual([]);
+  });
+
+  it('writes install metadata with source "marketplace" when meta context is provided', () => {
+    vi.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
+    vi.spyOn(fs, 'readdirSync').mockImplementation((p) => {
+      const s = String(p);
+      if (s === '/market/plugins/sunny/skills') return ['skill-one'] as unknown as ReaddirResult;
+      return [] as unknown as ReaddirResult;
+    });
+    vi.spyOn(fs, 'statSync').mockReturnValue({ isDirectory: () => true } as fs.Stats);
+    vi.spyOn(fs, 'rmSync').mockReturnValue(undefined);
+    vi.spyOn(fs, 'cpSync').mockReturnValue(undefined);
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    const writeFileSpy = vi.spyOn(fs, 'writeFileSync').mockReturnValue(undefined);
+
+    const { installed } = copyPluginSkills('/market/plugins/sunny/skills', targetDir, {
+      marketplace: 'my-market',
+      plugin: 'sunny',
+      installedFrom: 'https://github.com/owner/my-market.git',
+    });
+    expect(installed).toEqual(['skill-one']);
+
+    expect(writeFileSpy).toHaveBeenCalled();
+    const [writePath, writeContent] = writeFileSpy.mock.calls[0] as [string, string];
+    expect(writePath).toContain('.pncli-installed.json');
+    const parsed = JSON.parse(writeContent) as { version: number; skills: Record<string, { source: string; marketplace: string }> };
+    expect(parsed.version).toBe(1);
+    expect(parsed.skills['skill-one'].source).toBe('marketplace');
+    expect(parsed.skills['skill-one'].marketplace).toBe('my-market');
+  });
+});
+
+// ── getAllMarketplaces ─────────────────────────────────────────────────────────
+
+describe('getAllMarketplaces', () => {
+  it('returns entries from the new marketplaces array', () => {
+    const config: GlobalConfig = {
+      marketplaces: [
+        { name: 'alpha', repoUrl: 'https://github.com/org/alpha.git', localPath: '/home/user/.agents/marketplaces/alpha' },
+        { name: 'beta', repoUrl: 'https://github.com/org/beta.git', localPath: '/home/user/.agents/marketplaces/beta' },
+      ],
+    };
+    const result = getAllMarketplaces(config);
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe('alpha');
+    expect(result[1].name).toBe('beta');
+  });
+
+  it('migrates a legacy single marketplace field when not already in the array', () => {
+    const config: GlobalConfig = {
+      marketplace: { repoUrl: 'https://github.com/org/legacy.git', localPath: '/home/user/.agents/marketplaces/legacy' },
+    };
+    const result = getAllMarketplaces(config);
+    expect(result).toHaveLength(1);
+    expect(result[0].repoUrl).toBe('https://github.com/org/legacy.git');
+    expect(result[0].name).toBe('legacy');
+  });
+
+  it('does not duplicate a legacy marketplace already present in the array', () => {
+    const config: GlobalConfig = {
+      marketplace: { repoUrl: 'https://github.com/org/mkt.git', localPath: '/home/user/.agents/marketplaces/mkt' },
+      marketplaces: [
+        { name: 'mkt', repoUrl: 'https://github.com/org/mkt.git', localPath: '/home/user/.agents/marketplaces/mkt' },
+      ],
+    };
+    const result = getAllMarketplaces(config);
+    expect(result).toHaveLength(1);
+  });
+
+  it('returns empty array when no marketplaces are configured', () => {
+    const config: GlobalConfig = {};
+    expect(getAllMarketplaces(config)).toEqual([]);
+  });
+});
+
+// ── getInstalledMetaPath ──────────────────────────────────────────────────────
+
+describe('getInstalledMetaPath', () => {
+  it('returns the correct metadata path within the target directory', () => {
+    const targetDir = path.join(os.homedir(), '.agents', 'skills');
+    expect(getInstalledMetaPath(targetDir)).toBe(path.join(targetDir, '.pncli-installed.json'));
+  });
+});
+
+// ── readInstalledMeta ─────────────────────────────────────────────────────────
+
+describe('readInstalledMeta', () => {
+  it('returns an empty meta object when no file exists', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    const meta = readInstalledMeta('/some/target');
+    expect(meta).toEqual({ version: 1, skills: {} });
+  });
+
+  it('parses an existing valid metadata file', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: {
+        'my-skill': { source: 'marketplace', marketplace: 'mkt', plugin: 'sunny', installedAt: '2026-06-30T00:00:00Z', installedFrom: 'https://github.com/org/mkt.git' },
+      },
+    }));
+    const meta = readInstalledMeta('/some/target');
+    expect(meta.skills['my-skill'].marketplace).toBe('mkt');
+  });
+});
+
+// ── recordInstalledSkills ──────────────────────────────────────────────────────
+
+describe('recordInstalledSkills', () => {
+  it('writes a "bundled" source record for each skill name', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    const writeFileSpy = vi.spyOn(fs, 'writeFileSync').mockReturnValue(undefined);
+
+    recordInstalledSkills('/target', ['skill-a', 'skill-b'], { source: 'bundled' });
+
+    expect(writeFileSpy).toHaveBeenCalledOnce();
+    const [, writeContent] = writeFileSpy.mock.calls[0] as [string, string];
+    const parsed = JSON.parse(writeContent) as { skills: Record<string, { source: string }> };
+    expect(parsed.skills['skill-a'].source).toBe('bundled');
+    expect(parsed.skills['skill-b'].source).toBe('bundled');
+  });
+
+  it('does nothing when skillNames is empty', () => {
+    const writeFileSpy = vi.spyOn(fs, 'writeFileSync').mockReturnValue(undefined);
+    recordInstalledSkills('/target', [], { source: 'bundled' });
+    expect(writeFileSpy).not.toHaveBeenCalled();
   });
 });
