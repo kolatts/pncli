@@ -221,6 +221,18 @@ pncli jira fields
   createmeta (requires --discover)
   --issue-type <type>  Filter allowedValues to a specific issue type (requires
   --project)
+
+pncli jira list-boards
+  --project <key>  Project key
+
+pncli jira list-sprints
+  --board <id>      Board ID
+  --project <key>   Project key — resolves to that project's board(s)
+  --state <states>  Comma-separated states to filter (active,future,closed)
+
+pncli jira set-sprint
+  --key <issue-key>  Issue key
+  --sprint <id>      Sprint ID (from list-sprints)
 ```
 
 ### Bitbucket

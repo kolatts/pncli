@@ -147,6 +147,152 @@ describe('JiraClient — listAttachments', () => {
   });
 });
 
+describe('JiraClient — listBoards', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('calls the Agile board endpoint with projectKeyOrId', async () => {
+    const capturedUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrls.push(url);
+      return new Response(
+        JSON.stringify({ values: [{ id: 1, name: 'Board 1', type: 'scrum' }], total: 1, startAt: 0, maxResults: 100 }),
+        { status: 200 }
+      );
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    const boards = await client.listBoards('PROJ');
+
+    expect(capturedUrls[0]).toContain('/rest/agile/1.0/board');
+    expect(capturedUrls[0]).toContain('projectKeyOrId=PROJ');
+    expect(boards).toEqual([{ id: 1, name: 'Board 1', type: 'scrum' }]);
+  });
+
+  it('paginates across multiple pages', async () => {
+    let call = 0;
+    vi.stubGlobal('fetch', async () => {
+      call += 1;
+      if (call === 1) {
+        return new Response(
+          JSON.stringify({ values: [{ id: 1, name: 'Board 1', type: 'scrum' }], total: 2, startAt: 0, maxResults: 1 }),
+          { status: 200 }
+        );
+      }
+      return new Response(
+        JSON.stringify({ values: [{ id: 2, name: 'Board 2', type: 'scrum' }], total: 2, startAt: 1, maxResults: 1 }),
+        { status: 200 }
+      );
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    const boards = await client.listBoards('PROJ');
+
+    expect(boards).toHaveLength(2);
+    expect(boards.map(b => b.id)).toEqual([1, 2]);
+  });
+});
+
+describe('JiraClient — listSprintsForBoard', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('calls the Agile sprint endpoint for the board with dates', async () => {
+    const capturedUrls: string[] = [];
+    const mockSprint = { id: 5, name: 'Sprint 5', state: 'active', startDate: '2026-01-01T00:00:00.000Z', endDate: '2026-01-14T00:00:00.000Z' };
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrls.push(url);
+      return new Response(
+        JSON.stringify({ values: [mockSprint], total: 1, startAt: 0, maxResults: 100 }),
+        { status: 200 }
+      );
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    const sprints = await client.listSprintsForBoard(3);
+
+    expect(capturedUrls[0]).toContain('/rest/agile/1.0/board/3/sprint');
+    expect(sprints).toEqual([mockSprint]);
+  });
+
+  it('passes a comma-separated state filter when provided', async () => {
+    const capturedUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrls.push(url);
+      return new Response(JSON.stringify({ values: [], total: 0, startAt: 0, maxResults: 100 }), { status: 200 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    await client.listSprintsForBoard(3, ['active', 'future']);
+
+    expect(capturedUrls[0]).toContain('state=active%2Cfuture');
+  });
+});
+
+describe('JiraClient — listSprintsForProject', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('resolves boards for the project then dedupes sprints across them', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/board?') || url.endsWith('/board')) {
+        return new Response(
+          JSON.stringify({
+            values: [{ id: 1, name: 'Board 1', type: 'scrum' }, { id: 2, name: 'Board 2', type: 'scrum' }],
+            total: 2, startAt: 0, maxResults: 100
+          }),
+          { status: 200 }
+        );
+      }
+      if (url.includes('/board/1/sprint')) {
+        return new Response(
+          JSON.stringify({ values: [{ id: 10, name: 'Sprint 10', state: 'active' }], total: 1, startAt: 0, maxResults: 100 }),
+          { status: 200 }
+        );
+      }
+      // Board 2 shares sprint 10 (cross-project board) plus its own sprint 11
+      return new Response(
+        JSON.stringify({
+          values: [{ id: 10, name: 'Sprint 10', state: 'active' }, { id: 11, name: 'Sprint 11', state: 'future' }],
+          total: 2, startAt: 0, maxResults: 100
+        }),
+        { status: 200 }
+      );
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    const sprints = await client.listSprintsForProject('PROJ');
+
+    expect(sprints.map(s => s.id)).toEqual([10, 11]);
+  });
+});
+
+describe('JiraClient — setSprint', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('posts the issue key to the sprint move endpoint', async () => {
+    const capturedUrls: string[] = [];
+    const capturedBodies: unknown[] = [];
+    const capturedMethods: string[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      capturedUrls.push(url);
+      capturedMethods.push(init.method ?? 'GET');
+      capturedBodies.push(JSON.parse(init.body as string));
+      return new Response(null, { status: 204 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    await client.setSprint(42, ['PROJ-1']);
+
+    expect(capturedUrls[0]).toContain('/rest/agile/1.0/sprint/42/issue');
+    expect(capturedMethods[0]).toBe('POST');
+    expect(capturedBodies[0]).toEqual({ issues: ['PROJ-1'] });
+  });
+});
+
 describe('JiraClient — downloadAttachment', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
