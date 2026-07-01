@@ -318,6 +318,23 @@ export interface AdoWorkItemAttachment {
   resourceModifiedDate?: string;
 }
 
+// ── Classification Nodes (Areas & Iterations) ────────────────────────
+
+export interface AdoClassificationNode {
+  id: number;
+  identifier: string;
+  name: string;
+  structureType: 'area' | 'iteration';
+  hasChildren: boolean;
+  children?: AdoClassificationNode[];
+  path: string;
+  url: string;
+  attributes?: {
+    startDate?: string;
+    finishDate?: string;
+  };
+}
+
 // ── Shared pagination wrapper ────────────────────────────────────────
 
 export interface AdoPageResponse<T> {
