@@ -59,10 +59,34 @@ function marketplaceLabel(m: MarketplaceConfig): string {
   return m.name ?? repoNameFromUrl(m.repoUrl ?? '');
 }
 
+/** Strips injected credentials out of git error output before it reaches JSON output or logs. */
+function scrubToken(msg: string): string {
+  return msg.replace(/x-(?:token-auth|access-token):[^@]+@/g, 'x-token-auth:***@');
+}
+
+/** Throws a clear error instead of hanging when an interactive prompt would otherwise block a non-TTY caller. */
+function assertInteractive(hint: string): void {
+  if (!process.stdout.isTTY || !process.stdin.isTTY) {
+    throw new Error(`This selection requires an interactive terminal. ${hint}`);
+  }
+}
+
 const AGENT_PATHS: Record<string, { project: string; user: string }> = {
   'github-copilot': { project: '.agents/skills',  user: path.join(os.homedir(), '.copilot/skills') },
   'claude-code':    { project: '.claude/skills',   user: path.join(os.homedir(), '.claude/skills') },
 };
+
+function resolveAgentName(opts: { agent?: string; claude?: boolean }): string {
+  return opts.claude ? 'claude-code' : (opts.agent ?? 'github-copilot');
+}
+
+function resolveAgentPaths(agentName: string): { project: string; user: string } {
+  const agentConfig = AGENT_PATHS[agentName];
+  if (!agentConfig) {
+    throw new Error(`Unknown agent: "${agentName}". Use: ${Object.keys(AGENT_PATHS).join(' | ')}`);
+  }
+  return agentConfig;
+}
 
 // Resolve the bundled skills directory relative to this file (dist/cli.js → ../skills)
 function getBundledSkillsDir(): string {
@@ -131,8 +155,15 @@ export function getAllMarketplaces(globalConfig: GlobalConfig): MarketplaceConfi
     const legacyUrl = globalConfig.marketplace.repoUrl;
     const alreadyPresent = result.some(m => m.repoUrl === legacyUrl);
     if (!alreadyPresent) {
+      const existingNames = new Set(result.map(m => m.name).filter((n): n is string => !!n));
+      let legacyName = globalConfig.marketplace.name ?? repoNameFromUrl(legacyUrl);
+      if (existingNames.has(legacyName)) {
+        let suffix = 2;
+        while (existingNames.has(`${legacyName}-${suffix}`)) suffix++;
+        legacyName = `${legacyName}-${suffix}`;
+      }
       result.push({
-        name: globalConfig.marketplace.name ?? repoNameFromUrl(legacyUrl),
+        name: legacyName,
         repoUrl: globalConfig.marketplace.repoUrl,
         localPath: globalConfig.marketplace.localPath,
         token: globalConfig.marketplace.token,
@@ -153,18 +184,43 @@ function saveMarketplaces(configPath: string, existing: GlobalConfig, marketplac
 }
 
 /**
- * Reads all registered marketplaces and, if the legacy single-marketplace field is
- * still present, persists the migration immediately so every pncli upgrade transitions
+ * Reads the global config and all registered marketplaces. If the legacy single-marketplace
+ * field is still present, persists the migration immediately so every pncli upgrade transitions
  * seamlessly to the multi-marketplace format without the user re-running `marketplace add`.
+ * Returns the (post-migration) config object so callers can reuse it for further writes.
  */
-function loadMarketplaces(configPath: string): MarketplaceConfig[] {
+function loadMarketplacesConfig(configPath: string): { existing: GlobalConfig; all: MarketplaceConfig[] } {
   const existing: GlobalConfig = loadJsonFile<GlobalConfig>(configPath) ?? {};
   const all = getAllMarketplaces(existing);
   if (existing.marketplace?.repoUrl) {
     saveMarketplaces(configPath, existing, all);
     warn('Migrated legacy single-marketplace config to the multi-marketplace format.');
+    delete existing.marketplace;
   }
-  return all;
+  return { existing, all };
+}
+
+function loadMarketplaces(configPath: string): MarketplaceConfig[] {
+  return loadMarketplacesConfig(configPath).all;
+}
+
+/**
+ * Adds or updates a marketplace entry in-place, refusing to silently clobber an unrelated
+ * marketplace when its name or repo URL collides with an existing entry's identity.
+ */
+function upsertMarketplace(all: MarketplaceConfig[], entry: MarketplaceConfig): void {
+  const idxByUrl = all.findIndex(m => m.repoUrl === entry.repoUrl);
+  const idxByName = all.findIndex(m => m.name === entry.name);
+  if (idxByUrl !== -1) {
+    if (idxByName !== -1 && idxByName !== idxByUrl) {
+      throw new Error(`Marketplace name "${entry.name}" is already used by a different marketplace (${all[idxByName].repoUrl}). Choose a different --name.`);
+    }
+    all[idxByUrl] = entry;
+  } else if (idxByName !== -1) {
+    throw new Error(`Marketplace name "${entry.name}" is already registered for a different repo (${all[idxByName].repoUrl}). Choose a different --name, or remove the existing marketplace first.`);
+  } else {
+    all.push(entry);
+  }
 }
 
 /**
@@ -198,7 +254,7 @@ function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { bran
     } catch { /* repo not valid — fall through and re-throw original error */ }
     if (!cloneActuallySucceeded) {
       const msg = e instanceof Error ? e.message : String(e);
-      throw new Error(msg.replace(/x-(?:token-auth|access-token):[^@]+@/g, 'x-token-auth:***@'));
+      throw new Error(scrubToken(msg));
     }
   }
 }
@@ -218,7 +274,7 @@ function pullMarketplace(marketplacePath: string, repoUrl: string | undefined, t
     pullOutput = execFileSync('git', gitArgs, { encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'], env: { ...process.env, LANG: 'C', LC_ALL: 'C' } });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(msg.replace(/x-(?:token-auth|access-token):[^@]+@/g, 'x-token-auth:***@'));
+    throw new Error(scrubToken(msg));
   }
   const updated = !pullOutput.includes('Already up to date');
   if (pullOutput.trim() && updated) warn(pullOutput.trim());
@@ -337,28 +393,17 @@ async function marketplaceAddAction(url: string, localPath: string | undefined, 
     cloneOrReuseMarketplace(url, resolvedPath, opts);
 
     const configPath = getGlobalConfigPath();
-    const existing: GlobalConfig = loadJsonFile<GlobalConfig>(configPath) ?? {};
-    const all = getAllMarketplaces(existing);
-    const idx = all.findIndex(m => m.name === marketplaceName || m.repoUrl === url);
+    const { existing, all } = loadMarketplacesConfig(configPath);
     const entry: MarketplaceConfig = {
       name: marketplaceName,
       repoUrl: url,
       localPath: resolvedPath,
       ...(opts.token ? { token: opts.token } : {}),
     };
-    if (idx !== -1) {
-      all[idx] = entry;
-    } else {
-      all.push(entry);
-    }
+    upsertMarketplace(all, entry);
     saveMarketplaces(configPath, existing, all);
 
-    const agentName = opts.claude ? 'claude-code' : (opts.agent ?? 'github-copilot');
-    const agentConfig = AGENT_PATHS[agentName];
-    if (!agentConfig) {
-      throw new Error(`Unknown agent: "${agentName}". Use: ${Object.keys(AGENT_PATHS).join(' | ')}`);
-    }
-    const targetDir = agentConfig.user;
+    const targetDir = resolveAgentPaths(resolveAgentName(opts)).user;
 
     const { pluginResults, totalInstalled } = installAllPlugins(resolvedPath, marketplaceName, url, targetDir);
 
@@ -394,10 +439,7 @@ export function registerSkillsCommands(program: Command): void {
         if (opts.target) {
           targetDir = path.resolve(opts.target);
         } else {
-          const agentConfig = AGENT_PATHS[opts.agent];
-          if (!agentConfig) {
-            throw new Error(`Unknown agent: "${opts.agent}". Use: ${Object.keys(AGENT_PATHS).join(' | ')}`);
-          }
+          const agentConfig = resolveAgentPaths(opts.agent);
           const scopePath = opts.scope === 'user' ? agentConfig.user : agentConfig.project;
           targetDir = path.resolve(scopePath);
         }
@@ -487,10 +529,7 @@ export function registerSkillsCommands(program: Command): void {
         if (opts.target) {
           targetDir = path.resolve(opts.target);
         } else {
-          const agentConfig = AGENT_PATHS[opts.agent];
-          if (!agentConfig) {
-            throw new Error(`Unknown agent: "${opts.agent}". Use: ${Object.keys(AGENT_PATHS).join(' | ')}`);
-          }
+          const agentConfig = resolveAgentPaths(opts.agent);
           const scopePath = opts.scope === 'user' ? agentConfig.user : agentConfig.project;
           targetDir = path.resolve(scopePath);
         }
@@ -562,11 +601,7 @@ export function registerSkillsCommands(program: Command): void {
         if (opts.target) {
           targetDir = path.resolve(opts.target);
         } else {
-          const agentName = opts.claude ? 'claude-code' : (opts.agent ?? 'github-copilot');
-          const agentConfig = AGENT_PATHS[agentName];
-          if (!agentConfig) {
-            throw new Error(`Unknown agent: "${agentName}". Use: ${Object.keys(AGENT_PATHS).join(' | ')}`);
-          }
+          const agentConfig = resolveAgentPaths(resolveAgentName(opts));
           const scopePath = opts.scope === 'project' ? agentConfig.project : agentConfig.user;
           targetDir = path.resolve(scopePath);
         }
@@ -602,30 +637,25 @@ export function registerSkillsCommands(program: Command): void {
 
   const marketplace = skills.command('marketplace').description('Manage git-hosted skills marketplaces');
 
-  marketplace
-    .command('add')
-    .description('Register a new marketplace, clone it, and install all its plugins')
-    .argument('<url>', 'Git clone URL of the marketplace repository')
-    .argument('[localPath]', 'Local directory to clone into (default: ~/.agents/marketplaces/<repo-name>)')
-    .option('--name <name>', 'Human-readable name for this marketplace (default: derived from URL)')
-    .option('--branch <branch>', 'Branch to clone (default: remote HEAD)')
-    .option('--token <token>', 'HTTP access token for authenticated clone and pull (GitHub PAT or Bitbucket token)')
-    .option('--agent <agent>', 'Target agent host for plugin install: github-copilot | claude-code (default: github-copilot)')
-    .option('--claude', 'Shorthand for --agent claude-code')
-    .action((url: string, localPath: string | undefined, opts: MarketplaceAddOptions) => marketplaceAddAction(url, localPath, opts, 'marketplace-add'));
+  function withMarketplaceAddOptions(cmd: Command): Command {
+    return cmd
+      .argument('<url>', 'Git clone URL of the marketplace repository')
+      .argument('[localPath]', 'Local directory to clone into (default: ~/.agents/marketplaces/<repo-name>)')
+      .option('--name <name>', 'Human-readable name for this marketplace (default: derived from URL)')
+      .option('--branch <branch>', 'Branch to clone (default: remote HEAD)')
+      .option('--token <token>', 'HTTP access token for authenticated clone and pull (GitHub PAT or Bitbucket token)')
+      .option('--agent <agent>', 'Target agent host for plugin install: github-copilot | claude-code (default: github-copilot)')
+      .option('--claude', 'Shorthand for --agent claude-code');
+  }
+
+  withMarketplaceAddOptions(
+    marketplace.command('add').description('Register a new marketplace, clone it, and install all its plugins')
+  ).action((url: string, localPath: string | undefined, opts: MarketplaceAddOptions) => marketplaceAddAction(url, localPath, opts, 'marketplace-add'));
 
   // Kept as an alias for `add` for backward compatibility with existing scripts/docs.
-  marketplace
-    .command('setup')
-    .description('Alias for `marketplace add` — clone a marketplace and install all its plugins')
-    .argument('<url>', 'Git clone URL of the marketplace repository')
-    .argument('[localPath]', 'Local directory to clone into (default: ~/.agents/marketplaces/<repo-name>)')
-    .option('--name <name>', 'Human-readable name for this marketplace (default: derived from URL)')
-    .option('--branch <branch>', 'Branch to clone (default: remote HEAD)')
-    .option('--token <token>', 'HTTP access token for authenticated clone and pull (GitHub PAT or Bitbucket token)')
-    .option('--agent <agent>', 'Target agent host for plugin install: github-copilot | claude-code (default: github-copilot)')
-    .option('--claude', 'Shorthand for --agent claude-code')
-    .action((url: string, localPath: string | undefined, opts: MarketplaceAddOptions) => marketplaceAddAction(url, localPath, opts, 'marketplace-setup'));
+  withMarketplaceAddOptions(
+    marketplace.command('setup').description('Alias for `marketplace add` — clone a marketplace and install all its plugins')
+  ).action((url: string, localPath: string | undefined, opts: MarketplaceAddOptions) => marketplaceAddAction(url, localPath, opts, 'marketplace-setup'));
 
   marketplace
     .command('list')
@@ -686,8 +716,7 @@ export function registerSkillsCommands(program: Command): void {
       const start = Date.now();
       try {
         const configPath = getGlobalConfigPath();
-        const existing: GlobalConfig = loadJsonFile<GlobalConfig>(configPath) ?? {};
-        const all = getAllMarketplaces(existing);
+        const { existing, all } = loadMarketplacesConfig(configPath);
 
         const idx = all.findIndex(m => m.name === name || m.repoUrl === name);
         if (idx === -1) {
@@ -727,12 +756,7 @@ export function registerSkillsCommands(program: Command): void {
           throw new Error('No marketplaces configured. Run: pncli skills marketplace add <url>');
         }
 
-        const agentName = opts.claude ? 'claude-code' : (opts.agent ?? 'github-copilot');
-        const agentConfig = AGENT_PATHS[agentName];
-        if (!agentConfig) {
-          throw new Error(`Unknown agent: "${agentName}". Use: ${Object.keys(AGENT_PATHS).join(' | ')}`);
-        }
-        const targetDir = agentConfig.user;
+        const targetDir = resolveAgentPaths(resolveAgentName(opts)).user;
         const force = opts.force ?? false;
 
         // Non-interactive "sync everything" — explicit flag.
@@ -759,11 +783,13 @@ export function registerSkillsCommands(program: Command): void {
         // Interactive loop: lets the user back out of a plugin prompt and reselect the marketplace.
         for (;;) {
           if (!selectedMarketplace) {
+            assertInteractive(`Multiple marketplaces are registered (${allMarketplaces.map(marketplaceLabel).join(', ')}). Pass --marketplace <name> (or --marketplace all) to run this non-interactively.`);
             const chosen = await select({
               message: 'Select a marketplace to sync:',
               choices: [
                 { value: ALL_MARKETPLACES, name: 'All marketplaces — sync every plugin from every marketplace' },
-                ...allMarketplaces.map(m => ({ value: marketplaceLabel(m), name: `${marketplaceLabel(m)} — ${m.repoUrl ?? ''}` })),
+                // Index-based values: labels alone aren't guaranteed unique (two marketplaces can share a derived name).
+                ...allMarketplaces.map((m, i) => ({ value: String(i), name: `${marketplaceLabel(m)} — ${m.repoUrl ?? ''}` })),
               ],
             });
             if (chosen === ALL_MARKETPLACES) {
@@ -771,7 +797,7 @@ export function registerSkillsCommands(program: Command): void {
               success({ allMarketplaces: true, marketplaces: results, target: targetDir }, 'skills', 'marketplace-sync', start);
               return;
             }
-            selectedMarketplace = allMarketplaces.find(m => marketplaceLabel(m) === chosen);
+            selectedMarketplace = allMarketplaces[Number(chosen)];
             if (!selectedMarketplace) {
               throw new Error(`Marketplace "${chosen}" not found.`);
             }
@@ -791,6 +817,7 @@ export function registerSkillsCommands(program: Command): void {
           }
 
           if (!selectedPlugin) {
+            assertInteractive(`Pass a plugin name (or "all") to run this non-interactively.`);
             const choices: { value: string; name: string }[] = [
               { value: 'all', name: 'All — install every plugin' },
               ...pluginChoices.map(p => ({ value: p.name, name: p.description ? `${p.name} — ${p.description}` : p.name })),

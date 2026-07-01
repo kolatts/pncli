@@ -269,6 +269,20 @@ describe('getAllMarketplaces', () => {
     const config: GlobalConfig = {};
     expect(getAllMarketplaces(config)).toEqual([]);
   });
+
+  it('disambiguates a legacy marketplace whose derived name collides with an existing entry', () => {
+    const config: GlobalConfig = {
+      marketplace: { repoUrl: 'https://bitbucket.example.com/scm/other/skills.git', localPath: '/home/user/.agents/marketplaces/skills' },
+      marketplaces: [
+        { name: 'skills', repoUrl: 'https://github.com/org/skills.git', localPath: '/home/user/.agents/marketplaces/skills-gh' },
+      ],
+    };
+    const result = getAllMarketplaces(config);
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe('skills');
+    expect(result[1].name).toBe('skills-2');
+    expect(result[1].repoUrl).toBe('https://bitbucket.example.com/scm/other/skills.git');
+  });
 });
 
 // ── getInstalledMetaPath ──────────────────────────────────────────────────────
