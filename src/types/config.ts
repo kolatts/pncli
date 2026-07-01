@@ -136,6 +136,7 @@ export interface OpenShiftConfig {
 }
 
 export interface MarketplaceConfig {
+  name?: string;
   repoUrl?: string;
   localPath?: string;
   token?: string;
@@ -179,6 +180,7 @@ export interface GlobalConfig {
   sonatypeiq?: SonatypeIqConfig;
   openshift?: OpenShiftConfig;
   marketplace?: MarketplaceConfig;
+  marketplaces?: MarketplaceConfig[];
   defaults?: Defaults;
 }
 
