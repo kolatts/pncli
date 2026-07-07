@@ -27,3 +27,25 @@ export PNCLI_JENKINS_BASE_URL=https://jenkins.company.com
 export PNCLI_JENKINS_USERNAME=<username>
 export PNCLI_JENKINS_API_TOKEN=<token>
 ```
+
+## Project-level base URL override
+
+Teams with different Jenkins controllers per repo can set `defaults.jenkins.baseUrl` in the project's `.pncli.json`:
+
+```json
+{
+  "defaults": {
+    "jenkins": {
+      "baseUrl": "https://jenkins.myteam.company.com"
+    }
+  }
+}
+```
+
+Or via the CLI:
+
+```
+pncli config set --repo defaults.jenkins.baseUrl https://jenkins.myteam.company.com
+```
+
+Resolution order (highest to lowest): project `.pncli.json` → global config → `PNCLI_JENKINS_BASE_URL` env var.

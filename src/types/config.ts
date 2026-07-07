@@ -96,6 +96,10 @@ export interface JenkinsConfig {
   apiToken?: string;
 }
 
+export interface JenkinsDefaults {
+  baseUrl?: string;
+}
+
 export interface UdeployConfig {
   baseUrl?: string;
   pat?: string;
@@ -155,6 +159,7 @@ export interface Defaults {
   sde?: SdeDefaults;
   ado?: AdoDefaults;
   udeploy?: UdeployDefaults;
+  jenkins?: JenkinsDefaults;
 }
 
 export interface UserConfig {
@@ -275,5 +280,6 @@ export interface ResolvedConfig {
     sde: SdeDefaults;
     ado: AdoDefaults;
     udeploy: UdeployDefaults;
+    jenkins: JenkinsDefaults;
   };
 }
