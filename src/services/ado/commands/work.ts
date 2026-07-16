@@ -284,6 +284,34 @@ export function registerAdoWorkCommands(ado: Command): void {
       } catch (err) { fail(err, 'ado', 'work-download-attachment', start); }
     });
 
+  // ── Areas & Iterations ────────────────────────────────────────────
+
+  work
+    .command('list-areas')
+    .description('List classification areas for the team project (tree)')
+    .option('--depth <n>', 'Depth of the area tree to retrieve', '10')
+    .action(async (opts: { depth: string }) => {
+      const start = Date.now();
+      try {
+        const { collection, project, workClient } = getAdoContext(ado);
+        const data = await workClient.listAreas(collection, project, parseInt(opts.depth, 10));
+        success(data, 'ado', 'work-list-areas', start);
+      } catch (err) { fail(err, 'ado', 'work-list-areas', start); }
+    });
+
+  work
+    .command('list-iterations')
+    .description('List classification iterations for the team project (tree), including start/finish dates')
+    .option('--depth <n>', 'Depth of the iteration tree to retrieve', '10')
+    .action(async (opts: { depth: string }) => {
+      const start = Date.now();
+      try {
+        const { collection, project, workClient } = getAdoContext(ado);
+        const data = await workClient.listIterations(collection, project, parseInt(opts.depth, 10));
+        success(data, 'ado', 'work-list-iterations', start);
+      } catch (err) { fail(err, 'ado', 'work-list-iterations', start); }
+    });
+
   // ── Type / Field discovery ────────────────────────────────────────
 
   work
