@@ -181,6 +181,16 @@ describe('loadConfig — jenkins.baseUrl resolution order', () => {
     expect(config.jenkins.baseUrl).toBe('https://global.jenkins.example.com');
   });
 
+  it('env var takes precedence over global jenkins.baseUrl', () => {
+    process.env['PNCLI_JENKINS_BASE_URL'] = 'https://env.jenkins.example.com';
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jenkins: { baseUrl: 'https://global.jenkins.example.com' } }));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
+
+    const config = loadConfig({ configPath: globalConfigPath });
+
+    expect(config.jenkins.baseUrl).toBe('https://env.jenkins.example.com');
+  });
+
   it('env var is used as fallback when neither project nor global config sets baseUrl', () => {
     process.env['PNCLI_JENKINS_BASE_URL'] = 'https://env.jenkins.example.com';
     fs.writeFileSync(globalConfigPath, JSON.stringify({}));

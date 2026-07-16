@@ -178,7 +178,7 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       discoveredTypes: globalConfig.ado?.discoveredTypes ?? []
     },
     jenkins: {
-      baseUrl: repoConfig.defaults?.jenkins?.baseUrl ?? globalConfig.jenkins?.baseUrl ?? process.env[ENV_KEYS.JENKINS_BASE_URL],
+      baseUrl: repoConfig.defaults?.jenkins?.baseUrl ?? process.env[ENV_KEYS.JENKINS_BASE_URL] ?? globalConfig.jenkins?.baseUrl,
       username: process.env[ENV_KEYS.JENKINS_USERNAME] ?? globalConfig.jenkins?.username,
       apiToken: process.env[ENV_KEYS.JENKINS_API_TOKEN] ?? globalConfig.jenkins?.apiToken
     },
