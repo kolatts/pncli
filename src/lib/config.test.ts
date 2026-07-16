@@ -1,6 +1,11 @@
-import { describe, it, expect } from 'vitest';
-import { maskConfig } from './config.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { maskConfig, loadConfig } from './config.js';
 import type { ResolvedConfig } from '../types/config.js';
+
+vi.mock('child_process', () => ({ execSync: vi.fn() }));
 
 function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
   return {
@@ -20,7 +25,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
     openshift: { baseUrl: undefined, token: undefined },
-    defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, udeploy: {} },
+    defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, udeploy: {}, jenkins: {} },
     ...overrides
   };
 }
@@ -138,5 +143,71 @@ describe('maskConfig', () => {
     const masked = maskConfig(config) as ResolvedConfig;
     expect((masked.contrast as { apiKey?: string }).apiKey).toBe('***');
     expect((masked.contrast as { serviceKey?: string }).serviceKey).toBe('***');
+  });
+});
+
+describe('loadConfig — jenkins.baseUrl resolution order', () => {
+  let tmpDir: string;
+  let globalConfigPath: string;
+
+  beforeEach(async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-test-'));
+    globalConfigPath = path.join(tmpDir, 'config.json');
+    const { execSync } = await import('child_process');
+    vi.mocked(execSync).mockReturnValue(tmpDir as unknown as ReturnType<typeof execSync>);
+  });
+
+  afterEach(() => {
+    delete process.env['PNCLI_JENKINS_BASE_URL'];
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.clearAllMocks();
+  });
+
+  it('project defaults.jenkins.baseUrl overrides global jenkins.baseUrl', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jenkins: { baseUrl: 'https://global.jenkins.example.com' } }));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({ defaults: { jenkins: { baseUrl: 'https://project.jenkins.example.com' } } }));
+
+    const config = loadConfig({ configPath: globalConfigPath });
+
+    expect(config.jenkins.baseUrl).toBe('https://project.jenkins.example.com');
+  });
+
+  it('global jenkins.baseUrl is used when no project override is set', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jenkins: { baseUrl: 'https://global.jenkins.example.com' } }));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
+
+    const config = loadConfig({ configPath: globalConfigPath });
+
+    expect(config.jenkins.baseUrl).toBe('https://global.jenkins.example.com');
+  });
+
+  it('env var takes precedence over global jenkins.baseUrl', () => {
+    process.env['PNCLI_JENKINS_BASE_URL'] = 'https://env.jenkins.example.com';
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jenkins: { baseUrl: 'https://global.jenkins.example.com' } }));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
+
+    const config = loadConfig({ configPath: globalConfigPath });
+
+    expect(config.jenkins.baseUrl).toBe('https://env.jenkins.example.com');
+  });
+
+  it('env var is used as fallback when neither project nor global config sets baseUrl', () => {
+    process.env['PNCLI_JENKINS_BASE_URL'] = 'https://env.jenkins.example.com';
+    fs.writeFileSync(globalConfigPath, JSON.stringify({}));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
+
+    const config = loadConfig({ configPath: globalConfigPath });
+
+    expect(config.jenkins.baseUrl).toBe('https://env.jenkins.example.com');
+  });
+
+  it('project defaults.jenkins.baseUrl takes precedence over env var', () => {
+    process.env['PNCLI_JENKINS_BASE_URL'] = 'https://env.jenkins.example.com';
+    fs.writeFileSync(globalConfigPath, JSON.stringify({}));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({ defaults: { jenkins: { baseUrl: 'https://project.jenkins.example.com' } } }));
+
+    const config = loadConfig({ configPath: globalConfigPath });
+
+    expect(config.jenkins.baseUrl).toBe('https://project.jenkins.example.com');
   });
 });

@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
-import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, GitHubDefaults, SonarDefaults, SdeDefaults, AdoDefaults, UdeployDefaults } from '../types/config.js';
+import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, GitHubDefaults, SonarDefaults, SdeDefaults, AdoDefaults, UdeployDefaults, JenkinsDefaults } from '../types/config.js';
 import type { CustomFieldDefinition } from '../types/jira.js';
 
 const ENV_KEYS = {
@@ -99,7 +99,7 @@ function mergeCustomFields(
 function mergeDefaults(
   global: GlobalConfig['defaults'],
   repo: RepoConfig['defaults']
-): { jira: JiraDefaults; bitbucket: BitbucketDefaults; github: GitHubDefaults; sonar: SonarDefaults; sde: SdeDefaults; ado: AdoDefaults; udeploy: UdeployDefaults } {
+): { jira: JiraDefaults; bitbucket: BitbucketDefaults; github: GitHubDefaults; sonar: SonarDefaults; sde: SdeDefaults; ado: AdoDefaults; udeploy: UdeployDefaults; jenkins: JenkinsDefaults } {
   return {
     jira: { ...global?.jira, ...repo?.jira },
     bitbucket: { ...global?.bitbucket, ...repo?.bitbucket },
@@ -107,7 +107,8 @@ function mergeDefaults(
     sonar: { ...global?.sonar, ...repo?.sonar },
     sde: { ...global?.sde, ...repo?.sde },
     ado: { ...global?.ado, ...repo?.ado },
-    udeploy: { ...global?.udeploy, ...repo?.udeploy }
+    udeploy: { ...global?.udeploy, ...repo?.udeploy },
+    jenkins: { ...global?.jenkins, ...repo?.jenkins }
   };
 }
 
@@ -177,7 +178,7 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       discoveredTypes: globalConfig.ado?.discoveredTypes ?? []
     },
     jenkins: {
-      baseUrl: process.env[ENV_KEYS.JENKINS_BASE_URL] ?? globalConfig.jenkins?.baseUrl,
+      baseUrl: repoConfig.defaults?.jenkins?.baseUrl ?? process.env[ENV_KEYS.JENKINS_BASE_URL] ?? globalConfig.jenkins?.baseUrl,
       username: process.env[ENV_KEYS.JENKINS_USERNAME] ?? globalConfig.jenkins?.username,
       apiToken: process.env[ENV_KEYS.JENKINS_API_TOKEN] ?? globalConfig.jenkins?.apiToken
     },

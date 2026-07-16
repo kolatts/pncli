@@ -55,6 +55,17 @@ When adding a new service integration (new entry under `src/services/`), these f
 
 Never ship a new integration without updating all seven of these. The `skills/pncli/` skill is the onboarding contract — review the index and service file on every service addition or credential change. If a service is missing or its config keys are wrong, new users won't know it exists or how to authenticate.
 
+## Configuration Precedence
+
+Environment variables must always have the highest precedence for resolved configuration values (especially credentials and `baseUrl` fields).
+
+Global precedence rule:
+1. Environment variable (`PNCLI_*`)
+2. Repository config/defaults (`.pncli.json`)
+3. Global user config (`~/.pncli/config.json`)
+
+The intent is to keep CI/CD and GitHub Actions usage safe and predictable: workflows inject environment variables at runtime and must be able to override repository and developer-local settings without editing files. If a change would make env vars lower priority for any field, treat it as a breaking behavior change and call it out explicitly in docs and PR notes.
+
 ## Self-Containment Rule
 
 pncli integrations must be self-contained. Users cannot be required to have any other CLI installed (e.g. `az`, `gcloud`, `kubectl`, `aws`) to obtain credentials, exchange tokens, or otherwise use a pncli command. If an integration needs a bearer token from an OAuth2 exchange, pncli performs the exchange itself using credentials the user supplies (username/password, client ID, refresh token, etc.). The only external dependency allowed at runtime is the target service's HTTP API.
