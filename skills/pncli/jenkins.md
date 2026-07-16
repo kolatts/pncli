@@ -48,4 +48,4 @@ Or via the CLI:
 pncli config set --repo defaults.jenkins.baseUrl https://jenkins.myteam.company.com
 ```
 
-Resolution order (highest to lowest): project `.pncli.json` → global config → `PNCLI_JENKINS_BASE_URL` env var.
+Resolution order (highest to lowest): project `.pncli.json` → `PNCLI_JENKINS_BASE_URL` env var → global config.
