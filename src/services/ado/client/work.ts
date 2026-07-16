@@ -9,7 +9,8 @@ import type {
   AdoField,
   AdoWiqlResult,
   AdoPageResponse,
-  AdoWorkItemAttachment
+  AdoWorkItemAttachment,
+  AdoClassificationNode
 } from '../../../types/ado.js';
 
 const API = '7.1';
@@ -141,6 +142,18 @@ export class AdoWorkClient {
 
   async downloadAttachment(absoluteUrl: string): Promise<Buffer> {
     return this.http.adoBuffer(absoluteUrl);
+  }
+
+  async listAreas(collection: string, project: string, depth = 10): Promise<AdoClassificationNode> {
+    return this.http.ado<AdoClassificationNode>(
+      `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/wit/classificationnodes/areas?$depth=${depth}&api-version=${API}`
+    );
+  }
+
+  async listIterations(collection: string, project: string, depth = 10): Promise<AdoClassificationNode> {
+    return this.http.ado<AdoClassificationNode>(
+      `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/wit/classificationnodes/iterations?$depth=${depth}&api-version=${API}`
+    );
   }
 
   async uploadAttachment(

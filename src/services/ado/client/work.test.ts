@@ -290,6 +290,130 @@ describe('AdoWorkClient — listAttachments', () => {
   });
 });
 
+describe('AdoWorkClient — listAreas', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('returns the area tree root node', async () => {
+    const areaTree = {
+      id: 1,
+      identifier: 'area-guid-1',
+      name: 'MyProject',
+      structureType: 'area',
+      hasChildren: true,
+      path: '\\MyProject\\Area',
+      url: 'https://ado.example.com/myorg/MyProject/_apis/wit/classificationnodes/areas',
+      children: [
+        {
+          id: 2,
+          identifier: 'area-guid-2',
+          name: 'TeamA',
+          structureType: 'area',
+          hasChildren: false,
+          path: '\\MyProject\\Area\\TeamA',
+          url: 'https://ado.example.com/myorg/MyProject/_apis/wit/classificationnodes/areas/TeamA'
+        }
+      ]
+    };
+
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify(areaTree), { status: 200 })
+    );
+
+    const http = new HttpClient(makeConfig());
+    const client = new AdoWorkClient(http);
+    const result = await client.listAreas('myorg', 'MyProject');
+
+    expect(result.name).toBe('MyProject');
+    expect(result.structureType).toBe('area');
+    expect(result.hasChildren).toBe(true);
+    expect(result.children).toHaveLength(1);
+    expect(result.children![0].name).toBe('TeamA');
+  });
+
+  it('passes depth parameter in the request URL', async () => {
+    let capturedUrl = '';
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrl = url;
+      return new Response(JSON.stringify({
+        id: 1, identifier: 'g', name: 'Root', structureType: 'area',
+        hasChildren: false, path: '\\P', url: ''
+      }), { status: 200 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new AdoWorkClient(http);
+    await client.listAreas('myorg', 'MyProject', 3);
+
+    expect(capturedUrl).toContain('$depth=3');
+    expect(capturedUrl).toContain('classificationnodes/areas');
+  });
+});
+
+describe('AdoWorkClient — listIterations', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('returns iteration tree with start and finish dates', async () => {
+    const iterationTree = {
+      id: 10,
+      identifier: 'iter-guid-1',
+      name: 'MyProject',
+      structureType: 'iteration',
+      hasChildren: true,
+      path: '\\MyProject\\Iteration',
+      url: 'https://ado.example.com/myorg/MyProject/_apis/wit/classificationnodes/iterations',
+      children: [
+        {
+          id: 11,
+          identifier: 'iter-guid-2',
+          name: 'Sprint 1',
+          structureType: 'iteration',
+          hasChildren: false,
+          path: '\\MyProject\\Iteration\\Sprint 1',
+          url: 'https://ado.example.com/myorg/MyProject/_apis/wit/classificationnodes/iterations/Sprint%201',
+          attributes: {
+            startDate: '2024-01-01T00:00:00Z',
+            finishDate: '2024-01-14T00:00:00Z'
+          }
+        }
+      ]
+    };
+
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify(iterationTree), { status: 200 })
+    );
+
+    const http = new HttpClient(makeConfig());
+    const client = new AdoWorkClient(http);
+    const result = await client.listIterations('myorg', 'MyProject');
+
+    expect(result.name).toBe('MyProject');
+    expect(result.structureType).toBe('iteration');
+    expect(result.children).toHaveLength(1);
+    const sprint = result.children![0];
+    expect(sprint.name).toBe('Sprint 1');
+    expect(sprint.attributes?.startDate).toBe('2024-01-01T00:00:00Z');
+    expect(sprint.attributes?.finishDate).toBe('2024-01-14T00:00:00Z');
+  });
+
+  it('passes depth parameter in the request URL', async () => {
+    let capturedUrl = '';
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrl = url;
+      return new Response(JSON.stringify({
+        id: 10, identifier: 'g', name: 'Root', structureType: 'iteration',
+        hasChildren: false, path: '\\P', url: ''
+      }), { status: 200 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new AdoWorkClient(http);
+    await client.listIterations('myorg', 'MyProject', 5);
+
+    expect(capturedUrl).toContain('$depth=5');
+    expect(capturedUrl).toContain('classificationnodes/iterations');
+  });
+});
+
 describe('AdoWorkClient — downloadAttachment', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
