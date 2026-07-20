@@ -267,6 +267,37 @@ describe('JiraClient — listSprintsForProject', () => {
 
     expect(sprints.map(s => s.id)).toEqual([10, 11]);
   });
+
+  it('skips kanban boards and does not call the sprint endpoint for them', async () => {
+    const calledUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      calledUrls.push(url);
+      if (url.includes('/board?') || url.endsWith('/board')) {
+        return new Response(
+          JSON.stringify({
+            values: [
+              { id: 1, name: 'Scrum Board', type: 'scrum' },
+              { id: 2, name: 'Kanban Board', type: 'kanban' }
+            ],
+            total: 2, startAt: 0, maxResults: 100
+          }),
+          { status: 200 }
+        );
+      }
+      // Only the scrum board's sprint endpoint should be reached
+      return new Response(
+        JSON.stringify({ values: [{ id: 10, name: 'Sprint 10', state: 'active' }], total: 1, startAt: 0, maxResults: 100 }),
+        { status: 200 }
+      );
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    const sprints = await client.listSprintsForProject('PROJ');
+
+    expect(sprints.map(s => s.id)).toEqual([10]);
+    expect(calledUrls.some(u => u.includes('/board/2/sprint'))).toBe(false);
+  });
 });
 
 describe('JiraClient — setSprint', () => {
