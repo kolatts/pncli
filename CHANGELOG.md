@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.17.0](https://github.com/kolatts/pncli/compare/v1.16.0...v1.17.0) (2026-07-20)
+
+
+### Features
+
+* **ado:** add work list-areas and list-iterations commands ([#248](https://github.com/kolatts/pncli/issues/248)) ([736052a](https://github.com/kolatts/pncli/commit/736052a5d7a8a10eab36639de11ee50e49698ec8))
+* **jenkins:** project-scoped baseUrl via defaults.jenkins.baseUrl ([#252](https://github.com/kolatts/pncli/issues/252)) ([522f9b8](https://github.com/kolatts/pncli/commit/522f9b8be1181c7c3166e5baf1c9a737e425c4f7))
+* **jira:** list boards/sprints and set sprint on an issue ([#250](https://github.com/kolatts/pncli/issues/250)) ([e62a1ef](https://github.com/kolatts/pncli/commit/e62a1efc65719149c39621a43d42c619b1bbfa6b))
+* **skills:** support multiple marketplaces with seamless sync and CRUD ([#247](https://github.com/kolatts/pncli/issues/247)) ([690de02](https://github.com/kolatts/pncli/commit/690de0278f0dfb7bc9969f00680f9d24854cea09))
+
+
+### Bug Fixes
+
+* **jira:** skip non-scrum boards in listSprintsForProject ([#255](https://github.com/kolatts/pncli/issues/255)) ([5a799f5](https://github.com/kolatts/pncli/commit/5a799f5f1528baff2162c1973f80c8db6f4f701c))
+* **skills:** treat marketplace clone as successful when git exits non-zero but .git is valid ([#242](https://github.com/kolatts/pncli/issues/242)) ([417cda8](https://github.com/kolatts/pncli/commit/417cda84d04fe4147873ecc6bd6f6efdeedec2e1)), closes [#239](https://github.com/kolatts/pncli/issues/239)
+
 ## [1.16.0](https://github.com/kolatts/pncli/compare/v1.15.0...v1.16.0) (2026-06-27)
 
 
