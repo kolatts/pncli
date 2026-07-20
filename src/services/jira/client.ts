@@ -318,6 +318,7 @@ export class JiraClient {
     const sprints: JiraSprint[] = [];
     const seen = new Set<number>();
     for (const board of boards) {
+      if (board.type !== 'scrum') continue;
       for (const sprint of await this.listSprintsForBoard(board.id, states)) {
         if (seen.has(sprint.id)) continue;
         seen.add(sprint.id);
