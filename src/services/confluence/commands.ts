@@ -1,9 +1,47 @@
+import { readFileSync } from 'fs';
 import { Command } from 'commander';
 import { ConfluenceClient } from './client.js';
 import { createHttpClient } from '../../lib/http.js';
 import { loadConfig } from '../../lib/config.js';
 import { success, fail } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
+
+/**
+ * Resolves the page body from either an inline --body string or a --body-file path.
+ * Returns undefined if neither is provided (caller decides if that is an error).
+ * Throws if both are provided.
+ */
+export function resolveBody(body: string | undefined, bodyFile: string | undefined): string | undefined {
+  if (body !== undefined && bodyFile !== undefined) {
+    throw new PncliError('Cannot specify both --body and --body-file', 1);
+  }
+  if (bodyFile !== undefined) {
+    try {
+      return readFileSync(bodyFile, 'utf8');
+    } catch (e) {
+      throw new PncliError(`Cannot read body file "${bodyFile}": ${(e as NodeJS.ErrnoException).message}`, 1);
+    }
+  }
+  return body;
+}
+
+/**
+ * When Confluence returns an XML parse error (HTTP 400 with "at [row,col]={R,C}"),
+ * extracts the offending line from the submitted body and returns a diagnostic hint.
+ * Returns null if the error doesn't match the pattern or the row is out of range.
+ */
+export function xmlParseHint(err: unknown, bodyContent: string): string | null {
+  if (!(err instanceof Error)) return null;
+  const m = err.message.match(/at \[row,col\]=\{(\d+),(\d+)\}/);
+  if (!m) return null;
+  const row = parseInt(m[1], 10);
+  const col = parseInt(m[2], 10);
+  const lines = bodyContent.split('\n');
+  const line = lines[row - 1];
+  if (!line) return null;
+  const pointer = ' '.repeat(Math.max(0, col - 1)) + '^';
+  return `Offending line ${row}: ${line}\n${pointer}`;
+}
 
 function getClient(program: Command): ConfluenceClient {
   const opts = program.optsWithGlobals();
@@ -113,46 +151,79 @@ export function registerConfluenceCommands(program: Command): void {
     .description('Create a new Confluence page')
     .requiredOption('--space <key>', 'Space key')
     .requiredOption('--title <title>', 'Page title')
-    .requiredOption('--body <html>', 'Page body (storage format HTML)')
+    .option('--body <html>', 'Page body (storage format HTML or Markdown when --markdown is set)')
+    .option('--body-file <path>', 'Path to a file containing the page body')
+    .option('--markdown', 'Convert body from Markdown to storage format via Confluence API')
     .option('--parent-id <id>', 'Parent page ID (to nest under a page)')
     .option('--representation <format>', 'Body format: storage (default) or wiki', 'storage')
-    .action(async (opts: { space: string; title: string; body: string; parentId?: string; representation: string }) => {
+    .action(async (opts: { space: string; title: string; body?: string; bodyFile?: string; markdown?: boolean; parentId?: string; representation: string }) => {
       const start = Date.now();
+      let bodyContent: string | undefined;
       try {
         const client = getClient(program);
+        const rawBody = resolveBody(opts.body, opts.bodyFile);
+        if (rawBody === undefined) throw new PncliError('Must specify --body or --body-file', 1);
+        bodyContent = opts.markdown ? await client.convertToStorage(rawBody) : rawBody;
+        const representation = opts.markdown ? 'storage' : opts.representation;
         const data = await client.createPage({
           spaceKey: opts.space,
           title: opts.title,
-          body: opts.body,
+          body: bodyContent,
           parentId: opts.parentId,
-          representation: opts.representation
+          representation
         });
         success(data, 'confluence', 'create-page', start);
-      } catch (err) { fail(err, 'confluence', 'create-page', start); }
+      } catch (err) {
+        const hint = bodyContent ? xmlParseHint(err, bodyContent) : null;
+        if (hint) {
+          const msg = err instanceof Error ? err.message : String(err);
+          const status = err instanceof PncliError ? err.status : 1;
+          const url = err instanceof PncliError ? err.url : undefined;
+          fail(new PncliError(`${msg}\n\n${hint}`, status, url), 'confluence', 'create-page', start);
+        }
+        fail(err, 'confluence', 'create-page', start);
+      }
     });
 
   confluence.command('update-page')
     .description('Update a Confluence page (fetches current version automatically)')
     .requiredOption('--id <page-id>', 'Page ID')
     .option('--title <title>', 'New page title')
-    .option('--body <html>', 'New page body (storage format HTML)')
+    .option('--body <html>', 'New page body (storage format HTML or Markdown when --markdown is set)')
+    .option('--body-file <path>', 'Path to a file containing the new page body')
+    .option('--markdown', 'Convert body from Markdown to storage format via Confluence API')
     .option('--status <status>', 'Page status: current (default) or draft', 'current')
     .option('--representation <format>', 'Body format: storage (default) or wiki', 'storage')
-    .action(async (opts: { id: string; title?: string; body?: string; status: string; representation: string }) => {
+    .action(async (opts: { id: string; title?: string; body?: string; bodyFile?: string; markdown?: boolean; status: string; representation: string }) => {
       const start = Date.now();
+      let bodyContent: string | undefined;
       try {
         const client = getClient(program);
+        const rawBody = resolveBody(opts.body, opts.bodyFile);
+        bodyContent = (rawBody !== undefined && opts.markdown)
+          ? await client.convertToStorage(rawBody)
+          : rawBody;
+        const representation = (bodyContent !== undefined && opts.markdown) ? 'storage' : opts.representation;
         const current = await client.getPage(opts.id, 'version');
         const nextVersion = current.version.number + 1;
         const data = await client.updatePage(opts.id, {
           version: nextVersion,
           title: opts.title ?? current.title,
-          body: opts.body,
+          body: bodyContent,
           status: opts.status,
-          representation: opts.representation
+          representation
         });
         success(data, 'confluence', 'update-page', start);
-      } catch (err) { fail(err, 'confluence', 'update-page', start); }
+      } catch (err) {
+        const hint = bodyContent ? xmlParseHint(err, bodyContent) : null;
+        if (hint) {
+          const msg = err instanceof Error ? err.message : String(err);
+          const status = err instanceof PncliError ? err.status : 1;
+          const url = err instanceof PncliError ? err.url : undefined;
+          fail(new PncliError(`${msg}\n\n${hint}`, status, url), 'confluence', 'update-page', start);
+        }
+        fail(err, 'confluence', 'update-page', start);
+      }
     });
 
   confluence.command('delete-page')

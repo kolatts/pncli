@@ -200,4 +200,15 @@ export class ConfluenceClient {
       });
     });
   }
+
+  async convertToStorage(value: string, fromRepresentation = 'markdown'): Promise<string> {
+    const result = await this.http.confluence<{ value: string; representation: string }>(
+      `${API}/contentbody/convert/storage`,
+      {
+        method: 'POST',
+        body: { value, representation: fromRepresentation }
+      }
+    );
+    return result.value;
+  }
 }
