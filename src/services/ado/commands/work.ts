@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { getAdoContext, buildFieldPatch, parseFieldArgs, splitWorkFieldsDictionary } from '../helpers.js';
 import { discoverFields, discoverTypeFields, discoverTypes, buildDefaultAliases } from '../discovery.js';
 import { ADO_WORK_INPUT_FILE_SCHEMA, ADO_WORK_INPUT_FILE_EXAMPLE } from '../input-schema.js';
-import { success, fail, warn } from '../../../lib/output.js';
+import { success, fail, warn, writeRawOutput } from '../../../lib/output.js';
 import { loadConfig, getGlobalConfigPath } from '../../../lib/config.js';
 import { PncliError } from '../../../lib/errors.js';
 import { readJsonInputFile, mergeWithOverrides, resolveAtFileRef } from '../../../lib/input.js';
@@ -78,11 +78,15 @@ export function registerAdoWorkCommands(ado: Command): void {
         const overrides = [...builtinOverrides, ...customOverrides];
         if (overrides.length) warn(`--input-file value(s) overridden by CLI flags: ${overrides.join(', ')}`);
 
+        // Empty-string flag values (e.g. an unset shell variable interpolated into --description "")
+        // are treated as "not provided", matching the pre-existing CLI-only behavior — only undefined
+        // and '' are filtered here, so a legitimate falsy JSON value like priority: 0 still passes.
+        const hasContent = (v: unknown): boolean => v !== undefined && v !== '';
         const builtIn: Record<string, unknown> = {
           'System.Title': builtinFields.title,
-          ...(builtinFields.description !== undefined ? { 'System.Description': builtinFields.description } : {}),
-          ...(builtinFields.assignee !== undefined ? { 'System.AssignedTo': builtinFields.assignee } : {}),
-          ...(builtinFields.priority !== undefined ? { 'Microsoft.VSTS.Common.Priority': builtinFields.priority } : {})
+          ...(hasContent(builtinFields.description) ? { 'System.Description': builtinFields.description } : {}),
+          ...(hasContent(builtinFields.assignee) ? { 'System.AssignedTo': builtinFields.assignee } : {}),
+          ...(hasContent(builtinFields.priority) ? { 'Microsoft.VSTS.Common.Priority': builtinFields.priority } : {})
         };
         const extra = buildFieldPatch(customFields, config.ado.fieldAliases);
         const patch = [
@@ -435,12 +439,15 @@ export function registerAdoWorkCommands(ado: Command): void {
   work
     .command('schema')
     .description('Print the --input-file JSON schema and an example for work create/update')
-    .option('--example-only', 'Print only the runnable example JSON')
+    .option('--example-only', "Print only the runnable example JSON (no envelope) — pipeable straight into --input-file")
     .action((opts: { exampleOnly?: boolean }) => {
       const start = Date.now();
-      const data = opts.exampleOnly
-        ? ADO_WORK_INPUT_FILE_EXAMPLE
-        : { schema: ADO_WORK_INPUT_FILE_SCHEMA, example: ADO_WORK_INPUT_FILE_EXAMPLE };
-      success(data, 'ado', 'work-schema', start);
+      if (opts.exampleOnly) {
+        // Bypass the success() envelope: this output is meant to be redirected straight
+        // into a file and passed to --input-file, so it must be the raw JSON, not {ok,data,meta}.
+        writeRawOutput(JSON.stringify(ADO_WORK_INPUT_FILE_EXAMPLE, null, 2) + '\n');
+        return;
+      }
+      success({ schema: ADO_WORK_INPUT_FILE_SCHEMA, example: ADO_WORK_INPUT_FILE_EXAMPLE }, 'ado', 'work-schema', start);
     });
 }

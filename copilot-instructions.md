@@ -175,7 +175,8 @@ pncli jira update-issue
   See: pncli jira schema
 
 pncli jira schema
-  --example-only  Print only the runnable example JSON
+  --example-only  Print only the runnable example JSON (no envelope) — pipeable
+  straight into --input-file
 
 pncli jira transition-issue
   --key <issue-key>          Issue key
@@ -811,7 +812,8 @@ pncli ado work fields
   --save         Save discovered fields and aliases to ~/.pncli/config.json
 
 pncli ado work schema
-  --example-only  Print only the runnable example JSON
+  --example-only  Print only the runnable example JSON (no envelope) — pipeable
+  straight into --input-file
 
 pncli ado repo list
 

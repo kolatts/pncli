@@ -6,7 +6,7 @@ import { buildFieldMap, translateJql, translateFieldsInOutput, formatFieldValue 
 import { JIRA_INPUT_FILE_SCHEMA, JIRA_INPUT_FILE_EXAMPLE } from './input-schema.js';
 import { createHttpClient } from '../../lib/http.js';
 import { loadConfig } from '../../lib/config.js';
-import { success, fail, warn } from '../../lib/output.js';
+import { success, fail, warn, writeRawOutput } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
 import { readJsonInputFile, resolveAtFileRef, mergeWithOverrides } from '../../lib/input.js';
 import type { CustomFieldMap } from '../../types/jira.js';
@@ -230,13 +230,16 @@ export function registerJiraCommands(program: Command): void {
 
   jira.command('schema')
     .description('Print the --input-file JSON schema and an example for create-issue/update-issue')
-    .option('--example-only', 'Print only the runnable example JSON')
+    .option('--example-only', "Print only the runnable example JSON (no envelope) — pipeable straight into --input-file")
     .action((opts: { exampleOnly?: boolean }) => {
       const start = Date.now();
-      const data = opts.exampleOnly
-        ? JIRA_INPUT_FILE_EXAMPLE
-        : { schema: JIRA_INPUT_FILE_SCHEMA, example: JIRA_INPUT_FILE_EXAMPLE };
-      success(data, 'jira', 'schema', start);
+      if (opts.exampleOnly) {
+        // Bypass the success() envelope: this output is meant to be redirected straight
+        // into a file and passed to --input-file, so it must be the raw JSON, not {ok,data,meta}.
+        writeRawOutput(JSON.stringify(JIRA_INPUT_FILE_EXAMPLE, null, 2) + '\n');
+        return;
+      }
+      success({ schema: JIRA_INPUT_FILE_SCHEMA, example: JIRA_INPUT_FILE_EXAMPLE }, 'jira', 'schema', start);
     });
 
   jira.command('transition-issue')

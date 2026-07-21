@@ -33,9 +33,11 @@ export const JIRA_INPUT_FILE_EXAMPLE = {
   fields: {
     summary: 'Login broken on Safari',
     description: '@desc.html',
-    'Acceptance Criteria': '@ac.md',
     priority: 'High',
     labels: ['frontend', 'urgent'],
-    customfield_10032: 5
+    // Raw field id — passed through untouched, no pre-registration needed. A friendly
+    // custom-field name (e.g. "Story Points") also works, but only once it's registered
+    // via `pncli config set jira.customFields` / discovered with `pncli jira fields`.
+    customfield_10032: '@ac.md'
   }
 };
