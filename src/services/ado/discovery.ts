@@ -63,37 +63,43 @@ export async function discoverTypes(
 }
 
 /**
+ * Candidate friendly-name → reference-name pairs for the most common ADO work item fields.
+ * Shared by buildDefaultAliases (filtered to fields actually discovered for a project/process)
+ * and by helpers.ts's DEFAULT_ADO_FIELD_ALIASES fallback (used before any `--save` discovery
+ * has run, so common fields like Description/Acceptance Criteria resolve out of the box).
+ */
+export const ADO_FIELD_ALIAS_CANDIDATES: Array<[string, string]> = [
+  ['title',         'System.Title'],
+  ['state',         'System.State'],
+  ['assignedto',    'System.AssignedTo'],
+  ['assigned-to',   'System.AssignedTo'],
+  ['description',   'System.Description'],
+  ['areapath',      'System.AreaPath'],
+  ['area-path',     'System.AreaPath'],
+  ['iterationpath', 'System.IterationPath'],
+  ['iteration',     'System.IterationPath'],
+  ['tags',          'System.Tags'],
+  ['priority',      'Microsoft.VSTS.Common.Priority'],
+  ['severity',      'Microsoft.VSTS.Common.Severity'],
+  ['effort',        'Microsoft.VSTS.Scheduling.Effort'],
+  ['storypoints',   'Microsoft.VSTS.Scheduling.StoryPoints'],
+  ['story-points',  'Microsoft.VSTS.Scheduling.StoryPoints'],
+  ['remainingwork', 'Microsoft.VSTS.Scheduling.RemainingWork'],
+  ['remaining',     'Microsoft.VSTS.Scheduling.RemainingWork'],
+  ['acceptancecriteria', 'Microsoft.VSTS.Common.AcceptanceCriteria'],
+  ['reprosteps',    'Microsoft.VSTS.TCM.ReproSteps'],
+  ['foundinsource', 'Microsoft.VSTS.Build.FoundIn']
+];
+
+/**
  * Generates a default alias map for the most common field reference names.
  * Only includes aliases for fields actually present in the discovered set.
  */
 export function buildDefaultAliases(fields: AdoFieldMeta[]): Record<string, string> {
   const refNames = new Set(fields.map(f => f.referenceName));
 
-  const candidates: Array<[string, string]> = [
-    ['title',         'System.Title'],
-    ['state',         'System.State'],
-    ['assignedto',    'System.AssignedTo'],
-    ['assigned-to',   'System.AssignedTo'],
-    ['description',   'System.Description'],
-    ['areapath',      'System.AreaPath'],
-    ['area-path',     'System.AreaPath'],
-    ['iterationpath', 'System.IterationPath'],
-    ['iteration',     'System.IterationPath'],
-    ['tags',          'System.Tags'],
-    ['priority',      'Microsoft.VSTS.Common.Priority'],
-    ['severity',      'Microsoft.VSTS.Common.Severity'],
-    ['effort',        'Microsoft.VSTS.Scheduling.Effort'],
-    ['storypoints',   'Microsoft.VSTS.Scheduling.StoryPoints'],
-    ['story-points',  'Microsoft.VSTS.Scheduling.StoryPoints'],
-    ['remainingwork', 'Microsoft.VSTS.Scheduling.RemainingWork'],
-    ['remaining',     'Microsoft.VSTS.Scheduling.RemainingWork'],
-    ['acceptancecriteria', 'Microsoft.VSTS.Common.AcceptanceCriteria'],
-    ['reprosteps',    'Microsoft.VSTS.TCM.ReproSteps'],
-    ['foundinsource', 'Microsoft.VSTS.Build.FoundIn']
-  ];
-
   const aliases: Record<string, string> = {};
-  for (const [alias, ref] of candidates) {
+  for (const [alias, ref] of ADO_FIELD_ALIAS_CANDIDATES) {
     if (refNames.has(ref)) {
       aliases[alias] = ref;
     }

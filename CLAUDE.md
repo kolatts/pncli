@@ -55,6 +55,8 @@ When adding a new service integration (new entry under `src/services/`), these f
 
 Never ship a new integration without updating all seven of these. The `skills/pncli/` skill is the onboarding contract — review the index and service file on every service addition or credential change. If a service is missing or its config keys are wrong, new users won't know it exists or how to authenticate.
 
+If the new integration has a "ticket-shaped" create/update command with long rich-text fields (a description, an acceptance-criteria-style field, a body), read the `conventions` skill (`.claude/skills/conventions/`) for the `--input-file` pattern before inventing a one-off flag.
+
 ## Configuration Precedence
 
 Environment variables must always have the highest precedence for resolved configuration values (especially credentials and `baseUrl` fields).

@@ -143,7 +143,8 @@ pncli jira get-issue
 pncli jira create-issue
   --project <key>         Project key
   --type <type>           Issue type (Bug, Story, Task, ...)
-  --summary <text>        Issue summary
+  --summary <text>        Issue summary (required, unless supplied via
+  --input-file)
   --description <text>    Issue description
   --priority <name>       Priority name
   --assignee <accountId>  Assignee account ID
@@ -154,6 +155,9 @@ pncli jira create-issue
   from file (repeatable) (default: [])
   --fields-file <path>    Path to a JSON file mapping field names/IDs to their
   Jira API values
+  --input-file <path>     JSON file describing the whole issue ({ project,
+  issueType, fields: {...} }); '-' = stdin. CLI flags
+  override matching keys. See: pncli jira schema
 
 pncli jira update-issue
   --key <issue-key>       Issue key
@@ -166,6 +170,13 @@ pncli jira update-issue
   from file (repeatable) (default: [])
   --fields-file <path>    Path to a JSON file mapping field names/IDs to their
   Jira API values
+  --input-file <path>     JSON file describing fields to update ({ fields: {...}
+  }); '-' = stdin. CLI flags override matching keys.
+  See: pncli jira schema
+
+pncli jira schema
+  --example-only  Print only the runnable example JSON (no envelope) — pipeable
+  straight into --input-file
 
 pncli jira transition-issue
   --key <issue-key>          Issue key
@@ -453,7 +464,12 @@ pncli confluence search
 pncli confluence create-page
   --space <key>              Space key
   --title <title>            Page title
-  --body <html>              Page body (storage format HTML)
+  --body <html>              Page body (storage format HTML or Markdown when
+  --markdown is set)
+  --body-file <path>         Path to a file containing the page body ('-' =
+  stdin)
+  --markdown                 Convert body from Markdown to storage format via
+  Confluence API
   --parent-id <id>           Parent page ID (to nest under a page)
   --representation <format>  Body format: storage (default) or wiki (default:
   "storage")
@@ -461,7 +477,12 @@ pncli confluence create-page
 pncli confluence update-page
   --id <page-id>             Page ID
   --title <title>            New page title
-  --body <html>              New page body (storage format HTML)
+  --body <html>              New page body (storage format HTML or Markdown when
+  --markdown is set)
+  --body-file <path>         Path to a file containing the new page body ('-' =
+  stdin)
+  --markdown                 Convert body from Markdown to storage format via
+  Confluence API
   --status <status>          Page status: current (default) or draft (default:
   "current")
   --representation <format>  Body format: storage (default) or wiki (default:
@@ -705,18 +726,26 @@ pncli ado work get
   --id <n>    Work item ID
 
 pncli ado work create
-  --type <type>         Work item type (e.g. Bug, Task, User Story)
-  --title <title>       Work item title
+  --type <type>         Work item type (e.g. Bug, Task, User Story) (required,
+  unless supplied via --input-file)
+  --title <title>       Work item title (required, unless supplied via
+  --input-file)
   --description <text>  Description
   --assignee <user>     Assigned to (display name or email)
   --priority <n>        Priority (1-4)
   --parent <id>         Parent work item ID — creates a parent link after
   creation
   --field <name=value>  Additional field (repeatable) (default: [])
+  --input-file <path>   JSON file describing the work item ({ type, fields:
+  {...} }); '-' = stdin. CLI flags override matching keys.
+  See: pncli ado work schema
 
 pncli ado work update
   --id <n>              Work item ID
   --field <name=value>  Field to update (repeatable) (default: [])
+  --input-file <path>   JSON file describing fields to update ({ fields: {...}
+  }); '-' = stdin. CLI flags override matching keys. See:
+  pncli ado work schema
 
 pncli ado work transition
   --id <n>         Work item ID
@@ -763,6 +792,12 @@ pncli ado work download-attachment
   --attachment-id <guid>  Attachment ID from work list-attachments output
   --dir <path>            Output directory (default: .pncli relative to cwd)
 
+pncli ado work list-areas
+  --depth <n>  Depth of the area tree to retrieve (default: "10")
+
+pncli ado work list-iterations
+  --depth <n>  Depth of the iteration tree to retrieve (default: "10")
+
 pncli ado work types
   --discover  Fetch from server (always true for this command)
   --save      Save discovered types to ~/.pncli/config.json
@@ -775,6 +810,10 @@ pncli ado work fields
   --custom-only  Exclude System.* and Microsoft.VSTS.* fields
   --discover     Fetch from server (always true for this command)
   --save         Save discovered fields and aliases to ~/.pncli/config.json
+
+pncli ado work schema
+  --example-only  Print only the runnable example JSON (no envelope) — pipeable
+  straight into --input-file
 
 pncli ado repo list
 

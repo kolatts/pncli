@@ -1,29 +1,10 @@
-import { readFileSync } from 'fs';
 import { Command } from 'commander';
 import { ConfluenceClient } from './client.js';
 import { createHttpClient } from '../../lib/http.js';
 import { loadConfig } from '../../lib/config.js';
 import { success, fail } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
-
-/**
- * Resolves the page body from either an inline --body string or a --body-file path.
- * Returns undefined if neither is provided (caller decides if that is an error).
- * Throws if both are provided.
- */
-export function resolveBody(body: string | undefined, bodyFile: string | undefined): string | undefined {
-  if (body !== undefined && bodyFile !== undefined) {
-    throw new PncliError('Cannot specify both --body and --body-file', 1);
-  }
-  if (bodyFile !== undefined) {
-    try {
-      return readFileSync(bodyFile, 'utf8');
-    } catch (e) {
-      throw new PncliError(`Cannot read body file "${bodyFile}": ${(e as NodeJS.ErrnoException).message}`, 1);
-    }
-  }
-  return body;
-}
+import { resolveTextInput } from '../../lib/input.js';
 
 /**
  * When Confluence returns an XML parse error (HTTP 400 with "at [row,col]={R,C}"),
@@ -153,7 +134,7 @@ export function registerConfluenceCommands(program: Command): void {
     .requiredOption('--space <key>', 'Space key')
     .requiredOption('--title <title>', 'Page title')
     .option('--body <html>', 'Page body (storage format HTML or Markdown when --markdown is set)')
-    .option('--body-file <path>', 'Path to a file containing the page body')
+    .option('--body-file <path>', "Path to a file containing the page body ('-' = stdin)")
     .option('--markdown', 'Convert body from Markdown to storage format via Confluence API')
     .option('--parent-id <id>', 'Parent page ID (to nest under a page)')
     .option('--representation <format>', 'Body format: storage (default) or wiki', 'storage')
@@ -162,7 +143,7 @@ export function registerConfluenceCommands(program: Command): void {
       let bodyContent: string | undefined;
       try {
         const client = getClient(program);
-        const rawBody = resolveBody(opts.body, opts.bodyFile);
+        const rawBody = resolveTextInput(opts.body, opts.bodyFile, 'body');
         if (rawBody === undefined) throw new PncliError('Must specify --body or --body-file', 1);
         bodyContent = opts.markdown ? await client.convertToStorage(rawBody) : rawBody;
         const representation = opts.markdown ? 'storage' : opts.representation;
@@ -192,7 +173,7 @@ export function registerConfluenceCommands(program: Command): void {
     .requiredOption('--id <page-id>', 'Page ID')
     .option('--title <title>', 'New page title')
     .option('--body <html>', 'New page body (storage format HTML or Markdown when --markdown is set)')
-    .option('--body-file <path>', 'Path to a file containing the new page body')
+    .option('--body-file <path>', "Path to a file containing the new page body ('-' = stdin)")
     .option('--markdown', 'Convert body from Markdown to storage format via Confluence API')
     .option('--status <status>', 'Page status: current (default) or draft', 'current')
     .option('--representation <format>', 'Body format: storage (default) or wiki', 'storage')
@@ -201,7 +182,7 @@ export function registerConfluenceCommands(program: Command): void {
       let bodyContent: string | undefined;
       try {
         const client = getClient(program);
-        const rawBody = resolveBody(opts.body, opts.bodyFile);
+        const rawBody = resolveTextInput(opts.body, opts.bodyFile, 'body');
         bodyContent = (rawBody !== undefined && opts.markdown)
           ? await client.convertToStorage(rawBody)
           : rawBody;
