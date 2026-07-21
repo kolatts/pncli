@@ -463,7 +463,12 @@ pncli confluence search
 pncli confluence create-page
   --space <key>              Space key
   --title <title>            Page title
-  --body <html>              Page body (storage format HTML)
+  --body <html>              Page body (storage format HTML or Markdown when
+  --markdown is set)
+  --body-file <path>         Path to a file containing the page body ('-' =
+  stdin)
+  --markdown                 Convert body from Markdown to storage format via
+  Confluence API
   --parent-id <id>           Parent page ID (to nest under a page)
   --representation <format>  Body format: storage (default) or wiki (default:
   "storage")
@@ -471,7 +476,12 @@ pncli confluence create-page
 pncli confluence update-page
   --id <page-id>             Page ID
   --title <title>            New page title
-  --body <html>              New page body (storage format HTML)
+  --body <html>              New page body (storage format HTML or Markdown when
+  --markdown is set)
+  --body-file <path>         Path to a file containing the new page body ('-' =
+  stdin)
+  --markdown                 Convert body from Markdown to storage format via
+  Confluence API
   --status <status>          Page status: current (default) or draft (default:
   "current")
   --representation <format>  Body format: storage (default) or wiki (default:

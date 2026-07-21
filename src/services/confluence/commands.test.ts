@@ -1,55 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { readFileSync } from 'fs';
-import { resolveBody, xmlParseHint } from './commands.js';
-import { PncliError } from '../../lib/errors.js';
+import { describe, it, expect } from 'vitest';
+import { xmlParseHint } from './commands.js';
 
-vi.mock('fs', () => ({
-  readFileSync: vi.fn(),
-}));
-
-const mockReadFileSync = vi.mocked(readFileSync);
-
-beforeEach(() => {
-  vi.clearAllMocks();
-});
-
-describe('resolveBody', () => {
-  it('returns inline body when --body is provided', () => {
-    expect(resolveBody('<p>Hello</p>', undefined)).toBe('<p>Hello</p>');
-  });
-
-  it('reads file content when --body-file is provided', () => {
-    mockReadFileSync.mockReturnValue('<p>From file</p>' as unknown as ReturnType<typeof readFileSync>);
-    const result = resolveBody(undefined, 'page.html');
-    expect(mockReadFileSync).toHaveBeenCalledWith('page.html', 'utf8');
-    expect(result).toBe('<p>From file</p>');
-  });
-
-  it('returns undefined when neither --body nor --body-file is provided', () => {
-    expect(resolveBody(undefined, undefined)).toBeUndefined();
-  });
-
-  it('throws when both --body and --body-file are provided', () => {
-    expect(() => resolveBody('<p>inline</p>', 'page.html'))
-      .toThrow('Cannot specify both --body and --body-file');
-  });
-
-  it('throws a PncliError when the file cannot be read', () => {
-    const err = Object.assign(new Error('no such file or directory'), { code: 'ENOENT' });
-    mockReadFileSync.mockImplementation(() => { throw err; });
-    expect(() => resolveBody(undefined, 'missing.html'))
-      .toThrow('Cannot read body file "missing.html"');
-  });
-
-  it('wraps the OS error message in the PncliError', () => {
-    const err = Object.assign(new Error('permission denied'), { code: 'EACCES' });
-    mockReadFileSync.mockImplementation(() => { throw err; });
-    let thrown: unknown;
-    try { resolveBody(undefined, 'locked.html'); } catch (e) { thrown = e; }
-    expect(thrown).toBeInstanceOf(PncliError);
-    expect((thrown as PncliError).message).toContain('permission denied');
-  });
-});
+// resolveTextInput (formerly this file's local resolveBody) is now shared —
+// see src/lib/input.test.ts for its coverage, including the '-' = stdin case.
 
 describe('xmlParseHint', () => {
   it('returns null for a non-Error value', () => {
