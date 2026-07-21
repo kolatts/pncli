@@ -28,6 +28,10 @@ Repo-level defaults (project key, target branch) are stored in `.pncli.json` in 
 pncli config set --repo defaults.<service>.<key> <value>
 ```
 
+## Large text fields (descriptions, acceptance criteria)
+
+For commands with long rich-text fields (Jira `create-issue`/`update-issue`, ADO `work create`/`work update`), use `--input-file <path>` (`-` for stdin) instead of pasting a huge string inline — avoids hitting the shell's command-line length limit. The file is a JSON dictionary of field name/id → value; any string value may be `@path/to/file` to pull that field's content from a file instead. Run `pncli <service> schema` (e.g. `pncli jira schema`) to see the exact shape and a runnable example. Individual CLI flags still override matching keys from the file, and the override is reported. See `jira.md` / `ado.md` for details.
+
 ## Available services
 
 For detailed setup of any service, read the included file for that service.

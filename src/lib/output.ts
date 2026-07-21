@@ -21,13 +21,14 @@ export function setGlobalUser(user: { email: string | undefined; userId: string 
   globalUser = user;
 }
 
-function buildMeta(service: string, action: string, startTime: number): Meta {
+function buildMeta(service: string, action: string, startTime: number, overrides?: string[]): Meta {
   return {
     service,
     action,
     timestamp: new Date().toISOString(),
     duration_ms: Date.now() - startTime,
-    user: (globalUser.email ?? globalUser.userId) ? globalUser : undefined
+    user: (globalUser.email ?? globalUser.userId) ? globalUser : undefined,
+    overrides: overrides && overrides.length > 0 ? overrides : undefined
   };
 }
 
@@ -42,11 +43,11 @@ function writeToFile(filePath: string, content: string): void {
   }
 }
 
-export function success<T>(data: T, service: string, action: string, startTime: number): void {
+export function success<T>(data: T, service: string, action: string, startTime: number, overrides?: string[]): void {
   const envelope: SuccessEnvelope<T> = {
     ok: true,
     data,
-    meta: buildMeta(service, action, startTime)
+    meta: buildMeta(service, action, startTime, overrides)
   };
   const out = (globalOptions.pretty ? JSON.stringify(envelope, null, 2) : JSON.stringify(envelope)) + '\n';
   if (outputFile) {

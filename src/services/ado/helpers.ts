@@ -4,6 +4,8 @@ import { createHttpClient } from '../../lib/http.js';
 import { getGitContext } from '../../lib/git-context.js';
 import { PncliError } from '../../lib/errors.js';
 import { log } from '../../lib/output.js';
+import { resolveAtFileRef } from '../../lib/input.js';
+import { ADO_FIELD_ALIAS_CANDIDATES } from './discovery.js';
 import { AdoCoreClient } from './client/core.js';
 import { AdoWorkClient } from './client/work.js';
 import { AdoGitClient } from './client/git.js';
@@ -94,17 +96,39 @@ export function parseFieldArgs(fields: string[]): Record<string, string> {
   return result;
 }
 
+const stripSeparators = (s: string): string => s.toLowerCase().replace(/[\s-]+/g, '');
+
+/**
+ * Built-in fallback for the handful of near-universal ADO fields (Description, Acceptance
+ * Criteria, Priority, ...), used when a key isn't in the user's saved fieldAliases (i.e.
+ * `pncli ado work fields --save` hasn't been run yet). This is what lets Description /
+ * Acceptance Criteria work out of the box via --field or --input-file without requiring
+ * discovery first; a project whose process doesn't have a given field will simply get a
+ * clear 400 from the ADO API, same as passing any other wrong field id.
+ */
+const DEFAULT_ADO_FIELD_ALIASES: Record<string, string> = Object.fromEntries(ADO_FIELD_ALIAS_CANDIDATES);
+
 /**
  * Resolves field keys against the loaded alias map, then builds JSON Patch ops.
  * If a key is in fieldAliases → use the reference name. Otherwise use the key as-is.
+ * Falls back to a case/space/dash-insensitive alias match (aliases — both the user's saved
+ * ones and the built-in defaults — are typically stored space/dash-free, e.g.
+ * "acceptancecriteria"), so a human-friendly "Acceptance Criteria" key from --field or
+ * --input-file still resolves without the caller needing to know that.
  */
 export function buildFieldPatch(
-  fields: Record<string, string>,
+  fields: Record<string, unknown>,
   fieldAliases: Record<string, string>
 ): JsonPatchOp[] {
+  const aliases = { ...DEFAULT_ADO_FIELD_ALIASES, ...fieldAliases };
   return Object.entries(fields).map(([key, value]) => {
-    const refName = fieldAliases[key.toLowerCase()] ?? fieldAliases[key] ?? key;
-    return { op: 'add' as const, path: `/fields/${refName}`, value };
+    let refName: string | undefined = aliases[key.toLowerCase()] ?? aliases[key];
+    if (!refName) {
+      const target = stripSeparators(key);
+      const match = Object.entries(aliases).find(([aliasKey]) => stripSeparators(aliasKey) === target);
+      refName = match?.[1];
+    }
+    return { op: 'add' as const, path: `/fields/${refName ?? key}`, value };
   });
 }
 
@@ -114,6 +138,34 @@ export function fieldArgsToPatch(
   fieldAliases: Record<string, string>
 ): JsonPatchOp[] {
   return buildFieldPatch(parseFieldArgs(fieldArgs), fieldAliases);
+}
+
+const BUILTIN_WORK_FIELD_KEYS = new Set(['title', 'description', 'assignee', 'assignedto', 'priority']);
+
+/**
+ * Splits a --input-file `fields` dictionary into the small set of built-in work item
+ * fields work-create/work-update expose as their own flags (title, description, assignee,
+ * priority) and everything else. Non-builtin keys (e.g. "Acceptance Criteria", or a raw
+ * reference name like "Microsoft.VSTS.Common.AcceptanceCriteria") are left as-is — they
+ * already resolve generically through fieldAliases (see buildFieldPatch), so no custom
+ * field needs to be pre-registered in config to be usable here. Resolves `@file` value
+ * references (see resolveAtFileRef) on every value.
+ */
+export function splitWorkFieldsDictionary(
+  fields: Record<string, unknown>
+): { builtin: Record<string, unknown>; custom: Record<string, unknown> } {
+  const builtin: Record<string, unknown> = {};
+  const custom: Record<string, unknown> = {};
+  for (const [rawKey, rawValue] of Object.entries(fields)) {
+    const value = resolveAtFileRef(rawValue);
+    const key = rawKey.toLowerCase().replace(/\s+/g, '');
+    if (BUILTIN_WORK_FIELD_KEYS.has(key)) {
+      builtin[key === 'assignedto' ? 'assignee' : key] = value;
+    } else {
+      custom[rawKey] = value;
+    }
+  }
+  return { builtin, custom };
 }
 
 // ── Vote constants ────────────────────────────────────────────────────

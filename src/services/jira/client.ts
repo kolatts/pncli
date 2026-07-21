@@ -81,7 +81,7 @@ export class JiraClient {
     if (opts.description) fields.description = opts.description;
     if (opts.priority) fields.priority = { name: opts.priority };
     if (opts.assignee) fields.assignee = { name: opts.assignee };
-    if (opts.labels) fields.labels = opts.labels;
+    if (opts.labels?.length) fields.labels = opts.labels;
     Object.assign(fields, opts.customFieldValues ?? {});
 
     await this.http.jira<void>(`${API}/issue/${key}`, {

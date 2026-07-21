@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
-import { parseFieldArgs, parseFieldsFile } from './commands.js';
+import { parseFieldArgs, parseFieldsFile, splitFieldsDictionary } from './commands.js';
 import { buildFieldMap } from './custom-fields.js';
 
 vi.mock('fs', () => ({
@@ -134,5 +134,44 @@ describe('parseFieldsFile', () => {
 
     expect(() => parseFieldsFile('fields.json', fieldMap))
       .toThrow('Unknown field in "fields.json"');
+  });
+});
+
+describe('splitFieldsDictionary — --input-file `fields` dictionary', () => {
+  it('routes built-in issue fields regardless of casing', () => {
+    const { builtin, custom } = splitFieldsDictionary(
+      { Summary: 'Login broken', Description: 'details', Priority: 'High', Assignee: 'bob', Labels: ['a'], Parent: 'PROJ-1' },
+      fieldMap
+    );
+    expect(builtin).toEqual({
+      summary: 'Login broken', description: 'details', priority: 'High',
+      assignee: 'bob', labels: ['a'], parent: 'PROJ-1'
+    });
+    expect(custom).toEqual({});
+  });
+
+  it('resolves a registered custom field by friendly name to its ID', () => {
+    const { custom } = splitFieldsDictionary({ 'Story Points': 5 }, fieldMap);
+    expect(custom).toEqual({ customfield_10016: 5 });
+  });
+
+  it('passes through an unregistered raw field id untouched (no pre-registration required)', () => {
+    const { custom } = splitFieldsDictionary({ customfield_99999: 'x' }, fieldMap);
+    expect(custom).toEqual({ customfield_99999: 'x' });
+  });
+
+  it('throws on an unregistered friendly name (contains whitespace)', () => {
+    expect(() => splitFieldsDictionary({ 'Acceptance Criteria': 'text' }, fieldMap))
+      .toThrow('Unknown custom field: "Acceptance Criteria"');
+  });
+
+  it('resolves @file references on both built-in and custom field values', () => {
+    mockReadFileSync.mockReturnValue('<p>Long description</p>' as unknown as ReturnType<typeof readFileSync>);
+    const { builtin, custom } = splitFieldsDictionary(
+      { description: '@desc.html', customfield_10016: '@points.txt' },
+      fieldMap
+    );
+    expect(builtin.description).toBe('<p>Long description</p>');
+    expect(custom.customfield_10016).toBe('<p>Long description</p>');
   });
 });
