@@ -30,7 +30,7 @@ export function resolveBody(body: string | undefined, bodyFile: string | undefin
  * extracts the offending line from the submitted body and returns a diagnostic hint.
  * Returns null if the error doesn't match the pattern or the row is out of range.
  */
-export function xmlParseHint(err: unknown, bodyContent: string): string | null {
+export function xmlParseHint(err: unknown, bodyContent: string, convertedFromMarkdown = false): string | null {
   if (!(err instanceof Error)) return null;
   const m = err.message.match(/at \[row,col\]=\{(\d+),(\d+)\}/);
   if (!m) return null;
@@ -40,7 +40,8 @@ export function xmlParseHint(err: unknown, bodyContent: string): string | null {
   const line = lines[row - 1];
   if (!line) return null;
   const pointer = ' '.repeat(Math.max(0, col - 1)) + '^';
-  return `Offending line ${row}: ${line}\n${pointer}`;
+  const suffix = convertedFromMarkdown ? ' (converted from Markdown)' : '';
+  return `Offending line ${row}${suffix}: ${line}\n${pointer}`;
 }
 
 function getClient(program: Command): ConfluenceClient {
@@ -174,14 +175,15 @@ export function registerConfluenceCommands(program: Command): void {
         });
         success(data, 'confluence', 'create-page', start);
       } catch (err) {
-        const hint = bodyContent ? xmlParseHint(err, bodyContent) : null;
+        const hint = bodyContent ? xmlParseHint(err, bodyContent, Boolean(opts.markdown)) : null;
         if (hint) {
           const msg = err instanceof Error ? err.message : String(err);
           const status = err instanceof PncliError ? err.status : 1;
           const url = err instanceof PncliError ? err.url : undefined;
           fail(new PncliError(`${msg}\n\n${hint}`, status, url), 'confluence', 'create-page', start);
+        } else {
+          fail(err, 'confluence', 'create-page', start);
         }
-        fail(err, 'confluence', 'create-page', start);
       }
     });
 
@@ -215,14 +217,15 @@ export function registerConfluenceCommands(program: Command): void {
         });
         success(data, 'confluence', 'update-page', start);
       } catch (err) {
-        const hint = bodyContent ? xmlParseHint(err, bodyContent) : null;
+        const hint = bodyContent ? xmlParseHint(err, bodyContent, Boolean(opts.markdown)) : null;
         if (hint) {
           const msg = err instanceof Error ? err.message : String(err);
           const status = err instanceof PncliError ? err.status : 1;
           const url = err instanceof PncliError ? err.url : undefined;
           fail(new PncliError(`${msg}\n\n${hint}`, status, url), 'confluence', 'update-page', start);
+        } else {
+          fail(err, 'confluence', 'update-page', start);
         }
-        fail(err, 'confluence', 'update-page', start);
       }
     });
 

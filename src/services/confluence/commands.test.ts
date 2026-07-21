@@ -85,4 +85,11 @@ describe('xmlParseHint', () => {
     const lines = hint!.split('\n');
     expect(lines[1]).toBe('^');
   });
+
+  it('annotates the offending line when the body was converted from Markdown', () => {
+    const body = '<p>line one</p>\n<p>bad & char</p>';
+    const err = new Error('Error parsing xhtml: ... at [row,col]={2,9}...');
+    const hint = xmlParseHint(err, body, true);
+    expect(hint).toContain('Offending line 2 (converted from Markdown): <p>bad & char</p>');
+  });
 });
