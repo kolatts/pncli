@@ -42,6 +42,17 @@ pncli jira set-sprint --key ACME-123 --sprint <sprint-id>
 
 `list-sprints` output includes `startDate`/`endDate`/`state`/`goal` for each sprint.
 
+## Large fields via --input-file
+
+`create-issue` and `update-issue` accept `--input-file <path>` (`-` for stdin) instead of, or alongside, individual flags — useful for a long description or many custom fields at once. Run `pncli jira schema` to print the JSON Schema plus a runnable example. Any string value in `fields` may be `@path/to/file` to pull that field's content from a file (e.g. a big HTML description) instead of inlining it. Custom fields resolve by friendly name (if registered via `pncli jira fields`) or by raw id (`customfield_10032`) with no registration required. Individual flags (`--summary`, `--description`, `--field`, ...) override matching keys from the file; overridden keys are printed to stderr and included in the output's `meta.overrides`.
+
+```
+pncli jira schema --example-only > issue.json
+# edit issue.json — fields.description can be "@desc.html"
+pncli jira create-issue --input-file issue.json
+pncli jira create-issue --input-file issue.json --priority Low   # --priority wins, and it's reported
+```
+
 ## Notes
 
 - Jira Cloud and Jira Data Center both work; token format differs (API token vs PAT)

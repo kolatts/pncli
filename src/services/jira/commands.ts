@@ -3,11 +3,66 @@ import path from 'path';
 import { Command } from 'commander';
 import { JiraClient } from './client.js';
 import { buildFieldMap, translateJql, translateFieldsInOutput, formatFieldValue } from './custom-fields.js';
+import { JIRA_INPUT_FILE_SCHEMA, JIRA_INPUT_FILE_EXAMPLE } from './input-schema.js';
 import { createHttpClient } from '../../lib/http.js';
 import { loadConfig } from '../../lib/config.js';
-import { success, fail } from '../../lib/output.js';
+import { success, fail, warn } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
+import { readJsonInputFile, resolveAtFileRef, mergeWithOverrides } from '../../lib/input.js';
 import type { CustomFieldMap } from '../../types/jira.js';
+
+/** Shape of the JSON accepted by --input-file on create-issue / update-issue. */
+interface IssueJsonInput {
+  project?: string;
+  issueType?: string;
+  fields?: Record<string, unknown>;
+}
+
+const BUILTIN_ISSUE_FIELDS = new Set(['summary', 'description', 'priority', 'assignee', 'labels', 'parent']);
+
+/**
+ * Splits a --input-file `fields` dictionary into Jira's built-in issue fields
+ * (summary, description, priority, assignee, labels, parent) and custom fields.
+ * Custom field keys resolve through fieldMap by friendly name or already-registered id;
+ * an unregistered key containing no whitespace is treated as a raw Jira field id (e.g.
+ * customfield_10032) and passed through untouched, so pncli stays decoupled from any
+ * org's custom fields — nothing needs to be pre-registered in config to be usable here.
+ * Resolves `@file` value references (see resolveAtFileRef) on every value.
+ */
+export function splitFieldsDictionary(
+  fields: Record<string, unknown>,
+  fieldMap: CustomFieldMap
+): { builtin: Record<string, unknown>; custom: Record<string, unknown> } {
+  const builtin: Record<string, unknown> = {};
+  const custom: Record<string, unknown> = {};
+  for (const [rawKey, rawValue] of Object.entries(fields)) {
+    const value = resolveAtFileRef(rawValue);
+    const key = rawKey.toLowerCase();
+    if (BUILTIN_ISSUE_FIELDS.has(key)) {
+      builtin[key] = value;
+      continue;
+    }
+    const def = fieldMap.byName.get(key) ?? fieldMap.byId.get(rawKey);
+    if (def) {
+      custom[def.id] = value;
+    } else if (!/\s/.test(rawKey)) {
+      custom[rawKey] = value;
+    } else {
+      throw new PncliError(
+        `Unknown custom field: "${rawKey}". Fields must be registered in config by friendly name or ID. Run: pncli jira fields`,
+        1
+      );
+    }
+  }
+  return { builtin, custom };
+}
+
+/** Normalizes a builtin `labels` value from either an --input-file array or a comma-separated flag string. */
+function normalizeLabels(value: unknown): string[] | undefined {
+  if (value === undefined) return undefined;
+  if (Array.isArray(value)) return value.map(v => String(v).trim());
+  return String(value).split(',').map(s => s.trim()).filter(Boolean);
+}
 
 function getClient(program: Command): JiraClient {
   const opts = program.optsWithGlobals();
@@ -58,7 +113,7 @@ export function registerJiraCommands(program: Command): void {
     .description('Create a Jira issue')
     .option('--project <key>', 'Project key')
     .option('--type <type>', 'Issue type (Bug, Story, Task, ...)')
-    .requiredOption('--summary <text>', 'Issue summary')
+    .option('--summary <text>', 'Issue summary (required, unless supplied via --input-file)')
     .option('--description <text>', 'Issue description')
     .option('--priority <name>', 'Priority name')
     .option('--assignee <accountId>', 'Assignee account ID')
@@ -66,7 +121,8 @@ export function registerJiraCommands(program: Command): void {
     .option('--parent <key>', 'Parent issue key — sets fields.parent in the create payload')
     .option('--field <Name=value>', 'Custom field value; use Name=@file.json to read value from file (repeatable)', (val: string, acc: string[]) => [...acc, val], [] as string[])
     .option('--fields-file <path>', 'Path to a JSON file mapping field names/IDs to their Jira API values')
-    .action(async (opts: { project?: string; type?: string; summary: string; description?: string; priority?: string; assignee?: string; labels?: string; parent?: string; field: string[]; fieldsFile?: string }) => {
+    .option('--input-file <path>', "JSON file describing the whole issue ({ project, issueType, fields: {...} }); '-' = stdin. CLI flags override matching keys. See: pncli jira schema")
+    .action(async (opts: { project?: string; type?: string; summary?: string; description?: string; priority?: string; assignee?: string; labels?: string; parent?: string; field: string[]; fieldsFile?: string; inputFile?: string }) => {
       const start = Date.now();
       let fieldMap = buildFieldMap([]);
       try {
@@ -74,15 +130,49 @@ export function registerJiraCommands(program: Command): void {
         const client = resolved.client;
         fieldMap = resolved.fieldMap;
         const defaults = getDefaults(program);
-        const project = opts.project ?? defaults.project;
-        const issueType = opts.type ?? defaults.issueType ?? 'Task';
-        const priority = opts.priority ?? defaults.priority;
-        if (!project) throw new PncliError('--project required (or set defaults.jira.project in config)', 1);
-        const labels = opts.labels ? opts.labels.split(',').map(s => s.trim()) : undefined;
+
+        const jsonInput = opts.inputFile ? (readJsonInputFile(opts.inputFile) as IssueJsonInput) : undefined;
+        const { builtin: jsonBuiltin, custom: jsonCustom } = jsonInput?.fields
+          ? splitFieldsDictionary(jsonInput.fields, fieldMap)
+          : { builtin: {}, custom: {} };
+
+        const project = opts.project ?? jsonInput?.project ?? defaults.project;
+        const issueType = opts.type ?? jsonInput?.issueType ?? defaults.issueType ?? 'Task';
+        if (!project) throw new PncliError('--project required (or set defaults.jira.project in config, or "project" in --input-file)', 1);
+
+        const flagBuiltin: Record<string, unknown> = {
+          ...(opts.summary !== undefined ? { summary: opts.summary } : {}),
+          ...(opts.description !== undefined ? { description: opts.description } : {}),
+          ...(opts.priority !== undefined ? { priority: opts.priority } : {}),
+          ...(opts.assignee !== undefined ? { assignee: opts.assignee } : {}),
+          ...(opts.labels !== undefined ? { labels: opts.labels } : {}),
+          ...(opts.parent !== undefined ? { parent: opts.parent } : {})
+        };
+        const { merged: builtinFields, overrides: builtinOverrides } = mergeWithOverrides(jsonBuiltin, flagBuiltin);
+
+        const summary = builtinFields.summary as string | undefined;
+        if (!summary) throw new PncliError('Must specify --summary or "fields.summary" in --input-file', 1);
+        const priority = (builtinFields.priority as string | undefined) ?? defaults.priority;
+
         const fileFields = opts.fieldsFile ? parseFieldsFile(opts.fieldsFile, fieldMap) : {};
-        const customFieldValues = { ...fileFields, ...parseFieldArgs(opts.field, fieldMap) };
-        const data = await client.createIssue({ project, issueType, summary: opts.summary, description: opts.description, priority, assignee: opts.assignee, labels, parent: opts.parent, customFieldValues });
-        success(data, 'jira', 'create-issue', start);
+        const flagCustom = { ...fileFields, ...parseFieldArgs(opts.field, fieldMap) };
+        const { merged: customFieldValues, overrides: customOverrides } = mergeWithOverrides(jsonCustom, flagCustom);
+
+        const overrides = [...builtinOverrides, ...customOverrides];
+        if (overrides.length) warn(`--input-file value(s) overridden by CLI flags: ${overrides.join(', ')}`);
+
+        const data = await client.createIssue({
+          project,
+          issueType,
+          summary,
+          description: builtinFields.description as string | undefined,
+          priority,
+          assignee: builtinFields.assignee as string | undefined,
+          labels: normalizeLabels(builtinFields.labels),
+          parent: builtinFields.parent as string | undefined,
+          customFieldValues
+        });
+        success(data, 'jira', 'create-issue', start, overrides);
       } catch (err) { fail(translateFieldErrors(err, fieldMap), 'jira', 'create-issue', start); }
     });
 
@@ -96,19 +186,57 @@ export function registerJiraCommands(program: Command): void {
     .option('--labels <labels>', 'Comma-separated labels')
     .option('--field <Name=value>', 'Custom field value; use Name=@file.json to read value from file (repeatable)', (val: string, acc: string[]) => [...acc, val], [] as string[])
     .option('--fields-file <path>', 'Path to a JSON file mapping field names/IDs to their Jira API values')
-    .action(async (opts: { key: string; summary?: string; description?: string; priority?: string; assignee?: string; labels?: string; field: string[]; fieldsFile?: string }) => {
+    .option('--input-file <path>', "JSON file describing fields to update ({ fields: {...} }); '-' = stdin. CLI flags override matching keys. See: pncli jira schema")
+    .action(async (opts: { key: string; summary?: string; description?: string; priority?: string; assignee?: string; labels?: string; field: string[]; fieldsFile?: string; inputFile?: string }) => {
       const start = Date.now();
       let fieldMap = buildFieldMap([]);
       try {
         const resolved = getClientAndFields(program);
         const client = resolved.client;
         fieldMap = resolved.fieldMap;
-        const labels = opts.labels ? opts.labels.split(',').map(s => s.trim()) : undefined;
+
+        const jsonInput = opts.inputFile ? (readJsonInputFile(opts.inputFile) as IssueJsonInput) : undefined;
+        const { builtin: jsonBuiltin, custom: jsonCustom } = jsonInput?.fields
+          ? splitFieldsDictionary(jsonInput.fields, fieldMap)
+          : { builtin: {}, custom: {} };
+
+        const flagBuiltin: Record<string, unknown> = {
+          ...(opts.summary !== undefined ? { summary: opts.summary } : {}),
+          ...(opts.description !== undefined ? { description: opts.description } : {}),
+          ...(opts.priority !== undefined ? { priority: opts.priority } : {}),
+          ...(opts.assignee !== undefined ? { assignee: opts.assignee } : {}),
+          ...(opts.labels !== undefined ? { labels: opts.labels } : {})
+        };
+        const { merged: builtinFields, overrides: builtinOverrides } = mergeWithOverrides(jsonBuiltin, flagBuiltin);
+
         const fileFields = opts.fieldsFile ? parseFieldsFile(opts.fieldsFile, fieldMap) : {};
-        const customFieldValues = { ...fileFields, ...parseFieldArgs(opts.field, fieldMap) };
-        await client.updateIssue(opts.key, { summary: opts.summary, description: opts.description, priority: opts.priority, assignee: opts.assignee, labels, customFieldValues });
-        success({ updated: opts.key }, 'jira', 'update-issue', start);
+        const flagCustom = { ...fileFields, ...parseFieldArgs(opts.field, fieldMap) };
+        const { merged: customFieldValues, overrides: customOverrides } = mergeWithOverrides(jsonCustom, flagCustom);
+
+        const overrides = [...builtinOverrides, ...customOverrides];
+        if (overrides.length) warn(`--input-file value(s) overridden by CLI flags: ${overrides.join(', ')}`);
+
+        await client.updateIssue(opts.key, {
+          summary: builtinFields.summary as string | undefined,
+          description: builtinFields.description as string | undefined,
+          priority: builtinFields.priority as string | undefined,
+          assignee: builtinFields.assignee as string | undefined,
+          labels: normalizeLabels(builtinFields.labels),
+          customFieldValues
+        });
+        success({ updated: opts.key }, 'jira', 'update-issue', start, overrides);
       } catch (err) { fail(translateFieldErrors(err, fieldMap), 'jira', 'update-issue', start); }
+    });
+
+  jira.command('schema')
+    .description('Print the --input-file JSON schema and an example for create-issue/update-issue')
+    .option('--example-only', 'Print only the runnable example JSON')
+    .action((opts: { exampleOnly?: boolean }) => {
+      const start = Date.now();
+      const data = opts.exampleOnly
+        ? JIRA_INPUT_FILE_EXAMPLE
+        : { schema: JIRA_INPUT_FILE_SCHEMA, example: JIRA_INPUT_FILE_EXAMPLE };
+      success(data, 'jira', 'schema', start);
     });
 
   jira.command('transition-issue')

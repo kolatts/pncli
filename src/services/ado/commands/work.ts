@@ -1,11 +1,19 @@
 import fs from 'fs';
 import path from 'path';
 import { Command } from 'commander';
-import { getAdoContext, fieldArgsToPatch } from '../helpers.js';
+import { getAdoContext, buildFieldPatch, parseFieldArgs, splitWorkFieldsDictionary } from '../helpers.js';
 import { discoverFields, discoverTypeFields, discoverTypes, buildDefaultAliases } from '../discovery.js';
+import { ADO_WORK_INPUT_FILE_SCHEMA, ADO_WORK_INPUT_FILE_EXAMPLE } from '../input-schema.js';
 import { success, fail, warn } from '../../../lib/output.js';
 import { loadConfig, getGlobalConfigPath } from '../../../lib/config.js';
 import { PncliError } from '../../../lib/errors.js';
+import { readJsonInputFile, mergeWithOverrides, resolveAtFileRef } from '../../../lib/input.js';
+
+/** Shape of the JSON accepted by --input-file on work create / update. */
+interface WorkItemJsonInput {
+  type?: string;
+  fields?: Record<string, unknown>;
+}
 
 export function registerAdoWorkCommands(ado: Command): void {
   const work = ado
@@ -32,32 +40,57 @@ export function registerAdoWorkCommands(ado: Command): void {
   work
     .command('create')
     .description('Create a work item')
-    .requiredOption('--type <type>', 'Work item type (e.g. Bug, Task, User Story)')
-    .requiredOption('--title <title>', 'Work item title')
+    .option('--type <type>', 'Work item type (e.g. Bug, Task, User Story) (required, unless supplied via --input-file)')
+    .option('--title <title>', 'Work item title (required, unless supplied via --input-file)')
     .option('--description <text>', 'Description')
     .option('--assignee <user>', 'Assigned to (display name or email)')
     .option('--priority <n>', 'Priority (1-4)')
     .option('--parent <id>', 'Parent work item ID — creates a parent link after creation')
     .option('--field <name=value>', 'Additional field (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
-    .action(async (opts: { type: string; title: string; description?: string; assignee?: string; priority?: string; parent?: string; field: string[] }) => {
+    .option('--input-file <path>', "JSON file describing the work item ({ type, fields: {...} }); '-' = stdin. CLI flags override matching keys. See: pncli ado work schema")
+    .action(async (opts: { type?: string; title?: string; description?: string; assignee?: string; priority?: string; parent?: string; field: string[]; inputFile?: string }) => {
       const start = Date.now();
       try {
         const globalOpts = ado.optsWithGlobals();
         const config = loadConfig({ configPath: globalOpts.config });
         const { collection, project, workClient } = getAdoContext(ado);
-        const builtIn: Record<string, string> = {
-          'System.Title': opts.title,
-          ...(opts.description ? { 'System.Description': opts.description } : {}),
-          ...(opts.assignee ? { 'System.AssignedTo': opts.assignee } : {}),
-          ...(opts.priority ? { 'Microsoft.VSTS.Common.Priority': opts.priority } : {})
+
+        const jsonInput = opts.inputFile ? (readJsonInputFile(opts.inputFile) as WorkItemJsonInput) : undefined;
+        const { builtin: jsonBuiltin, custom: jsonCustom } = jsonInput?.fields
+          ? splitWorkFieldsDictionary(jsonInput.fields)
+          : { builtin: {}, custom: {} };
+
+        const type = opts.type ?? jsonInput?.type;
+        if (!type) throw new PncliError('--type required (or "type" in --input-file)', 1);
+
+        const flagBuiltin: Record<string, unknown> = {
+          ...(opts.title !== undefined ? { title: opts.title } : {}),
+          ...(opts.description !== undefined ? { description: opts.description } : {}),
+          ...(opts.assignee !== undefined ? { assignee: opts.assignee } : {}),
+          ...(opts.priority !== undefined ? { priority: opts.priority } : {})
         };
-        const extra = fieldArgsToPatch(opts.field, config.ado.fieldAliases);
+        const { merged: builtinFields, overrides: builtinOverrides } = mergeWithOverrides(jsonBuiltin, flagBuiltin);
+        if (!builtinFields.title) throw new PncliError('--title required (or "fields.Title" in --input-file)', 1);
+
+        const flagCustom = parseFieldArgs(opts.field);
+        const { merged: customFields, overrides: customOverrides } = mergeWithOverrides(jsonCustom, flagCustom);
+
+        const overrides = [...builtinOverrides, ...customOverrides];
+        if (overrides.length) warn(`--input-file value(s) overridden by CLI flags: ${overrides.join(', ')}`);
+
+        const builtIn: Record<string, unknown> = {
+          'System.Title': builtinFields.title,
+          ...(builtinFields.description !== undefined ? { 'System.Description': builtinFields.description } : {}),
+          ...(builtinFields.assignee !== undefined ? { 'System.AssignedTo': builtinFields.assignee } : {}),
+          ...(builtinFields.priority !== undefined ? { 'Microsoft.VSTS.Common.Priority': builtinFields.priority } : {})
+        };
+        const extra = buildFieldPatch(customFields, config.ado.fieldAliases);
         const patch = [
           ...Object.entries(builtIn).map(([k, v]) => ({ op: 'add' as const, path: `/fields/${k}`, value: v })),
           ...extra
         ];
-        const data = await workClient.createWorkItem(collection, project, opts.type, patch);
-        success(data, 'ado', 'work-create', start);
+        const data = await workClient.createWorkItem(collection, project, type, patch);
+        success(data, 'ado', 'work-create', start, overrides);
         if (opts.parent) {
           try {
             const baseUrl = config.ado.baseUrl?.replace(/\/$/, '');
@@ -79,15 +112,27 @@ export function registerAdoWorkCommands(ado: Command): void {
     .description('Update a work item field')
     .requiredOption('--id <n>', 'Work item ID')
     .option('--field <name=value>', 'Field to update (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
-    .action(async (opts: { id: string; field: string[] }) => {
+    .option('--input-file <path>', "JSON file describing fields to update ({ fields: {...} }); '-' = stdin. CLI flags override matching keys. See: pncli ado work schema")
+    .action(async (opts: { id: string; field: string[]; inputFile?: string }) => {
       const start = Date.now();
       try {
         const globalOpts = ado.optsWithGlobals();
         const config = loadConfig({ configPath: globalOpts.config });
         const { collection, workClient } = getAdoContext(ado);
-        const patch = fieldArgsToPatch(opts.field, config.ado.fieldAliases);
+
+        const jsonInput = opts.inputFile ? (readJsonInputFile(opts.inputFile) as WorkItemJsonInput) : undefined;
+        // No builtin/custom split here (update has no dedicated --title/--description flags —
+        // everything flows through --field), but @file refs still need resolving.
+        const jsonFields = jsonInput?.fields
+          ? Object.fromEntries(Object.entries(jsonInput.fields).map(([k, v]) => [k, resolveAtFileRef(v)]))
+          : {};
+        const flagFields = parseFieldArgs(opts.field);
+        const { merged, overrides } = mergeWithOverrides(jsonFields, flagFields);
+        if (overrides.length) warn(`--input-file value(s) overridden by CLI flags: ${overrides.join(', ')}`);
+
+        const patch = buildFieldPatch(merged, config.ado.fieldAliases);
         const data = await workClient.updateWorkItem(collection, parseInt(opts.id, 10), patch);
-        success(data, 'ado', 'work-update', start);
+        success(data, 'ado', 'work-update', start, overrides);
       } catch (err) { fail(err, 'ado', 'work-update', start); }
     });
 
@@ -385,5 +430,17 @@ export function registerAdoWorkCommands(ado: Command): void {
         }
         success(fields, 'ado', 'work-fields', start);
       } catch (err) { fail(err, 'ado', 'work-fields', start); }
+    });
+
+  work
+    .command('schema')
+    .description('Print the --input-file JSON schema and an example for work create/update')
+    .option('--example-only', 'Print only the runnable example JSON')
+    .action((opts: { exampleOnly?: boolean }) => {
+      const start = Date.now();
+      const data = opts.exampleOnly
+        ? ADO_WORK_INPUT_FILE_EXAMPLE
+        : { schema: ADO_WORK_INPUT_FILE_SCHEMA, example: ADO_WORK_INPUT_FILE_EXAMPLE };
+      success(data, 'ado', 'work-schema', start);
     });
 }

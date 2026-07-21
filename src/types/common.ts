@@ -7,6 +7,8 @@ export interface Meta {
     email: string | undefined;
     userId: string | undefined;
   };
+  /** Field names where a CLI flag overrode the same key supplied via --input-file. */
+  overrides?: string[];
 }
 
 export interface SuccessEnvelope<T> {
