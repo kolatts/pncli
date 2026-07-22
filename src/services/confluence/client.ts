@@ -1,10 +1,14 @@
+import { readFileSync } from 'fs';
+import { basename } from 'path';
 import type { HttpClient } from '../../lib/http.js';
+import { guessMimeType } from '../../lib/mime.js';
 import type {
   ConfluencePage,
   ConfluenceSpace,
   ConfluenceComment,
   ConfluenceLabel,
   ConfluenceAttachment,
+  ConfluencePageHistory,
   ConfluencePageResponse,
   ConfluenceSearchResult
 } from '../../types/confluence.js';
@@ -199,6 +203,28 @@ export class ConfluenceClient {
         params: { start, limit }
       });
     });
+  }
+
+  async uploadAttachment(pageId: string, filePath: string, comment?: string): Promise<ConfluenceAttachment[]> {
+    const fileContent = readFileSync(filePath);
+    const fileName = basename(filePath);
+    const mimeType = guessMimeType(filePath);
+    const formData = new FormData();
+    formData.append('file', new Blob([fileContent], { type: mimeType }), fileName);
+    if (comment) formData.append('comment', comment);
+    const result = await this.http.confluenceUpload<ConfluencePageResponse<ConfluenceAttachment>>(
+      `${API}/content/${pageId}/child/attachment`,
+      formData
+    );
+    return result.results;
+  }
+
+  async deleteAttachment(attachmentId: string): Promise<void> {
+    return this.http.confluence<void>(`${API}/content/${attachmentId}`, { method: 'DELETE' });
+  }
+
+  async getPageHistory(id: string): Promise<ConfluencePageHistory> {
+    return this.http.confluence<ConfluencePageHistory>(`${API}/content/${id}/history`);
   }
 
   async convertToStorage(value: string, fromRepresentation = 'markdown'): Promise<string> {

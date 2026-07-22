@@ -74,6 +74,15 @@ export interface ConfluencePageResponse<T = ConfluencePage> {
   _links: { next?: string; self: string };
 }
 
+export interface ConfluencePageHistory {
+  latest: boolean;
+  createdBy: ConfluenceUser;
+  createdDate: string;
+  lastUpdated: ConfluenceVersion;
+  previousVersion?: ConfluenceVersion;
+  nextVersion?: ConfluenceVersion;
+}
+
 export interface ConfluenceSearchResult {
   results: Array<{
     content: ConfluencePage;

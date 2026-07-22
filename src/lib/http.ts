@@ -427,11 +427,15 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
-  private confluenceHeaders(): Record<string, string> {
+  private confluenceToken(): string {
     const { apiToken } = this.config.confluence;
     if (!apiToken) throw new PncliError('Confluence credentials not configured. Run: pncli config init');
+    return apiToken;
+  }
+
+  private confluenceHeaders(): Record<string, string> {
     return {
-      'Authorization': `Bearer ${apiToken}`,
+      'Authorization': `Bearer ${this.confluenceToken()}`,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'Connection': 'close'
@@ -910,6 +914,33 @@ export class HttpClient {
     }
 
     return results;
+  }
+
+  async confluenceUpload<T>(
+    path: string,
+    formData: FormData,
+    opts: { timeoutMs?: number } = {}
+  ): Promise<T> {
+    const baseUrl = this.config.confluence.baseUrl;
+    if (!baseUrl) throw new PncliError('Confluence baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path);
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${this.confluenceToken()}`,
+      'X-Atlassian-Token': 'no-check',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: POST ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\nBody: <multipart/form-data>\n`;
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, { method: 'POST', headers, body: formData }, opts.timeoutMs ?? 60000);
   }
 
   async confluencePaginate<T>(
