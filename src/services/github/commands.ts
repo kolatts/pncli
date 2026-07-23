@@ -37,6 +37,30 @@ export function registerGitHubCommands(program: Command): void {
     .option('--owner <owner>', 'GitHub owner (user or org)')
     .option('--repo <repo>', 'GitHub repository name');
 
+  // ── Issues ────────────────────────────────────────────────────────
+
+  gh.command('create-issue')
+    .description('Create a GitHub issue')
+    .requiredOption('--title <title>', 'Issue title')
+    .option('--body <body>', 'Issue body (markdown)')
+    .option('--label <label>', 'Label to apply (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
+    .option('--assignee <login>', 'Assignee login (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
+    .action(async (opts: { title: string; body?: string; label: string[]; assignee: string[] }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        const data = await client.createIssue({
+          owner,
+          repo,
+          title: opts.title,
+          body: opts.body,
+          labels: opts.label.length ? opts.label : undefined,
+          assignees: opts.assignee.length ? opts.assignee : undefined
+        });
+        success(data, 'github', 'create-issue', start);
+      } catch (err) { fail(err, 'github', 'create-issue', start); }
+    });
+
   // ── Pull Requests ──────────────────────────────────────────────────
 
   gh.command('list-prs')
