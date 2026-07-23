@@ -1,3 +1,4 @@
+import { existsSync } from 'fs';
 import { Command } from 'commander';
 import { ConfluenceClient } from './client.js';
 import { createHttpClient } from '../../lib/http.js';
@@ -321,5 +322,46 @@ export function registerConfluenceCommands(program: Command): void {
         const data = await client.listAttachments(opts.id);
         success(data, 'confluence', 'list-attachments', start);
       } catch (err) { fail(err, 'confluence', 'list-attachments', start); }
+    });
+
+  confluence.command('upload-attachment')
+    .description('Upload a file as an attachment to a Confluence page')
+    .requiredOption('--id <page-id>', 'Page ID')
+    .requiredOption('--file <path>', 'Path to the file to upload')
+    .option('--comment <text>', 'Optional comment to attach to the file version')
+    .action(async (opts: { id: string; file: string; comment?: string }) => {
+      const start = Date.now();
+      try {
+        if (!existsSync(opts.file)) throw new PncliError(`File not found: ${opts.file}`, 1);
+        const client = getClient(program);
+        const data = await client.uploadAttachment(opts.id, opts.file, opts.comment);
+        success(data, 'confluence', 'upload-attachment', start);
+      } catch (err) { fail(err, 'confluence', 'upload-attachment', start); }
+    });
+
+  confluence.command('delete-attachment')
+    .description('Delete an attachment from Confluence by its content ID (moves it to the trash; does not permanently purge it)')
+    .requiredOption('--id <attachment-id>', 'Attachment content ID')
+    .action(async (opts: { id: string }) => {
+      const start = Date.now();
+      try {
+        const client = getClient(program);
+        await client.deleteAttachment(opts.id);
+        success({ deleted: opts.id }, 'confluence', 'delete-attachment', start);
+      } catch (err) { fail(err, 'confluence', 'delete-attachment', start); }
+    });
+
+  // ── History ───────────────────────────────────────────────────────────────
+
+  confluence.command('get-page-history')
+    .description('Get the version history metadata for a Confluence page')
+    .requiredOption('--id <page-id>', 'Page ID')
+    .action(async (opts: { id: string }) => {
+      const start = Date.now();
+      try {
+        const client = getClient(program);
+        const data = await client.getPageHistory(opts.id);
+        success(data, 'confluence', 'get-page-history', start);
+      } catch (err) { fail(err, 'confluence', 'get-page-history', start); }
     });
 }
