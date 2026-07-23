@@ -1,6 +1,6 @@
 # Confluence
 
-Enables: `pncli confluence page`, `pncli confluence space` — list/get pages and spaces.
+Enables: `pncli confluence get-page`, `create-page`, `update-page`, `delete-page`, `search`, `list-pages`, `list-spaces`, `list-comments`, `add-comment`, `add-label`/`remove-label`, `list-attachments`, `upload-attachment`, `delete-attachment`, `get-page-history`, and more — create, read, update, and delete pages, spaces, comments, labels, and attachments.
 
 ## Required config
 
@@ -22,3 +22,7 @@ pncli config set confluence.apiToken <token>
 export PNCLI_CONFLUENCE_BASE_URL=https://confluence.company.com
 export PNCLI_CONFLUENCE_API_TOKEN=<token>
 ```
+
+## Notes
+
+- `delete-attachment` moves the attachment to the Confluence trash (`DELETE /rest/api/content/{id}`) — it does not permanently purge it. Use Confluence's admin UI to empty the trash if a permanent delete is required.
