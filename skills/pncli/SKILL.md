@@ -42,7 +42,7 @@ For detailed setup of any service, read the included file for that service.
 | Bitbucket | `bitbucket.md` | Repos, PRs, diffs |
 | GitHub | `github.md` | PRs, reviews, comments, checks |
 | Azure DevOps | `ado.md` | Work items, repos, PRs, pipelines |
-| Confluence | `confluence.md` | Pages, spaces |
+| Confluence | `confluence.md` | Pages, spaces, comments, labels, attachments |
 | JWT | `jwt.md` | Decode JWT tokens |
 | SonarQube | `sonarqube.md` | Code quality issues |
 | SDElements | `sde.md` | Threat model tasks |

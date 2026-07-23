@@ -340,7 +340,7 @@ export function registerConfluenceCommands(program: Command): void {
     });
 
   confluence.command('delete-attachment')
-    .description('Delete an attachment from Confluence by its content ID')
+    .description('Delete an attachment from Confluence by its content ID (moves it to the trash; does not permanently purge it)')
     .requiredOption('--id <attachment-id>', 'Attachment content ID')
     .action(async (opts: { id: string }) => {
       const start = Date.now();
