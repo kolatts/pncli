@@ -53,8 +53,7 @@ export function registerGitHubCommands(program: Command): void {
         const config = loadConfig({ configPath: globalOpts.config });
         const http = createHttpClient(config, Boolean(globalOpts.dryRun));
         const client = new GitHubClient(http);
-        const ctx = getGitContext(config);
-        const owner: string = globalOpts.owner ?? ctx?.github?.owner ?? config.defaults.github?.owner ?? '';
+        const owner: string = globalOpts.owner ?? '';
         const data = await client.createRepo({
           org: owner || undefined,
           name: opts.name,

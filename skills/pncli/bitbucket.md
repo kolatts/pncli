@@ -1,6 +1,6 @@
 # Bitbucket
 
-Enables: `pncli bitbucket create-repo`, `pncli bitbucket list-prs`, `pncli bitbucket create-pr`, `pncli bitbucket diff` — create repositories, open/list PRs, get diffs.
+Enables: `pncli bitbucket create-repo`, `pncli bitbucket list-prs`, `pncli bitbucket create-pr`, `pncli bitbucket diff` and more — create repositories, open/list/merge PRs, get diffs.
 
 ## Required config
 
