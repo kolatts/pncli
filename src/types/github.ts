@@ -116,3 +116,24 @@ export interface GitHubCheckRun {
   completed_at?: string;
   app?: { name: string };
 }
+
+export interface GitHubIssue {
+  number: number;
+  title: string;
+  body?: string;
+  state: 'open' | 'closed';
+  state_reason?: 'completed' | 'not_planned' | 'reopened' | null;
+  milestone?: {
+    number: number;
+    title: string;
+    state: 'open' | 'closed';
+  } | null;
+  locked: boolean;
+  html_url: string;
+  user: GitHubUser;
+  labels: GitHubLabel[];
+  assignees: GitHubUser[];
+  created_at: string;
+  updated_at: string;
+  closed_at?: string;
+}

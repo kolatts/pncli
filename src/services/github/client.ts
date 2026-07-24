@@ -5,7 +5,8 @@ import type {
   GitHubReview,
   GitHubFile,
   GitHubCombinedStatus,
-  GitHubCheckRun
+  GitHubCheckRun,
+  GitHubIssue
 } from '../../types/github.js';
 
 export interface ListPRsOpts {
@@ -62,6 +63,15 @@ export interface SubmitReviewOpts {
   pullNumber: number;
   event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT';
   body?: string;
+}
+
+export interface CreateIssueOpts {
+  owner: string;
+  repo: string;
+  title: string;
+  body?: string;
+  labels?: string[];
+  assignees?: string[];
 }
 
 export class GitHubClient {
@@ -259,5 +269,20 @@ export class GitHubClient {
       page++;
     }
     return results;
+  }
+
+  async createIssue(opts: CreateIssueOpts): Promise<GitHubIssue> {
+    return this.http.github<GitHubIssue>(
+      `/repos/${opts.owner}/${opts.repo}/issues`,
+      {
+        method: 'POST',
+        body: {
+          title: opts.title,
+          ...(opts.body !== undefined ? { body: opts.body } : {}),
+          ...(opts.labels?.length ? { labels: opts.labels } : {}),
+          ...(opts.assignees?.length ? { assignees: opts.assignees } : {})
+        }
+      }
+    );
   }
 }
