@@ -122,6 +122,13 @@ export interface GitHubIssue {
   title: string;
   body?: string;
   state: 'open' | 'closed';
+  state_reason?: 'completed' | 'not_planned' | 'reopened' | null;
+  milestone?: {
+    number: number;
+    title: string;
+    state: 'open' | 'closed';
+  } | null;
+  locked: boolean;
   html_url: string;
   user: GitHubUser;
   labels: GitHubLabel[];

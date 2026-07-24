@@ -6,6 +6,7 @@ import { loadConfig } from '../../lib/config.js';
 import { getGitContext } from '../../lib/git-context.js';
 import { success, fail } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
+import { resolveTextInput } from '../../lib/input.js';
 
 function getClient(
   program: Command,
@@ -43,17 +44,19 @@ export function registerGitHubCommands(program: Command): void {
     .description('Create a GitHub issue')
     .requiredOption('--title <title>', 'Issue title')
     .option('--body <body>', 'Issue body (markdown)')
+    .option('--body-file <path>', 'Read issue body from a file (use - for stdin); overridden by --body')
     .option('--label <label>', 'Label to apply (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
     .option('--assignee <login>', 'Assignee login (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
-    .action(async (opts: { title: string; body?: string; label: string[]; assignee: string[] }) => {
+    .action(async (opts: { title: string; body?: string; bodyFile?: string; label: string[]; assignee: string[] }) => {
       const start = Date.now();
       try {
         const { client, owner, repo } = getClient(gh);
+        const body = opts.body ?? resolveTextInput(undefined, opts.bodyFile, 'body');
         const data = await client.createIssue({
           owner,
           repo,
           title: opts.title,
-          body: opts.body,
+          body,
           labels: opts.label.length ? opts.label : undefined,
           assignees: opts.assignee.length ? opts.assignee : undefined
         });
@@ -101,21 +104,23 @@ export function registerGitHubCommands(program: Command): void {
     .requiredOption('--head <branch>', 'Source branch (or user:branch for forks)')
     .option('--base <branch>', 'Target branch (defaults to config or main)')
     .option('--body <body>', 'PR description')
+    .option('--body-file <path>', 'Read PR description from a file (use - for stdin); overridden by --body')
     .option('--draft', 'Create as draft PR')
     .option('--owner <owner>', 'GitHub owner (overrides parent --owner)')
     .option('--repo <repo>', 'GitHub repository name (overrides parent --repo)')
-    .action(async (opts: { title: string; head: string; base?: string; body?: string; draft?: boolean; owner?: string; repo?: string }) => {
+    .action(async (opts: { title: string; head: string; base?: string; body?: string; bodyFile?: string; draft?: boolean; owner?: string; repo?: string }) => {
       const start = Date.now();
       try {
         const { client, owner, repo, config } = getClient(gh, { owner: opts.owner, repo: opts.repo });
         const base = opts.base ?? config.defaults.github?.targetBranch ?? 'main';
+        const body = opts.body ?? resolveTextInput(undefined, opts.bodyFile, 'body');
         const data = await client.createPR({
           owner,
           repo,
           title: opts.title,
           head: opts.head,
           base,
-          body: opts.body,
+          body,
           draft: opts.draft
         });
         success(data, 'github', 'create-pr', start);
