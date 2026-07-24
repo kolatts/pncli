@@ -1,6 +1,6 @@
 # Azure DevOps (ADO)
 
-Enables: `pncli ado workitem`, `pncli ado repo`, `pncli ado pr`, `pncli ado pipeline` — work items, repos, PRs, and pipeline builds for Azure DevOps Server (on-premise).
+Enables: `pncli ado workitem`, `pncli ado repo`, `pncli ado repo create`, `pncli ado pr`, `pncli ado pipeline` — work items, repos (including repo creation), PRs, and pipeline builds for Azure DevOps Server (on-premise).
 
 ## Required config
 
@@ -30,6 +30,13 @@ export PNCLI_ADO_PAT=<token>
 ```
 pncli config set --repo defaults.ado.collection DefaultCollection
 pncli config set --repo defaults.ado.project MyProject
+```
+
+## Creating repositories
+
+```
+# Create a new git repository in the project
+pncli ado --collection DefaultCollection --project MyProject repo create --name my-new-repo
 ```
 
 ## Large fields via --input-file

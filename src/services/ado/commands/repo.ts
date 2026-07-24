@@ -42,6 +42,19 @@ export function registerAdoRepoCommands(ado: Command): void {
     });
 
   repo
+    .command('create')
+    .description('Create a new git repository in the project')
+    .requiredOption('--name <name>', 'Repository name')
+    .action(async (opts: { name: string }) => {
+      const start = Date.now();
+      try {
+        const { collection, project, gitClient } = getAdoContext(ado);
+        const data = await gitClient.createRepo(collection, project, opts.name);
+        success(data, 'ado', 'repo-create', start);
+      } catch (err) { fail(err, 'ado', 'repo-create', start); }
+    });
+
+  repo
     .command('get')
     .description('Get a specific repository')
     .action(async () => {

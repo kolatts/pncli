@@ -3,7 +3,8 @@ import type {
   BitbucketPR,
   BitbucketComment,
   BitbucketPageResponse,
-  BitbucketBuildStatus
+  BitbucketBuildStatus,
+  BitbucketRepo
 } from '../../types/bitbucket.js';
 
 const API = '/rest/api/1.0';
@@ -53,6 +54,12 @@ export interface InlineCommentOpts {
   filePath: string;
   line: number;
   lineType?: 'ADDED' | 'REMOVED' | 'CONTEXT';
+}
+
+export interface CreateRepoOpts {
+  project: string;
+  name: string;
+  description?: string;
 }
 
 export class BitbucketClient {
@@ -294,5 +301,19 @@ export class BitbucketClient {
       `/rest/build-status/1.0/commits/${commit}`
     );
     return result.values ?? [];
+  }
+
+  async createRepo(opts: CreateRepoOpts): Promise<BitbucketRepo> {
+    return this.http.bitbucket<BitbucketRepo>(
+      `${API}/projects/${opts.project}/repos`,
+      {
+        method: 'POST',
+        body: {
+          name: opts.name,
+          scmId: 'git',
+          ...(opts.description !== undefined ? { description: opts.description } : {})
+        }
+      }
+    );
   }
 }

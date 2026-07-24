@@ -204,3 +204,39 @@ describe('GitHubClient — createIssue', () => {
     expect(capturedBody).toEqual({ title: 'Minimal issue' });
   });
 });
+
+describe('GitHubClient — createRepo', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('POSTs personal repositories to the authenticated user endpoint', async () => {
+    let capturedUrl = '';
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrl = url;
+      return new Response(JSON.stringify({ name: 'personal-repo' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    });
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    await client.createRepo({ name: 'personal-repo' });
+
+    expect(capturedUrl).toContain('/user/repos');
+  });
+
+  it('POSTs organization repositories to the requested organization endpoint', async () => {
+    let capturedUrl = '';
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrl = url;
+      return new Response(JSON.stringify({ name: 'org-repo' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    });
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    await client.createRepo({ org: 'my-org', name: 'org-repo' });
+
+    expect(capturedUrl).toContain('/orgs/my-org/repos');
+  });
+});
