@@ -137,3 +137,18 @@ export interface GitHubIssue {
   updated_at: string;
   closed_at?: string;
 }
+
+export interface GitHubRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  description?: string;
+  private: boolean;
+  html_url: string;
+  clone_url: string;
+  ssh_url: string;
+  default_branch: string;
+  owner: GitHubUser;
+  created_at: string;
+  updated_at: string;
+}

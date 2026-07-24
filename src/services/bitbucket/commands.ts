@@ -36,6 +36,30 @@ export function registerBitbucketCommands(program: Command): void {
     .option('--project <key>', 'Bitbucket project key')
     .option('--repo <slug>', 'Bitbucket repository slug');
 
+  // ── Repositories ──────────────────────────────────────────────────
+
+  bb.command('create-repo')
+    .description('Create a new repository in a project')
+    .requiredOption('--name <name>', 'Repository name (slug)')
+    .option('--description <desc>', 'Repository description')
+    .option('--project <key>', 'Bitbucket project key (overrides parent --project)')
+    .action(async (opts: { name: string; description?: string; project?: string }) => {
+      const start = Date.now();
+      try {
+        const globalOpts = bb.optsWithGlobals();
+        const config = loadConfig({ configPath: globalOpts.config });
+        const http = createHttpClient(config, Boolean(globalOpts.dryRun));
+        const client = new BitbucketClient(http);
+        const ctx = getGitContext(config);
+        const project: string = opts.project ?? globalOpts.project ?? ctx?.project ?? config.defaults.bitbucket?.project ?? '';
+        if (!project) {
+          throw new PncliError('Could not determine Bitbucket project. Pass --project, or run pncli config init.', 1);
+        }
+        const data = await client.createRepo({ project, name: opts.name, description: opts.description });
+        success(data, 'bitbucket', 'create-repo', start);
+      } catch (err) { fail(err, 'bitbucket', 'create-repo', start); }
+    });
+
   // ── Pull Requests ──────────────────────────────────────────────────
 
   bb.command('list-prs')
