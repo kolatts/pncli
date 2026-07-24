@@ -31,6 +31,13 @@ export class AdoGitClient {
     );
   }
 
+  async createRepo(collection: string, project: string, name: string): Promise<AdoGitRepo> {
+    return this.http.ado<AdoGitRepo>(
+      `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/git/repositories?api-version=${API}`,
+      { method: 'POST', body: { name } }
+    );
+  }
+
   // ── Pull Requests ─────────────────────────────────────────────────
 
   async listPRs(

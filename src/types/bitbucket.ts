@@ -68,3 +68,20 @@ export interface BitbucketBuildStatus {
   description?: string;
   dateAdded: number;
 }
+
+export interface BitbucketRepo {
+  id: number;
+  slug: string;
+  name: string;
+  description?: string;
+  scmId: string;
+  state: string;
+  statusMessage?: string;
+  forkable?: boolean;
+  project: { key: string; name?: string };
+  public?: boolean;
+  links: {
+    clone?: Array<{ href: string; name: string }>;
+    self: Array<{ href: string }>;
+  };
+}

@@ -6,7 +6,8 @@ import type {
   GitHubFile,
   GitHubCombinedStatus,
   GitHubCheckRun,
-  GitHubIssue
+  GitHubIssue,
+  GitHubRepo
 } from '../../types/github.js';
 
 export interface ListPRsOpts {
@@ -72,6 +73,15 @@ export interface CreateIssueOpts {
   body?: string;
   labels?: string[];
   assignees?: string[];
+}
+
+export interface CreateRepoOpts {
+  /** Org name for org repos; omit to create under the authenticated user */
+  org?: string;
+  name: string;
+  description?: string;
+  private?: boolean;
+  autoInit?: boolean;
 }
 
 export class GitHubClient {
@@ -284,5 +294,18 @@ export class GitHubClient {
         }
       }
     );
+  }
+
+  async createRepo(opts: CreateRepoOpts): Promise<GitHubRepo> {
+    const path = opts.org ? `/orgs/${opts.org}/repos` : '/user/repos';
+    return this.http.github<GitHubRepo>(path, {
+      method: 'POST',
+      body: {
+        name: opts.name,
+        ...(opts.description !== undefined ? { description: opts.description } : {}),
+        ...(opts.private !== undefined ? { private: opts.private } : {}),
+        ...(opts.autoInit !== undefined ? { auto_init: opts.autoInit } : {})
+      }
+    });
   }
 }

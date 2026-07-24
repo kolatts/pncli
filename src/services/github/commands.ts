@@ -38,6 +38,33 @@ export function registerGitHubCommands(program: Command): void {
     .option('--owner <owner>', 'GitHub owner (user or org)')
     .option('--repo <repo>', 'GitHub repository name');
 
+  // ── Repositories ──────────────────────────────────────────────────
+
+  gh.command('create-repo')
+    .description('Create a new repository (personal or org)')
+    .requiredOption('--name <name>', 'Repository name')
+    .option('--description <desc>', 'Repository description')
+    .option('--private', 'Create as a private repository')
+    .option('--auto-init', 'Initialize with a README')
+    .action(async (opts: { name: string; description?: string; private?: boolean; autoInit?: boolean }) => {
+      const start = Date.now();
+      try {
+        const globalOpts = gh.optsWithGlobals();
+        const config = loadConfig({ configPath: globalOpts.config });
+        const http = createHttpClient(config, Boolean(globalOpts.dryRun));
+        const client = new GitHubClient(http);
+        const owner: string = globalOpts.owner ?? '';
+        const data = await client.createRepo({
+          org: owner || undefined,
+          name: opts.name,
+          description: opts.description,
+          private: opts.private,
+          autoInit: opts.autoInit
+        });
+        success(data, 'github', 'create-repo', start);
+      } catch (err) { fail(err, 'github', 'create-repo', start); }
+    });
+
   // ── Issues ────────────────────────────────────────────────────────
 
   gh.command('create-issue')

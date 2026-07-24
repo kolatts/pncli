@@ -1,6 +1,6 @@
 # Bitbucket
 
-Enables: `pncli bitbucket repo`, `pncli bitbucket pr`, `pncli bitbucket diff` — list repos, open/list PRs, get diffs.
+Enables: `pncli bitbucket create-repo`, `pncli bitbucket list-prs`, `pncli bitbucket create-pr`, `pncli bitbucket diff` and more — create repositories, open/list/merge PRs, get diffs.
 
 ## Required config
 
@@ -27,4 +27,14 @@ export PNCLI_BITBUCKET_PAT=<token>
 
 ```
 pncli config set --repo defaults.bitbucket.targetBranch main
+```
+
+## Creating repositories
+
+```
+# Create a repo in a project
+pncli bitbucket --project MYPROJ create-repo --name my-new-repo
+
+# With a description and explicit project flag
+pncli bitbucket create-repo --project MYPROJ --name my-new-repo --description "My project"
 ```
