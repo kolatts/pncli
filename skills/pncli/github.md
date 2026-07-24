@@ -1,6 +1,6 @@
 # GitHub
 
-Enables: `pncli github list-prs`, `pncli github create-pr`, `pncli github diff` — list and manage PRs, post reviews, get diffs.
+Enables: `pncli github list-prs`, `pncli github create-pr`, `pncli github diff`, `pncli github create-issue` — list and manage PRs, post reviews, get diffs, and create issues.
 
 > **Prefer the official GitHub CLI where you can.** In corporate environments with a software packaging team that can distribute and keep [`gh`](https://cli.github.com/) up to date on developer machines and CI runners, use `gh` instead of `pncli github` — it is GitHub's first-party tool with broader coverage and official support. `pncli github` exists for environments where installing `gh` is impractical (locked-down runners, no packaging pipeline, or to keep a single CLI across Jira/Bitbucket/ADO/GitHub), and it covers the common PR, review, comment, diff, and status operations.
 

@@ -168,3 +168,39 @@ describe('GitHubClient — createPR', () => {
     expect(capturedBody).toEqual({ title: 'T', head: 'feature', base: 'main', body: 'B', draft: true });
   });
 });
+
+describe('GitHubClient — createIssue', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('POSTs to the issues endpoint with title, body, labels, and assignees', async () => {
+    let capturedUrl = '';
+    let capturedMethod = '';
+    let capturedBody: unknown;
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      capturedUrl = url;
+      capturedMethod = init.method ?? 'GET';
+      capturedBody = JSON.parse(init.body as string);
+      return new Response(JSON.stringify({ number: 42 }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    await client.createIssue({ owner: 'o', repo: 'r', title: 'Bug report', body: 'Details', labels: ['bug'], assignees: ['alice'] });
+
+    expect(capturedUrl).toContain('/repos/o/r/issues');
+    expect(capturedMethod).toBe('POST');
+    expect(capturedBody).toEqual({ title: 'Bug report', body: 'Details', labels: ['bug'], assignees: ['alice'] });
+  });
+
+  it('omits optional fields when not provided', async () => {
+    let capturedBody: unknown;
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedBody = JSON.parse(init.body as string);
+      return new Response(JSON.stringify({ number: 1 }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    await client.createIssue({ owner: 'o', repo: 'r', title: 'Minimal issue' });
+
+    expect(capturedBody).toEqual({ title: 'Minimal issue' });
+  });
+});
