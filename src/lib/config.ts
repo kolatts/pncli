@@ -234,6 +234,18 @@ export function writeRepoConfig(config: RepoConfig): void {
   fs.writeFileSync(path.join(targetDir, '.pncli.json'), JSON.stringify(config, null, 2) + '\n', 'utf8');
 }
 
+function parseConfigValue(value: string): unknown {
+  try {
+    const parsed = JSON.parse(value);
+    if (typeof parsed === 'object' && parsed !== null) {
+      return parsed;
+    }
+  } catch {
+    // not valid JSON — fall through to raw string
+  }
+  return value;
+}
+
 export function setConfigValue(key: string, value: string, configPath?: string): void {
   const filePath = getGlobalConfigPath(configPath);
   const existing = loadJsonFile<GlobalConfig>(filePath) ?? {};
@@ -248,7 +260,7 @@ export function setConfigValue(key: string, value: string, configPath?: string):
     }
     current = current[part];
   }
-  current[parts[parts.length - 1]!] = value;
+  current[parts[parts.length - 1]!] = parseConfigValue(value);
 
   writeGlobalConfig(existing, configPath);
 }
@@ -269,7 +281,7 @@ export function setRepoConfigValue(key: string, value: string): void {
     }
     current = current[part];
   }
-  current[parts[parts.length - 1]!] = value;
+  current[parts[parts.length - 1]!] = parseConfigValue(value);
 
   writeRepoConfig(existing);
 }
