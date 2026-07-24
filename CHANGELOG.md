@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.18.0](https://github.com/kolatts/pncli/compare/v1.17.0...v1.18.0) (2026-07-24)
+
+
+### Features
+
+* **confluence:** --body-file, --markdown, and XML error hints ([#257](https://github.com/kolatts/pncli/issues/257)) ([d3977d1](https://github.com/kolatts/pncli/commit/d3977d14a1535765b33c0b49cd635605d59577df))
+* **confluence:** add upload-attachment, delete-attachment, and get-page-history ([#263](https://github.com/kolatts/pncli/issues/263)) ([3d65aab](https://github.com/kolatts/pncli/commit/3d65aabde7935d663e2dce889131dc94843d18f1)), closes [#261](https://github.com/kolatts/pncli/issues/261)
+* **github,bitbucket,ado:** add create-repo command to GitHub, Bitbucket, and ADO ([#268](https://github.com/kolatts/pncli/issues/268)) ([58eab4b](https://github.com/kolatts/pncli/commit/58eab4b3c4f6598ab200b171f4d893a6b776e8c5)), closes [#266](https://github.com/kolatts/pncli/issues/266)
+* **github:** add create-issue command ([#265](https://github.com/kolatts/pncli/issues/265)) ([d848e4c](https://github.com/kolatts/pncli/commit/d848e4c1b2173178c21ee67ed7cbc1129eec68f5))
+* **jira,ado:** universal --input-file JSON convention with schema discovery ([#260](https://github.com/kolatts/pncli/issues/260)) ([b80fd6c](https://github.com/kolatts/pncli/commit/b80fd6cea6e26b0dca41dfbc8fc37edea090948e))
+
+
+### Bug Fixes
+
+* **config:** parse JSON array/object values in config set ([#270](https://github.com/kolatts/pncli/issues/270)) ([937ee12](https://github.com/kolatts/pncli/commit/937ee1236d172d1001f204fdfbc8228b935b79db)), closes [#269](https://github.com/kolatts/pncli/issues/269)
+
 ## [1.17.0](https://github.com/kolatts/pncli/compare/v1.16.0...v1.17.0) (2026-07-20)
 
 
