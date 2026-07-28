@@ -241,10 +241,15 @@ export class BitbucketClient {
   async getDiff(project: string, repo: string, prId: number, file?: string, contextLines?: number): Promise<string> {
     const params: Record<string, string | number | boolean | undefined> = {};
     if (contextLines !== undefined) params.contextLines = contextLines;
-    if (file) params.path = file;
+
+    // Bitbucket Server scopes the diff to a specific file via a URL path segment,
+    // not a query parameter: /diff/{filepath}
+    const diffPath = file
+      ? `${API}/projects/${project}/repos/${repo}/pull-requests/${prId}/diff/${file}`
+      : `${API}/projects/${project}/repos/${repo}/pull-requests/${prId}/diff`;
 
     const result = await this.http.bitbucket<{ diffs?: unknown[] } | string>(
-      `${API}/projects/${project}/repos/${repo}/pull-requests/${prId}/diff`,
+      diffPath,
       { params }
     );
     // Return raw diff as string
