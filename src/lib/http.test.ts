@@ -21,6 +21,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
     openshift: { baseUrl: undefined, token: undefined },
+    dynatrace: { baseUrl: undefined, apiToken: undefined, platformUrl: undefined, platformToken: undefined },
     defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, udeploy: {}, jenkins: {} },
     ...overrides
   };
@@ -639,6 +640,46 @@ describe('HttpClient — openshiftText Accept header', () => {
       vi.unstubAllGlobals();
     }
     expect(capturedHeaders[0]?.['accept']).toBe('*/*');
+  });
+});
+
+describe('HttpClient — Dynatrace authentication', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('uses Api-Token authentication for classic Environment APIs', async () => {
+    let authorization = '';
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      authorization = new Headers(init.headers).get('authorization') ?? '';
+      return new Response('{}', { status: 200 });
+    });
+    const client = new HttpClient(baseConfig({
+      dynatrace: {
+        baseUrl: 'https://abc.live.dynatrace.com',
+        apiToken: 'environment-token',
+        platformUrl: undefined,
+        platformToken: undefined
+      }
+    }));
+    await client.dynatrace('/api/v2/entities');
+    expect(authorization).toBe('Api-Token environment-token');
+  });
+
+  it('uses Bearer authentication for latest-platform APIs', async () => {
+    let authorization = '';
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      authorization = new Headers(init.headers).get('authorization') ?? '';
+      return new Response('{}', { status: 200 });
+    });
+    const client = new HttpClient(baseConfig({
+      dynatrace: {
+        baseUrl: undefined,
+        apiToken: undefined,
+        platformUrl: 'https://abc.apps.dynatrace.com',
+        platformToken: 'platform-token'
+      }
+    }));
+    await client.dynatracePlatform('/platform/storage/query/v1/query:execute');
+    expect(authorization).toBe('Bearer platform-token');
   });
 });
 

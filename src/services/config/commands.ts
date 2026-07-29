@@ -265,6 +265,39 @@ export function registerConfigCommands(program: Command): void {
           results.openshift = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.dynatrace.baseUrl && cfg.dynatrace.apiToken) {
+          try {
+            await http.dynatrace<unknown>('/api/v2/entities', {
+              params: { entitySelector: 'type("SERVICE")', pageSize: 1 }
+            });
+            results.dynatrace = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.dynatrace = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.dynatrace = { ok: null, message: 'not configured' };
+        }
+
+        if (cfg.dynatrace.platformUrl && cfg.dynatrace.platformToken) {
+          try {
+            await http.dynatracePlatform<unknown>('/platform/storage/query/v1/query:execute', {
+              method: 'POST',
+              body: {
+                query: 'fetch spans | limit 1',
+                requestTimeoutMilliseconds: 5000
+              },
+              timeoutMs: 10_000
+            });
+            results.dynatrace_platform = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.dynatrace_platform = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else if (cfg.dynatrace.platformUrl || cfg.dynatrace.platformToken) {
+          results.dynatrace_platform = { ok: false, message: 'platformUrl and platformToken must both be configured' };
+        } else {
+          results.dynatrace_platform = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -514,6 +547,45 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        if (!cfg.dynatrace.apiToken) {
+          results.dynatrace = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.dynatrace.baseUrl) {
+          results.dynatrace = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.dynatrace<unknown>('/api/v2/entities', {
+              params: { entitySelector: 'type("SERVICE")', pageSize: 1 },
+              timeoutMs: 10_000
+            });
+            results.dynatrace = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.dynatrace = categorize(err);
+          }
+        }
+
+        if (!cfg.dynatrace.platformUrl && !cfg.dynatrace.platformToken) {
+          results.dynatrace_platform = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.dynatrace.platformUrl || !cfg.dynatrace.platformToken) {
+          results.dynatrace_platform = {
+            status: 'error',
+            message: 'platformUrl and platformToken must both be configured'
+          };
+        } else {
+          try {
+            await http.dynatracePlatform<unknown>('/platform/storage/query/v1/query:execute', {
+              method: 'POST',
+              body: {
+                query: 'fetch spans | limit 1',
+                requestTimeoutMilliseconds: 5000
+              },
+              timeoutMs: 10_000
+            });
+            results.dynatrace_platform = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.dynatrace_platform = categorize(err);
+          }
+        }
+
         // Exit code: prefer AUTH_ERROR if any invalid, else NETWORK_ERROR if any errors
         const statuses = Object.values(results).map(r => r.status);
         if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
@@ -521,7 +593,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift'] as const;
+          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -539,7 +611,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift'] as const;
+            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -1204,6 +1276,62 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── Dynatrace ─────────────────────────────────────\n');
+  const useDynatrace = await confirm({
+    message: 'Configure Dynatrace for services, problems, workloads, and traces?',
+    default: false
+  });
+
+  let dynatraceBaseUrl = '';
+  let dynatraceApiToken = '';
+  let dynatracePlatformUrl = '';
+  let dynatracePlatformToken = '';
+
+  if (useDynatrace) {
+    dynatraceBaseUrl = await input({
+      message: 'Dynatrace environment URL (e.g. https://abc12345.live.dynatrace.com):',
+      default: ''
+    });
+    dynatraceApiToken = await password({
+      message: 'Environment API token (entities.read and problems.read):'
+    });
+    const configureTraces = await confirm({
+      message: 'Configure the latest Dynatrace platform for Grail trace queries?',
+      default: false
+    });
+    if (configureTraces) {
+      dynatracePlatformUrl = await input({
+        message: 'Dynatrace platform URL (e.g. https://abc12345.apps.dynatrace.com):',
+        default: ''
+      });
+      dynatracePlatformToken = await password({
+        message: 'Platform token with Grail span read permissions:'
+      });
+    }
+    if (dynatraceBaseUrl && dynatraceApiToken) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          dynatrace: {
+            baseUrl: normalizeBaseUrl(dynatraceBaseUrl),
+            apiToken: dynatraceApiToken,
+            platformUrl: normalizeBaseUrl(dynatracePlatformUrl) || undefined,
+            platformToken: dynatracePlatformToken || undefined
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.dynatrace<unknown>('/api/v2/entities', {
+          params: { entitySelector: 'type("SERVICE")', pageSize: 1 }
+        });
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to Dynatrace: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your URLs and tokens and re-run pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -1338,6 +1466,14 @@ async function initGlobalConfig(start: number): Promise<void> {
       openshift: {
         baseUrl: normalizeBaseUrl(openShiftBaseUrl),
         token: openShiftToken || undefined
+      }
+    } : {}),
+    ...(useDynatrace && dynatraceBaseUrl ? {
+      dynatrace: {
+        baseUrl: normalizeBaseUrl(dynatraceBaseUrl),
+        apiToken: dynatraceApiToken || undefined,
+        platformUrl: normalizeBaseUrl(dynatracePlatformUrl) || undefined,
+        platformToken: dynatracePlatformToken || undefined
       }
     } : {}),
     defaults: {

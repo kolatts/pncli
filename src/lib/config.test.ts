@@ -25,6 +25,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
     openshift: { baseUrl: undefined, token: undefined },
+    dynatrace: { baseUrl: undefined, apiToken: undefined, platformUrl: undefined, platformToken: undefined },
     defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, udeploy: {}, jenkins: {} },
     ...overrides
   };
@@ -144,6 +145,20 @@ describe('maskConfig', () => {
     const masked = maskConfig(config) as ResolvedConfig;
     expect((masked.contrast as { apiKey?: string }).apiKey).toBe('***');
     expect((masked.contrast as { serviceKey?: string }).serviceKey).toBe('***');
+  });
+
+  it('masks both Dynatrace tokens', () => {
+    const config = baseConfig({
+      dynatrace: {
+        baseUrl: 'https://abc.live.dynatrace.com',
+        apiToken: 'environment-token',
+        platformUrl: 'https://abc.apps.dynatrace.com',
+        platformToken: 'platform-token'
+      }
+    });
+    const masked = maskConfig(config) as ResolvedConfig;
+    expect(masked.dynatrace.apiToken).toBe('***');
+    expect(masked.dynatrace.platformToken).toBe('***');
   });
 });
 
