@@ -1,58 +1,49 @@
-export interface CheckmarxTokenResponse {
+export interface CxOneTokenResponse {
   access_token: string;
   expires_in: number;
   token_type: string;
 }
 
-export interface CheckmarxProject {
-  id: number;
-  teamId: string;
+export interface CxOneProject {
+  id: string;
   name: string;
-  isPublic: boolean;
-  description: string;
-  createdDate: string;
-  projectOwner: string;
+  createdAt: string;
+  updatedAt: string;
+  groups: string[];
+  tags: Record<string, string>;
+  repoUrl?: string;
+  mainBranch?: string;
 }
 
-export interface CheckmarxScanStatus {
-  id: number;
-  name: string;
-  details: string | null;
+export interface CxOneScan {
+  id: string;
+  status: string;
+  projectId: string;
+  projectName: string;
+  branch: string;
+  createdAt: string;
+  updatedAt: string;
+  initiator: string;
+  tags: Record<string, string>;
+  engines?: Record<string, { status: string }>;
 }
 
-export interface CheckmarxScanStage {
-  value: string;
-  stateValue: number;
-  details: string | null;
-}
-
-export interface CheckmarxScan {
-  id: number;
-  status: CheckmarxScanStatus;
-  scanState: CheckmarxScanStage;
-  owner: string;
-  origin: string;
-  initiatorName: string;
-  project: { id: number; value: string };
-  team: { id: string; value: string };
-  engineServer: { id: number; value: string };
-  engineId: number;
-  isPublic: boolean;
-  isIncremental: boolean;
-  processCanceled: boolean;
-  comment: string;
-  dateAndTime: {
-    startedOn: string;
-    finishedOn: string;
-    engineStartedOn: string;
-    engineFinishedOn: string;
-  };
-}
-
-export interface CheckmarxResultsStats {
+export interface CxOneResultsSummary {
   highSeverity: number;
   mediumSeverity: number;
   lowSeverity: number;
   infoSeverity: number;
-  statisticsCalculationDate: string;
+  severitiesTotalCount?: number;
+}
+
+export interface CxOneProjectsResponse {
+  projects: CxOneProject[];
+  totalCount: number;
+  filteredTotalCount: number;
+}
+
+export interface CxOneScansResponse {
+  scans: CxOneScan[];
+  totalCount: number;
+  filteredTotalCount: number;
 }

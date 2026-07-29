@@ -1,31 +1,44 @@
 import type { HttpClient } from '../../lib/http.js';
-import type { CheckmarxProject, CheckmarxScan, CheckmarxResultsStats } from '../../types/checkmarx.js';
+import type {
+  CxOneProject,
+  CxOneProjectsResponse,
+  CxOneScan,
+  CxOneScansResponse,
+  CxOneResultsSummary
+} from '../../types/checkmarx.js';
 
 export class CheckmarxClient {
   constructor(private http: HttpClient) {}
 
-  async listProjects(): Promise<CheckmarxProject[]> {
-    return this.http.checkmarx<CheckmarxProject[]>('/cxrestapi/projects');
+  async listProjects(): Promise<CxOneProject[]> {
+    const res = await this.http.checkmarx<CxOneProjectsResponse>('/api/projects', { params: { limit: 100 } });
+    if (res.filteredTotalCount > res.projects.length) {
+      process.stderr.write(`warning: ${res.filteredTotalCount} projects found; only showing first ${res.projects.length}\n`);
+    }
+    return res.projects;
   }
 
-  async getProject(id: number): Promise<CheckmarxProject> {
-    return this.http.checkmarx<CheckmarxProject>(`/cxrestapi/projects/${id}`);
+  async getProject(id: string): Promise<CxOneProject> {
+    return this.http.checkmarx<CxOneProject>(`/api/projects/${id}`);
   }
 
-  async listScans(opts: { projectId?: number; last?: number } = {}): Promise<CheckmarxScan[]> {
-    return this.http.checkmarx<CheckmarxScan[]>('/cxrestapi/sast/scans', {
-      params: {
-        projectId: opts.projectId,
-        last: opts.last
-      }
+  async listScans(opts: { projectId?: string; last?: number } = {}): Promise<CxOneScan[]> {
+    const params: Record<string, string | number> = { limit: opts.last ?? 100 };
+    if (opts.projectId) params['project-id'] = opts.projectId;
+    const res = await this.http.checkmarx<CxOneScansResponse>('/api/scans', { params });
+    if (res.filteredTotalCount > res.scans.length) {
+      process.stderr.write(`warning: ${res.filteredTotalCount} scans found; only showing first ${res.scans.length}\n`);
+    }
+    return res.scans;
+  }
+
+  async getScan(id: string): Promise<CxOneScan> {
+    return this.http.checkmarx<CxOneScan>(`/api/scans/${id}`);
+  }
+
+  async getScanResultsStatistics(scanId: string): Promise<CxOneResultsSummary> {
+    return this.http.checkmarx<CxOneResultsSummary>('/api/results/summary', {
+      params: { 'scan-id': scanId }
     });
-  }
-
-  async getScan(id: number): Promise<CheckmarxScan> {
-    return this.http.checkmarx<CheckmarxScan>(`/cxrestapi/sast/scans/${id}`);
-  }
-
-  async getScanResultsStatistics(scanId: number): Promise<CheckmarxResultsStats> {
-    return this.http.checkmarx<CheckmarxResultsStats>(`/cxrestapi/sast/scans/${scanId}/resultsStatistics`);
   }
 }

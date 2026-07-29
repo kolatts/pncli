@@ -102,7 +102,7 @@ Services:
   jenkins      Jenkins Data Center (jobs, builds, logs)
   artifactory  Artifactory (repos, artifact search, build info, properties)
   udeploy      IBM UrbanCode Deploy (component versions, deployment processes)
-  checkmarx    Checkmarx CxSAST (projects, scans, scan statistics)
+  checkmarx    Checkmarx One (projects, scans, scan statistics)
   servicenow   ServiceNow (change requests)
   contrast     Contrast IAST (applications, vulnerability findings)
   sonatypeiq   Sonatype IQ Server (applications, organizations, policies)
