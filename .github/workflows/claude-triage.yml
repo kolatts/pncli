@@ -143,7 +143,10 @@ jobs:
 
             5. Add the `triaged` label using `gh label create triaged --color 0e8a16 --force` then
                `gh issue edit ${{ github.event.issue.number }} --add-label triaged`.
-               Remove the triggering label using `gh issue edit ${{ github.event.issue.number }} --remove-label "${{ github.event.label.name }}"`.
+               If the triggering label is `claude-triage`, remove it using
+               `gh issue edit ${{ github.event.issue.number }} --remove-label "claude-triage"`.
+               Do not remove `from-website`; it is a persistent provenance label used by
+               downstream notification and reporting workflows.
 
             6. Write a concise markdown summary of your triage decision to /tmp/triage-summary.md.
                Include: verdict (feasible/not feasible), reasoning, and action taken.
@@ -208,7 +211,7 @@ jobs:
           fi
 
       - name: Remove triggering label
-        if: always()
+        if: always() && github.event.label.name == 'claude-triage'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh issue edit ${{ github.event.issue.number }} --remove-label "${{ github.event.label.name }}" --repo "${{ github.repository }}" || true
+        run: gh issue edit ${{ github.event.issue.number }} --remove-label "claude-triage" --repo "${{ github.repository }}" || true

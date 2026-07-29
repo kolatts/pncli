@@ -67,22 +67,14 @@ public class IssueWebhookFunction(
         if (payload?.Issue is null)
             return req.CreateResponse(HttpStatusCode.OK);
 
-        // ── Filter: only closed issues with the from-website label ────────────
-        var label = Environment.GetEnvironmentVariable("GITHUB_ISSUE_LABEL") ?? "from-website";
-
         if (payload.Action != "closed")
         {
             logger.LogInformation("Ignoring action '{Action}' for issue #{Number}", payload.Action, payload.Issue.Number);
             return req.CreateResponse(HttpStatusCode.OK);
         }
 
-        if (!payload.Issue.Labels.Any(l => l.Name == label))
-        {
-            logger.LogInformation("Issue #{Number} missing label '{Label}' — skipping", payload.Issue.Number, label);
-            return req.CreateResponse(HttpStatusCode.OK);
-        }
-
-        // ── Look up submitter email ───────────────────────────────────────────
+        // The persisted mapping is authoritative: it is created only for issues
+        // submitted through the website and is not affected by mutable labels.
         var mapping = await issueEmailStore.GetAsync(payload.Issue.Number);
         if (mapping is null)
         {
