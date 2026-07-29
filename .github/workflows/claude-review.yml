@@ -32,13 +32,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+
+      - name: Detect review workflow changes
+        id: review-workflow
+        shell: bash
+        run: |
+          if git diff --quiet \
+            '${{ github.event.pull_request.base.sha }}' \
+            '${{ github.event.pull_request.head.sha }}' \
+            -- .github/workflows/claude-review.yml; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Claude Code Review
         uses: anthropics/claude-code-action@v1.0.93
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ github.token }}
+          # Claude's app token gives ordinary PRs a distinct reviewer identity.
+          # A workflow-token fallback is required when this workflow itself changes,
+          # because the Claude app validates it against the default-branch version.
+          github_token: ${{ steps.review-workflow.outputs.changed == 'true' && github.token || '' }}
           allowed_bots: '*'
           track_progress: true
           classify_inline_comments: 'true'
@@ -51,6 +67,7 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
             PR AUTHOR: ${{ github.event.pull_request.user.login }}
+            REVIEW ACTOR: ${{ steps.review-workflow.outputs.changed == 'true' && 'github-actions[bot]' || 'claude[bot]' }}
 
             **Before doing anything else, read and clean up stale Claude feedback:**
             1. Fetch all previous Claude comments on this PR and read them to retain context:
@@ -79,11 +96,12 @@ jobs:
             - `gh pr review ${{ github.event.pull_request.number }} --approve --body "..."` — if no substantive issues found
             - `gh pr review ${{ github.event.pull_request.number }} --request-changes --body "..."` — if there are blocking problems
 
-            Exception for PRs authored by `github-actions[bot]`: GitHub prevents that same
-            workflow identity from approving or requesting changes on its own PR. For those PRs,
-            use `gh pr review ${{ github.event.pull_request.number }} --comment --body "..."` and
-            begin the body with either `PASS —` or `BLOCKING —`. The successful/failed review
-            workflow check is the merge gate for these bot-authored PRs.
+            Exception when PR AUTHOR and REVIEW ACTOR are both `github-actions[bot]`: GitHub
+            prevents that workflow identity from approving or requesting changes on its own PR.
+            In that case, use
+            `gh pr review ${{ github.event.pull_request.number }} --comment --body "..."`
+            and begin the body with either `PASS —` or `BLOCKING —`. The successful/failed
+            review workflow check is the merge gate for that self-review case.
 
             Do not leave a human-authored PR without a formal APPROVE or REQUEST_CHANGES state.
           claude_args: |
