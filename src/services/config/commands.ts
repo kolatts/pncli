@@ -209,7 +209,7 @@ export function registerConfigCommands(program: Command): void {
           results.udeploy = { ok: null, message: 'not configured' };
         }
 
-        if (cfg.checkmarx.baseUrl && (cfg.checkmarx.apiKey || (cfg.checkmarx.clientId && cfg.checkmarx.clientSecret))) {
+        if (cfg.checkmarx.baseUrl && cfg.checkmarx.tenantName && (cfg.checkmarx.apiKey || (cfg.checkmarx.clientId && cfg.checkmarx.clientSecret))) {
           try {
             await http.checkmarx<unknown>('/api/projects', { params: { limit: 1 } });
             results.checkmarx = { ok: true, message: 'connected' };
@@ -444,7 +444,7 @@ export function registerConfigCommands(program: Command): void {
         }
 
         // Checkmarx
-        if (!cfg.checkmarx.apiKey && (!cfg.checkmarx.clientId || !cfg.checkmarx.clientSecret)) {
+        if (!cfg.checkmarx.tenantName || (!cfg.checkmarx.apiKey && (!cfg.checkmarx.clientId || !cfg.checkmarx.clientSecret))) {
           results.checkmarx = { status: 'blank', message: 'not configured' };
         } else if (!cfg.checkmarx.baseUrl) {
           results.checkmarx = { status: 'error', message: 'baseUrl not configured' };
