@@ -681,6 +681,26 @@ describe('HttpClient — Dynatrace authentication', () => {
     await client.dynatracePlatform('/platform/storage/query/v1/query:execute');
     expect(authorization).toBe('Bearer platform-token');
   });
+
+  it('preserves /e/<environment-id> path segment for Dynatrace Managed base URLs', async () => {
+    const capturedUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrls.push(url);
+      return new Response('{"entities":[],"totalCount":0}', { status: 200 });
+    });
+    const client = new HttpClient(baseConfig({
+      dynatrace: {
+        baseUrl: 'https://apm.pncint.net/e/ccd497ef-cb0f-4294-9044-1b6faead0768',
+        apiToken: 'tok',
+        platformUrl: undefined,
+        platformToken: undefined
+      }
+    }));
+    await client.dynatrace('/api/v2/entities');
+    expect(capturedUrls[0]).toBe(
+      'https://apm.pncint.net/e/ccd497ef-cb0f-4294-9044-1b6faead0768/api/v2/entities'
+    );
+  });
 });
 
 describe('HttpClient — --debug mode', () => {
