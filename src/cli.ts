@@ -30,6 +30,7 @@ import { registerSonatypeIqCommands } from './services/sonatypeiq/commands.js';
 import { registerSkillsCommands } from './services/skills/commands.js';
 import { registerJwtCommands } from './services/jwt/commands.js';
 import { registerOpenShiftCommands } from './services/openshift/commands.js';
+import { registerDynatraceCommands } from './services/dynatrace/commands.js';
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -87,6 +88,7 @@ registerSonatypeIqCommands(program);
 registerSkillsCommands(program);
 registerJwtCommands(program);
 registerOpenShiftCommands(program);
+registerDynatraceCommands(program);
 
 program.addHelpText('after', `
 Services:
@@ -107,6 +109,7 @@ Services:
   contrast     Contrast IAST (applications, vulnerability findings)
   sonatypeiq   Sonatype IQ Server (applications, organizations, policies)
   openshift    OpenShift / Kubernetes (pods, events, logs, metrics)
+  dynatrace    Dynatrace (services, entities, problems, traces, Kubernetes workloads)
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills
   jwt          JWT token utilities (decode header and payload)

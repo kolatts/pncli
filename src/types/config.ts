@@ -141,6 +141,15 @@ export interface OpenShiftConfig {
   token?: string;
 }
 
+export interface DynatraceConfig {
+  /** Classic environment URL, for example https://abc12345.live.dynatrace.com */
+  baseUrl?: string;
+  apiToken?: string;
+  /** Latest Dynatrace platform URL, for example https://abc12345.apps.dynatrace.com */
+  platformUrl?: string;
+  platformToken?: string;
+}
+
 export interface MarketplaceConfig {
   name?: string;
   repoUrl?: string;
@@ -186,6 +195,7 @@ export interface GlobalConfig {
   contrast?: ContrastConfig;
   sonatypeiq?: SonatypeIqConfig;
   openshift?: OpenShiftConfig;
+  dynatrace?: DynatraceConfig;
   marketplace?: MarketplaceConfig;
   marketplaces?: MarketplaceConfig[];
   defaults?: Defaults;
@@ -275,6 +285,12 @@ export interface ResolvedConfig {
   openshift: {
     baseUrl: string | undefined;
     token: string | undefined;
+  };
+  dynatrace: {
+    baseUrl: string | undefined;
+    apiToken: string | undefined;
+    platformUrl: string | undefined;
+    platformToken: string | undefined;
   };
   defaults: {
     jira: JiraDefaults;

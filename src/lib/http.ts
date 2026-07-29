@@ -1172,6 +1172,58 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
+  private dynatraceHeaders(platform = false): Record<string, string> {
+    const token = platform ? this.config.dynatrace.platformToken : this.config.dynatrace.apiToken;
+    if (!token) {
+      throw new PncliError(
+        `${platform ? 'Dynatrace platform' : 'Dynatrace'} credentials not configured. Run: pncli config init`
+      );
+    }
+    return {
+      'Authorization': `${platform ? 'Bearer' : 'Api-Token'} ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+  }
+
+  async dynatrace<T>(path: string, opts: HttpRequestOptions = {}): Promise<T> {
+    return this.dynatraceRequest<T>(false, path, opts);
+  }
+
+  async dynatracePlatform<T>(path: string, opts: HttpRequestOptions = {}): Promise<T> {
+    return this.dynatraceRequest<T>(true, path, opts);
+  }
+
+  private async dynatraceRequest<T>(
+    platform: boolean,
+    path: string,
+    opts: HttpRequestOptions
+  ): Promise<T> {
+    const baseUrl = platform ? this.config.dynatrace.platformUrl : this.config.dynatrace.baseUrl;
+    if (!baseUrl) {
+      throw new PncliError(
+        `${platform ? 'Dynatrace platformUrl' : 'Dynatrace baseUrl'} not configured. Run: pncli config init`
+      );
+    }
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.dynatraceHeaders(platform);
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
   async openshiftText(
     path: string,
     opts: HttpRequestOptions & { lines?: number } = {}
