@@ -11,14 +11,14 @@ concurrency:
 jobs:
   review:
     # Skip forks and third-party bots. Allow human-authored PRs plus PRs created
-    # by our triage workflow on same-repository claude/issue-* branches.
+    # by Imagile Bot through our triage workflow on claude/issue-* branches.
     if: |
       github.event.pull_request.head.repo.fork == false &&
       (
         !endsWith(github.event.pull_request.user.login, '[bot]') ||
-        contains(github.event.pull_request.user.login, 'claude') ||
+        github.event.pull_request.user.login == 'claude[bot]' ||
         (
-          github.event.pull_request.user.login == 'github-actions[bot]' &&
+          github.event.pull_request.user.login == 'imagile-bot[bot]' &&
           startsWith(github.event.pull_request.head.ref, 'claude/issue-')
         )
       )
@@ -55,7 +55,7 @@ jobs:
           # A workflow-token fallback is required when this workflow itself changes,
           # because the Claude app validates it against the default-branch version.
           github_token: ${{ steps.review-workflow.outputs.changed == 'true' && github.token || '' }}
-          allowed_bots: '*'
+          allowed_bots: 'imagile-bot'
           track_progress: true
           classify_inline_comments: 'true'
           include_fix_links: 'true'
@@ -95,13 +95,6 @@ jobs:
             **When you are done, submit a GitHub review using one of:**
             - `gh pr review ${{ github.event.pull_request.number }} --approve --body "..."` — if no substantive issues found
             - `gh pr review ${{ github.event.pull_request.number }} --request-changes --body "..."` — if there are blocking problems
-
-            Exception when PR AUTHOR and REVIEW ACTOR are both `github-actions[bot]`: GitHub
-            prevents that workflow identity from approving or requesting changes on its own PR.
-            In that case, use
-            `gh pr review ${{ github.event.pull_request.number }} --comment --body "..."`
-            and begin the body with either `PASS —` or `BLOCKING —`. The successful/failed
-            review workflow check is the merge gate for that self-review case.
 
             Do not leave a human-authored PR without a formal APPROVE or REQUEST_CHANGES state.
           claude_args: |
