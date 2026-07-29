@@ -37,13 +37,13 @@ export interface CxOneResultsSummary {
 }
 
 export interface CxOneProjectsResponse {
-  projects: CxOneProject[];
+  projects: CxOneProject[] | null;
   totalCount: number;
   filteredTotalCount: number;
 }
 
 export interface CxOneScansResponse {
-  scans: CxOneScan[];
+  scans: CxOneScan[] | null;
   totalCount: number;
   filteredTotalCount: number;
 }
