@@ -13,15 +13,33 @@ jobs:
     if: github.event.label.name == 'claude-triage' || github.event.label.name == 'from-website'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-      id-token: write
+      contents: read
     steps:
+      - name: Generate Imagile Bot token
+        id: imagile-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.IMAGILE_BOT_APP_ID }}
+          private-key: ${{ secrets.IMAGILE_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+          permission-workflows: write
+
+      - name: Resolve Imagile Bot identity
+        id: imagile-bot
+        env:
+          GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
+        run: |
+          BOT_LOGIN="${{ steps.imagile-token.outputs.app-slug }}[bot]"
+          echo "id=$(gh api "/users/${BOT_LOGIN}" --jq .id)" >> "$GITHUB_OUTPUT"
+          echo "login=${BOT_LOGIN}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ steps.imagile-token.outputs.token }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -35,6 +53,9 @@ jobs:
         uses: anthropics/claude-code-action@v1.0.93
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.imagile-token.outputs.token }}
+          bot_id: ${{ steps.imagile-bot.outputs.id }}
+          bot_name: ${{ steps.imagile-bot.outputs.login }}
           track_progress: true
           plugin_marketplaces: |
             https://github.com/kolatts/claude-marketplace.git
@@ -169,7 +190,7 @@ jobs:
       - name: Create PR if branch was pushed without one
         if: success() || failure()
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
         run: |
           BRANCH=$(git branch -r --list "origin/claude/issue-${{ github.event.issue.number }}*" | head -1 | tr -d ' ')
           if [ -z "$BRANCH" ]; then
@@ -218,5 +239,5 @@ jobs:
       - name: Remove triggering label
         if: always() && github.event.label.name == 'claude-triage'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
         run: gh issue edit ${{ github.event.issue.number }} --remove-label "claude-triage" --repo "${{ github.repository }}" || true
