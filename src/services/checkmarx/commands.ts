@@ -14,7 +14,7 @@ function getClient(program: Command): CheckmarxClient {
 }
 
 export function registerCheckmarxCommands(program: Command): void {
-  const cx = program.command('checkmarx').description('Checkmarx CxSAST operations');
+  const cx = program.command('checkmarx').description('Checkmarx One operations');
   const project = cx.command('project').description('Project operations');
   const scan = cx.command('scan').description('Scan operations');
 
@@ -32,13 +32,11 @@ export function registerCheckmarxCommands(program: Command): void {
   project
     .command('get')
     .description('Get a project by ID')
-    .requiredOption('--id <id>', 'Project ID')
+    .requiredOption('--id <id>', 'Project UUID')
     .action(async (opts: { id: string }) => {
       const start = Date.now();
       try {
-        const id = parseInt(opts.id, 10);
-        if (isNaN(id)) throw new PncliError(`Invalid --id "${opts.id}". Expected an integer.`, 1);
-        const data = await getClient(program).getProject(id);
+        const data = await getClient(program).getProject(opts.id);
         success(data, 'checkmarx', 'project-get', start);
       } catch (err) { fail(err, 'checkmarx', 'project-get', start); }
     });
@@ -46,16 +44,14 @@ export function registerCheckmarxCommands(program: Command): void {
   scan
     .command('list')
     .description('List scans')
-    .option('--project <id>', 'Filter by project ID')
-    .option('--last <n>', 'Return only the last N scans per project')
+    .option('--project <id>', 'Filter by project UUID')
+    .option('--last <n>', 'Return only the last N scans')
     .action(async (opts: { project?: string; last?: string }) => {
       const start = Date.now();
       try {
-        const projectId = opts.project ? parseInt(opts.project, 10) : undefined;
         const last = opts.last ? parseInt(opts.last, 10) : undefined;
-        if (opts.project && isNaN(projectId!)) throw new PncliError(`Invalid --project "${opts.project}". Expected an integer.`, 1);
         if (opts.last && isNaN(last!)) throw new PncliError(`Invalid --last "${opts.last}". Expected an integer.`, 1);
-        const data = await getClient(program).listScans({ projectId, last });
+        const data = await getClient(program).listScans({ projectId: opts.project, last });
         success(data, 'checkmarx', 'scan-list', start);
       } catch (err) { fail(err, 'checkmarx', 'scan-list', start); }
     });
@@ -63,13 +59,11 @@ export function registerCheckmarxCommands(program: Command): void {
   scan
     .command('get')
     .description('Get a scan by ID')
-    .requiredOption('--id <id>', 'Scan ID')
+    .requiredOption('--id <id>', 'Scan UUID')
     .action(async (opts: { id: string }) => {
       const start = Date.now();
       try {
-        const id = parseInt(opts.id, 10);
-        if (isNaN(id)) throw new PncliError(`Invalid --id "${opts.id}". Expected an integer.`, 1);
-        const data = await getClient(program).getScan(id);
+        const data = await getClient(program).getScan(opts.id);
         success(data, 'checkmarx', 'scan-get', start);
       } catch (err) { fail(err, 'checkmarx', 'scan-get', start); }
     });
@@ -77,13 +71,11 @@ export function registerCheckmarxCommands(program: Command): void {
   scan
     .command('stats')
     .description('Get results statistics for a scan')
-    .requiredOption('--id <id>', 'Scan ID')
+    .requiredOption('--id <id>', 'Scan UUID')
     .action(async (opts: { id: string }) => {
       const start = Date.now();
       try {
-        const id = parseInt(opts.id, 10);
-        if (isNaN(id)) throw new PncliError(`Invalid --id "${opts.id}". Expected an integer.`, 1);
-        const data = await getClient(program).getScanResultsStatistics(id);
+        const data = await getClient(program).getScanResultsStatistics(opts.id);
         success(data, 'checkmarx', 'scan-stats', start);
       } catch (err) { fail(err, 'checkmarx', 'scan-stats', start); }
     });

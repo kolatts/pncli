@@ -16,7 +16,7 @@ function makeConfig(): ResolvedConfig {
     ado: { baseUrl: 'https://ado.example.com', pat: 'tok', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'tok' },
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
-    checkmarx: { baseUrl: undefined, username: undefined, password: undefined },
+    checkmarx: { baseUrl: undefined, tenantName: undefined, clientId: undefined, clientSecret: undefined },
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },

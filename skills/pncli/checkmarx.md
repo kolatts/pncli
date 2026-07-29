@@ -1,31 +1,36 @@
 # Checkmarx
 
-Enables: `pncli checkmarx scan`, `pncli checkmarx finding` — list SAST scans and vulnerability findings.
-
-> **Not officially supported.** Checkmarx CxSAST on-premise does not expose stable PAT-based authentication on all versions. pncli performs the OAuth2 token exchange using username and password, but behaviour varies across CxSAST versions. Use with caution and test connectivity with `pncli config test` before relying on it.
+Enables: `pncli checkmarx project list/get`, `pncli checkmarx scan list/get/stats` — list projects, scans, and vulnerability statistics in Checkmarx One.
 
 ## Required config
 
 | Key | Env var | Description |
 |-----|---------|-------------|
-| `checkmarx.baseUrl` | `PNCLI_CHECKMARX_BASE_URL` | CxSAST server root, e.g. `https://cx.company.com` |
-| `checkmarx.username` | `PNCLI_CHECKMARX_USERNAME` | CxSAST username |
-| `checkmarx.password` | `PNCLI_CHECKMARX_PASSWORD` | CxSAST password |
+| `checkmarx.baseUrl` | `PNCLI_CHECKMARX_BASE_URL` | Checkmarx One API base, e.g. `https://ast.checkmarx.net` |
+| `checkmarx.tenantName` | `PNCLI_CHECKMARX_TENANT_NAME` | IAM realm / tenant name, e.g. `mycompany` |
+| `checkmarx.clientId` | `PNCLI_CHECKMARX_CLIENT_ID` | OAuth2 client ID |
+| `checkmarx.clientSecret` | `PNCLI_CHECKMARX_CLIENT_SECRET` | OAuth2 client secret |
 
-pncli handles the OAuth2 token exchange automatically — no external tools required.
+pncli performs the OAuth2 client credentials token exchange via `iam.checkmarx.net` automatically — no external tools required.
 
 ## Config file (persistent)
 
 ```
-pncli config set checkmarx.baseUrl https://cx.company.com
-pncli config set checkmarx.username <username>
-pncli config set checkmarx.password <password>
+pncli config set checkmarx.baseUrl https://ast.checkmarx.net
+pncli config set checkmarx.tenantName mycompany
+pncli config set checkmarx.clientId <client-id>
+pncli config set checkmarx.clientSecret <client-secret>
 ```
 
 ## Env vars (ephemeral / CI)
 
 ```
-export PNCLI_CHECKMARX_BASE_URL=https://cx.company.com
-export PNCLI_CHECKMARX_USERNAME=<username>
-export PNCLI_CHECKMARX_PASSWORD=<password>
+export PNCLI_CHECKMARX_BASE_URL=https://ast.checkmarx.net
+export PNCLI_CHECKMARX_TENANT_NAME=mycompany
+export PNCLI_CHECKMARX_CLIENT_ID=<client-id>
+export PNCLI_CHECKMARX_CLIENT_SECRET=<client-secret>
 ```
+
+## Regional deployments
+
+For EU or other regional Checkmarx One instances, use the appropriate API base URL (e.g. `https://eu.ast.checkmarx.net`). The IAM token exchange always goes to `iam.checkmarx.net` regardless of region.
