@@ -278,6 +278,26 @@ export function registerConfigCommands(program: Command): void {
           results.dynatrace = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.dynatrace.platformUrl && cfg.dynatrace.platformToken) {
+          try {
+            await http.dynatracePlatform<unknown>('/platform/storage/query/v1/query:execute', {
+              method: 'POST',
+              body: {
+                query: 'fetch spans | limit 1',
+                requestTimeoutMilliseconds: 5000
+              },
+              timeoutMs: 10_000
+            });
+            results.dynatrace_platform = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.dynatrace_platform = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else if (cfg.dynatrace.platformUrl || cfg.dynatrace.platformToken) {
+          results.dynatrace_platform = { ok: false, message: 'platformUrl and platformToken must both be configured' };
+        } else {
+          results.dynatrace_platform = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -543,6 +563,29 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        if (!cfg.dynatrace.platformUrl && !cfg.dynatrace.platformToken) {
+          results.dynatrace_platform = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.dynatrace.platformUrl || !cfg.dynatrace.platformToken) {
+          results.dynatrace_platform = {
+            status: 'error',
+            message: 'platformUrl and platformToken must both be configured'
+          };
+        } else {
+          try {
+            await http.dynatracePlatform<unknown>('/platform/storage/query/v1/query:execute', {
+              method: 'POST',
+              body: {
+                query: 'fetch spans | limit 1',
+                requestTimeoutMilliseconds: 5000
+              },
+              timeoutMs: 10_000
+            });
+            results.dynatrace_platform = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.dynatrace_platform = categorize(err);
+          }
+        }
+
         // Exit code: prefer AUTH_ERROR if any invalid, else NETWORK_ERROR if any errors
         const statuses = Object.values(results).map(r => r.status);
         if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
@@ -550,7 +593,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace'] as const;
+          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -568,7 +611,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace'] as const;
+            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {

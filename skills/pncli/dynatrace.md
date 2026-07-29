@@ -24,6 +24,9 @@ pncli config set dynatrace.platformToken dt0s16...
 pncli config test
 ```
 
+When platform credentials are present, `config test` and `config check` also run a minimal Grail
+spans query and report it separately as `dynatrace_platform`.
+
 ## Commands
 
 ```bash

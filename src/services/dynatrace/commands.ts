@@ -73,6 +73,7 @@ async function runTraceQuery(http: HttpClient, traceId: string): Promise<unknown
   if (!/^[0-9a-f]{16,32}$/i.test(traceId)) {
     throw new PncliError('Trace ID must be a 16- or 32-character hexadecimal value');
   }
+  const deadline = Date.now() + 60_000;
   let response = await http.dynatracePlatform<QueryResponse>(
     '/platform/storage/query/v1/query:execute',
     {
@@ -85,19 +86,25 @@ async function runTraceQuery(http: HttpClient, traceId: string): Promise<unknown
     }
   );
 
-  for (let attempt = 0; response.state === 'RUNNING' || response.state === 'NOT_STARTED'; attempt++) {
+  while (response.state === 'RUNNING' || response.state === 'NOT_STARTED') {
     if (!response.requestToken) throw new PncliError('Dynatrace did not return a query request token');
-    if (attempt >= 11) throw new PncliError('Dynatrace trace query did not finish within 60 seconds');
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) throw new PncliError('Dynatrace trace query did not finish within 60 seconds');
+    const pollStarted = Date.now();
     response = await http.dynatracePlatform<QueryResponse>(
       '/platform/storage/query/v1/query:poll',
       {
         params: {
           'request-token': response.requestToken,
-          'request-timeout': 5000
+          'request-timeout': Math.min(5000, remainingMs)
         },
         timeoutMs: 10000
       }
     );
+    if (response.state === 'RUNNING' || response.state === 'NOT_STARTED') {
+      const delayMs = Math.min(1000 - (Date.now() - pollStarted), deadline - Date.now());
+      if (delayMs > 0) await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
   }
 
   if (response.state !== 'SUCCEEDED') {
