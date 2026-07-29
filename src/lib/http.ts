@@ -41,7 +41,14 @@ function redactHeaders(headers: RequestInit['headers']): Record<string, string> 
 }
 
 function buildUrl(base: string, path: string, params?: Record<string, string | number | boolean | undefined>): string {
-  const url = new URL(path, base.endsWith('/') ? base : base + '/');
+  const normalizedBase = base.endsWith('/') ? base : base + '/';
+  // Strip a leading '/' so that new URL(path, base) resolves relative to base's full
+  // path rather than the origin. Per the WHATWG URL spec, an absolute-path reference
+  // (starting with '/') resolves against the origin and discards any path already
+  // present in base — which silently drops path segments like '/e/<environment-id>'
+  // from Dynatrace Managed or Artifactory-with-context-root base URLs.
+  const normalizedPath = path.startsWith('/') ? path.slice(1) : path;
+  const url = new URL(normalizedPath, normalizedBase);
   if (params) {
     for (const [key, val] of Object.entries(params)) {
       if (val !== undefined) {
