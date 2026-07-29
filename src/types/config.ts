@@ -109,8 +109,10 @@ export interface UdeployConfig {
 
 export interface CheckmarxConfig {
   baseUrl?: string;
-  username?: string;
-  password?: string;
+  tenantName?: string;
+  apiKey?: string;
+  clientId?: string;
+  clientSecret?: string;
 }
 
 export interface ServiceNowConfig {
@@ -247,8 +249,10 @@ export interface ResolvedConfig {
   };
   checkmarx: {
     baseUrl: string | undefined;
-    username: string | undefined;
-    password: string | undefined;
+    tenantName: string | undefined;
+    apiKey: string | undefined;
+    clientId: string | undefined;
+    clientSecret: string | undefined;
   };
   servicenow: {
     baseUrl: string | undefined;

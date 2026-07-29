@@ -124,13 +124,12 @@ jobs:
                     Do NOT proceed to branch/commit/PR if any check fails.
                   - Create a branch named `claude/issue-${{ github.event.issue.number }}`.
                   - Commit your changes and push the branch.
-                  - MANDATORY: Immediately create a PR — do this before commenting on the issue:
-                    `gh pr create --title "<title>" --body "Closes #${{ github.event.issue.number }}" --repo ${{ github.repository }}`
-                    The last line of output is the PR URL. Save it.
-                  - Comment on the issue using this format:
-                    "Implemented in PR: <PR URL>
-
-                    <2-3 sentence summary of what was changed and why>"
+                  - Write the proposed PR title to `/tmp/pr-title.txt` and the complete PR body
+                    (including `Closes #${{ github.event.issue.number }}`) to `/tmp/pr-body.md`.
+                    The workflow creates the PR after your action finishes.
+                  - Do not create the PR or post the implementation comment yourself. The workflow
+                    uses the files above to create the PR and link it from the issue after your
+                    action finishes.
 
                b) If NOT appropriate (doesn't fit purpose, not feasible, out of scope, or conflicts
                   with CLAUDE.md rules):
@@ -157,7 +156,7 @@ jobs:
             unless the issue specifically requests it. Make the narrowest change that
             addresses the issue.
           claude_args: |
-            --model sonnet --max-turns 300 --allowedTools "Read,Glob,Grep,Edit,Write,Bash(gh issue list:*),Bash(gh issue comment:*),Bash(gh issue close:*),Bash(gh issue edit:*),Bash(gh label create:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(npm run build:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(npm test:*),Bash(git checkout -b:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
+            --model sonnet --max-turns 300 --allowedTools "Read,Glob,Grep,Edit,Write,Bash(gh issue list:*),Bash(gh issue comment:*),Bash(gh issue close:*),Bash(gh issue edit:*),Bash(gh label create:*),Bash(gh pr view:*),Bash(npm run build:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(npm test:*),Bash(git checkout -b:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
 
       - name: Create PR if branch was pushed without one
         if: success() || failure()
@@ -170,17 +169,29 @@ jobs:
             exit 0
           fi
           BRANCH_NAME="${BRANCH#origin/}"
-          EXISTING=$(gh pr list --head "$BRANCH_NAME" --repo "${{ github.repository }}" --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
+          EXISTING=$(gh pr list --state all --head "$BRANCH_NAME" --repo "${{ github.repository }}" --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
           if [ -n "$EXISTING" ]; then
             echo "PR #$EXISTING already exists for $BRANCH_NAME"
             exit 0
           fi
-          echo "No PR found for $BRANCH_NAME — creating fallback PR"
-          gh pr create \
-            --title "fix: issue #${{ github.event.issue.number }} (automated)" \
-            --body "Closes #${{ github.event.issue.number }}" \
+          TITLE="fix: issue #${{ github.event.issue.number }} (automated)"
+          if [ -s /tmp/pr-title.txt ]; then
+            TITLE=$(head -1 /tmp/pr-title.txt)
+          fi
+          if [ ! -s /tmp/pr-body.md ]; then
+            printf 'Closes #%s\n' '${{ github.event.issue.number }}' > /tmp/pr-body.md
+          fi
+          echo "No PR found for $BRANCH_NAME — creating PR"
+          PR_URL=$(gh pr create \
+            --title "$TITLE" \
+            --body-file /tmp/pr-body.md \
             --head "$BRANCH_NAME" \
-            --repo "${{ github.repository }}"
+            --base "${{ github.event.repository.default_branch }}" \
+            --repo "${{ github.repository }}")
+          echo "Created $PR_URL"
+          gh issue comment '${{ github.event.issue.number }}' \
+            --repo "${{ github.repository }}" \
+            --body "Implemented in PR: $PR_URL"
 
       - name: Write job summary
         if: always()

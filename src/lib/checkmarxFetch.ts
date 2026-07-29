@@ -1,10 +1,6 @@
 import type { ResolvedConfig } from '../types/config.js';
-import type { CheckmarxTokenResponse } from '../types/checkmarx.js';
+import type { CxOneTokenResponse } from '../types/checkmarx.js';
 import { PncliError } from './errors.js';
-
-const CX_CLIENT_ID = 'resource_owner_client';
-const CX_CLIENT_SECRET = '014DF517-39D1-4453-B7B3-9930C563627C';
-const CX_SCOPE = 'sast_api offline_access';
 
 interface TokenCache {
   value: string;
@@ -12,22 +8,27 @@ interface TokenCache {
 }
 
 /**
- * Returns a fetch-compatible function for Checkmarx CxSAST 9.x requests,
- * with OAuth2 password-grant token exchange and bearer auth injected into every call.
+ * Returns a fetch-compatible function for Checkmarx One requests,
+ * with Checkmarx API key or OAuth2 client_credentials token exchange and bearer auth
+ * injected into every call.
  * The token is cached for the lifetime of the returned fetcher and refreshed
  * when within 60s of expiry.
  */
 export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
-  const { baseUrl, username, password } = config.checkmarx;
+  const { baseUrl, tenantName, apiKey, clientId, clientSecret } = config.checkmarx;
 
   if (!baseUrl) throw new PncliError('Checkmarx baseUrl not configured. Run: pncli config init', 1);
-  if (!username) throw new PncliError('Checkmarx username not configured. Run: pncli config init', 1);
-  if (!password) throw new PncliError('Checkmarx password not configured. Run: pncli config init', 1);
+  if (!tenantName) throw new PncliError('Checkmarx tenantName not configured. Run: pncli config init', 1);
+  if (!apiKey && (!clientId || !clientSecret)) {
+    throw new PncliError(
+      'Checkmarx credentials not configured. Set apiKey or clientId and clientSecret. Run: pncli config init',
+      1
+    );
+  }
 
-  // Capture as definite strings for use inside the closure (TypeScript can't narrow across closures)
-  const resolvedUsername: string = username;
-  const resolvedPassword: string = password;
-  const tokenUrl = `${baseUrl.replace(/\/$/, '')}/cxrestapi/auth/identity/connect/token`;
+  const apiHost = new URL(baseUrl).hostname;
+  const iamHost = apiHost.replace(/(^|\.)ast\./, '$1iam.');
+  const tokenUrl = `https://${iamHost}/auth/realms/${tenantName}/protocol/openid-connect/token`;
   let cache: TokenCache | null = null;
 
   async function getToken(): Promise<string> {
@@ -36,14 +37,17 @@ export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
       return cache.value;
     }
 
-    const body = new URLSearchParams({
-      grant_type: 'password',
-      client_id: CX_CLIENT_ID,
-      client_secret: CX_CLIENT_SECRET,
-      scope: CX_SCOPE,
-      username: resolvedUsername,
-      password: resolvedPassword
-    });
+    const body = apiKey
+      ? new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: getApiKeyClientId(apiKey),
+        refresh_token: apiKey
+      })
+      : new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: clientId!,
+        client_secret: clientSecret!
+      });
 
     const response = await fetch(tokenUrl, {
       method: 'POST',
@@ -59,7 +63,7 @@ export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
       );
     }
 
-    const data = await response.json() as CheckmarxTokenResponse;
+    const data = await response.json() as CxOneTokenResponse;
     if (!data.access_token) {
       throw new PncliError('Checkmarx token endpoint returned no access_token', response.status);
     }
@@ -70,8 +74,6 @@ export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
     return cache.value;
   }
 
-  // Intentionally synchronous (unlike buildAdoFetcher which is async): the token exchange
-  // happens lazily inside getToken() on the first actual API call, not during construction.
   return async (url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]): Promise<Response> => {
     const token = await getToken();
     return fetch(url, {
@@ -82,4 +84,16 @@ export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
       }
     });
   };
+}
+
+function getApiKeyClientId(apiKey: string): string {
+  try {
+    const payload = apiKey.split('.')[1];
+    if (!payload) return 'ast-app';
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const claims = JSON.parse(Buffer.from(normalized, 'base64').toString('utf8')) as { azp?: unknown };
+    return typeof claims.azp === 'string' && claims.azp ? claims.azp : 'ast-app';
+  } catch {
+    return 'ast-app';
+  }
 }

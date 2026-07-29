@@ -209,9 +209,9 @@ export function registerConfigCommands(program: Command): void {
           results.udeploy = { ok: null, message: 'not configured' };
         }
 
-        if (cfg.checkmarx.baseUrl && cfg.checkmarx.username && cfg.checkmarx.password) {
+        if (cfg.checkmarx.baseUrl && cfg.checkmarx.tenantName && (cfg.checkmarx.apiKey || (cfg.checkmarx.clientId && cfg.checkmarx.clientSecret))) {
           try {
-            await http.checkmarx<unknown>('/cxrestapi/projects');
+            await http.checkmarx<unknown>('/api/projects', { params: { limit: 1 } });
             results.checkmarx = { ok: true, message: 'connected' };
           } catch (err) {
             results.checkmarx = { ok: false, message: err instanceof Error ? err.message : String(err) };
@@ -444,13 +444,13 @@ export function registerConfigCommands(program: Command): void {
         }
 
         // Checkmarx
-        if (!cfg.checkmarx.username || !cfg.checkmarx.password) {
+        if (!cfg.checkmarx.tenantName || (!cfg.checkmarx.apiKey && (!cfg.checkmarx.clientId || !cfg.checkmarx.clientSecret))) {
           results.checkmarx = { status: 'blank', message: 'not configured' };
         } else if (!cfg.checkmarx.baseUrl) {
           results.checkmarx = { status: 'error', message: 'baseUrl not configured' };
         } else {
           try {
-            await http.checkmarx<unknown>('/cxrestapi/projects', { timeoutMs: 10_000 });
+            await http.checkmarx<unknown>('/api/projects', { params: { limit: 1 }, timeoutMs: 10_000 });
             results.checkmarx = { status: 'valid', message: 'ok' };
           } catch (err) {
             results.checkmarx = categorize(err);
@@ -930,43 +930,58 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   process.stderr.write('\n── Checkmarx ─────────────────────────────────────\n');
   const useCheckmarx = await confirm({
-    message: 'Configure Checkmarx CxSAST for vulnerability scanning?',
+    message: 'Configure Checkmarx One for vulnerability scanning?',
     default: false
   });
 
   let checkmarxBaseUrl = '';
-  let checkmarxUsername = '';
-  let checkmarxPassword = '';
+  let checkmarxTenantName = '';
+  let checkmarxApiKey = '';
+  let checkmarxClientId = '';
+  let checkmarxClientSecret = '';
 
   if (useCheckmarx) {
     checkmarxBaseUrl = await input({
-      message: 'Checkmarx base URL (e.g. cx.company.com):',
+      message: 'Checkmarx One API base URL (e.g. https://ast.checkmarx.net):',
       default: ''
     });
 
-    checkmarxUsername = await input({
-      message: 'Checkmarx username:',
+    checkmarxTenantName = await input({
+      message: 'Checkmarx One tenant name (IAM realm, e.g. mycompany):',
       default: ''
     });
 
-    checkmarxPassword = await password({
-      message: 'Checkmarx password:',
-      validate: (v) => v.length > 0 || 'Password cannot be blank'
+    checkmarxApiKey = await password({
+      message: 'Checkmarx One API key (leave blank to use an OAuth client):'
     });
 
-    if (checkmarxBaseUrl && checkmarxUsername && checkmarxPassword) {
+    if (!checkmarxApiKey) {
+      checkmarxClientId = await input({
+        message: 'Checkmarx One OAuth client ID:',
+        default: ''
+      });
+
+      checkmarxClientSecret = await password({
+        message: 'Checkmarx One OAuth client secret:',
+        validate: (v) => v.length > 0 || 'Client secret cannot be blank'
+      });
+    }
+
+    if (checkmarxBaseUrl && checkmarxTenantName && (checkmarxApiKey || (checkmarxClientId && checkmarxClientSecret))) {
       process.stderr.write('\n  Verifying connection...\n');
       try {
         const tempConfig = {
           ...loadConfig(),
           checkmarx: {
             baseUrl: normalizeBaseUrl(checkmarxBaseUrl),
-            username: checkmarxUsername,
-            password: checkmarxPassword
+            tenantName: checkmarxTenantName,
+            apiKey: checkmarxApiKey || undefined,
+            clientId: checkmarxClientId,
+            clientSecret: checkmarxClientSecret
           }
         };
         const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
-        await tempHttp.checkmarx<unknown>('/cxrestapi/projects');
+        await tempHttp.checkmarx<unknown>('/api/projects', { params: { limit: 1 } });
         process.stderr.write('  Connected.\n');
       } catch (err) {
         warn(`Could not connect to Checkmarx: ${err instanceof Error ? err.message : String(err)}`);
@@ -1289,8 +1304,10 @@ async function initGlobalConfig(start: number): Promise<void> {
     ...(useCheckmarx && checkmarxBaseUrl ? {
       checkmarx: {
         baseUrl: normalizeBaseUrl(checkmarxBaseUrl),
-        username: checkmarxUsername || undefined,
-        password: checkmarxPassword || undefined
+        tenantName: checkmarxTenantName || undefined,
+        apiKey: checkmarxApiKey || undefined,
+        clientId: checkmarxClientId || undefined,
+        clientSecret: checkmarxClientSecret || undefined
       }
     } : {}),
     ...(useServiceNow && servicenowBaseUrl ? {

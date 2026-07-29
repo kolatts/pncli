@@ -68,9 +68,11 @@ pncli uses a three-layer config system (highest priority wins):
 | `PNCLI_UDEPLOY_PAT` | IBM UrbanCode Deploy personal access token |
 | `PNCLI_UDEPLOY_USERNAME` | IBM UrbanCode Deploy username (alternative to PAT) |
 | `PNCLI_UDEPLOY_PASSWORD` | IBM UrbanCode Deploy password (used with `PNCLI_UDEPLOY_USERNAME`) |
-| `PNCLI_CHECKMARX_BASE_URL` | Checkmarx CxSAST base URL |
-| `PNCLI_CHECKMARX_USERNAME` | Checkmarx username |
-| `PNCLI_CHECKMARX_PASSWORD` | Checkmarx password |
+| `PNCLI_CHECKMARX_BASE_URL` | Checkmarx One API base URL |
+| `PNCLI_CHECKMARX_TENANT_NAME` | Checkmarx One tenant name |
+| `PNCLI_CHECKMARX_API_KEY` | Checkmarx One API key |
+| `PNCLI_CHECKMARX_CLIENT_ID` | Checkmarx One OAuth client ID (API key alternative) |
+| `PNCLI_CHECKMARX_CLIENT_SECRET` | Checkmarx One OAuth client secret (API key alternative) |
 | `PNCLI_CONFIG_PATH` | Override global config file path |
 
 ## For AI Agents

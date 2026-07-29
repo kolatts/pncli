@@ -20,7 +20,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     ado: { baseUrl: 'https://ado.example.com', pat: 'secret-ado', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'secret-jenkins' },
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
-    checkmarx: { baseUrl: undefined, username: undefined, password: undefined },
+    checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined },
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
@@ -112,16 +112,17 @@ describe('maskConfig', () => {
     expect((masked.udeploy as { password?: string }).password).toBeUndefined();
   });
 
-  it('masks checkmarx password when present', () => {
-    const config = baseConfig({ checkmarx: { baseUrl: 'https://cx.example.com', username: 'admin', password: 'secret' } });
+  it('masks checkmarx clientSecret when present', () => {
+    const config = baseConfig({ checkmarx: { baseUrl: 'https://ast.checkmarx.net', tenantName: 'mycompany', apiKey: 'key', clientId: 'id', clientSecret: 'secret' } });
     const masked = maskConfig(config) as ResolvedConfig;
-    expect((masked.checkmarx as { password?: string }).password).toBe('***');
+    expect((masked.checkmarx as { apiKey?: string }).apiKey).toBe('***');
+    expect((masked.checkmarx as { clientSecret?: string }).clientSecret).toBe('***');
   });
 
-  it('leaves checkmarx password undefined when not set', () => {
-    const config = baseConfig({ checkmarx: { baseUrl: undefined, username: undefined, password: undefined } });
+  it('leaves checkmarx clientSecret undefined when not set', () => {
+    const config = baseConfig({ checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined } });
     const masked = maskConfig(config) as ResolvedConfig;
-    expect((masked.checkmarx as { password?: string }).password).toBeUndefined();
+    expect((masked.checkmarx as { clientSecret?: string }).clientSecret).toBeUndefined();
   });
 
   it('masks servicenow password and apiToken when present', () => {
