@@ -24,6 +24,7 @@ jobs:
       )
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       pull-requests: write
       id-token: write
@@ -37,6 +38,7 @@ jobs:
         uses: anthropics/claude-code-action@v1.0.93
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
           allowed_bots: '*'
           track_progress: true
           classify_inline_comments: 'true'
