@@ -50,6 +50,7 @@ jobs:
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
+            PR AUTHOR: ${{ github.event.pull_request.user.login }}
 
             **Before doing anything else, read and clean up stale Claude feedback:**
             1. Fetch all previous Claude comments on this PR and read them to retain context:
@@ -74,10 +75,16 @@ jobs:
             Leave inline comments on specific lines and a top-level summary.
             Skip nitpicks; prioritize substantive feedback.
 
-            **When you are done, submit a formal GitHub review using one of:**
+            **When you are done, submit a GitHub review using one of:**
             - `gh pr review ${{ github.event.pull_request.number }} --approve --body "..."` — if no substantive issues found
             - `gh pr review ${{ github.event.pull_request.number }} --request-changes --body "..."` — if there are blocking problems
 
-            Do not leave the PR without a formal APPROVE or REQUEST_CHANGES review state.
+            Exception for PRs authored by `github-actions[bot]`: GitHub prevents that same
+            workflow identity from approving or requesting changes on its own PR. For those PRs,
+            use `gh pr review ${{ github.event.pull_request.number }} --comment --body "..."` and
+            begin the body with either `PASS —` or `BLOCKING —`. The successful/failed review
+            workflow check is the merge gate for these bot-authored PRs.
+
+            Do not leave a human-authored PR without a formal APPROVE or REQUEST_CHANGES state.
           claude_args: |
             --model sonnet --allowedTools "mcp__github__pull_request_review_write,mcp__github__add_comment_to_pending_review,mcp__github__add_issue_comment,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh api repos/*/issues/*/comments:*),Bash(gh api repos/*/issues/comments/*:*),Bash(gh api repos/*/pulls/*/reviews:*),Bash(gh api repos/*/pulls/*/comments:*)"
