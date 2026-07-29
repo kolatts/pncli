@@ -114,8 +114,25 @@ export interface InstalledSkillRecord {
   marketplace?: string;
   plugin?: string;
   installedFrom?: string;
+  branch?: string;
   installedAt: string;
 }
+
+/**
+ * Per-skill provenance file written inside each installed skill directory.
+ * Self-contained alternative/supplement to the directory-level .pncli-installed.json index.
+ */
+export interface SkillOrigin {
+  version: 1;
+  source: 'marketplace' | 'bundled';
+  marketplace?: string;
+  plugin?: string;
+  installedFrom?: string;
+  branch?: string;
+  installedAt: string;
+}
+
+const SKILL_ORIGIN_FILENAME = 'pncli-origin.json';
 
 export interface InstalledMeta {
   version: 1;
@@ -133,7 +150,46 @@ export function readInstalledMeta(targetDir: string): InstalledMeta {
 }
 
 /**
+ * Returns the path to the per-skill origin file inside a given skill directory.
+ */
+export function getSkillOriginPath(skillDir: string): string {
+  return path.join(skillDir, SKILL_ORIGIN_FILENAME);
+}
+
+/**
+ * Reads the per-skill origin file, or returns null if absent/invalid.
+ * Used for backward-compatible provenance lookup on skills installed before this feature.
+ */
+export function readSkillOrigin(skillDir: string): SkillOrigin | null {
+  const originPath = getSkillOriginPath(skillDir);
+  if (!fs.existsSync(originPath)) return null;
+  try {
+    const raw = JSON.parse(fs.readFileSync(originPath, 'utf8')) as SkillOrigin;
+    if (raw && raw.version === 1 && raw.source) return raw;
+  } catch { /* ignore parse errors */ }
+  return null;
+}
+
+/**
+ * Detects the currently checked-out branch name of a git repository at the given path.
+ * Returns undefined if the path is not a git repo or is in detached-HEAD state.
+ */
+export function detectRepoBranch(repoPath: string): string | undefined {
+  try {
+    const result = execFileSync('git', ['-C', repoPath, 'rev-parse', '--abbrev-ref', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    return result && result !== 'HEAD' ? result : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Records install provenance for one or more skills already copied into targetDir.
+ * Writes to both the directory-level .pncli-installed.json index and a per-skill
+ * pncli-origin.json inside each skill directory for self-contained traceability.
  * Shared by marketplace installs (source: 'marketplace') and bundled installs (source: 'bundled').
  */
 export function recordInstalledSkills(targetDir: string, skillNames: string[], record: Omit<InstalledSkillRecord, 'installedAt'>): void {
@@ -141,7 +197,17 @@ export function recordInstalledSkills(targetDir: string, skillNames: string[], r
   const meta = readInstalledMeta(targetDir);
   const now = new Date().toISOString();
   for (const skillName of skillNames) {
-    meta.skills[skillName] = { ...record, installedAt: now };
+    const fullRecord: InstalledSkillRecord = { ...record, installedAt: now };
+    meta.skills[skillName] = fullRecord;
+
+    // Write per-skill origin file for self-contained provenance
+    const skillDir = path.join(targetDir, skillName);
+    if (fs.existsSync(skillDir)) {
+      const origin: SkillOrigin = { version: 1, ...fullRecord };
+      try {
+        fs.writeFileSync(getSkillOriginPath(skillDir), JSON.stringify(origin, null, 2), 'utf8');
+      } catch { /* non-fatal: directory-level index is the authoritative source */ }
+    }
   }
   fs.writeFileSync(getInstalledMetaPath(targetDir), JSON.stringify(meta, null, 2), 'utf8');
 }
@@ -300,6 +366,8 @@ function installPluginsForMarketplace(
   const results: Record<string, { installed: string[]; failed: string[] }> = {};
   let totalInstalled = 0;
 
+  const branch = detectRepoBranch(marketplacePath);
+
   for (const pluginName of pluginNames) {
     const skillsSrc = resolveSkillsSrc(marketplacePath, pluginName);
     if (!fs.existsSync(skillsSrc)) {
@@ -311,6 +379,7 @@ function installPluginsForMarketplace(
       marketplace: marketplaceName,
       plugin: pluginName,
       installedFrom: repoUrl ?? '',
+      branch,
     });
     results[pluginName] = { installed, failed };
     totalInstalled += installed.length;
@@ -880,6 +949,153 @@ export function registerSkillsCommands(program: Command): void {
         fail(err, 'skills', 'marketplace-sync', start);
       }
     });
+
+  marketplace
+    .command('purge-plugin')
+    .description('Remove all skills installed from a specific plugin (or all plugins in a marketplace)')
+    .argument('<plugin>', 'Plugin name to purge, or "all" to remove every skill from the marketplace')
+    .option('--marketplace <name>', 'Restrict purge to skills from this marketplace (by name or repo URL)')
+    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
+    .option('--claude', 'Shorthand for --agent claude-code')
+    .option('--scope <scope>', 'Installation scope: project | user (default: user)')
+    .option('--target <dir>', 'Override skills directory')
+    .action((plugin: string, opts: { marketplace?: string; agent?: string; claude?: boolean; scope?: string; target?: string }) => {
+      const start = Date.now();
+      try {
+        let targetDir: string;
+        if (opts.target) {
+          targetDir = path.resolve(opts.target);
+        } else {
+          const agentConfig = resolveAgentPaths(resolveAgentName(opts));
+          const scopePath = (opts.scope ?? 'user') === 'project' ? agentConfig.project : agentConfig.user;
+          targetDir = path.resolve(scopePath);
+        }
+        const resolvedTarget = path.resolve(targetDir);
+
+        if (!fs.existsSync(targetDir)) {
+          success({ removed: [], total: 0, target: targetDir, message: 'No skills directory found.' }, 'skills', 'marketplace-purge-plugin', start);
+          return;
+        }
+
+        const meta = readInstalledMeta(targetDir);
+        const removed: string[] = [];
+        const skipped: string[] = [];
+
+        const skillDirs = fs.readdirSync(targetDir).filter(name => {
+          if (name.startsWith('.')) return false;
+          const p = path.join(targetDir, name);
+          try { return fs.statSync(p).isDirectory(); } catch { return false; }
+        });
+
+        for (const skillName of skillDirs) {
+          const skillDir = path.resolve(targetDir, skillName);
+          if (!skillDir.startsWith(resolvedTarget + path.sep)) continue;
+
+          // Resolve provenance: prefer directory-level index, fall back to per-skill origin file.
+          let record: InstalledSkillRecord | null = meta.skills[skillName] ?? null;
+          if (!record) {
+            const perSkill = readSkillOrigin(skillDir);
+            if (perSkill) {
+              record = {
+                source: perSkill.source,
+                marketplace: perSkill.marketplace,
+                plugin: perSkill.plugin,
+                installedFrom: perSkill.installedFrom,
+                branch: perSkill.branch,
+                installedAt: perSkill.installedAt,
+              };
+            }
+          }
+
+          if (!record || record.source !== 'marketplace') {
+            skipped.push(skillName);
+            continue;
+          }
+
+          const matchesMarketplace = !opts.marketplace ||
+            record.marketplace === opts.marketplace ||
+            record.installedFrom === opts.marketplace;
+          const matchesPlugin = plugin === 'all' || record.plugin === plugin;
+
+          if (!matchesMarketplace || !matchesPlugin) {
+            skipped.push(skillName);
+            continue;
+          }
+
+          fs.rmSync(skillDir, { recursive: true, force: true });
+          delete meta.skills[skillName];
+          removed.push(skillName);
+        }
+
+        if (removed.length > 0) {
+          fs.writeFileSync(getInstalledMetaPath(targetDir), JSON.stringify(meta, null, 2), 'utf8');
+        }
+
+        success({
+          removed,
+          skipped: skipped.length,
+          total: removed.length,
+          target: targetDir,
+          plugin,
+          ...(opts.marketplace ? { marketplace: opts.marketplace } : {}),
+        }, 'skills', 'marketplace-purge-plugin', start);
+      } catch (err) {
+        fail(err, 'skills', 'marketplace-purge-plugin', start);
+      }
+    });
+
+  skills
+    .command('purge-user')
+    .description('Remove all skills from the user-level skills folder for the target agent')
+    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
+    .option('--claude', 'Shorthand for --agent claude-code')
+    .option('--force', 'Skip confirmation — remove all skills without prompting')
+    .action((opts: { agent?: string; claude?: boolean; force?: boolean }) => {
+      const start = Date.now();
+      try {
+        const userDir = resolveAgentPaths(resolveAgentName(opts)).user;
+
+        if (!fs.existsSync(userDir)) {
+          success({ removed: 0, target: userDir, message: 'No user-level skills directory found — nothing to purge.' }, 'skills', 'purge-user', start);
+          return;
+        }
+
+        // Count skills before purging so the output is informative even with --force.
+        const skillDirs = fs.readdirSync(userDir).filter(name => {
+          if (name.startsWith('.')) return false;
+          const p = path.join(userDir, name);
+          try { return fs.statSync(p).isDirectory(); } catch { return false; }
+        });
+
+        if (skillDirs.length === 0) {
+          success({ removed: 0, target: userDir, message: 'No skills found in user-level skills directory.' }, 'skills', 'purge-user', start);
+          return;
+        }
+
+        if (!opts.force) {
+          throw new Error(
+            `This will remove ${skillDirs.length} skill(s) from ${userDir}: ${skillDirs.join(', ')}.\n` +
+            'Re-run with --force to confirm, or use `pncli skills marketplace purge-plugin` to target a specific plugin.'
+          );
+        }
+
+        for (const name of skillDirs) {
+          const skillDir = path.resolve(userDir, name);
+          if (!skillDir.startsWith(path.resolve(userDir) + path.sep)) continue;
+          fs.rmSync(skillDir, { recursive: true, force: true });
+        }
+
+        // Clear the metadata index too.
+        const metaPath = getInstalledMetaPath(userDir);
+        if (fs.existsSync(metaPath)) {
+          fs.writeFileSync(metaPath, JSON.stringify({ version: 1, skills: {} }, null, 2), 'utf8');
+        }
+
+        success({ removed: skillDirs.length, skills: skillDirs, target: userDir }, 'skills', 'purge-user', start);
+      } catch (err) {
+        fail(err, 'skills', 'purge-user', start);
+      }
+    });
 }
 
 export function resolvePluginChoices(marketplacePath: string): { name: string; description: string }[] {
@@ -918,6 +1134,7 @@ interface InstallMeta {
   marketplace: string;
   plugin: string;
   installedFrom: string;
+  branch?: string;
 }
 
 export function copyPluginSkills(skillsSrc: string, targetDir: string, meta?: InstallMeta): { installed: string[]; failed: string[] } {
@@ -948,6 +1165,7 @@ export function copyPluginSkills(skillsSrc: string, targetDir: string, meta?: In
       marketplace: meta.marketplace,
       plugin: meta.plugin,
       installedFrom: meta.installedFrom,
+      ...(meta.branch ? { branch: meta.branch } : {}),
     });
   }
 
