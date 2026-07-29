@@ -20,7 +20,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     ado: { baseUrl: 'https://ado.example.com', pat: 'secret-ado', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'secret-jenkins' },
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
-    checkmarx: { baseUrl: undefined, tenantName: undefined, clientId: undefined, clientSecret: undefined },
+    checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined },
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
@@ -113,13 +113,14 @@ describe('maskConfig', () => {
   });
 
   it('masks checkmarx clientSecret when present', () => {
-    const config = baseConfig({ checkmarx: { baseUrl: 'https://ast.checkmarx.net', tenantName: 'mycompany', clientId: 'id', clientSecret: 'secret' } });
+    const config = baseConfig({ checkmarx: { baseUrl: 'https://ast.checkmarx.net', tenantName: 'mycompany', apiKey: 'key', clientId: 'id', clientSecret: 'secret' } });
     const masked = maskConfig(config) as ResolvedConfig;
+    expect((masked.checkmarx as { apiKey?: string }).apiKey).toBe('***');
     expect((masked.checkmarx as { clientSecret?: string }).clientSecret).toBe('***');
   });
 
   it('leaves checkmarx clientSecret undefined when not set', () => {
-    const config = baseConfig({ checkmarx: { baseUrl: undefined, tenantName: undefined, clientId: undefined, clientSecret: undefined } });
+    const config = baseConfig({ checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined } });
     const masked = maskConfig(config) as ResolvedConfig;
     expect((masked.checkmarx as { clientSecret?: string }).clientSecret).toBeUndefined();
   });

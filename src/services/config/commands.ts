@@ -209,7 +209,7 @@ export function registerConfigCommands(program: Command): void {
           results.udeploy = { ok: null, message: 'not configured' };
         }
 
-        if (cfg.checkmarx.baseUrl && cfg.checkmarx.clientId && cfg.checkmarx.clientSecret) {
+        if (cfg.checkmarx.baseUrl && (cfg.checkmarx.apiKey || (cfg.checkmarx.clientId && cfg.checkmarx.clientSecret))) {
           try {
             await http.checkmarx<unknown>('/api/projects', { params: { limit: 1 } });
             results.checkmarx = { ok: true, message: 'connected' };
@@ -444,7 +444,7 @@ export function registerConfigCommands(program: Command): void {
         }
 
         // Checkmarx
-        if (!cfg.checkmarx.clientId || !cfg.checkmarx.clientSecret) {
+        if (!cfg.checkmarx.apiKey && (!cfg.checkmarx.clientId || !cfg.checkmarx.clientSecret)) {
           results.checkmarx = { status: 'blank', message: 'not configured' };
         } else if (!cfg.checkmarx.baseUrl) {
           results.checkmarx = { status: 'error', message: 'baseUrl not configured' };
@@ -936,6 +936,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   let checkmarxBaseUrl = '';
   let checkmarxTenantName = '';
+  let checkmarxApiKey = '';
   let checkmarxClientId = '';
   let checkmarxClientSecret = '';
 
@@ -950,17 +951,23 @@ async function initGlobalConfig(start: number): Promise<void> {
       default: ''
     });
 
-    checkmarxClientId = await input({
-      message: 'Checkmarx One client ID:',
-      default: ''
+    checkmarxApiKey = await password({
+      message: 'Checkmarx One API key (leave blank to use an OAuth client):'
     });
 
-    checkmarxClientSecret = await password({
-      message: 'Checkmarx One client secret:',
-      validate: (v) => v.length > 0 || 'Client secret cannot be blank'
-    });
+    if (!checkmarxApiKey) {
+      checkmarxClientId = await input({
+        message: 'Checkmarx One OAuth client ID:',
+        default: ''
+      });
 
-    if (checkmarxBaseUrl && checkmarxTenantName && checkmarxClientId && checkmarxClientSecret) {
+      checkmarxClientSecret = await password({
+        message: 'Checkmarx One OAuth client secret:',
+        validate: (v) => v.length > 0 || 'Client secret cannot be blank'
+      });
+    }
+
+    if (checkmarxBaseUrl && checkmarxTenantName && (checkmarxApiKey || (checkmarxClientId && checkmarxClientSecret))) {
       process.stderr.write('\n  Verifying connection...\n');
       try {
         const tempConfig = {
@@ -968,6 +975,7 @@ async function initGlobalConfig(start: number): Promise<void> {
           checkmarx: {
             baseUrl: normalizeBaseUrl(checkmarxBaseUrl),
             tenantName: checkmarxTenantName,
+            apiKey: checkmarxApiKey || undefined,
             clientId: checkmarxClientId,
             clientSecret: checkmarxClientSecret
           }
@@ -1297,6 +1305,7 @@ async function initGlobalConfig(start: number): Promise<void> {
       checkmarx: {
         baseUrl: normalizeBaseUrl(checkmarxBaseUrl),
         tenantName: checkmarxTenantName || undefined,
+        apiKey: checkmarxApiKey || undefined,
         clientId: checkmarxClientId || undefined,
         clientSecret: checkmarxClientSecret || undefined
       }

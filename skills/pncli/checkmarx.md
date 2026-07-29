@@ -8,18 +8,19 @@ Enables: `pncli checkmarx project list/get`, `pncli checkmarx scan list/get/stat
 |-----|---------|-------------|
 | `checkmarx.baseUrl` | `PNCLI_CHECKMARX_BASE_URL` | Checkmarx One API base, e.g. `https://ast.checkmarx.net` |
 | `checkmarx.tenantName` | `PNCLI_CHECKMARX_TENANT_NAME` | IAM realm / tenant name, e.g. `mycompany` |
-| `checkmarx.clientId` | `PNCLI_CHECKMARX_CLIENT_ID` | OAuth2 client ID |
-| `checkmarx.clientSecret` | `PNCLI_CHECKMARX_CLIENT_SECRET` | OAuth2 client secret |
+| `checkmarx.apiKey` | `PNCLI_CHECKMARX_API_KEY` | API key created in Checkmarx One IAM (recommended) |
+| `checkmarx.clientId` | `PNCLI_CHECKMARX_CLIENT_ID` | OAuth2 client ID (alternative to API key) |
+| `checkmarx.clientSecret` | `PNCLI_CHECKMARX_CLIENT_SECRET` | OAuth2 client secret (alternative to API key) |
 
-pncli performs the OAuth2 client credentials token exchange via `iam.checkmarx.net` automatically — no external tools required.
+pncli exchanges either an API key (refresh token) or OAuth client credentials for a
+short-lived bearer token automatically. No external tools are required.
 
 ## Config file (persistent)
 
 ```
 pncli config set checkmarx.baseUrl https://ast.checkmarx.net
 pncli config set checkmarx.tenantName mycompany
-pncli config set checkmarx.clientId <client-id>
-pncli config set checkmarx.clientSecret <client-secret>
+pncli config set checkmarx.apiKey <api-key>
 ```
 
 ## Env vars (ephemeral / CI)
@@ -27,10 +28,11 @@ pncli config set checkmarx.clientSecret <client-secret>
 ```
 export PNCLI_CHECKMARX_BASE_URL=https://ast.checkmarx.net
 export PNCLI_CHECKMARX_TENANT_NAME=mycompany
-export PNCLI_CHECKMARX_CLIENT_ID=<client-id>
-export PNCLI_CHECKMARX_CLIENT_SECRET=<client-secret>
+export PNCLI_CHECKMARX_API_KEY=<api-key>
 ```
 
 ## Regional deployments
 
-For EU or other regional Checkmarx One instances, use the appropriate API base URL (e.g. `https://eu.ast.checkmarx.net`). The IAM token exchange always goes to `iam.checkmarx.net` regardless of region.
+For EU or other regional Checkmarx One instances, use the appropriate API base URL
+(e.g. `https://eu.ast.checkmarx.net`). pncli derives the matching regional IAM host
+(e.g. `https://eu.iam.checkmarx.net`) from that URL.

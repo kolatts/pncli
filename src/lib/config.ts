@@ -35,6 +35,7 @@ const ENV_KEYS = {
   UDEPLOY_PASSWORD: 'PNCLI_UDEPLOY_PASSWORD',
   CHECKMARX_BASE_URL: 'PNCLI_CHECKMARX_BASE_URL',
   CHECKMARX_TENANT_NAME: 'PNCLI_CHECKMARX_TENANT_NAME',
+  CHECKMARX_API_KEY: 'PNCLI_CHECKMARX_API_KEY',
   CHECKMARX_CLIENT_ID: 'PNCLI_CHECKMARX_CLIENT_ID',
   CHECKMARX_CLIENT_SECRET: 'PNCLI_CHECKMARX_CLIENT_SECRET',
   SERVICENOW_BASE_URL: 'PNCLI_SERVICENOW_BASE_URL',
@@ -192,6 +193,7 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
     checkmarx: {
       baseUrl: process.env[ENV_KEYS.CHECKMARX_BASE_URL] ?? globalConfig.checkmarx?.baseUrl,
       tenantName: process.env[ENV_KEYS.CHECKMARX_TENANT_NAME] ?? globalConfig.checkmarx?.tenantName,
+      apiKey: process.env[ENV_KEYS.CHECKMARX_API_KEY] ?? globalConfig.checkmarx?.apiKey,
       clientId: process.env[ENV_KEYS.CHECKMARX_CLIENT_ID] ?? globalConfig.checkmarx?.clientId,
       clientSecret: process.env[ENV_KEYS.CHECKMARX_CLIENT_SECRET] ?? globalConfig.checkmarx?.clientSecret,
     },
@@ -335,6 +337,7 @@ export function maskConfig(config: ResolvedConfig): unknown {
     },
     checkmarx: {
       ...config.checkmarx,
+      apiKey: config.checkmarx.apiKey ? '***' : undefined,
       clientSecret: config.checkmarx.clientSecret ? '***' : undefined
     },
     servicenow: {

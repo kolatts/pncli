@@ -2,8 +2,6 @@ import type { ResolvedConfig } from '../types/config.js';
 import type { CxOneTokenResponse } from '../types/checkmarx.js';
 import { PncliError } from './errors.js';
 
-const CX_IAM_BASE = 'https://iam.checkmarx.net';
-
 interface TokenCache {
   value: string;
   expiresAt: number;
@@ -11,22 +9,26 @@ interface TokenCache {
 
 /**
  * Returns a fetch-compatible function for Checkmarx One requests,
- * with OAuth2 client_credentials token exchange and bearer auth injected into every call.
+ * with Checkmarx API key or OAuth2 client_credentials token exchange and bearer auth
+ * injected into every call.
  * The token is cached for the lifetime of the returned fetcher and refreshed
  * when within 60s of expiry.
  */
 export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
-  const { baseUrl, tenantName, clientId, clientSecret } = config.checkmarx;
+  const { baseUrl, tenantName, apiKey, clientId, clientSecret } = config.checkmarx;
 
   if (!baseUrl) throw new PncliError('Checkmarx baseUrl not configured. Run: pncli config init', 1);
   if (!tenantName) throw new PncliError('Checkmarx tenantName not configured. Run: pncli config init', 1);
-  if (!clientId) throw new PncliError('Checkmarx clientId not configured. Run: pncli config init', 1);
-  if (!clientSecret) throw new PncliError('Checkmarx clientSecret not configured. Run: pncli config init', 1);
+  if (!apiKey && (!clientId || !clientSecret)) {
+    throw new PncliError(
+      'Checkmarx credentials not configured. Set apiKey or clientId and clientSecret. Run: pncli config init',
+      1
+    );
+  }
 
-  // Capture as definite strings for use inside the closure
-  const resolvedClientId: string = clientId;
-  const resolvedClientSecret: string = clientSecret;
-  const tokenUrl = `${CX_IAM_BASE}/auth/realms/${tenantName}/protocol/openid-connect/token`;
+  const apiHost = new URL(baseUrl).hostname;
+  const iamHost = apiHost.replace(/(^|\.)ast\./, '$1iam.');
+  const tokenUrl = `https://${iamHost}/auth/realms/${tenantName}/protocol/openid-connect/token`;
   let cache: TokenCache | null = null;
 
   async function getToken(): Promise<string> {
@@ -35,11 +37,17 @@ export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
       return cache.value;
     }
 
-    const body = new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: resolvedClientId,
-      client_secret: resolvedClientSecret
-    });
+    const body = apiKey
+      ? new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: getApiKeyClientId(apiKey),
+        refresh_token: apiKey
+      })
+      : new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: clientId!,
+        client_secret: clientSecret!
+      });
 
     const response = await fetch(tokenUrl, {
       method: 'POST',
@@ -76,4 +84,16 @@ export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
       }
     });
   };
+}
+
+function getApiKeyClientId(apiKey: string): string {
+  try {
+    const payload = apiKey.split('.')[1];
+    if (!payload) return 'ast-app';
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const claims = JSON.parse(Buffer.from(normalized, 'base64').toString('utf8')) as { azp?: unknown };
+    return typeof claims.azp === 'string' && claims.azp ? claims.azp : 'ast-app';
+  } catch {
+    return 'ast-app';
+  }
 }

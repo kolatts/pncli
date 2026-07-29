@@ -18,6 +18,7 @@ function makeConfig(overrides: Partial<ResolvedConfig['checkmarx']> = {}): Resol
     checkmarx: {
       baseUrl: 'https://ast.checkmarx.net',
       tenantName: 'mycompany',
+      apiKey: undefined,
       clientId: 'my-client-id',
       clientSecret: 'my-client-secret',
       ...overrides
@@ -51,12 +52,66 @@ describe('buildCheckmarxFetcher', () => {
     expect(() => buildCheckmarxFetcher(makeConfig({ tenantName: undefined }))).toThrow('tenantName not configured');
   });
 
-  it('throws if clientId is missing', () => {
-    expect(() => buildCheckmarxFetcher(makeConfig({ clientId: undefined }))).toThrow('clientId not configured');
+  it('throws if neither an API key nor complete OAuth client credentials are configured', () => {
+    expect(() => buildCheckmarxFetcher(makeConfig({
+      apiKey: undefined,
+      clientId: undefined,
+      clientSecret: undefined
+    }))).toThrow('credentials not configured');
   });
 
-  it('throws if clientSecret is missing', () => {
-    expect(() => buildCheckmarxFetcher(makeConfig({ clientSecret: undefined }))).toThrow('clientSecret not configured');
+  it('exchanges an API key for a token on first call', async () => {
+    const claims = Buffer.from(JSON.stringify({ azp: 'checkmarx-cli' })).toString('base64url');
+    const apiKey = `header.${claims}.signature`;
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(makeTokenResponse()), { status: 200 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+    vi.stubGlobal('fetch', mockFetch);
+
+    const fetcher = buildCheckmarxFetcher(makeConfig({
+      apiKey,
+      clientId: undefined,
+      clientSecret: undefined
+    }));
+    await fetcher('https://ast.checkmarx.net/api/projects');
+
+    const body = mockFetch.mock.calls[0][1]?.body as string;
+    expect(body).toContain('grant_type=refresh_token');
+    expect(body).toContain('client_id=checkmarx-cli');
+    expect(body).toContain(`refresh_token=${encodeURIComponent(apiKey)}`);
+  });
+
+  it('uses ast-app when an API key does not expose an azp claim', async () => {
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(makeTokenResponse()), { status: 200 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+    vi.stubGlobal('fetch', mockFetch);
+
+    const fetcher = buildCheckmarxFetcher(makeConfig({
+      apiKey: 'opaque-api-key',
+      clientId: undefined,
+      clientSecret: undefined
+    }));
+    await fetcher('https://ast.checkmarx.net/api/projects');
+
+    expect(mockFetch.mock.calls[0][1]?.body).toContain('client_id=ast-app');
+  });
+
+  it('uses the regional IAM host derived from the API URL', async () => {
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(makeTokenResponse()), { status: 200 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+    vi.stubGlobal('fetch', mockFetch);
+
+    const fetcher = buildCheckmarxFetcher(makeConfig({ baseUrl: 'https://eu.ast.checkmarx.net' }));
+    await fetcher('https://eu.ast.checkmarx.net/api/projects');
+
+    expect(mockFetch.mock.calls[0][0]).toBe(
+      'https://eu.iam.checkmarx.net/auth/realms/mycompany/protocol/openid-connect/token'
+    );
   });
 
   it('exchanges client credentials for a token on first call', async () => {

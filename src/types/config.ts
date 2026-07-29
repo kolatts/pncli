@@ -110,6 +110,7 @@ export interface UdeployConfig {
 export interface CheckmarxConfig {
   baseUrl?: string;
   tenantName?: string;
+  apiKey?: string;
   clientId?: string;
   clientSecret?: string;
 }
@@ -249,6 +250,7 @@ export interface ResolvedConfig {
   checkmarx: {
     baseUrl: string | undefined;
     tenantName: string | undefined;
+    apiKey: string | undefined;
     clientId: string | undefined;
     clientSecret: string | undefined;
   };
