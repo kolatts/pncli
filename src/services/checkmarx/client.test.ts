@@ -20,7 +20,7 @@ describe('CheckmarxClient', () => {
     });
 
     await expect(client.listProjects()).resolves.toEqual([]);
-    expect(checkmarx).toHaveBeenCalledWith('/api/projects', { params: { limit: 100 } });
+    expect(checkmarx).toHaveBeenCalledWith('projects', { params: { limit: 100 } });
   });
 
   it('returns an empty scan list when Checkmarx responds with null', async () => {
@@ -31,7 +31,7 @@ describe('CheckmarxClient', () => {
     });
 
     await expect(client.listScans({ projectId: 'project-id', last: 25 })).resolves.toEqual([]);
-    expect(checkmarx).toHaveBeenCalledWith('/api/scans', {
+    expect(checkmarx).toHaveBeenCalledWith('scans', {
       params: { limit: 25, 'project-id': 'project-id' }
     });
   });
