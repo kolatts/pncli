@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.19.0](https://github.com/kolatts/pncli/compare/v1.18.0...v1.19.0) (2026-07-31)
+
+
+### Features
+
+* add Dynatrace integration ([#282](https://github.com/kolatts/pncli/issues/282)) ([db99b92](https://github.com/kolatts/pncli/commit/db99b92d434057db5f42fcbbfc2f53b07dc34975))
+* per-skill pncli-origin.json, purge-plugin, and purge-user commands ([#291](https://github.com/kolatts/pncli/issues/291)) ([d26e519](https://github.com/kolatts/pncli/commit/d26e5197be5b337601d718c36e452df34fbfa9bb)), closes [#288](https://github.com/kolatts/pncli/issues/288)
+* rework Checkmarx from CxSAST on-premise to Checkmarx One cloud ([#276](https://github.com/kolatts/pncli/issues/276)) ([ff6e924](https://github.com/kolatts/pncli/commit/ff6e924451c35d020a3f9c39ec6856cc7310a0e4))
+
+
+### Bug Fixes
+
+* create triage PRs as Imagile Bot ([#290](https://github.com/kolatts/pncli/issues/290)) ([dceb73d](https://github.com/kolatts/pncli/commit/dceb73dc22061978ab07f12baf9d3be72dc0167b)), closes [#289](https://github.com/kolatts/pncli/issues/289)
+* drop leading /api/ from CheckmarxClient paths (fixes doubled /api/api/ after buildUrl fix) ([#287](https://github.com/kolatts/pncli/issues/287)) ([53ee98c](https://github.com/kolatts/pncli/commit/53ee98cecdd433bd8c150f94608d438363a1de58))
+* handle null projects/scans arrays in checkmarx list commands ([#278](https://github.com/kolatts/pncli/issues/278)) ([cb7a51f](https://github.com/kolatts/pncli/commit/cb7a51fc20dba963f1fddfebbc9fd9adbb839e4f))
+* pass file path as URL segment in bitbucket diff, not query param ([#272](https://github.com/kolatts/pncli/issues/272)) ([0e9bf62](https://github.com/kolatts/pncli/commit/0e9bf626ea3b3e01f83d58e37d31df57fff02743)), closes [#271](https://github.com/kolatts/pncli/issues/271)
+* preserve base URL path segments in buildUrl() for Managed Dynatrace and similar hosts ([#284](https://github.com/kolatts/pncli/issues/284)) ([87fef4b](https://github.com/kolatts/pncli/commit/87fef4b09c3fe54903938dae2c505e79ea29fc9e))
+* restore closed-issue email notifications ([#280](https://github.com/kolatts/pncli/issues/280)) ([22c6263](https://github.com/kolatts/pncli/commit/22c626396816ceb8acd4a71549719cfe8979e1b7)), closes [#279](https://github.com/kolatts/pncli/issues/279)
+
 ## [1.18.0](https://github.com/kolatts/pncli/compare/v1.17.0...v1.18.0) (2026-07-24)
 
 
