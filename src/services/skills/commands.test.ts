@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace } from './commands.js';
+import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin } from './commands.js';
 import type { GlobalConfig } from '../../types/config.js';
 
 type ReaddirResult = ReturnType<typeof fs.readdirSync>;
@@ -219,9 +219,10 @@ describe('copyPluginSkills', () => {
     expect(installed).toEqual(['skill-one']);
 
     expect(writeFileSpy).toHaveBeenCalled();
-    const [writePath, writeContent] = writeFileSpy.mock.calls[0] as [string, string];
-    expect(writePath).toContain('.pncli-installed.json');
-    const parsed = JSON.parse(writeContent) as { version: number; skills: Record<string, { source: string; marketplace: string }> };
+    // The directory-level index is written last; per-skill origin is skipped because existsSync returns false for skill dirs.
+    const indexCall = writeFileSpy.mock.calls.find(([p]) => String(p).endsWith('.pncli-installed.json'));
+    expect(indexCall).toBeDefined();
+    const parsed = JSON.parse(indexCall![1] as string) as { version: number; skills: Record<string, { source: string; marketplace: string }> };
     expect(parsed.version).toBe(1);
     expect(parsed.skills['skill-one'].source).toBe('marketplace');
     expect(parsed.skills['skill-one'].marketplace).toBe('my-market');
@@ -371,6 +372,7 @@ describe('recordInstalledSkills', () => {
 
     recordInstalledSkills('/target', ['skill-a', 'skill-b'], { source: 'bundled' });
 
+    // Only the directory-level index should be written (skill dirs don't exist)
     expect(writeFileSpy).toHaveBeenCalledOnce();
     const [, writeContent] = writeFileSpy.mock.calls[0] as [string, string];
     const parsed = JSON.parse(writeContent) as { skills: Record<string, { source: string }> };
@@ -378,9 +380,99 @@ describe('recordInstalledSkills', () => {
     expect(parsed.skills['skill-b'].source).toBe('bundled');
   });
 
+  it('writes a per-skill pncli-origin.json when the skill directory exists', () => {
+    vi.spyOn(fs, 'existsSync').mockImplementation(p => {
+      // Skill dir exists, meta file does not
+      const s = String(p);
+      return s.endsWith('skill-a') || s.endsWith('skill-b');
+    });
+    const writeFileSpy = vi.spyOn(fs, 'writeFileSync').mockReturnValue(undefined);
+
+    recordInstalledSkills('/target', ['skill-a', 'skill-b'], { source: 'bundled' });
+
+    // Expect: 2 per-skill origin writes + 1 directory-level index write = 3 total
+    expect(writeFileSpy).toHaveBeenCalledTimes(3);
+
+    const perSkillCall = writeFileSpy.mock.calls.find(([p]) => String(p).endsWith('pncli-origin.json'));
+    expect(perSkillCall).toBeDefined();
+    const origin = JSON.parse(perSkillCall![1] as string) as { version: number; source: string };
+    expect(origin.version).toBe(1);
+    expect(origin.source).toBe('bundled');
+  });
+
   it('does nothing when skillNames is empty', () => {
     const writeFileSpy = vi.spyOn(fs, 'writeFileSync').mockReturnValue(undefined);
     recordInstalledSkills('/target', [], { source: 'bundled' });
     expect(writeFileSpy).not.toHaveBeenCalled();
+  });
+
+  it('records branch in both index and per-skill origin when provided', () => {
+    vi.spyOn(fs, 'existsSync').mockImplementation(p => String(p).endsWith('skill-a'));
+    const writeFileSpy = vi.spyOn(fs, 'writeFileSync').mockReturnValue(undefined);
+
+    recordInstalledSkills('/target', ['skill-a'], {
+      source: 'marketplace',
+      marketplace: 'my-market',
+      plugin: 'sunny',
+      installedFrom: 'https://github.com/org/my-market.git',
+      branch: 'main',
+    });
+
+    const indexCall = writeFileSpy.mock.calls.find(([p]) => String(p).endsWith('.pncli-installed.json'));
+    expect(indexCall).toBeDefined();
+    const indexParsed = JSON.parse(indexCall![1] as string) as { skills: Record<string, { branch?: string }> };
+    expect(indexParsed.skills['skill-a'].branch).toBe('main');
+
+    const originCall = writeFileSpy.mock.calls.find(([p]) => String(p).endsWith('pncli-origin.json'));
+    expect(originCall).toBeDefined();
+    const originParsed = JSON.parse(originCall![1] as string) as { branch?: string };
+    expect(originParsed.branch).toBe('main');
+  });
+});
+
+// ── getSkillOriginPath ────────────────────────────────────────────────────────
+
+describe('getSkillOriginPath', () => {
+  it('returns the pncli-origin.json path inside the skill directory', () => {
+    const skillDir = path.join(os.homedir(), '.agents', 'skills', 'my-skill');
+    expect(getSkillOriginPath(skillDir)).toBe(path.join(skillDir, 'pncli-origin.json'));
+  });
+});
+
+// ── readSkillOrigin ───────────────────────────────────────────────────────────
+
+describe('readSkillOrigin', () => {
+  it('returns null when pncli-origin.json does not exist', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    expect(readSkillOrigin('/some/skill')).toBeNull();
+  });
+
+  it('returns null when the file cannot be parsed', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue('not json{{{{');
+    expect(readSkillOrigin('/some/skill')).toBeNull();
+  });
+
+  it('returns null when the file is missing required fields', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({ version: 1 }));
+    expect(readSkillOrigin('/some/skill')).toBeNull();
+  });
+
+  it('parses a valid pncli-origin.json', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      source: 'marketplace',
+      marketplace: 'my-market',
+      plugin: 'sunny',
+      installedFrom: 'https://github.com/org/my-market.git',
+      branch: 'main',
+      installedAt: '2026-07-29T00:00:00Z',
+    }));
+    const origin = readSkillOrigin('/some/skill');
+    expect(origin).not.toBeNull();
+    expect(origin!.plugin).toBe('sunny');
+    expect(origin!.branch).toBe('main');
   });
 });
