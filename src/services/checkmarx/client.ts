@@ -11,7 +11,7 @@ export class CheckmarxClient {
   constructor(private http: HttpClient) {}
 
   async listProjects(): Promise<CxOneProject[]> {
-    const res = await this.http.checkmarx<CxOneProjectsResponse>('/api/projects', { params: { limit: 100 } });
+    const res = await this.http.checkmarx<CxOneProjectsResponse>('projects', { params: { limit: 100 } });
     const projects = res.projects ?? [];
     if (res.filteredTotalCount > projects.length) {
       process.stderr.write(`warning: ${res.filteredTotalCount} projects found; only showing first ${projects.length}\n`);
@@ -20,13 +20,13 @@ export class CheckmarxClient {
   }
 
   async getProject(id: string): Promise<CxOneProject> {
-    return this.http.checkmarx<CxOneProject>(`/api/projects/${id}`);
+    return this.http.checkmarx<CxOneProject>(`projects/${id}`);
   }
 
   async listScans(opts: { projectId?: string; last?: number } = {}): Promise<CxOneScan[]> {
     const params: Record<string, string | number> = { limit: opts.last ?? 100 };
     if (opts.projectId) params['project-id'] = opts.projectId;
-    const res = await this.http.checkmarx<CxOneScansResponse>('/api/scans', { params });
+    const res = await this.http.checkmarx<CxOneScansResponse>('scans', { params });
     const scans = res.scans ?? [];
     if (res.filteredTotalCount > scans.length) {
       process.stderr.write(`warning: ${res.filteredTotalCount} scans found; only showing first ${scans.length}\n`);
@@ -35,11 +35,11 @@ export class CheckmarxClient {
   }
 
   async getScan(id: string): Promise<CxOneScan> {
-    return this.http.checkmarx<CxOneScan>(`/api/scans/${id}`);
+    return this.http.checkmarx<CxOneScan>(`scans/${id}`);
   }
 
   async getScanResultsStatistics(scanId: string): Promise<CxOneResultsSummary> {
-    return this.http.checkmarx<CxOneResultsSummary>('/api/results/summary', {
+    return this.http.checkmarx<CxOneResultsSummary>('results/summary', {
       params: { 'scan-id': scanId }
     });
   }
