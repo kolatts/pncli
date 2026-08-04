@@ -12,7 +12,7 @@ Use `--branch main` if the default branch is `main` instead of `master`. Use `--
 
 **Example:**
 ```
-pncli skills marketplace add https://bitbucket.company.com/scm/ai/skills.git --name internal-ai
+pncli skills marketplace add https://bitbucket.imagile.dev/scm/ai/skills.git --name internal-ai
 ```
 
 You can register as many marketplaces as you like — just run `add` again with a different URL. `marketplace setup` is kept as an alias of `add` for backward compatibility.

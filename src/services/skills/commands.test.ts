@@ -15,8 +15,8 @@ afterEach(() => {
 
 describe('injectTokenIntoUrl', () => {
   it('injects token into a Bitbucket URL using x-token-auth scheme', () => {
-    const result = injectTokenIntoUrl('https://bitbucket.example.com/scm/proj/repo.git', 'mytoken123');
-    expect(result).toBe('https://x-token-auth:mytoken123@bitbucket.example.com/scm/proj/repo.git');
+    const result = injectTokenIntoUrl('https://bitbucket.imagile.dev/scm/proj/repo.git', 'mytoken123');
+    expect(result).toBe('https://x-token-auth:mytoken123@bitbucket.imagile.dev/scm/proj/repo.git');
   });
 
   it('injects token into a GitHub URL using x-access-token scheme', () => {
@@ -25,21 +25,21 @@ describe('injectTokenIntoUrl', () => {
   });
 
   it('URL-encodes special characters in the token', () => {
-    const result = injectTokenIntoUrl('https://bitbucket.example.com/scm/proj/repo.git', 'tok@en/sp ec');
+    const result = injectTokenIntoUrl('https://bitbucket.imagile.dev/scm/proj/repo.git', 'tok@en/sp ec');
     expect(result).toContain('x-token-auth:');
-    expect(result).toContain('@bitbucket.example.com');
+    expect(result).toContain('@bitbucket.imagile.dev');
     // token with special chars should be encoded; URL.password returns percent-encoded form
     const parsed = new URL(result);
     expect(decodeURIComponent(parsed.password)).toBe('tok@en/sp ec');
   });
 
   it('preserves the path and query string', () => {
-    const result = injectTokenIntoUrl('https://bitbucket.example.com/scm/PROJ/my-repo.git', 'tok');
+    const result = injectTokenIntoUrl('https://bitbucket.imagile.dev/scm/PROJ/my-repo.git', 'tok');
     expect(result).toContain('/scm/PROJ/my-repo.git');
   });
 
   it('throws on a non-http URL', () => {
-    expect(() => injectTokenIntoUrl('git@bitbucket.example.com:proj/repo.git', 'tok')).toThrow();
+    expect(() => injectTokenIntoUrl('git@bitbucket.imagile.dev:proj/repo.git', 'tok')).toThrow();
   });
 });
 
@@ -51,7 +51,7 @@ describe('repoNameFromUrl', () => {
   });
 
   it('extracts repo name from a Bitbucket URL', () => {
-    expect(repoNameFromUrl('https://bitbucket.example.com/scm/proj/repo.git')).toBe('repo');
+    expect(repoNameFromUrl('https://bitbucket.imagile.dev/scm/proj/repo.git')).toBe('repo');
   });
 
   it('handles URLs without .git suffix', () => {
@@ -273,7 +273,7 @@ describe('getAllMarketplaces', () => {
 
   it('disambiguates a legacy marketplace whose derived name collides with an existing entry', () => {
     const config: GlobalConfig = {
-      marketplace: { repoUrl: 'https://bitbucket.example.com/scm/other/skills.git', localPath: '/home/user/.agents/marketplaces/skills' },
+      marketplace: { repoUrl: 'https://bitbucket.imagile.dev/scm/other/skills.git', localPath: '/home/user/.agents/marketplaces/skills' },
       marketplaces: [
         { name: 'skills', repoUrl: 'https://github.com/org/skills.git', localPath: '/home/user/.agents/marketplaces/skills-gh' },
       ],
@@ -282,7 +282,7 @@ describe('getAllMarketplaces', () => {
     expect(result).toHaveLength(2);
     expect(result[0].name).toBe('skills');
     expect(result[1].name).toBe('skills-2');
-    expect(result[1].repoUrl).toBe('https://bitbucket.example.com/scm/other/skills.git');
+    expect(result[1].repoUrl).toBe('https://bitbucket.imagile.dev/scm/other/skills.git');
   });
 });
 

@@ -16,7 +16,7 @@ All four credential keys are found in your Contrast account under **User Setting
 
 **Base URL examples:**
 - Cloud SaaS: `https://app.contrastsecurity.com`
-- On-premise: `https://contrast.company.com`
+- On-premise: `https://contrast.imagile.dev`
 
 ## Config file (persistent)
 

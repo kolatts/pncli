@@ -76,6 +76,28 @@ pncli integrations must be self-contained. Users cannot be required to have any 
 
 Unit tests must exercise internal logic — auth header construction, URL building, response parsing, config resolution, token-cache expiry — by stubbing `fetch` (see `src/lib/http.test.ts` for the pattern). Tests must never depend on a live external service being reachable; a developer running `npm test` offline or on a locked-down CI runner must get the same pass/fail result as one with full network access. Connectivity against real services is what `pncli config test` is for, not the unit test suite.
 
+Test fixtures must use placeholder hostnames per **Placeholder Hostnames** below. A repro captured against a live host gets sanitized before it becomes a test.
+
+## Placeholder Hostnames
+
+Never commit a real hostname, environment ID, tenant ID, or account identifier — not in source, tests, docs, skills, issues, or PR descriptions. This includes internal hosts from whatever environment you reproduced a bug in.
+
+**Self-hosted / on-premise services** use `<service>.imagile.dev`:
+
+`jira.imagile.dev`, `bitbucket.imagile.dev`, `confluence.imagile.dev`, `sonar.imagile.dev`, `jenkins.imagile.dev`, `artifactory.imagile.dev`, `dynatrace.imagile.dev`, `ucd.imagile.dev`, `sde.imagile.dev`, `tfs.imagile.dev`, `ado.imagile.dev`, `iq.imagile.dev`, `ghe.imagile.dev`
+
+**Vendor-hosted SaaS** keeps the vendor domain, with `imagile` as the tenant: `imagile.service-now.com`, `imagile.sdelements.com`, `abc12345.live.dynatrace.com`, `eu.ast.checkmarx.net`.
+
+**Opaque IDs** (tenant, realm, environment, org): `imagile` where a name reads naturally, `abc12345` for short IDs, `abc12345-0000-0000-0000-000000000000` for UUID-shaped values.
+
+Do not use `example.com`, `company.com`, `mycompany.com`, `your-company.com`, or `examplecompany.net`. The last four are real domains registered to third parties — a user who copy-pastes one into `baseUrl` sends their credentials to someone else's host.
+
+**Exception — email addresses.** Email placeholders keep `you@example.com`. `example.com` is RFC 2606 reserved and is the conventional placeholder for an address field; `you@imagile.dev` would wrongly imply the user's mailbox lives on the maintainer's domain. This rule covers service hostnames, not email.
+
+**Exception:** tests asserting behavior against a *foreign* host (rejecting a mismatched git remote, cross-origin checks) must use a visibly different domain. `src/lib/git-context.test.ts` keeps `other.example.com` for exactly this reason — using `imagile.dev` on both sides would defeat the test.
+
+**Constraint — never add wildcard DNS to `imagile.dev`.** These placeholders are safe because `*.imagile.dev` does not resolve, so a copy-pasted config fails at DNS before pncli sends any auth header. A wildcard A/CNAME record would silently turn every published example into a credential-collection endpoint. If a wildcard ever becomes necessary, migrate these docs to a reserved RFC 2606 domain first.
+
 ## Commit Conventions
 
 Use Conventional Commits: `fix:` (patch), `feat:` (minor), `feat!:` (breaking/major).

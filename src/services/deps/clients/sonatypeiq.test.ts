@@ -10,7 +10,7 @@ function pkg(name: string, version = '1.0.0', ecosystem: Package['ecosystem'] = 
 function makeConfig(overrides?: Partial<ResolvedConfig['sonatypeiq']>): ResolvedConfig {
   return {
     sonatypeiq: {
-      baseUrl: 'https://iq.example.com',
+      baseUrl: 'https://iq.imagile.dev',
       userCode: 'mycode',
       passcode: 'mypass',
       ...overrides
@@ -337,21 +337,21 @@ describe('HTTP error handling', () => {
 describe('checkSonatypeIqConnectivity', () => {
   it('reports reachable and authenticated on 200', async () => {
     vi.stubGlobal('fetch', async () => new Response('{"applications":[]}', { status: 200 }));
-    const result = await checkSonatypeIqConnectivity('https://iq.example.com', 'user', 'pass');
+    const result = await checkSonatypeIqConnectivity('https://iq.imagile.dev', 'user', 'pass');
     expect(result.reachable).toBe(true);
     expect(result.authenticated).toBe(true);
   });
 
   it('reports reachable but not authenticated on 401', async () => {
     vi.stubGlobal('fetch', async () => new Response('', { status: 401 }));
-    const result = await checkSonatypeIqConnectivity('https://iq.example.com', 'user', 'badpass');
+    const result = await checkSonatypeIqConnectivity('https://iq.imagile.dev', 'user', 'badpass');
     expect(result.reachable).toBe(true);
     expect(result.authenticated).toBe(false);
   });
 
   it('reports unreachable on network error', async () => {
     vi.stubGlobal('fetch', async () => { throw new Error('ECONNREFUSED'); });
-    const result = await checkSonatypeIqConnectivity('https://iq.example.com', 'user', 'pass');
+    const result = await checkSonatypeIqConnectivity('https://iq.imagile.dev', 'user', 'pass');
     expect(result.reachable).toBe(false);
     expect(result.error).toMatch('ECONNREFUSED');
   });

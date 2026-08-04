@@ -90,7 +90,7 @@ describe('CVE alias extraction', () => {
         coordinates: 'pkg:npm/foo@1.0.0',
         vulnerabilities: [{
           id: 'sonatype-1', displayName: 'CVE-2021-1234', title: '', description: '',
-          cvssScore: 7.5, reference: 'https://example.com'
+          cvssScore: 7.5, reference: 'https://imagile.dev'
         }]
       }])
     );
@@ -104,7 +104,7 @@ describe('CVE alias extraction', () => {
         coordinates: 'pkg:npm/foo@1.0.0',
         vulnerabilities: [{
           id: 'sonatype-1', displayName: 'Not a CVE ref', title: 'CVE-2021-5678 - RCE vuln',
-          description: '', cvssScore: 8.0, reference: 'https://example.com'
+          description: '', cvssScore: 8.0, reference: 'https://imagile.dev'
         }]
       }])
     );
@@ -118,7 +118,7 @@ describe('CVE alias extraction', () => {
         coordinates: 'pkg:npm/foo@1.0.0',
         vulnerabilities: [{
           id: 'sonatype-1', displayName: 'CVE-2021-0001', title: 'CVE-2021-0002 issue',
-          description: 'see CVE-2021-0003', cvssScore: 7.0, reference: 'https://example.com'
+          description: 'see CVE-2021-0003', cvssScore: 7.0, reference: 'https://imagile.dev'
         }]
       }])
     );
@@ -135,7 +135,7 @@ describe('CVE alias extraction', () => {
         coordinates: 'pkg:npm/foo@1.0.0',
         vulnerabilities: [{
           id: 'sonatype-1', displayName: 'CVE-2021-0001', title: 'CVE-2021-0001 repeated',
-          description: '', cvssScore: 7.0, reference: 'https://example.com'
+          description: '', cvssScore: 7.0, reference: 'https://imagile.dev'
         }]
       }])
     );
@@ -169,7 +169,7 @@ describe('report alignment', () => {
           coordinates: 'pkg:npm/bar@2.0.0',
           vulnerabilities: [{
             id: 'sonatype-1', displayName: 'CVE-2021-9999', title: '', description: '',
-            cvssScore: 9.5, reference: 'https://example.com'
+            cvssScore: 9.5, reference: 'https://imagile.dev'
           }]
         },
         { coordinates: 'pkg:npm/foo@1.0.0', vulnerabilities: [] }
@@ -188,7 +188,7 @@ describe('report alignment', () => {
           coordinates: 'pkg:npm/unknown@9.9.9',
           vulnerabilities: [{
             id: 'sonatype-1', displayName: 'CVE-2021-0000', title: '', description: '',
-            cvssScore: 8.0, reference: 'https://example.com'
+            cvssScore: 8.0, reference: 'https://imagile.dev'
           }]
         }
       ])

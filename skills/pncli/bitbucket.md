@@ -6,20 +6,20 @@ Enables: `pncli bitbucket create-repo`, `pncli bitbucket list-prs`, `pncli bitbu
 
 | Key | Env var | Description |
 |-----|---------|-------------|
-| `bitbucket.baseUrl` | `PNCLI_BITBUCKET_BASE_URL` | Bitbucket Server root, e.g. `https://bitbucket.company.com` |
+| `bitbucket.baseUrl` | `PNCLI_BITBUCKET_BASE_URL` | Bitbucket Server root, e.g. `https://bitbucket.imagile.dev` |
 | `bitbucket.pat` | `PNCLI_BITBUCKET_PAT` | Personal access token |
 
 ## Config file (persistent)
 
 ```
-pncli config set bitbucket.baseUrl https://bitbucket.company.com
+pncli config set bitbucket.baseUrl https://bitbucket.imagile.dev
 pncli config set bitbucket.pat <token>
 ```
 
 ## Env vars (ephemeral / CI)
 
 ```
-export PNCLI_BITBUCKET_BASE_URL=https://bitbucket.company.com
+export PNCLI_BITBUCKET_BASE_URL=https://bitbucket.imagile.dev
 export PNCLI_BITBUCKET_PAT=<token>
 ```
 

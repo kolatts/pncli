@@ -17,7 +17,7 @@ function makeConfig(overrides: Partial<ResolvedConfig['checkmarx']> = {}): Resol
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     checkmarx: {
       baseUrl: 'https://ast.checkmarx.net',
-      tenantName: 'mycompany',
+      tenantName: 'imagile',
       apiKey: undefined,
       clientId: 'my-client-id',
       clientSecret: 'my-client-secret',
@@ -111,7 +111,7 @@ describe('buildCheckmarxFetcher', () => {
     await fetcher('https://eu.ast.checkmarx.net/api/projects');
 
     expect(mockFetch.mock.calls[0][0]).toBe(
-      'https://eu.iam.checkmarx.net/auth/realms/mycompany/protocol/openid-connect/token'
+      'https://eu.iam.checkmarx.net/auth/realms/imagile/protocol/openid-connect/token'
     );
   });
 
@@ -127,7 +127,7 @@ describe('buildCheckmarxFetcher', () => {
 
     // First call is token exchange
     const tokenCall = mockFetch.mock.calls[0];
-    expect(tokenCall[0]).toBe('https://iam.checkmarx.net/auth/realms/mycompany/protocol/openid-connect/token');
+    expect(tokenCall[0]).toBe('https://iam.checkmarx.net/auth/realms/imagile/protocol/openid-connect/token');
     expect(tokenCall[1]?.method).toBe('POST');
     const body = tokenCall[1]?.body as string;
     expect(body).toContain('grant_type=client_credentials');

@@ -74,7 +74,7 @@ export function requireArtifactory(config: ArtifactoryConfig, command: string): 
   if (!config.baseUrl && !config.token) {
     throw new PncliError(
       `${command} requires Artifactory. Add the following to ~/.pncli/config.json:\n` +
-      `  "artifactory": { "baseUrl": "https://artifactory.company.com", "token": "your-token" }\n` +
+      `  "artifactory": { "baseUrl": "https://artifactory.imagile.dev", "token": "your-token" }\n` +
       `Or set PNCLI_ARTIFACTORY_BASE_URL and PNCLI_ARTIFACTORY_TOKEN environment variables.`,
       503
     );
