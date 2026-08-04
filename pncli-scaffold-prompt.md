@@ -234,11 +234,11 @@ Owned by the individual developer. Contains auth credentials and server URLs. NO
 {
   "jira": {
     "baseUrl": "https://your-domain.atlassian.net",
-    "email": "you@company.com",
+    "email": "you@imagile.dev",
     "apiToken": "your-jira-api-token"
   },
   "bitbucket": {
-    "baseUrl": "https://bitbucket.your-company.com",
+    "baseUrl": "https://bitbucket.imagile.dev",
     "pat": "your-bitbucket-pat"
   },
   "defaults": {
@@ -343,7 +343,7 @@ Error shape:
 
 - Detect repo root via `git rev-parse --show-toplevel`
 - Parse Bitbucket project/repo from first remote matching the configured `bitbucket.baseUrl`
-- Parse both SSH (`git@bitbucket.company.com:7999/PROJ/repo.git`) and HTTPS (`https://bitbucket.company.com/scm/PROJ/repo.git`) remote formats
+- Parse both SSH (`git@bitbucket.imagile.dev:7999/PROJ/repo.git`) and HTTPS (`https://bitbucket.imagile.dev/scm/PROJ/repo.git`) remote formats
 - Get current branch via `git rev-parse --abbrev-ref HEAD`
 - All git operations use `child_process.execSync` with `{ encoding: 'utf8', cwd: repoRoot }`
 - Handle "not a git repo" gracefully — return null, don't throw

@@ -6,7 +6,7 @@ Enables: `pncli sonatypeiq applications`, `pncli deps frisk --source sonatypeiq`
 
 | Key | Env var | Description |
 |-----|---------|-------------|
-| `sonatypeiq.baseUrl` | `PNCLI_SONATYPEIQ_BASE_URL` | IQ Server root, e.g. `https://iq.company.com` |
+| `sonatypeiq.baseUrl` | `PNCLI_SONATYPEIQ_BASE_URL` | IQ Server root, e.g. `https://iq.imagile.dev` |
 | `sonatypeiq.userCode` | `PNCLI_SONATYPEIQ_USER_CODE` | User Token code (from User Menu → User Token) |
 | `sonatypeiq.passcode` | `PNCLI_SONATYPEIQ_PASSCODE` | User Token passcode (from User Menu → User Token) |
 
@@ -15,7 +15,7 @@ The `userCode` and `passcode` are User Token credentials, not your login passwor
 ## Config file (persistent)
 
 ```
-pncli config set sonatypeiq.baseUrl https://iq.company.com
+pncli config set sonatypeiq.baseUrl https://iq.imagile.dev
 pncli config set sonatypeiq.userCode <user-code>
 pncli config set sonatypeiq.passcode <passcode>
 ```
@@ -23,7 +23,7 @@ pncli config set sonatypeiq.passcode <passcode>
 ## Env vars (ephemeral / CI)
 
 ```
-export PNCLI_SONATYPEIQ_BASE_URL=https://iq.company.com
+export PNCLI_SONATYPEIQ_BASE_URL=https://iq.imagile.dev
 export PNCLI_SONATYPEIQ_USER_CODE=<user-code>
 export PNCLI_SONATYPEIQ_PASSCODE=<passcode>
 ```

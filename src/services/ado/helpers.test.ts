@@ -84,9 +84,9 @@ describe('buildFieldPatch', () => {
 describe('splitWorkFieldsDictionary', () => {
   it('routes built-in work item fields regardless of casing', () => {
     const { builtin, custom } = splitWorkFieldsDictionary({
-      Title: 'Login broken', Description: 'details', Priority: 2, AssignedTo: 'bob@example.com'
+      Title: 'Login broken', Description: 'details', Priority: 2, AssignedTo: 'bob@imagile.dev'
     });
-    expect(builtin).toEqual({ title: 'Login broken', description: 'details', priority: 2, assignee: 'bob@example.com' });
+    expect(builtin).toEqual({ title: 'Login broken', description: 'details', priority: 2, assignee: 'bob@imagile.dev' });
     expect(custom).toEqual({});
   });
 

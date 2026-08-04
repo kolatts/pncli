@@ -6,20 +6,20 @@ Enables: `pncli jira get-issue`, `create-issue`, `update-issue`, `search`, `list
 
 | Key | Env var | Description |
 |-----|---------|-------------|
-| `jira.baseUrl` | `PNCLI_JIRA_BASE_URL` | Jira server root, e.g. `https://jira.company.com` |
+| `jira.baseUrl` | `PNCLI_JIRA_BASE_URL` | Jira server root, e.g. `https://jira.imagile.dev` |
 | `jira.apiToken` | `PNCLI_JIRA_API_TOKEN` | Personal access token |
 
 ## Config file (persistent)
 
 ```
-pncli config set jira.baseUrl https://jira.company.com
+pncli config set jira.baseUrl https://jira.imagile.dev
 pncli config set jira.apiToken <token>
 ```
 
 ## Env vars (ephemeral / CI)
 
 ```
-export PNCLI_JIRA_BASE_URL=https://jira.company.com
+export PNCLI_JIRA_BASE_URL=https://jira.imagile.dev
 export PNCLI_JIRA_API_TOKEN=<token>
 ```
 

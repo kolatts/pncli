@@ -41,7 +41,7 @@ export function parseRemote(
   // Normalize base URL for comparison
   const base = bitbucketBaseUrl.replace(/\/$/, '').replace(/^https?:\/\//, '');
 
-  // SSH format: git@bitbucket.company.com:7999/PROJ/repo.git
+  // SSH format: git@bitbucket.imagile.dev:7999/PROJ/repo.git
   const sshMatch = remoteUrl.match(/^git@([^:]+)(?::\d+)?[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
   if (sshMatch) {
     const [, host, project, repo] = sshMatch;
@@ -50,7 +50,7 @@ export function parseRemote(
     }
   }
 
-  // HTTPS format: https://bitbucket.company.com/scm/PROJ/repo.git
+  // HTTPS format: https://bitbucket.imagile.dev/scm/PROJ/repo.git
   const httpsMatch = remoteUrl.match(/^https?:\/\/([^/]+)\/scm\/([^/]+)\/([^/]+?)(?:\.git)?$/);
   if (httpsMatch) {
     const [, host, project, repo] = httpsMatch;
@@ -82,7 +82,7 @@ export function parseAdoRemote(
   if (!adoBaseUrl) return null;
 
   // Normalize base URL: extract just the hostname (without port) for comparison,
-  // so that https://tfs.company.com:8080 and git@tfs.company.com:... both match.
+  // so that https://tfs.imagile.dev:8080 and git@tfs.imagile.dev:... both match.
   let baseHostname: string;
   try {
     const normalizedBase = /^https?:\/\//.test(adoBaseUrl) ? adoBaseUrl : `https://${adoBaseUrl}`;

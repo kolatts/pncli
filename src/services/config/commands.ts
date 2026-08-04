@@ -657,7 +657,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   process.stderr.write('\n── Jira ──────────────────────────────────────────\n');
   const jiraBaseUrl = await input({
-    message: 'Jira base URL (e.g. jira.your-company.com):',
+    message: 'Jira base URL (e.g. jira.imagile.dev):',
     default: ''
   });
 
@@ -667,7 +667,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   process.stderr.write('\n── Bitbucket ─────────────────────────────────────\n');
   const bitbucketBaseUrl = await input({
-    message: 'Bitbucket Server base URL (e.g. bitbucket.your-company.com):',
+    message: 'Bitbucket Server base URL (e.g. bitbucket.imagile.dev):',
     default: ''
   });
 
@@ -716,7 +716,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   process.stderr.write('\n── Confluence ────────────────────────────────────\n');
   const confluenceBaseUrl = await input({
-    message: 'Confluence base URL (e.g. confluence.your-company.com):',
+    message: 'Confluence base URL (e.g. confluence.imagile.dev):',
     default: ''
   });
 
@@ -738,7 +738,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (useArtifactory) {
     artifactoryBaseUrl = await input({
-      message: 'Artifactory base URL (e.g. artifactory.company.com):',
+      message: 'Artifactory base URL (e.g. artifactory.imagile.dev):',
       default: ''
     });
 
@@ -775,7 +775,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (useSonar) {
     sonarBaseUrl = await input({
-      message: 'SonarQube Server base URL (e.g. sonar.your-company.com):',
+      message: 'SonarQube Server base URL (e.g. sonar.imagile.dev):',
       default: ''
     });
 
@@ -811,7 +811,7 @@ async function initGlobalConfig(start: number): Promise<void> {
       }
     } else {
       sdeBaseUrl = await input({
-        message: 'SDElements hostname\n  Cloud-hosted: your-org.sdelements.com\n  On-premise:   sde.your-company.com\n  Host: ',
+        message: 'SDElements hostname\n  Cloud-hosted: imagile.sdelements.com\n  On-premise:   sde.imagile.dev\n  Host: ',
         default: ''
       });
 
@@ -837,7 +837,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (useAdo) {
     adoBaseUrl = await input({
-      message: 'Azure DevOps Server base URL (e.g. tfs.company.com or devops.company.com/tfs):',
+      message: 'Azure DevOps Server base URL (e.g. tfs.imagile.dev or devops.imagile.dev/tfs):',
       default: ''
     });
 
@@ -918,7 +918,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (useJenkins) {
     jenkinsBaseUrl = await input({
-      message: 'Jenkins base URL (e.g. jenkins.your-company.com):',
+      message: 'Jenkins base URL (e.g. jenkins.imagile.dev):',
       default: ''
     });
 
@@ -947,7 +947,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (useUdeploy) {
     udeployBaseUrl = await input({
-      message: 'UDeploy base URL (e.g. ucd.company.com:8443):',
+      message: 'UDeploy base URL (e.g. ucd.imagile.dev:8443):',
       default: ''
     });
 
@@ -1019,7 +1019,7 @@ async function initGlobalConfig(start: number): Promise<void> {
     });
 
     checkmarxTenantName = await input({
-      message: 'Checkmarx One tenant name (IAM realm, e.g. mycompany):',
+      message: 'Checkmarx One tenant name (IAM realm, e.g. imagile):',
       default: ''
     });
 
@@ -1075,7 +1075,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   if (useServiceNow) {
     servicenowBaseUrl = await input({
-      message: 'ServiceNow instance URL (e.g. mycompany.service-now.com):',
+      message: 'ServiceNow instance URL (e.g. imagile.service-now.com):',
       default: ''
     });
 
@@ -1138,7 +1138,7 @@ async function initGlobalConfig(start: number): Promise<void> {
     process.stderr.write('  User Token credentials are found in your IQ Server profile under User Token.\n');
 
     sonatypeIqBaseUrl = await input({
-      message: 'Sonatype IQ Server base URL (e.g. iq.your-company.com):',
+      message: 'Sonatype IQ Server base URL (e.g. iq.imagile.dev):',
       default: ''
     });
 
@@ -1248,7 +1248,7 @@ async function initGlobalConfig(start: number): Promise<void> {
     process.stderr.write('  Service account token: cat /var/run/secrets/kubernetes.io/serviceaccount/token\n');
 
     openShiftBaseUrl = await input({
-      message: 'OpenShift API server URL (e.g. https://api.cluster.example.com:6443):',
+      message: 'OpenShift API server URL (e.g. https://api.cluster.imagile.dev:6443):',
       default: ''
     });
 

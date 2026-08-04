@@ -6,20 +6,20 @@ Enables: `pncli sonar issue`, `pncli sonar project` — list code quality and se
 
 | Key | Env var | Description |
 |-----|---------|-------------|
-| `sonar.baseUrl` | `PNCLI_SONAR_BASE_URL` | SonarQube server root, e.g. `https://sonar.company.com` |
+| `sonar.baseUrl` | `PNCLI_SONAR_BASE_URL` | SonarQube server root, e.g. `https://sonar.imagile.dev` |
 | `sonar.token` | `PNCLI_SONAR_TOKEN` | User token (generated in SonarQube → My Account → Security) |
 
 ## Config file (persistent)
 
 ```
-pncli config set sonar.baseUrl https://sonar.company.com
+pncli config set sonar.baseUrl https://sonar.imagile.dev
 pncli config set sonar.token <token>
 ```
 
 ## Env vars (ephemeral / CI)
 
 ```
-export PNCLI_SONAR_BASE_URL=https://sonar.company.com
+export PNCLI_SONAR_BASE_URL=https://sonar.imagile.dev
 export PNCLI_SONAR_TOKEN=<token>
 ```
 

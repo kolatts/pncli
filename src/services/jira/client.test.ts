@@ -6,15 +6,15 @@ import type { ResolvedConfig } from '../../types/config.js';
 function makeConfig(): ResolvedConfig {
   return {
     user: { email: undefined, userId: undefined },
-    jira: { baseUrl: 'https://jira.example.com', apiToken: 'tok', customFields: [] },
-    bitbucket: { baseUrl: 'https://bb.example.com', pat: 'tok' },
+    jira: { baseUrl: 'https://jira.imagile.dev', apiToken: 'tok', customFields: [] },
+    bitbucket: { baseUrl: 'https://bb.imagile.dev', pat: 'tok' },
     github: { baseUrl: undefined, token: undefined },
-    confluence: { baseUrl: 'https://conf.example.com', apiToken: 'tok', apiTokenExplicit: true },
+    confluence: { baseUrl: 'https://conf.imagile.dev', apiToken: 'tok', apiTokenExplicit: true },
     artifactory: {},
-    sonar: { baseUrl: 'https://sonar.example.com', token: 'tok' },
-    sde: { baseUrl: 'https://sde.example.com', token: 'tok' },
-    ado: { baseUrl: 'https://ado.example.com', pat: 'tok', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
-    jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'tok' },
+    sonar: { baseUrl: 'https://sonar.imagile.dev', token: 'tok' },
+    sde: { baseUrl: 'https://sde.imagile.dev', token: 'tok' },
+    ado: { baseUrl: 'https://ado.imagile.dev', pat: 'tok', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
+    jenkins: { baseUrl: 'https://jenkins.imagile.dev', username: 'user', apiToken: 'tok' },
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined },
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
@@ -112,7 +112,7 @@ describe('JiraClient — listAttachments', () => {
         created: '2024-01-01T00:00:00.000Z',
         size: 4096,
         mimeType: 'image/png',
-        content: 'https://jira.example.com/secure/attachment/10001/screenshot.png'
+        content: 'https://jira.imagile.dev/secure/attachment/10001/screenshot.png'
       }
     ];
 
@@ -336,7 +336,7 @@ describe('JiraClient — downloadAttachment', () => {
 
     const http = new HttpClient(makeConfig());
     const client = new JiraClient(http);
-    const buffer = await client.downloadAttachment('https://jira.example.com/secure/attachment/10001/file.jpg');
+    const buffer = await client.downloadAttachment('https://jira.imagile.dev/secure/attachment/10001/file.jpg');
 
     expect(buffer).toBeInstanceOf(Buffer);
     expect(buffer.length).toBe(4);

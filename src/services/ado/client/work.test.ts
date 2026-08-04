@@ -9,15 +9,15 @@ import type { ResolvedConfig } from '../../../types/config.js';
 function makeConfig(): ResolvedConfig {
   return {
     user: { email: undefined, userId: undefined },
-    jira: { baseUrl: 'https://jira.example.com', apiToken: 'tok', customFields: [] },
-    bitbucket: { baseUrl: 'https://bb.example.com', pat: 'tok' },
+    jira: { baseUrl: 'https://jira.imagile.dev', apiToken: 'tok', customFields: [] },
+    bitbucket: { baseUrl: 'https://bb.imagile.dev', pat: 'tok' },
     github: { baseUrl: undefined, token: undefined },
-    confluence: { baseUrl: 'https://conf.example.com', apiToken: 'tok', apiTokenExplicit: true },
+    confluence: { baseUrl: 'https://conf.imagile.dev', apiToken: 'tok', apiTokenExplicit: true },
     artifactory: {},
-    sonar: { baseUrl: 'https://sonar.example.com', token: 'tok' },
-    sde: { baseUrl: 'https://sde.example.com', token: 'tok' },
-    ado: { baseUrl: 'https://ado.example.com', pat: 'my-pat', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
-    jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'tok' },
+    sonar: { baseUrl: 'https://sonar.imagile.dev', token: 'tok' },
+    sde: { baseUrl: 'https://sde.imagile.dev', token: 'tok' },
+    ado: { baseUrl: 'https://ado.imagile.dev', pat: 'my-pat', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
+    jenkins: { baseUrl: 'https://jenkins.imagile.dev', username: 'user', apiToken: 'tok' },
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined },
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
@@ -34,7 +34,7 @@ function makeWorkItem(tags: string) {
     id: 42,
     fields: { 'System.Tags': tags },
     _links: {},
-    url: 'https://ado.example.com/myorg/_apis/wit/workitems/42'
+    url: 'https://ado.imagile.dev/myorg/_apis/wit/workitems/42'
   };
 }
 
@@ -213,7 +213,7 @@ describe('AdoWorkClient — listAttachments', () => {
       relations: [
         {
           rel: 'AttachedFile',
-          url: 'https://ado.example.com/myorg/_apis/wit/attachments/abc-123',
+          url: 'https://ado.imagile.dev/myorg/_apis/wit/attachments/abc-123',
           attributes: {
             name: 'screenshot.png',
             comment: 'Bug screenshot',
@@ -224,11 +224,11 @@ describe('AdoWorkClient — listAttachments', () => {
         },
         {
           rel: 'System.LinkTypes.Related',
-          url: 'https://ado.example.com/myorg/_apis/wit/workitems/99',
+          url: 'https://ado.imagile.dev/myorg/_apis/wit/workitems/99',
           attributes: {}
         }
       ],
-      url: 'https://ado.example.com/myorg/_apis/wit/workitems/42'
+      url: 'https://ado.imagile.dev/myorg/_apis/wit/workitems/42'
     };
 
     vi.stubGlobal('fetch', async () =>
@@ -242,7 +242,7 @@ describe('AdoWorkClient — listAttachments', () => {
     expect(attachments).toHaveLength(1);
     expect(attachments[0].id).toBe('abc-123');
     expect(attachments[0].name).toBe('screenshot.png');
-    expect(attachments[0].url).toBe('https://ado.example.com/myorg/_apis/wit/attachments/abc-123');
+    expect(attachments[0].url).toBe('https://ado.imagile.dev/myorg/_apis/wit/attachments/abc-123');
     expect(attachments[0].comment).toBe('Bug screenshot');
     expect(attachments[0].resourceSize).toBe(4096);
   });
@@ -254,11 +254,11 @@ describe('AdoWorkClient — listAttachments', () => {
       relations: [
         {
           rel: 'System.LinkTypes.Related',
-          url: 'https://ado.example.com/myorg/_apis/wit/workitems/99',
+          url: 'https://ado.imagile.dev/myorg/_apis/wit/workitems/99',
           attributes: {}
         }
       ],
-      url: 'https://ado.example.com/myorg/_apis/wit/workitems/42'
+      url: 'https://ado.imagile.dev/myorg/_apis/wit/workitems/42'
     };
 
     vi.stubGlobal('fetch', async () =>
@@ -276,7 +276,7 @@ describe('AdoWorkClient — listAttachments', () => {
     const workItemNoRelations = {
       id: 42,
       fields: {},
-      url: 'https://ado.example.com/myorg/_apis/wit/workitems/42'
+      url: 'https://ado.imagile.dev/myorg/_apis/wit/workitems/42'
     };
 
     vi.stubGlobal('fetch', async () =>
@@ -302,7 +302,7 @@ describe('AdoWorkClient — listAreas', () => {
       structureType: 'area',
       hasChildren: true,
       path: '\\MyProject\\Area',
-      url: 'https://ado.example.com/myorg/MyProject/_apis/wit/classificationnodes/areas',
+      url: 'https://ado.imagile.dev/myorg/MyProject/_apis/wit/classificationnodes/areas',
       children: [
         {
           id: 2,
@@ -311,7 +311,7 @@ describe('AdoWorkClient — listAreas', () => {
           structureType: 'area',
           hasChildren: false,
           path: '\\MyProject\\Area\\TeamA',
-          url: 'https://ado.example.com/myorg/MyProject/_apis/wit/classificationnodes/areas/TeamA'
+          url: 'https://ado.imagile.dev/myorg/MyProject/_apis/wit/classificationnodes/areas/TeamA'
         }
       ]
     };
@@ -361,7 +361,7 @@ describe('AdoWorkClient — listIterations', () => {
       structureType: 'iteration',
       hasChildren: true,
       path: '\\MyProject\\Iteration',
-      url: 'https://ado.example.com/myorg/MyProject/_apis/wit/classificationnodes/iterations',
+      url: 'https://ado.imagile.dev/myorg/MyProject/_apis/wit/classificationnodes/iterations',
       children: [
         {
           id: 11,
@@ -370,7 +370,7 @@ describe('AdoWorkClient — listIterations', () => {
           structureType: 'iteration',
           hasChildren: false,
           path: '\\MyProject\\Iteration\\Sprint 1',
-          url: 'https://ado.example.com/myorg/MyProject/_apis/wit/classificationnodes/iterations/Sprint%201',
+          url: 'https://ado.imagile.dev/myorg/MyProject/_apis/wit/classificationnodes/iterations/Sprint%201',
           attributes: {
             startDate: '2024-01-01T00:00:00Z',
             finishDate: '2024-01-14T00:00:00Z'
@@ -426,7 +426,7 @@ describe('AdoWorkClient — downloadAttachment', () => {
 
     const http = new HttpClient(makeConfig());
     const client = new AdoWorkClient(http);
-    const buffer = await client.downloadAttachment('https://ado.example.com/myorg/_apis/wit/attachments/abc-123');
+    const buffer = await client.downloadAttachment('https://ado.imagile.dev/myorg/_apis/wit/attachments/abc-123');
 
     expect(buffer).toBeInstanceOf(Buffer);
     expect(buffer.length).toBe(8);
@@ -444,7 +444,7 @@ describe('AdoWorkClient — uploadAttachment', () => {
     const capturedRequests: Array<{ url: string; method: string; body: unknown; contentType?: string }> = [];
     const attachmentResponse = {
       id: 'att-guid-123',
-      url: 'https://ado.example.com/myorg/_apis/wit/attachments/att-guid-123',
+      url: 'https://ado.imagile.dev/myorg/_apis/wit/attachments/att-guid-123',
       name: 'pncli-test-report.txt'
     };
 
@@ -469,7 +469,7 @@ describe('AdoWorkClient — uploadAttachment', () => {
     fs.unlinkSync(tmpFile);
 
     expect(result.id).toBe('att-guid-123');
-    expect(result.url).toBe('https://ado.example.com/myorg/_apis/wit/attachments/att-guid-123');
+    expect(result.url).toBe('https://ado.imagile.dev/myorg/_apis/wit/attachments/att-guid-123');
 
     // First request: upload to attachments endpoint
     expect(capturedRequests[0].url).toContain('_apis/wit/attachments');
@@ -497,7 +497,7 @@ describe('AdoWorkClient — uploadAttachment', () => {
       if (String(url).includes('attachments?fileName')) {
         return new Response(JSON.stringify({
           id: 'att-guid-456',
-          url: 'https://ado.example.com/myorg/_apis/wit/attachments/att-guid-456',
+          url: 'https://ado.imagile.dev/myorg/_apis/wit/attachments/att-guid-456',
           name: 'pncli-test-notes.txt'
         }), { status: 200 });
       }

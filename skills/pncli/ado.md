@@ -6,13 +6,13 @@ Enables: `pncli ado workitem`, `pncli ado repo`, `pncli ado repo create`, `pncli
 
 | Key | Env var | Description |
 |-----|---------|-------------|
-| `ado.baseUrl` | `PNCLI_ADO_BASE_URL` | ADO Server root, e.g. `https://tfs.company.com` |
+| `ado.baseUrl` | `PNCLI_ADO_BASE_URL` | ADO Server root, e.g. `https://tfs.imagile.dev` |
 | `ado.pat` | `PNCLI_ADO_PAT` | Personal access token |
 
 ## Config file (persistent)
 
 ```
-pncli config set ado.baseUrl https://tfs.company.com
+pncli config set ado.baseUrl https://tfs.imagile.dev
 pncli config set ado.pat <token>
 pncli config set defaults.ado.collection DefaultCollection
 pncli config set defaults.ado.project MyProject
@@ -21,7 +21,7 @@ pncli config set defaults.ado.project MyProject
 ## Env vars (ephemeral / CI)
 
 ```
-export PNCLI_ADO_BASE_URL=https://tfs.company.com
+export PNCLI_ADO_BASE_URL=https://tfs.imagile.dev
 export PNCLI_ADO_PAT=<token>
 ```
 

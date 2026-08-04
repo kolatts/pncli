@@ -7,7 +7,7 @@ Enables: `pncli checkmarx project list/get`, `pncli checkmarx scan list/get/stat
 | Key | Env var | Description |
 |-----|---------|-------------|
 | `checkmarx.baseUrl` | `PNCLI_CHECKMARX_BASE_URL` | Checkmarx One API base, e.g. `https://ast.checkmarx.net/api` |
-| `checkmarx.tenantName` | `PNCLI_CHECKMARX_TENANT_NAME` | IAM realm / tenant name, e.g. `mycompany` |
+| `checkmarx.tenantName` | `PNCLI_CHECKMARX_TENANT_NAME` | IAM realm / tenant name, e.g. `imagile` |
 | `checkmarx.apiKey` | `PNCLI_CHECKMARX_API_KEY` | API key created in Checkmarx One IAM (recommended) |
 | `checkmarx.clientId` | `PNCLI_CHECKMARX_CLIENT_ID` | OAuth2 client ID (alternative to API key) |
 | `checkmarx.clientSecret` | `PNCLI_CHECKMARX_CLIENT_SECRET` | OAuth2 client secret (alternative to API key) |
@@ -19,7 +19,7 @@ short-lived bearer token automatically. No external tools are required.
 
 ```
 pncli config set checkmarx.baseUrl https://ast.checkmarx.net/api
-pncli config set checkmarx.tenantName mycompany
+pncli config set checkmarx.tenantName imagile
 pncli config set checkmarx.apiKey <api-key>
 ```
 
@@ -27,7 +27,7 @@ pncli config set checkmarx.apiKey <api-key>
 
 ```
 export PNCLI_CHECKMARX_BASE_URL=https://ast.checkmarx.net/api
-export PNCLI_CHECKMARX_TENANT_NAME=mycompany
+export PNCLI_CHECKMARX_TENANT_NAME=imagile
 export PNCLI_CHECKMARX_API_KEY=<api-key>
 ```
 

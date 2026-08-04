@@ -7,7 +7,7 @@ No `kubectl` or `oc` CLI is required.
 
 | Key | Env var | Description |
 |-----|---------|-------------|
-| `openshift.baseUrl` | `PNCLI_OPENSHIFT_BASE_URL` | API server URL, e.g. `https://api.cluster.example.com:6443` |
+| `openshift.baseUrl` | `PNCLI_OPENSHIFT_BASE_URL` | API server URL, e.g. `https://api.cluster.imagile.dev:6443` |
 | `openshift.token` | `PNCLI_OPENSHIFT_TOKEN` | Service account bearer token |
 
 ## Getting your service account token
@@ -20,7 +20,7 @@ cat /var/run/secrets/kubernetes.io/serviceaccount/token
 **Via OpenShift REST API** (using an existing token):
 ```bash
 curl -H "Authorization: Bearer $EXISTING_TOKEN" \
-  https://api.cluster.example.com:6443/api/v1/namespaces/my-ns/serviceaccounts/default/token \
+  https://api.cluster.imagile.dev:6443/api/v1/namespaces/my-ns/serviceaccounts/default/token \
   -X POST -H 'Content-Type: application/json' \
   -d '{"apiVersion":"authentication.k8s.io/v1","kind":"TokenRequest","spec":{"expirationSeconds":3600}}'
 ```
@@ -28,14 +28,14 @@ curl -H "Authorization: Bearer $EXISTING_TOKEN" \
 ## Set via env vars (ephemeral)
 
 ```bash
-export PNCLI_OPENSHIFT_BASE_URL=https://api.cluster.example.com:6443
+export PNCLI_OPENSHIFT_BASE_URL=https://api.cluster.imagile.dev:6443
 export PNCLI_OPENSHIFT_TOKEN=eyJhbGciOiJSUzI1NiI...
 ```
 
 ## Set via config file (persistent)
 
 ```bash
-pncli config set openshift.baseUrl https://api.cluster.example.com:6443
+pncli config set openshift.baseUrl https://api.cluster.imagile.dev:6443
 pncli config set openshift.token eyJhbGciOiJSUzI1NiI...
 ```
 

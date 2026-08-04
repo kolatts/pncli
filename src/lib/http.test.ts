@@ -6,15 +6,15 @@ import type { ResolvedConfig } from '../types/config.js';
 function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
   return {
     user: { email: undefined, userId: undefined },
-    jira: { baseUrl: 'https://jira.example.com', apiToken: 'tok', customFields: [] },
-    bitbucket: { baseUrl: 'https://bb.example.com', pat: 'tok' },
+    jira: { baseUrl: 'https://jira.imagile.dev', apiToken: 'tok', customFields: [] },
+    bitbucket: { baseUrl: 'https://bb.imagile.dev', pat: 'tok' },
     github: { baseUrl: 'https://api.github.com', token: 'tok' },
-    confluence: { baseUrl: 'https://conf.example.com', apiToken: 'tok', apiTokenExplicit: true },
+    confluence: { baseUrl: 'https://conf.imagile.dev', apiToken: 'tok', apiTokenExplicit: true },
     artifactory: {},
-    sonar: { baseUrl: 'https://sonar.example.com', token: 'tok' },
-    sde: { baseUrl: 'https://sde.example.com', token: 'tok' },
-    ado: { baseUrl: 'https://ado.example.com', pat: 'tok', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
-    jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'tok' },
+    sonar: { baseUrl: 'https://sonar.imagile.dev', token: 'tok' },
+    sde: { baseUrl: 'https://sde.imagile.dev', token: 'tok' },
+    ado: { baseUrl: 'https://ado.imagile.dev', pat: 'tok', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
+    jenkins: { baseUrl: 'https://jenkins.imagile.dev', username: 'user', apiToken: 'tok' },
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined },
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
@@ -64,7 +64,7 @@ describe('HttpClient — missing credentials', () => {
 
   it('throws on missing jira apiToken', async () => {
     const config = baseConfig();
-    config.jira = { baseUrl: 'https://jira.example.com', apiToken: undefined, customFields: [] };
+    config.jira = { baseUrl: 'https://jira.imagile.dev', apiToken: undefined, customFields: [] };
     const client = new HttpClient(config);
     await expect(client.jira('/rest/api/2/issue/TEST-1')).rejects.toMatchObject({ name: 'PncliError' });
   });
@@ -78,7 +78,7 @@ describe('HttpClient — missing credentials', () => {
 
   it('throws on missing bitbucket pat', async () => {
     const config = baseConfig();
-    config.bitbucket = { baseUrl: 'https://bb.example.com', pat: undefined };
+    config.bitbucket = { baseUrl: 'https://bb.imagile.dev', pat: undefined };
     const client = new HttpClient(config);
     await expect(client.bitbucket('/rest/api/1.0/projects')).rejects.toMatchObject({ name: 'PncliError' });
   });
@@ -106,7 +106,7 @@ describe('HttpClient — missing credentials', () => {
 
   it('throws on missing udeploy credentials', async () => {
     const config = baseConfig();
-    config.udeploy = { baseUrl: 'https://ucd.example.com', pat: undefined, username: undefined, password: undefined };
+    config.udeploy = { baseUrl: 'https://ucd.imagile.dev', pat: undefined, username: undefined, password: undefined };
     const client = new HttpClient(config);
     await expect(client.udeploy('/cli/application')).rejects.toMatchObject({ name: 'PncliError' });
   });
@@ -120,7 +120,7 @@ describe('HttpClient — udeploy auth encoding', () => {
       return new Response('[]', { status: 200 });
     });
     try {
-      const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.example.com', pat: 'my-pat', username: undefined, password: undefined } });
+      const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.imagile.dev', pat: 'my-pat', username: undefined, password: undefined } });
       const client = new HttpClient(config);
       await client.udeploy('/cli/application');
     } finally {
@@ -138,7 +138,7 @@ describe('HttpClient — udeploy auth encoding', () => {
       return new Response('[]', { status: 200 });
     });
     try {
-      const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.example.com', pat: undefined, username: 'alice', password: 'secret' } });
+      const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.imagile.dev', pat: undefined, username: 'alice', password: 'secret' } });
       const client = new HttpClient(config);
       await client.udeploy('/cli/application');
     } finally {
@@ -156,7 +156,7 @@ describe('HttpClient — udeploy auth encoding', () => {
       return new Response('[]', { status: 200 });
     });
     try {
-      const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.example.com', pat: 'my-pat', username: 'alice', password: 'secret' } });
+      const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.imagile.dev', pat: 'my-pat', username: 'alice', password: 'secret' } });
       const client = new HttpClient(config);
       await client.udeploy('/cli/application');
     } finally {
@@ -439,7 +439,7 @@ describe('HttpClient — ServiceNow', () => {
   });
 
   it('throws on missing credentials', async () => {
-    const config = baseConfig({ servicenow: { baseUrl: 'https://sn.example.com', username: undefined, password: undefined, apiToken: undefined } });
+    const config = baseConfig({ servicenow: { baseUrl: 'https://sn.imagile.dev', username: undefined, password: undefined, apiToken: undefined } });
     const client = new HttpClient(config);
     await expect(client.servicenow('/api/now/table/change_request')).rejects.toMatchObject({ name: 'PncliError' });
   });
@@ -451,7 +451,7 @@ describe('HttpClient — ServiceNow', () => {
       return new Response('{"result":[]}', { status: 200 });
     });
     try {
-      const config = baseConfig({ servicenow: { baseUrl: 'https://sn.example.com', username: 'alice', password: 'secret', apiToken: undefined } });
+      const config = baseConfig({ servicenow: { baseUrl: 'https://sn.imagile.dev', username: 'alice', password: 'secret', apiToken: undefined } });
       const client = new HttpClient(config);
       await client.servicenow('/api/now/table/change_request');
     } finally {
@@ -469,7 +469,7 @@ describe('HttpClient — ServiceNow', () => {
       return new Response('{"result":[]}', { status: 200 });
     });
     try {
-      const config = baseConfig({ servicenow: { baseUrl: 'https://sn.example.com', username: 'alice', password: undefined, apiToken: 'my-token' } });
+      const config = baseConfig({ servicenow: { baseUrl: 'https://sn.imagile.dev', username: 'alice', password: undefined, apiToken: 'my-token' } });
       const client = new HttpClient(config);
       await client.servicenow('/api/now/table/change_request');
     } finally {
@@ -487,7 +487,7 @@ describe('HttpClient — ServiceNow', () => {
       return new Response('{"result":[]}', { status: 200 });
     });
     try {
-      const config = baseConfig({ servicenow: { baseUrl: 'https://sn.example.com', username: 'alice', password: 'pw', apiToken: 'tok' } });
+      const config = baseConfig({ servicenow: { baseUrl: 'https://sn.imagile.dev', username: 'alice', password: 'pw', apiToken: 'tok' } });
       const client = new HttpClient(config);
       await client.servicenow('/api/now/table/change_request');
     } finally {
@@ -499,7 +499,7 @@ describe('HttpClient — ServiceNow', () => {
   });
 
   it('throws PncliError with status 0 on dry-run', async () => {
-    const config = baseConfig({ servicenow: { baseUrl: 'https://sn.example.com', username: 'u', password: 'p', apiToken: undefined } });
+    const config = baseConfig({ servicenow: { baseUrl: 'https://sn.imagile.dev', username: 'u', password: 'p', apiToken: undefined } });
     const client = new HttpClient(config, true);
     await expect(client.servicenow('/api/now/table/change_request')).rejects.toMatchObject({ status: 0, message: 'dry-run' });
   });
@@ -514,7 +514,7 @@ describe('HttpClient — jiraUpload', () => {
 
   it('throws on missing jira apiToken', async () => {
     const config = baseConfig();
-    config.jira = { baseUrl: 'https://jira.example.com', apiToken: undefined, customFields: [] };
+    config.jira = { baseUrl: 'https://jira.imagile.dev', apiToken: undefined, customFields: [] };
     const client = new HttpClient(config);
     const form = new FormData();
     await expect(client.jiraUpload('/rest/api/2/issue/TEST-1/attachments', form)).rejects.toMatchObject({ name: 'PncliError' });
@@ -557,7 +557,7 @@ describe('HttpClient — confluenceUpload', () => {
 
   it('throws on missing confluence apiToken', async () => {
     const config = baseConfig();
-    config.confluence = { baseUrl: 'https://conf.example.com', apiToken: undefined, apiTokenExplicit: false };
+    config.confluence = { baseUrl: 'https://conf.imagile.dev', apiToken: undefined, apiTokenExplicit: false };
     const client = new HttpClient(config);
     const form = new FormData();
     await expect(client.confluenceUpload('/rest/api/content/10001/child/attachment', form)).rejects.toMatchObject({ name: 'PncliError' });
@@ -605,7 +605,7 @@ describe('HttpClient — Contrast', () => {
       return new Response('{}', { status: 200 });
     });
     try {
-      const config = baseConfig({ contrast: { baseUrl: 'https://app.contrastsecurity.com', orgUuid: 'org-123', apiKey: 'my-api-key', serviceKey: 'my-svc-key', username: 'user@example.com' } });
+      const config = baseConfig({ contrast: { baseUrl: 'https://app.contrastsecurity.com', orgUuid: 'org-123', apiKey: 'my-api-key', serviceKey: 'my-svc-key', username: 'user@imagile.dev' } });
       const client = new HttpClient(config);
       await client.contrast('/Contrast/api/ng/org-123/applications');
     } finally {
@@ -614,7 +614,7 @@ describe('HttpClient — Contrast', () => {
     const authorization = capturedHeaders[0]?.['authorization'] ?? '';
     const apiKey = capturedHeaders[0]?.['api-key'] ?? '';
     const decoded = Buffer.from(authorization, 'base64').toString();
-    expect(decoded).toBe('user@example.com:my-svc-key');
+    expect(decoded).toBe('user@imagile.dev:my-svc-key');
     expect(apiKey).toBe('my-api-key');
   });
 
@@ -633,7 +633,7 @@ describe('HttpClient — openshiftText Accept header', () => {
       return new Response('log line 1\nlog line 2\n', { status: 200 });
     });
     try {
-      const config = baseConfig({ openshift: { baseUrl: 'https://api.cluster.example.com:6443', token: 'oc-tok' } });
+      const config = baseConfig({ openshift: { baseUrl: 'https://api.cluster.imagile.dev:6443', token: 'oc-tok' } });
       const client = new HttpClient(config);
       await client.openshiftText('/api/v1/namespaces/default/pods/my-pod/log', { lines: 10 });
     } finally {

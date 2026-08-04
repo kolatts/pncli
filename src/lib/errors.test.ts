@@ -28,6 +28,6 @@ describe('PncliError', () => {
   });
 
   it('accepts url', () => {
-    expect(new PncliError('x', 500, 'https://api.example.com').url).toBe('https://api.example.com');
+    expect(new PncliError('x', 500, 'https://api.imagile.dev').url).toBe('https://api.imagile.dev');
   });
 });

@@ -8,7 +8,7 @@ Enables: `pncli udeploy component`, `pncli udeploy version`, `pncli udeploy proc
 
 | Key | Env var | Description |
 |-----|---------|-------------|
-| `udeploy.baseUrl` | `PNCLI_UDEPLOY_BASE_URL` | UCD server root, e.g. `https://ucd.company.com` |
+| `udeploy.baseUrl` | `PNCLI_UDEPLOY_BASE_URL` | UCD server root, e.g. `https://ucd.imagile.dev` |
 
 ### Auth option A — PAT
 
@@ -26,7 +26,7 @@ Enables: `pncli udeploy component`, `pncli udeploy version`, `pncli udeploy proc
 ## Config file (persistent)
 
 ```
-pncli config set udeploy.baseUrl https://ucd.company.com
+pncli config set udeploy.baseUrl https://ucd.imagile.dev
 pncli config set udeploy.pat <token>
 # or
 pncli config set udeploy.username <username>
@@ -36,7 +36,7 @@ pncli config set udeploy.password <password>
 ## Env vars (ephemeral / CI)
 
 ```
-export PNCLI_UDEPLOY_BASE_URL=https://ucd.company.com
+export PNCLI_UDEPLOY_BASE_URL=https://ucd.imagile.dev
 export PNCLI_UDEPLOY_PAT=<token>
 ```
 

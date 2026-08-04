@@ -9,16 +9,16 @@ vi.mock('child_process', () => ({ execSync: vi.fn() }));
 
 function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
   return {
-    user: { email: 'user@example.com', userId: 'user1' },
-    jira: { baseUrl: 'https://jira.example.com', apiToken: 'secret-jira', customFields: [] },
-    bitbucket: { baseUrl: 'https://bb.example.com', pat: 'secret-bb' },
+    user: { email: 'user@imagile.dev', userId: 'user1' },
+    jira: { baseUrl: 'https://jira.imagile.dev', apiToken: 'secret-jira', customFields: [] },
+    bitbucket: { baseUrl: 'https://bb.imagile.dev', pat: 'secret-bb' },
     github: { baseUrl: 'https://api.github.com', token: 'secret-gh' },
-    confluence: { baseUrl: 'https://confluence.example.com', apiToken: 'secret-confluence', apiTokenExplicit: true },
-    artifactory: { baseUrl: 'https://art.example.com', token: 'secret-art', npmRepo: 'npm', nugetRepo: 'nuget', mavenRepo: 'maven' },
-    sonar: { baseUrl: 'https://sonar.example.com', token: 'secret-sonar' },
-    sde: { baseUrl: 'https://sde.example.com', token: 'secret-sde' },
-    ado: { baseUrl: 'https://ado.example.com', pat: 'secret-ado', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
-    jenkins: { baseUrl: 'https://jenkins.example.com', username: 'user', apiToken: 'secret-jenkins' },
+    confluence: { baseUrl: 'https://confluence.imagile.dev', apiToken: 'secret-confluence', apiTokenExplicit: true },
+    artifactory: { baseUrl: 'https://art.imagile.dev', token: 'secret-art', npmRepo: 'npm', nugetRepo: 'nuget', mavenRepo: 'maven' },
+    sonar: { baseUrl: 'https://sonar.imagile.dev', token: 'secret-sonar' },
+    sde: { baseUrl: 'https://sde.imagile.dev', token: 'secret-sde' },
+    ado: { baseUrl: 'https://ado.imagile.dev', pat: 'secret-ado', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
+    jenkins: { baseUrl: 'https://jenkins.imagile.dev', username: 'user', apiToken: 'secret-jenkins' },
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined },
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
@@ -97,12 +97,12 @@ describe('maskConfig', () => {
 
   it('preserves non-secret fields', () => {
     const masked = maskConfig(baseConfig()) as ResolvedConfig;
-    expect(masked.jira.baseUrl).toBe('https://jira.example.com');
-    expect(masked.user.email).toBe('user@example.com');
+    expect(masked.jira.baseUrl).toBe('https://jira.imagile.dev');
+    expect(masked.user.email).toBe('user@imagile.dev');
   });
 
   it('masks udeploy password when present', () => {
-    const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.example.com', pat: undefined, username: 'alice', password: 'secret' } });
+    const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.imagile.dev', pat: undefined, username: 'alice', password: 'secret' } });
     const masked = maskConfig(config) as ResolvedConfig;
     expect((masked.udeploy as { password?: string }).password).toBe('***');
   });
@@ -114,7 +114,7 @@ describe('maskConfig', () => {
   });
 
   it('masks checkmarx clientSecret when present', () => {
-    const config = baseConfig({ checkmarx: { baseUrl: 'https://ast.checkmarx.net', tenantName: 'mycompany', apiKey: 'key', clientId: 'id', clientSecret: 'secret' } });
+    const config = baseConfig({ checkmarx: { baseUrl: 'https://ast.checkmarx.net', tenantName: 'imagile', apiKey: 'key', clientId: 'id', clientSecret: 'secret' } });
     const masked = maskConfig(config) as ResolvedConfig;
     expect((masked.checkmarx as { apiKey?: string }).apiKey).toBe('***');
     expect((masked.checkmarx as { clientSecret?: string }).clientSecret).toBe('***');
@@ -127,7 +127,7 @@ describe('maskConfig', () => {
   });
 
   it('masks servicenow password and apiToken when present', () => {
-    const config = baseConfig({ servicenow: { baseUrl: 'https://sn.example.com', username: 'user', password: 'secret', apiToken: 'tok' } });
+    const config = baseConfig({ servicenow: { baseUrl: 'https://sn.imagile.dev', username: 'user', password: 'secret', apiToken: 'tok' } });
     const masked = maskConfig(config) as ResolvedConfig;
     expect((masked.servicenow as { password?: string }).password).toBe('***');
     expect((masked.servicenow as { apiToken?: string }).apiToken).toBe('***');
@@ -180,51 +180,51 @@ describe('loadConfig — jenkins.baseUrl resolution order', () => {
   });
 
   it('project defaults.jenkins.baseUrl overrides global jenkins.baseUrl', () => {
-    fs.writeFileSync(globalConfigPath, JSON.stringify({ jenkins: { baseUrl: 'https://global.jenkins.example.com' } }));
-    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({ defaults: { jenkins: { baseUrl: 'https://project.jenkins.example.com' } } }));
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jenkins: { baseUrl: 'https://global.jenkins.imagile.dev' } }));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({ defaults: { jenkins: { baseUrl: 'https://project.jenkins.imagile.dev' } } }));
 
     const config = loadConfig({ configPath: globalConfigPath });
 
-    expect(config.jenkins.baseUrl).toBe('https://project.jenkins.example.com');
+    expect(config.jenkins.baseUrl).toBe('https://project.jenkins.imagile.dev');
   });
 
   it('global jenkins.baseUrl is used when no project override is set', () => {
-    fs.writeFileSync(globalConfigPath, JSON.stringify({ jenkins: { baseUrl: 'https://global.jenkins.example.com' } }));
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jenkins: { baseUrl: 'https://global.jenkins.imagile.dev' } }));
     fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
 
     const config = loadConfig({ configPath: globalConfigPath });
 
-    expect(config.jenkins.baseUrl).toBe('https://global.jenkins.example.com');
+    expect(config.jenkins.baseUrl).toBe('https://global.jenkins.imagile.dev');
   });
 
   it('env var takes precedence over global jenkins.baseUrl', () => {
-    process.env['PNCLI_JENKINS_BASE_URL'] = 'https://env.jenkins.example.com';
-    fs.writeFileSync(globalConfigPath, JSON.stringify({ jenkins: { baseUrl: 'https://global.jenkins.example.com' } }));
+    process.env['PNCLI_JENKINS_BASE_URL'] = 'https://env.jenkins.imagile.dev';
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jenkins: { baseUrl: 'https://global.jenkins.imagile.dev' } }));
     fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
 
     const config = loadConfig({ configPath: globalConfigPath });
 
-    expect(config.jenkins.baseUrl).toBe('https://env.jenkins.example.com');
+    expect(config.jenkins.baseUrl).toBe('https://env.jenkins.imagile.dev');
   });
 
   it('env var is used as fallback when neither project nor global config sets baseUrl', () => {
-    process.env['PNCLI_JENKINS_BASE_URL'] = 'https://env.jenkins.example.com';
+    process.env['PNCLI_JENKINS_BASE_URL'] = 'https://env.jenkins.imagile.dev';
     fs.writeFileSync(globalConfigPath, JSON.stringify({}));
     fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
 
     const config = loadConfig({ configPath: globalConfigPath });
 
-    expect(config.jenkins.baseUrl).toBe('https://env.jenkins.example.com');
+    expect(config.jenkins.baseUrl).toBe('https://env.jenkins.imagile.dev');
   });
 
   it('project defaults.jenkins.baseUrl takes precedence over env var', () => {
-    process.env['PNCLI_JENKINS_BASE_URL'] = 'https://env.jenkins.example.com';
+    process.env['PNCLI_JENKINS_BASE_URL'] = 'https://env.jenkins.imagile.dev';
     fs.writeFileSync(globalConfigPath, JSON.stringify({}));
-    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({ defaults: { jenkins: { baseUrl: 'https://project.jenkins.example.com' } } }));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({ defaults: { jenkins: { baseUrl: 'https://project.jenkins.imagile.dev' } } }));
 
     const config = loadConfig({ configPath: globalConfigPath });
 
-    expect(config.jenkins.baseUrl).toBe('https://project.jenkins.example.com');
+    expect(config.jenkins.baseUrl).toBe('https://project.jenkins.imagile.dev');
   });
 });
 
@@ -256,9 +256,9 @@ describe('setConfigValue — JSON parsing', () => {
   });
 
   it('stores a plain string as a string', () => {
-    setConfigValue('jira.baseUrl', 'https://jira.example.com', globalConfigPath);
+    setConfigValue('jira.baseUrl', 'https://jira.imagile.dev', globalConfigPath);
     const stored = JSON.parse(fs.readFileSync(globalConfigPath, 'utf8'));
-    expect(stored.jira.baseUrl).toBe('https://jira.example.com');
+    expect(stored.jira.baseUrl).toBe('https://jira.imagile.dev');
   });
 
   it('stores invalid JSON as a raw string', () => {
