@@ -9,7 +9,7 @@ vi.mock('child_process', () => ({ execSync: vi.fn() }));
 
 function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
   return {
-    user: { email: 'user@imagile.dev', userId: 'user1' },
+    user: { email: 'user@example.com', userId: 'user1' },
     jira: { baseUrl: 'https://jira.imagile.dev', apiToken: 'secret-jira', customFields: [] },
     bitbucket: { baseUrl: 'https://bb.imagile.dev', pat: 'secret-bb' },
     github: { baseUrl: 'https://api.github.com', token: 'secret-gh' },
@@ -98,7 +98,7 @@ describe('maskConfig', () => {
   it('preserves non-secret fields', () => {
     const masked = maskConfig(baseConfig()) as ResolvedConfig;
     expect(masked.jira.baseUrl).toBe('https://jira.imagile.dev');
-    expect(masked.user.email).toBe('user@imagile.dev');
+    expect(masked.user.email).toBe('user@example.com');
   });
 
   it('masks udeploy password when present', () => {

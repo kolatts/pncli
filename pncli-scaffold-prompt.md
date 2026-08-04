@@ -234,7 +234,7 @@ Owned by the individual developer. Contains auth credentials and server URLs. NO
 {
   "jira": {
     "baseUrl": "https://your-domain.atlassian.net",
-    "email": "you@imagile.dev",
+    "email": "you@example.com",
     "apiToken": "your-jira-api-token"
   },
   "bitbucket": {
