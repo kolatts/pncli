@@ -1,16 +1,36 @@
 ---
+import { Image } from 'astro:assets';
+import maverick from '../assets/maverick-badge.png';
 ---
 
-<footer class="w-full px-6 py-10 mt-auto border-t border-ink/10 bg-cream">
+<footer class="w-full px-6 py-8 mt-auto bg-panel">
   <div class="max-w-5xl mx-auto flex flex-wrap gap-8 items-end justify-between">
-    <div>
-      <p class="font-display font-semibold text-ink">pncli</p>
-      <p class="text-sm text-ink/40 mt-0.5">&copy; {new Date().getFullYear()} Sunny Kolattukudy</p>
+    <div class="flex items-center gap-4">
+      <a
+        href="https://kolatts.github.io/context-overflow"
+        target="_blank"
+        rel="noopener"
+        title="Context Overflow — learn agentic engineering"
+        class="shrink-0 block w-12 h-12 rounded-full overflow-hidden hover:-translate-y-0.5 transition-transform"
+      >
+        <Image
+          src={maverick}
+          alt="MAVERICK badge — Context Overflow"
+          width={96}
+          height={96}
+          class="w-full h-full object-cover scale-[1.18]"
+        />
+      </a>
+      <div>
+        <p class="font-display font-bold text-ink">pncli</p>
+        <p class="text-sm text-ink/40 mt-0.5">&copy; {new Date().getFullYear()} Sunny Kolattukudy</p>
+      </div>
     </div>
     <nav class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink/50" aria-label="Footer navigation">
       <a href="https://github.com/kolatts/pncli" class="hover:text-ink transition-colors">GitHub</a>
       <a href="https://www.npmjs.com/package/@kolatts/pncli" class="hover:text-ink transition-colors">npm</a>
       <a href="https://discord.gg/RKwEvAbtbx" target="_blank" rel="noopener noreferrer" class="hover:text-ink transition-colors">Discord</a>
+      <a href="https://kolatts.github.io/context-overflow" target="_blank" rel="noopener" class="hover:text-ink transition-colors">Context Overflow</a>
       <a href="/pncli/changelog/" class="hover:text-ink transition-colors">Changelog</a>
       <a href="/pncli/feedback/" class="hover:text-ink transition-colors">Feedback</a>
     </nav>

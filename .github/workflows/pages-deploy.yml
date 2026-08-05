@@ -8,6 +8,7 @@ on:
       - '.claude/skills/**'
       - 'CHANGELOG.md'
       - 'copilot-instructions.md'
+      - 'NOTICE'
       - '.github/workflows/pages-deploy.yml'
   workflow_dispatch:
 

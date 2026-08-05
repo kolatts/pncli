@@ -11,6 +11,25 @@ const sources = [
   { dir: join(__dirname, '../../example-skills'), distributable: false },
 ];
 
+// Services hidden from the public site. The distributed skill still documents
+// them (skills/pncli/SKILL.md is untouched); they just don't render on the
+// skill detail pages. Remove a name here to bring a service back onto the site.
+const HIDDEN_SERVICES = ['IBM UrbanCode Deploy'];
+
+function hideHiddenServices(text) {
+  let lines = text.split('\n');
+  for (const svc of HIDDEN_SERVICES) {
+    lines = lines
+      // Drop markdown table rows for the hidden service (e.g. "Available services")
+      .filter((line) => !(line.trimStart().startsWith('|') && line.includes(svc)))
+      // Drop mentions from comma-separated prose lists
+      .map((line) => line.includes(svc)
+        ? line.replace(`${svc}, `, '').replace(`, ${svc}`, '')
+        : line);
+  }
+  return lines.join('\n');
+}
+
 function parseFrontmatter(content) {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
   if (!match) return { data: {}, body: content };
@@ -103,7 +122,7 @@ for (const { dir, distributable } of sources) {
       `generatedAt: ${JSON.stringify(new Date().toISOString())}`,
       '---',
       '',
-      escapeMdxOutsideFences(body.trim()),
+      escapeMdxOutsideFences(hideHiddenServices(body.trim())),
       '',
     ].join('\n');
 

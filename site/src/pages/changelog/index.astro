@@ -1,13 +1,12 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
+import { sortChangelogEntries } from '../../lib/changelog';
 
 const allEntries = await getCollection('changelog');
 
-// Sort newest first
-const entries = allEntries.sort(
-  (a, b) => b.data.date.getTime() - a.data.date.getTime()
-);
+// Sort newest version first (semver descending)
+const entries = sortChangelogEntries(allEntries);
 
 // Group by year
 const byYear = entries.reduce<Record<number, typeof entries>>((acc, entry) => {
@@ -20,8 +19,8 @@ const years = Object.keys(byYear).map(Number).sort((a, b) => b - a);
 
 const tagLabel: Record<string, string> = { feat: 'feat', fix: 'fix', breaking: 'breaking' };
 const tagClass: Record<string, string> = {
-  feat:     'bg-violet/10 text-violet border border-violet/20',
-  fix:      'bg-coral/10 text-coral border border-coral/20',
+  feat:     'bg-gold/10 text-gold border border-gold/30',
+  fix:      'bg-coral/10 text-coral border border-coral/30',
   breaking: 'bg-ink text-cream',
 };
 
@@ -29,22 +28,23 @@ const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', t
 ---
 
 <Base title="Changelog — pncli" description="Every pncli release, in one place.">
-  <div class="max-w-4xl mx-auto px-6 py-16">
-    <div class="mb-12">
-      <h1 class="font-display text-5xl font-bold text-ink mb-3">Changelog</h1>
+  <div class="max-w-4xl mx-auto px-6 py-10">
+    <div class="mb-8">
+      <p class="stamp text-gold mb-4">The paper trail</p>
+      <h1 class="font-display headline-shadow text-5xl font-black text-ink tracking-tight mb-3">Changelog</h1>
       <p class="text-ink/50 text-lg">Every release, in one place.</p>
     </div>
 
     {years.map(year => (
-      <div class="mb-12">
-        <p class="font-mono text-sm text-ink/30 mb-4 border-b border-ink/10 pb-2">{year}</p>
+      <div class="mb-10">
+        <p class="font-mono text-sm text-ink/30 mb-3">{year}</p>
         <div class="divide-y divide-ink/5">
           {byYear[year].map(entry => (
             <a
               href={`/pncli/changelog/${entry.data.version}/`}
               class="flex items-start gap-4 py-4 group hover:bg-ink/[0.02] -mx-3 px-3 rounded-lg transition-colors"
             >
-              <span class="font-mono text-xs font-semibold bg-coral text-cream px-2.5 py-1 rounded-full shrink-0 mt-0.5">
+              <span class="font-mono text-xs font-bold border-2 border-gold text-gold px-2 py-0.5 rounded-md shrink-0 mt-0.5">
                 v{entry.data.version}
               </span>
               <span class="text-xs text-ink/40 shrink-0 mt-1.5 w-14">

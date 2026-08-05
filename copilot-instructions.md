@@ -24,19 +24,36 @@ Cache the answers for the session. If the user doesn't know, run `git remote -v`
 
 ## Installing Skills
 
-pncli ships with Claude Code skills — step-by-step workflow guides that agents can follow. To install them into your repo:
+pncli installs agent skills — step-by-step workflow guides for GitHub Copilot and Claude Code — from git-hosted skills marketplaces: plain git repos of plugins that your team publishes. Register a marketplace once:
 
 ```
-pncli skills install
+pncli skills marketplace setup <git-clone-url>
 ```
 
-This downloads the latest pncli skills from GitHub. Default installs to `.agents/skills/` (GitHub Copilot). For Claude Code, add `--agent claude-code`. For user-scope, add `--scope user`. Only pncli-managed skills are replaced — any custom skills you've added are left untouched.
+This clones the marketplace repo to `~/.agents/marketplaces/<repo-name>`, registers it in your global pncli config, and installs every plugin's skills into your user-level skills folder — `~/.copilot/skills` for GitHub Copilot (the default), or `~/.claude/skills` with `--claude`. Use `--branch` to pin a specific branch and `--token` for repos that require an HTTP access token (GitHub PAT or Bitbucket token). Run `setup` (or its equivalent, `marketplace add`) again with a different URL to register additional marketplaces.
 
-To see what's installed locally:
+From then on, one command keeps your skills current:
 
 ```
-pncli skills list
+pncli skills marketplace sync
 ```
+
+Sync works because every installed skill carries provenance: pncli writes a `pncli-origin.json` into each skill directory recording which marketplace and plugin it came from, the source URL and branch, and when it was installed, plus a `.pncli-installed.json` index in the skills folder. On each run, sync does a `git pull` on the marketplace clone, then:
+
+- **No new commits upstream** — it skips reinstalling and changes nothing locally (pass `--force` to reinstall anyway).
+- **New commits** — it re-copies the plugin's skills over the installed versions and refreshes their origin records.
+
+Only pncli-managed skills are ever replaced or purged; skills you wrote yourself are left untouched. Run `sync` whenever your marketplace publishes new or updated skills — after a teammate merges a skill change, everyone else just runs `pncli skills marketplace sync` (with the same `--claude` flag they used for setup) to pick it up. With one marketplace registered, sync prompts you to pick a plugin; with several, it first asks which marketplace. Skip the prompts:
+
+```
+pncli skills marketplace sync my-plugin              # skip the plugin picker
+pncli skills marketplace sync all                    # every plugin in the marketplace
+pncli skills marketplace sync --marketplace all      # every plugin from every marketplace
+```
+
+To list registered marketplaces and browse their plugins without installing anything, use `pncli skills marketplace list` and `pncli skills marketplace plugins <name>`. To see what's installed locally, run `pncli skills list --scope user`.
+
+The skills bundled with pncli itself can still be installed straight into a repo with `pncli skills install` (default target: `.agents/skills/`; add `--agent claude-code` for Claude Code).
 
 ## Common Workflows
 

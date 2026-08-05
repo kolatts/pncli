@@ -31,7 +31,7 @@ const serviceList = entry.data.services
   title={`${entry.data.title} — pncli skill`}
   description={entry.data.description}
 >
-  <div class="max-w-3xl mx-auto px-6 py-16">
+  <div class="max-w-3xl mx-auto px-6 py-10">
     <a
       href="/pncli/skills/"
       class="inline-flex items-center gap-1.5 text-sm text-ink/40 hover:text-ink transition-colors mb-8"
@@ -40,16 +40,16 @@ const serviceList = entry.data.services
       All skills
     </a>
 
-    <header class="mb-10">
-      <p class="font-mono text-xs uppercase tracking-wider text-ink/40 mb-2">Skill</p>
-      <h1 class="font-display text-4xl font-bold text-ink mb-3">{entry.data.title}</h1>
+    <header class="mb-8">
+      <p class="font-mono text-xs uppercase tracking-[0.14em] text-gold mb-2">Skill</p>
+      <h1 class="font-display headline-shadow text-4xl font-black text-ink tracking-tight mb-3">{entry.data.title}</h1>
       <div class="flex items-center gap-3">
         <p class="text-ink/60 text-lg flex-1">{entry.data.description}</p>
         <div class="flex items-center gap-1.5 shrink-0">
           {entry.data.userInvocable && (
-            <span class="font-mono text-xs text-coral/80 bg-coral/10 border border-coral/20 px-2 py-1 rounded">/invoke</span>
+            <span class="font-mono text-xs text-gold border border-gold/40 bg-gold/5 px-2 py-1 rounded">/invoke</span>
           )}
-          <span class="font-mono text-xs text-ink/40 bg-ink/5 border border-ink/10 px-2 py-1 rounded">
+          <span class="font-mono text-xs text-ink/45 bg-ink/5 border border-ink/15 px-2 py-1 rounded">
             {label}
           </span>
         </div>
@@ -57,7 +57,7 @@ const serviceList = entry.data.services
       {serviceList.length > 0 && (
         <div class="flex flex-wrap gap-1.5 mt-3">
           {serviceList.map((svc: string) => (
-            <span class="font-mono text-xs text-violet bg-violet/10 border border-violet/20 px-2 py-0.5 rounded">
+            <span class="font-mono text-xs text-chrome bg-ink/5 border border-ink/15 px-2 py-0.5 rounded">
               {svc}
             </span>
           ))}
@@ -66,23 +66,24 @@ const serviceList = entry.data.services
     </header>
 
     <div class="prose prose-neutral max-w-none
-      prose-headings:font-display prose-headings:text-ink
+      prose-headings:font-display prose-headings:text-ink prose-headings:font-black
       prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4
       prose-h3:text-base prose-h3:font-semibold prose-h3:mt-8 prose-h3:mb-3
       prose-p:text-ink/70
       prose-li:text-ink/70 prose-li:text-sm prose-li:leading-relaxed
       prose-strong:text-ink prose-strong:font-semibold
-      prose-a:text-coral prose-a:no-underline hover:prose-a:underline
-      prose-code:font-mono prose-code:text-sm prose-code:bg-ink/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
-      prose-pre:bg-ink prose-pre:text-cream prose-pre:rounded-xl">
+      prose-a:text-gold prose-a:font-semibold prose-a:no-underline hover:prose-a:underline
+      prose-code:font-mono prose-code:text-sm prose-code:text-ink prose-code:bg-ink/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
+      prose-th:text-ink prose-td:text-ink/75
+      prose-pre:bg-[#1e1e20] prose-pre:text-[#f2ead9] prose-pre:rounded-xl">
       <Content />
     </div>
 
-    <div class="mt-12 pt-6 border-t border-ink/10">
+    <div class="mt-10">
       <p class="text-sm text-ink/40 font-mono">
         Source: <a
           href={`https://github.com/kolatts/pncli/blob/main/skills/${entry.id}/SKILL.md`}
-          class="text-coral hover:underline"
+          class="text-gold hover:underline"
           target="_blank"
           rel="noopener"
         >skills/{entry.id}/SKILL.md</a>
@@ -95,8 +96,8 @@ const serviceList = entry.data.services
   .prose ol li code,
   .prose ul li code {
     display: block;
-    background-color: var(--color-ink);
-    color: #e8e3f0;
+    background-color: #1e1e20;
+    color: #ece0a8;
     padding: 0.4rem 0.75rem;
     border-radius: 0.375rem;
     margin-top: 0.35rem;

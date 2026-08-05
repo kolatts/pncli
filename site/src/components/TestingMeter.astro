@@ -10,17 +10,17 @@ const { level } = Astro.props;
 const filledCount = { untested: 1, basic: 2, beta: 3, live: 4 }[level];
 
 const filledClass = {
-  untested: 'bg-ink/20',
-  basic:    'bg-violet/70',
-  beta:     'bg-coral/70',
-  live:     'bg-coral',
+  untested: 'bg-ink/25',
+  basic:    'bg-chrome',
+  beta:     'bg-gold/70',
+  live:     'bg-gold',
 }[level];
 
 const labelClass = {
-  untested: 'text-ink/30',
-  basic:    'text-violet/70',
-  beta:     'text-coral/70',
-  live:     'text-coral',
+  untested: 'text-ink/35',
+  basic:    'text-chrome',
+  beta:     'text-gold/80',
+  live:     'text-gold',
 }[level];
 
 const bars = [1, 2, 3, 4].map(i => i <= filledCount);

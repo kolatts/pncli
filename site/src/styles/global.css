@@ -1,31 +1,117 @@
-@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource-variable/fraunces';
 @import '@fontsource-variable/inter';
 @import '@fontsource-variable/jetbrains-mono';
 @import 'tailwindcss';
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --color-coral: #FF5C39;
-  --color-violet: #7C5CFF;
-  --color-cream: #FFFBF5;
-  --color-ink: #1A1625;
+  /*
+   * Paperwork-office palette — dark only (the Context Overflow look).
+   * The token names survive from the old two-theme setup: "cream" is the
+   * page surface (now charcoal), "ink" is the text (now cream), so
+   * bg-cream/text-ink utilities keep working unchanged.
+   */
+  --color-cream: #1e1e20;
+  --color-ink: #f2ead9;
+  /* Raised surface: raised charcoal panel */
+  --color-panel: #242428;
+  /* Signal gold — the rubber-stamp accent */
+  --color-gold: #d9b84f;
+  /* Straw highlight — brighter companion to gold */
+  --color-straw: #ece0a8;
+  /* Chrome grey — muted metadata */
+  --color-chrome: #8a8f98;
+  /* Stamp red — alerts, fixes, "REJECTED". Used sparingly. */
+  --color-coral: #e0765a;
 
-  --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces Variable", Georgia, 'Times New Roman', serif;
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, "Courier New", monospace;
 }
 
-/* Dark mode variant — keyed to data-theme="dark" on <html> */
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
-
-/* Swap cream ↔ ink so every bg-cream/text-ink utility flips automatically */
-:root[data-theme="dark"] {
-  --color-cream: #1A1625;
-  --color-ink: #FFFBF5;
+/* Dark-only site: render form controls, scrollbars, etc. in dark */
+:root {
+  color-scheme: dark;
 }
 
 body {
   font-family: var(--font-sans);
   background-color: var(--color-cream);
   color: var(--color-ink);
+  /* Institutional grain — faint halftone dots, like a photocopied memo */
+  background-image: radial-gradient(rgb(242 234 217 / 0.028) 1px, transparent 1px);
+  background-size: 5px 5px;
+}
+
+::selection {
+  background-color: var(--color-gold);
+  color: var(--color-cream);
+}
+
+/* Fraunces: crank the optical size axis so display sizes get the sharp serifs */
+.font-display {
+  font-variation-settings: 'opsz' 132;
+}
+
+/* Hard offset text-shadow on big display type — printed-poster feel */
+.headline-shadow,
+.headline-shadow-dark {
+  text-shadow: 3px 3px 0 rgb(0 0 0 / 0.4);
+}
+
+/*
+ * Sticker buttons — chunky outline, hard offset drop shadow, hover lift.
+ * border-color rides the ink token: charcoal outline on paper, cream outline on charcoal.
+ */
+.btn-sticker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  border: 3px solid var(--color-ink);
+  border-radius: 14px;
+  box-shadow: 0 4px 0 rgb(0 0 0 / 0.45);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-sticker:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 rgb(0 0 0 / 0.45);
+}
+.btn-sticker:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 0 rgb(0 0 0 / 0.45);
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-sticker,
+  .btn-sticker:hover,
+  .btn-sticker:active {
+    transition: none;
+    transform: none;
+  }
+}
+
+/*
+ * Shiki code blocks: prose `prose-code:*` utilities must never clobber the
+ * highlighter's colors. Shiki sets the block foreground inline on <pre>, and
+ * tokenized spans carry their own inline colors — so code inside pre must
+ * simply inherit. (Unlayered, so it wins over Tailwind's utility layer.)
+ */
+.prose pre code {
+  color: inherit;
+  background-color: transparent;
+  padding: 0;
+}
+
+/* Rubber-stamp chip — mono, uppercase, bordered in currentColor, slightly askew */
+.stamp {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  border: 2px solid currentColor;
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
+  transform: rotate(-2deg);
 }

@@ -1,42 +1,44 @@
 ---
-import { Image } from 'astro:assets';
-import tools from '../assets/tools.png';
 import TestingMeter from './TestingMeter.astro';
+import Sparkles from './Sparkles.astro';
 import { integrations } from '../lib/integrations';
 ---
 
-<section class="relative w-full py-20 px-6 overflow-hidden bg-cream border-t border-ink/5">
-  <!-- Background flourish -->
-  <Image
-    src={tools}
-    alt=""
-    width={600}
-    height={600}
-    aria-hidden="true"
-    class="absolute right-0 top-1/2 -translate-y-1/2 w-auto h-[90%] max-h-[520px] opacity-[0.07] dark:opacity-0 pointer-events-none select-none"
+<section class="relative w-full py-12 px-6 overflow-hidden bg-cream">
+  <Sparkles
+    speed={0.06}
+    max={22}
+    opacity={0.4}
+    sparks={[
+      { x: 90, y: 10, s: 0.75, r: -15, c: 'straw', td: 6.5, tl: -2, dd: 12, dl: -3 },
+      { x: 6, y: 34, s: 0.55, r: 10, c: 'gold', td: 7.5, tl: -4.5, dd: 10, dl: -1 },
+      { x: 55, y: 6, s: 0.5, r: 25, c: 'straw', td: 5.5, tl: -1, dd: 13, dl: -6 },
+      { x: 95, y: 72, s: 0.6, r: -8, c: 'straw', td: 8, tl: -3.2, dd: 11, dl: -4.8 },
+      { x: 30, y: 92, dot: true, c: 'coral', td: 9, tl: -2.6 },
+    ]}
   />
-
   <div class="relative max-w-5xl mx-auto">
-    <div class="mb-12">
-      <h2 class="font-display text-4xl md:text-5xl font-bold text-ink">
+    <div class="mb-8">
+      <p class="stamp text-gold mb-4">Inventory — Form PN-12</p>
+      <h2 class="font-display headline-shadow text-4xl md:text-5xl font-black text-ink leading-[1.06] tracking-tight">
         Every tool your org<br class="hidden sm:block" /> throws at you.
       </h2>
-      <p class="mt-3 text-ink/50 text-lg">Give GitHub Copilot, Claude Code, and Codex a unified API into the Data Center editions your org hasn't migrated yet.</p>
-      <p class="mt-2 text-ink/30 text-sm font-mono">Testing maturity shown per integration — <code>untested</code> means shipped but not validated against a live instance.</p>
+      <p class="mt-4 text-ink/50 text-lg">Give GitHub Copilot, Claude Code, and Codex a unified API into the Data Center editions your org hasn't migrated yet.</p>
+      <p class="mt-2 text-ink/35 text-sm font-mono">Testing maturity shown per integration — <code>untested</code> means shipped but not validated against a live instance.</p>
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
       {integrations.map(service => (
         <div
-          class={`rounded-xl px-5 py-4 border transition-all ${
+          class={`rounded-xl px-5 py-4 border-2 transition-all ${
             service.active
-              ? 'bg-cream border-ink/15 hover:border-ink/30 hover:shadow-sm'
+              ? 'bg-panel border-ink/15 hover:border-ink/40'
               : 'bg-cream/60 border-dashed border-ink/15'
           }`}
         >
-          <div class="flex items-start justify-between gap-2">
+          <div class="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <p class={`font-display font-semibold text-base ${service.active ? 'text-ink' : 'text-ink/40'}`}>
+              <p class={`font-display font-bold text-base ${service.active ? 'text-ink' : 'text-ink/40'}`}>
                 {service.name}
               </p>
               <p class={`text-sm mt-0.5 ${service.active ? 'text-ink/50' : 'text-ink/30'}`}>

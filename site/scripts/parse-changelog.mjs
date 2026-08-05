@@ -39,6 +39,12 @@ for (const block of blocks) {
     summary = firstBullet[1]
       .replace(/\s*\(\[#\d+\]\([^)]+\)\)/g, '')     // PR refs
       .replace(/\s*\(\[[a-f0-9]+\]\([^)]+\)\)/g, '') // commit hashes
+      .replace(/,?\s*closes\s+\[#\d+\]\([^)]+\)/gi, '') // "closes [#N](url)" trailers
+      .replace(/,?\s*closes\s+#\d+/gi, '')             // "closes #N" trailers
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')         // links -> link text
+      .replace(/\*\*([^*]+)\*\*/g, '$1')               // bold markers
+      .replace(/\*([^*]+)\*/g, '$1')                   // italic markers
+      .replace(/`([^`]+)`/g, '$1')                     // inline code backticks
       .replace(/[\u{1F300}-\u{1FFFF}]/gu, '')          // emoji
       .trim();
     summary = summary.charAt(0).toUpperCase() + summary.slice(1);
