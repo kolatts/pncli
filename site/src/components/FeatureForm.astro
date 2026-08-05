@@ -30,7 +30,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
         type="radio"
         name="kind"
         value="feature"
-        class="accent-violet w-4 h-4"
+        class="accent-gold w-4 h-4"
       />
       <span class="text-sm text-ink">Feature request</span>
     </label>
@@ -48,7 +48,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
       required
       maxlength="120"
       placeholder="Short summary (max 120 chars)"
-      class="w-full rounded-lg border border-ink/20 bg-cream px-4 py-2.5 text-sm text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-violet/40 focus:border-violet/60 transition-all"
+      class="w-full rounded-lg border border-ink/20 bg-cream px-4 py-2.5 text-sm text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold/60 transition-all"
     />
   </div>
 
@@ -63,7 +63,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
       required
       rows="5"
       placeholder="Steps to reproduce, expected vs actual behaviour, or your feature idea…"
-      class="w-full rounded-lg border border-ink/20 bg-cream px-4 py-2.5 text-sm text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-violet/40 focus:border-violet/60 transition-all resize-y"
+      class="w-full rounded-lg border border-ink/20 bg-cream px-4 py-2.5 text-sm text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold/60 transition-all resize-y"
     ></textarea>
   </div>
 
@@ -79,7 +79,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
       required
       maxlength="254"
       placeholder="you@example.com"
-      class="w-full rounded-lg border border-ink/20 bg-cream px-4 py-2.5 text-sm text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-violet/40 focus:border-violet/60 transition-all"
+      class="w-full rounded-lg border border-ink/20 bg-cream px-4 py-2.5 text-sm text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold/60 transition-all"
     />
     <p class="text-xs text-ink/50">Used to confirm receipt and notify you when your issue is resolved. Not shared publicly.</p>
   </div>
@@ -95,7 +95,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
     <select
       id="fb-service"
       name="service"
-      class="w-full rounded-lg border border-ink/20 bg-cream px-4 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-violet/40 focus:border-violet/60 transition-all"
+      class="w-full rounded-lg border border-ink/20 bg-cream px-4 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold/60 transition-all"
     >
       <option value="">— select if applicable —</option>
       <option>Git</option>
@@ -104,11 +104,12 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
       <option>Confluence</option>
       <option>SonarQube</option>
       <option>Checkmarx</option>
+      <option>Dynatrace</option>
+      <option>GitHub</option>
       <option>SDElements</option>
       <option>Azure DevOps</option>
       <option>Jenkins</option>
       <option>Artifactory</option>
-      <option>IBM UrbanCode Deploy</option>
       <option>Other</option>
     </select>
   </div>
@@ -142,7 +143,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
   <!-- Submit -->
   <button
     type="submit"
-    class="self-start inline-flex items-center gap-2 bg-coral text-cream font-semibold px-6 py-3 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+    class="btn-sticker self-start bg-gold text-cream px-6 py-2.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
   >
     Submit
   </button>
@@ -191,7 +192,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '0x4AAAAAA
         if (email) localStorage.setItem(LS_EMAIL_KEY, email);
 
         const okSpan = document.createElement('span');
-        okSpan.className = 'text-violet font-medium';
+        okSpan.className = 'text-gold font-medium';
         okSpan.textContent = json.message ?? 'Thanks! Your feedback has been received.';
         status.replaceChildren(okSpan);
         form.reset();

@@ -7,11 +7,11 @@ import FeatureForm from '../components/FeatureForm.astro';
   title="Feedback — pncli"
   description="Report a bug or request a feature for pncli."
 >
-  <section class="w-full py-20 px-6">
+  <section class="w-full py-12 px-6">
     <div class="max-w-5xl mx-auto">
-      <div class="mb-10">
-        <p class="text-violet font-mono text-sm mb-3 tracking-wide">feedback</p>
-        <h1 class="font-display text-4xl md:text-5xl font-bold text-ink">
+      <div class="mb-8">
+        <p class="stamp text-gold mb-4">Complaints department</p>
+        <h1 class="font-display headline-shadow text-4xl md:text-5xl font-black text-ink tracking-tight">
           Found a bug? Have an idea?
         </h1>
         <p class="mt-4 text-ink/55 text-lg max-w-xl leading-relaxed">
@@ -22,13 +22,13 @@ import FeatureForm from '../components/FeatureForm.astro';
 
       <div class="grid md:grid-cols-5 gap-6 items-start">
         <!-- Form card -->
-        <div class="md:col-span-3 rounded-2xl border border-ink/10 bg-cream p-8">
+        <div class="md:col-span-3 rounded-2xl border-[3px] border-ink/80 bg-panel shadow-[0_6px_0_rgb(0_0_0/0.35)] p-8">
           <FeatureForm />
         </div>
 
         <!-- Alternate path card -->
         <div class="md:col-span-2 flex flex-col gap-4">
-          <div class="rounded-2xl border border-violet/20 bg-violet/5 p-6">
+          <div class="rounded-2xl border-2 border-gold/50 bg-panel p-6">
             <h2 class="font-display text-lg font-bold text-ink mb-2">
               Prefer GitHub directly?
             </h2>
@@ -40,13 +40,13 @@ import FeatureForm from '../components/FeatureForm.astro';
               href="https://github.com/kolatts/pncli/issues/new"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex items-center gap-2 border border-violet/30 text-violet font-semibold text-sm px-4 py-2.5 rounded-lg hover:bg-violet/10 transition-colors"
+              class="inline-flex items-center gap-2 border-2 border-gold/50 text-gold font-semibold text-sm px-4 py-2.5 rounded-lg hover:bg-gold/10 transition-colors"
             >
               Open issue on GitHub →
             </a>
           </div>
 
-          <div class="rounded-2xl border border-coral/20 bg-coral/5 p-6">
+          <div class="rounded-2xl border-2 border-ink/15 bg-panel p-6">
             <h2 class="font-display text-lg font-bold text-ink mb-2">
               See what's already tracked
             </h2>
@@ -58,29 +58,29 @@ import FeatureForm from '../components/FeatureForm.astro';
               href="https://github.com/kolatts/pncli/issues"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex items-center gap-2 border border-coral/30 text-coral font-semibold text-sm px-4 py-2.5 rounded-lg hover:bg-coral/10 transition-colors"
+              class="inline-flex items-center gap-2 border-2 border-ink/20 text-ink/70 font-semibold text-sm px-4 py-2.5 rounded-lg hover:bg-ink/5 hover:text-ink transition-colors"
             >
               Browse open issues →
             </a>
           </div>
 
-          <div class="rounded-2xl border border-coral/20 bg-coral/5 p-6">
+          <div class="rounded-2xl border-2 border-ink/15 bg-panel p-6">
             <h2 class="font-display text-lg font-bold text-ink mb-2">
               Join the community
             </h2>
             <p class="text-sm text-ink/60 leading-relaxed mb-4">
-              Chat with other pncli users, share workflows, and ask questions in the Beyond Boring Discord.
+              Chat with other pncli users, share workflows, and ask questions in the Context Overflow Discord.
             </p>
             <a
               href="https://discord.gg/RKwEvAbtbx"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex items-center gap-2 border border-coral/30 text-coral font-semibold text-sm px-4 py-2.5 rounded-lg hover:bg-coral/10 transition-colors"
+              class="inline-flex items-center gap-2 border-2 border-ink/20 text-ink/70 font-semibold text-sm px-4 py-2.5 rounded-lg hover:bg-ink/5 hover:text-ink transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4 shrink-0" aria-hidden="true">
                 <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
               </svg>
-              Join Beyond Boring →
+              Join Context Overflow →
             </a>
           </div>
         </div>

@@ -6,23 +6,23 @@ const steps = [
 ];
 ---
 
-<div class="not-prose my-8 rounded-xl overflow-hidden border border-ink/10 shadow-sm">
-  <div class="bg-ink/5 border-b border-ink/10 px-5 py-2.5 flex items-center gap-1.5">
-    <span class="w-3 h-3 rounded-full bg-ink/10" aria-hidden="true"></span>
-    <span class="w-3 h-3 rounded-full bg-ink/10" aria-hidden="true"></span>
-    <span class="w-3 h-3 rounded-full bg-ink/10" aria-hidden="true"></span>
-    <span class="font-mono text-xs text-ink/30 ml-2">First-time setup</span>
+<div class="not-prose my-8 rounded-xl overflow-hidden border-[3px] border-ink/80 shadow-[0_4px_0_rgb(0_0_0/0.35)]">
+  <div class="bg-[#242428] border-b border-[#3a3a40] px-5 py-2.5 flex items-center gap-1.5">
+    <span class="w-3 h-3 rounded-full bg-[#d9b84f]/80" aria-hidden="true"></span>
+    <span class="w-3 h-3 rounded-full bg-[#f2ead9]/15" aria-hidden="true"></span>
+    <span class="w-3 h-3 rounded-full bg-[#f2ead9]/15" aria-hidden="true"></span>
+    <span class="font-mono text-xs text-[#8a8f98] ml-2">First-time setup</span>
   </div>
-  <div class="bg-ink divide-y divide-cream/5">
+  <div class="bg-[#1e1e20] divide-y divide-[#3a3a40]">
     {steps.map((step, i) => (
       <div class="px-6 py-4 flex items-start gap-4">
-        <span class="shrink-0 font-mono text-xs text-violet/60 w-4 mt-0.5 select-none">{i + 1}</span>
+        <span class="shrink-0 font-mono text-xs text-[#d9b84f]/70 w-4 mt-0.5 select-none">{i + 1}</span>
         <div class="flex-1 min-w-0">
-          <code class="font-mono text-sm text-cream/90">{step.cmd}</code>
-          <p class="text-xs text-cream/35 mt-1">{step.label}</p>
+          <code class="font-mono text-sm text-[#f2ead9]/90">{step.cmd}</code>
+          <p class="text-xs text-[#b9b2a4]/70 mt-1">{step.label}</p>
         </div>
         <button
-          class="copy-btn shrink-0 text-cream/25 hover:text-cream/70 transition-colors mt-0.5"
+          class="copy-btn shrink-0 text-[#f2ead9]/25 hover:text-[#f2ead9]/70 transition-colors mt-0.5"
           data-cmd={step.cmd}
           aria-label={`Copy: ${step.cmd}`}
           type="button"
@@ -44,11 +44,11 @@ const steps = [
       const iconCheck = btn.querySelector('.icon-check') as SVGElement;
       iconCopy.classList.add('hidden');
       iconCheck.classList.remove('hidden');
-      btn.classList.replace('text-cream/25', 'text-coral');
+      btn.classList.replace('text-[#f2ead9]/25', 'text-[#d9b84f]');
       setTimeout(() => {
         iconCopy.classList.remove('hidden');
         iconCheck.classList.add('hidden');
-        btn.classList.replace('text-coral', 'text-cream/25');
+        btn.classList.replace('text-[#d9b84f]', 'text-[#f2ead9]/25');
       }, 2000);
     });
   });

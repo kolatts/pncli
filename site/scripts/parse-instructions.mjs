@@ -16,8 +16,22 @@ const END_MARKER   = '<!-- COMMAND-REFERENCE:END -->';
 const startIdx = raw.indexOf(START_MARKER);
 const endIdx   = raw.indexOf(END_MARKER);
 
+// Services hidden from the public site. copilot-instructions.md is untouched;
+// mentions are stripped from the rendered page only (their command reference is
+// already dropped via the COMMAND-REFERENCE markers + parse-commands SKIP list).
+// Remove a name here to bring a service back onto the site.
+const HIDDEN_SERVICES = ['IBM UrbanCode Deploy'];
+
+function hideHiddenServices(text) {
+  for (const svc of HIDDEN_SERVICES) {
+    // Drop mentions from comma-separated prose lists
+    text = text.replaceAll(`${svc}, `, '').replaceAll(`, ${svc}`, '');
+  }
+  return text;
+}
+
 // Strip the H1 on line 1 so the page's own <h1> is the only one
-const rawNoH1 = raw.replace(/^# .+\n/, '');
+const rawNoH1 = hideHiddenServices(raw.replace(/^# .+\n/, ''));
 
 // Escape MDX footguns outside fenced code blocks and outside inline code spans.
 // Walk line-by-line: toggle inFence on ``` lines, then on non-fence lines escape
@@ -40,9 +54,15 @@ function escapeMdxOutsideFences(text) {
       continue;
     }
 
+    // Preserve blockquote markers ("> " prefixes) so they render as real
+    // blockquotes instead of an escaped literal "&gt;" in the output.
+    const bqMatch = line.match(/^(\s{0,3}(?:>\s?)+)(.*)$/);
+    const bqPrefix = bqMatch ? bqMatch[1] : '';
+    const rest = bqMatch ? bqMatch[2] : line;
+
     // Outside fences: escape characters inside inline code spans, then outside
     // Split on inline code spans (backtick-delimited), escape only the non-code parts
-    const parts = line.split(/(`[^`]+`)/);
+    const parts = rest.split(/(`[^`]+`)/);
     const escaped = parts.map((part, i) => {
       // Odd indices are backtick-wrapped (inline code) — leave them as-is
       if (i % 2 === 1) return part;
@@ -52,7 +72,7 @@ function escapeMdxOutsideFences(text) {
         .replace(/\{/g, '&#123;')
         .replace(/\}/g, '&#125;');
     }).join('');
-    result.push(escaped);
+    result.push(bqPrefix + escaped);
   }
 
   return result.join('\n');
@@ -98,7 +118,7 @@ if (startIdxNoH1 === -1 || endIdxNoH1 === -1) {
 
     bodyBefore = escapedBody
       + '\n\n## Skills'
-      + '\n\nEach workflow is packaged as a Claude Code skill. Run `pncli skills install` to download them into your repo (default: `.agents/skills/` for Copilot; add `--agent claude-code` for Claude Code). Skills marked `/invoke` can be called directly by name once installed.'
+      + '\n\nEach workflow is packaged as a Claude Code skill. Register your team’s marketplace once with `pncli skills marketplace setup <url>`, then keep every installed skill current with `pncli skills marketplace sync` (see Installing Skills above). Skills marked `/invoke` can be called directly by name once installed.'
       + '\n\nBrowse all skills at [/skills](/pncli/skills/).';
   } else {
     bodyBefore = escapeMdxOutsideFences(beforeRaw) + '\n\n<ConfigSetupCallout />';

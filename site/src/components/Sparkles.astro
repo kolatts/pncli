@@ -1,0 +1,144 @@
+---
+/**
+ * Ambient sticker sparkles — the hero's four-point stars, dialed way down for
+ * section backgrounds. Renders a decorative, pointer-transparent layer that
+ * rides the shared data-parallax runtime.
+ *
+ * Usage: the parent section must be `relative overflow-hidden`, and the
+ * section's content wrapper should be `relative` so it stacks above the dust.
+ *
+ *   <Sparkles speed={0.06} opacity={0.4} sparks={[{ x: 90, y: 10, s: 0.7, r: -15 }]} />
+ *
+ * Positions are percentages of the layer box. `s` scales a 30px star (dots are
+ * 10px), `r` rotates it, `c` picks the palette color, `dot` swaps the star for
+ * a small round accent. `td`/`tl` and `dd`/`dl` tune twinkle and drift
+ * duration/delay in seconds so nothing pulses in unison.
+ */
+type Color = 'gold' | 'straw' | 'coral';
+
+export interface Spark {
+  x: number;
+  y: number;
+  s?: number;
+  r?: number;
+  c?: Color;
+  dot?: boolean;
+  td?: number;
+  tl?: number;
+  dd?: number;
+  dl?: number;
+}
+
+interface Props {
+  sparks: Spark[];
+  /** Parallax lag fraction; negative values lead the scroll slightly. */
+  speed?: number;
+  /** Travel clamp in px. */
+  max?: number;
+  /** Viewport-relative parallax (centered at rest) — right for below-the-fold sections. */
+  view?: boolean;
+  /** Layer-wide opacity cap. Ambient dust wants 0.35–0.5. */
+  opacity?: number;
+  class?: string;
+}
+
+const {
+  sparks,
+  speed = 0.06,
+  max = 24,
+  view = true,
+  opacity = 0.4,
+  class: cls = '',
+} = Astro.props;
+
+const COLORS: Record<Color, string> = {
+  gold: '#d9b84f',
+  straw: '#ece0a8',
+  coral: '#e0765a',
+};
+
+const STAR =
+  'M0 -12 C 1.4 -4.3 4.3 -1.4 12 0 C 4.3 1.4 1.4 4.3 0 12 C -1.4 4.3 -4.3 1.4 -12 0 C -4.3 -1.4 -1.4 -4.3 0 -12 Z';
+---
+
+<div
+  class={`amb-layer absolute inset-0 pointer-events-none ${cls}`}
+  style={`opacity:${opacity}`}
+  aria-hidden="true"
+  data-parallax={speed}
+  data-parallax-max={max}
+  data-parallax-view={view ? '' : undefined}
+>
+  {
+    sparks.map((k) => (
+      <span
+        class="amb"
+        style={`left:${k.x}%;top:${k.y}%;transform:translate(-50%,-50%) rotate(${k.r ?? 0}deg) scale(${k.s ?? 1})`}
+      >
+        <span class="amb-drift" style={`--dd:${k.dd ?? 11}s;--dl:${k.dl ?? 0}s`}>
+          {k.dot ? (
+            <svg class="amb-spk" style={`--td:${k.td ?? 6}s;--tl:${k.tl ?? 0}s`} width="10" height="10" viewBox="-5 -5 10 10">
+              <circle r="4" fill={COLORS[k.c ?? 'coral']} />
+            </svg>
+          ) : (
+            <svg class="amb-spk" style={`--td:${k.td ?? 6}s;--tl:${k.tl ?? 0}s`} width="30" height="30" viewBox="-15 -15 30 30">
+              <path d={STAR} fill={COLORS[k.c ?? 'straw']} stroke="#f2ead9" stroke-width="1.6" stroke-linejoin="round" />
+            </svg>
+          )}
+        </span>
+      </span>
+    ))
+  }
+</div>
+
+<style>
+  .amb {
+    position: absolute;
+    display: block;
+  }
+  .amb-drift {
+    display: block;
+    animation: amb-drift var(--dd, 11s) ease-in-out var(--dl, 0s) infinite;
+  }
+  .amb-spk {
+    display: block;
+    animation: amb-twinkle var(--td, 6s) ease-in-out var(--tl, 0s) infinite;
+  }
+
+  /* Slower, shallower than the hero: dust motes, not fireworks */
+  @keyframes amb-twinkle {
+    0%,
+    100% {
+      transform: scale(0.65);
+      opacity: 0.35;
+    }
+    50% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes amb-drift {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .amb-drift,
+    .amb-spk {
+      animation: none;
+    }
+    .amb-spk {
+      opacity: 0.7;
+    }
+  }
+</style>
+
+<script>
+  import '../scripts/parallax';
+</script>

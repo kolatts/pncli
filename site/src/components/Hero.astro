@@ -1,16 +1,16 @@
 ---
 import { Image } from 'astro:assets';
-import hero from '../assets/hero.png';
+import hero from '../assets/hero-dark.png';
 ---
 
-<section class="w-full bg-cream pt-16 pb-0 px-6">
+<section class="relative overflow-hidden w-full bg-cream pt-10 pb-0 px-6">
   <div class="max-w-5xl mx-auto flex flex-col items-center text-center gap-6">
-    <div class="inline-flex items-center gap-2 bg-ink/5 border border-ink/10 rounded-full px-4 py-1.5 text-sm font-mono text-ink/50">
-      <span class="w-1.5 h-1.5 rounded-full bg-coral shrink-0"></span>
+    <div class="inline-flex items-center gap-2 bg-panel border-2 border-ink/15 rounded-full px-4 py-1.5 text-sm font-mono text-ink/55">
+      <span class="w-1.5 h-1.5 rounded-full bg-gold shrink-0"></span>
       npm install -g @kolatts/pncli
     </div>
 
-    <h1 class="font-display text-5xl md:text-7xl font-bold text-ink leading-[1.05] tracking-tight max-w-3xl">
+    <h1 class="font-display headline-shadow text-5xl md:text-7xl font-black text-ink leading-[1.06] tracking-tight max-w-3xl">
       One command does what three meetings couldn't.
     </h1>
 
@@ -23,26 +23,200 @@ import hero from '../assets/hero.png';
     <div class="flex flex-wrap items-center justify-center gap-4 mt-2">
       <a
         href="#install"
-        class="inline-flex items-center gap-2 bg-coral text-cream font-semibold px-7 py-3.5 rounded-lg hover:opacity-90 transition-opacity text-base"
+        class="btn-sticker bg-gold text-cream px-7 py-3 text-base"
       >
         Install now
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
       </a>
       <a
         href="/pncli/changelog/"
-        class="inline-flex items-center gap-2 border border-ink/20 text-ink font-semibold px-7 py-3.5 rounded-lg hover:border-ink/40 hover:bg-ink/5 transition-all text-base"
+        class="btn-sticker bg-panel text-ink px-7 py-3 text-base"
       >
         View changelog
       </a>
     </div>
 
-    <div class="relative w-full max-w-3xl mt-8 -mb-1">
-      <Image
-        src={hero}
-        alt="pncli in action — terminal showing structured JSON output"
-        class="w-full rounded-2xl shadow-2xl shadow-ink/20 ring-1 ring-ink/10"
-      />
-      <div class="absolute inset-0 rounded-2xl ring-[6px] ring-inset ring-coral/0 dark:ring-coral/40 pointer-events-none"></div>
+    <div class="hero-art relative w-full max-w-3xl mt-6 -mb-1">
+      <!--
+        Depth stack, back to front:
+          1. back sparkle layer   (parallax 0.16 — lags most, reads farthest; the
+             transparent-PNG pile silhouette occludes it, so these tuck behind the art)
+          2. illustration wrap    (parallax 0.09 — breathing glow + alpha image + beam pulse)
+          3. front sparkle layer  (parallax 0.04 — nearly locked to scroll, reads closest)
+      -->
+      <svg
+        class="spark-layer absolute inset-0 w-full h-full pointer-events-none opacity-70"
+        viewBox="0 0 1536 1024"
+        preserveAspectRatio="xMidYMid meet"
+        aria-hidden="true"
+        data-parallax="0.16"
+        data-parallax-max="64"
+      >
+        <g fill="#ece0a8" stroke="#f2ead9" stroke-width="2" stroke-linejoin="round">
+          <g transform="translate(455 175) rotate(-12) scale(0.7)"><g class="drift" style="--dd:9s;--dl:-2s"><path class="spk" style="--td:4.6s;--tl:-1.1s" d="M0 -14 C 1.6 -5 5 -1.6 14 0 C 5 1.6 1.6 5 0 14 C -1.6 5 -5 1.6 -14 0 C -5 -1.6 -1.6 -5 0 -14 Z"/></g></g>
+          <g transform="translate(880 25) rotate(18) scale(0.55)"><g class="drift" style="--dd:11s;--dl:-4s"><path class="spk" style="--td:3.8s;--tl:-2.4s" d="M0 -14 C 1.6 -5 5 -1.6 14 0 C 5 1.6 1.6 5 0 14 C -1.6 5 -5 1.6 -14 0 C -5 -1.6 -1.6 -5 0 -14 Z"/></g></g>
+          <g transform="translate(1105 285) rotate(-25) scale(0.6)"><g class="drift" style="--dd:8s;--dl:-1s"><path class="spk" style="--td:5.2s;--tl:-0.4s" d="M0 -14 C 1.6 -5 5 -1.6 14 0 C 5 1.6 1.6 5 0 14 C -1.6 5 -5 1.6 -14 0 C -5 -1.6 -1.6 -5 0 -14 Z"/></g></g>
+          <g transform="translate(390 330) rotate(8) scale(0.5)"><g class="drift" style="--dd:10s;--dl:-6s"><path class="spk" style="--td:4.1s;--tl:-3s" d="M0 -14 C 1.6 -5 5 -1.6 14 0 C 5 1.6 1.6 5 0 14 C -1.6 5 -5 1.6 -14 0 C -5 -1.6 -1.6 -5 0 -14 Z"/></g></g>
+          <g transform="translate(690 20) rotate(30) scale(0.45)"><g class="drift" style="--dd:12s;--dl:-3s"><path class="spk" style="--td:3.4s;--tl:-1.8s" d="M0 -14 C 1.6 -5 5 -1.6 14 0 C 5 1.6 1.6 5 0 14 C -1.6 5 -5 1.6 -14 0 C -5 -1.6 -1.6 -5 0 -14 Z"/></g></g>
+          <g transform="translate(1180 180) rotate(-15) scale(0.5)"><g class="drift" style="--dd:9.5s;--dl:-5s"><path class="spk" style="--td:4.9s;--tl:-2.2s" d="M0 -14 C 1.6 -5 5 -1.6 14 0 C 5 1.6 1.6 5 0 14 C -1.6 5 -5 1.6 -14 0 C -5 -1.6 -1.6 -5 0 -14 Z"/></g></g>
+        </g>
+      </svg>
+
+      <div class="relative" data-parallax="0.09" data-parallax-max="40">
+        <!-- Soft outer aura behind the masked image: breathes very slowly, melts the border into the page -->
+        <div class="hero-glow absolute -inset-[6%] pointer-events-none" aria-hidden="true"></div>
+
+        <!--
+          The artwork ships with true alpha (transparent background), so it
+          composites straight onto the page grain — no vignette mask needed.
+          A whisper of a bottom fade lets the pile's painted shadow settle
+          into the page instead of ending on a painted edge.
+        -->
+        <Image
+          src={hero}
+          alt="A developer buried in a mountain of paperwork, split open by a glowing gold beam."
+          class="hero-img relative w-full h-auto"
+        />
+
+        <!-- Beam zap: a blurred gold column over the painted beam that pulses -->
+        <div class="hero-beam absolute pointer-events-none" aria-hidden="true"></div>
+      </div>
+
+      <svg
+        class="spark-layer absolute inset-0 w-full h-full pointer-events-none"
+        viewBox="0 0 1536 1024"
+        preserveAspectRatio="xMidYMid meet"
+        aria-hidden="true"
+        data-parallax="0.04"
+        data-parallax-max="18"
+      >
+        <!-- Rising motes: tiny embers that float up out of the beam -->
+        <g fill="#ece0a8">
+          <circle class="mote" style="--md:6.5s;--ml:-1s" cx="770" cy="560" r="5"/>
+          <circle class="mote" style="--md:8s;--ml:-4.5s" cx="784" cy="640" r="3.5"/>
+          <circle class="mote" style="--md:9.5s;--ml:-7s" cx="776" cy="480" r="4"/>
+        </g>
+        <!-- Four-point sticker sparkles, gold with cream outlines like the old hero art -->
+        <g stroke="#f2ead9" stroke-width="2.5" stroke-linejoin="round">
+          <g transform="translate(575 235) rotate(-14) scale(1.4)"><g class="drift" style="--dd:8.5s;--dl:-2.5s"><path class="spk" style="--td:3.6s;--tl:-0.6s" fill="#d9b84f" d="M0 -14 C 1.6 -5 5 -1.6 14 0 C 5 1.6 1.6 5 0 14 C -1.6 5 -5 1.6 -14 0 C -5 -1.6 -1.6 -5 0 -14 Z"/></g></g>
+          <g transform="translate(955 320) rotate(12) scale(1.1)"><g class="drift" style="--dd:10s;--dl:-1.5s"><path class="spk" style="--td:4.4s;--tl:-2.8s" fill="#d9b84f" d="M0 -14 C 1.6 -5 5 -1.6 14 0 C 5 1.6 1.6 5 0 14 C -1.6 5 -5 1.6 -14 0 C -5 -1.6 -1.6 -5 0 -14 Z"/></g></g>
+          <g transform="translate(1030 150) rotate(-20) scale(1.35)"><g class="drift" style="--dd:9s;--dl:-5s"><path class="spk" style="--td:5s;--tl:-1.4s" fill="#d9b84f" d="M0 -14 C 1.6 -5 5 -1.6 14 0 C 5 1.6 1.6 5 0 14 C -1.6 5 -5 1.6 -14 0 C -5 -1.6 -1.6 -5 0 -14 Z"/></g></g>
+          <g transform="translate(830 75) rotate(18) scale(0.95)"><g class="drift" style="--dd:11s;--dl:-3.5s"><path class="spk" style="--td:3.2s;--tl:-2s" fill="#ece0a8" d="M0 -14 C 1.6 -5 5 -1.6 14 0 C 5 1.6 1.6 5 0 14 C -1.6 5 -5 1.6 -14 0 C -5 -1.6 -1.6 -5 0 -14 Z"/></g></g>
+          <g transform="translate(520 370) rotate(-8) scale(0.85)"><g class="drift" style="--dd:9.5s;--dl:-6.5s"><path class="spk" style="--td:4.7s;--tl:-3.3s" fill="#ece0a8" d="M0 -14 C 1.6 -5 5 -1.6 14 0 C 5 1.6 1.6 5 0 14 C -1.6 5 -5 1.6 -14 0 C -5 -1.6 -1.6 -5 0 -14 Z"/></g></g>
+          <g transform="translate(805 505) rotate(24) scale(0.75)"><g class="drift" style="--dd:7.5s;--dl:-1s"><path class="spk" style="--td:2.9s;--tl:-0.9s" fill="#d9b84f" d="M0 -14 C 1.6 -5 5 -1.6 14 0 C 5 1.6 1.6 5 0 14 C -1.6 5 -5 1.6 -14 0 C -5 -1.6 -1.6 -5 0 -14 Z"/></g></g>
+          <g transform="translate(742 655) rotate(-30) scale(0.6)"><g class="drift" style="--dd:8s;--dl:-4s"><path class="spk" style="--td:3.9s;--tl:-1.7s" fill="#ece0a8" d="M0 -14 C 1.6 -5 5 -1.6 14 0 C 5 1.6 1.6 5 0 14 C -1.6 5 -5 1.6 -14 0 C -5 -1.6 -1.6 -5 0 -14 Z"/></g></g>
+        </g>
+        <!-- Rare coral accents — a nod to the old hero's purple dots, in this palette's alert color -->
+        <g fill="#e0765a" stroke="none">
+          <circle class="spk" style="--td:6s;--tl:-2.5s" cx="640" cy="120" r="6"/>
+          <circle class="spk" style="--td:7s;--tl:-5s" cx="990" cy="255" r="4.5"/>
+        </g>
+      </svg>
     </div>
   </div>
 </section>
+
+<style>
+  /*
+   * The PNG has real alpha now, so the only mask left is a gentle bottom fade
+   * that melts the pile's painted ground shadow into the page.
+   */
+  .hero-img {
+    mask-image: linear-gradient(to bottom, black 0%, black 82%, rgb(0 0 0 / 0.25) 96%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, black 82%, rgb(0 0 0 / 0.25) 96%, transparent 100%);
+  }
+
+  /* Faint gold aura behind the artwork; breathes on a slow 11s cycle.
+     Kept near-charcoal-subtle: the art is transparent, so anything bright
+     behind it would read through the cutout. */
+  .hero-glow {
+    background: radial-gradient(
+      ellipse 58% 54% at 50% 45%,
+      rgb(217 184 79 / 0.09),
+      rgb(217 184 79 / 0.035) 45%,
+      transparent 72%
+    );
+    animation: hero-breathe 11s ease-in-out infinite;
+  }
+
+  /* Blurred gold column tracking the painted beam (beam center ≈ x 51.2%) */
+  .hero-beam {
+    left: 51.2%;
+    top: 2.5%;
+    height: 80%;
+    width: 10px;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(236 224 168 / 0.9) 12%,
+      rgb(217 184 79 / 0.85) 55%,
+      rgb(236 224 168 / 0.8) 82%,
+      transparent
+    );
+    filter: blur(6px);
+    opacity: 0.2;
+    animation: hero-zap 4.5s ease-in-out infinite;
+  }
+
+  /* Sparkles: twinkle scales/fades the shape about its own center… */
+  .spk {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: hero-twinkle var(--td, 4s) ease-in-out var(--tl, 0s) infinite;
+  }
+  /* …while a wrapping group drifts it vertically on a slower cycle */
+  .drift {
+    animation: hero-drift var(--dd, 9s) ease-in-out var(--dl, 0s) infinite;
+  }
+
+  .mote {
+    transform-box: fill-box;
+    animation: hero-rise var(--md, 8s) linear var(--ml, 0s) infinite;
+    opacity: 0;
+  }
+
+  @keyframes hero-twinkle {
+    0%, 100% { transform: scale(0.55); opacity: 0.25; }
+    50% { transform: scale(1); opacity: 1; }
+  }
+
+  @keyframes hero-drift {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-9px); }
+  }
+
+  @keyframes hero-rise {
+    0% { transform: translateY(0); opacity: 0; }
+    12% { opacity: 0.9; }
+    70% { opacity: 0.45; }
+    100% { transform: translateY(-240px); opacity: 0; }
+  }
+
+  @keyframes hero-breathe {
+    0%, 100% { opacity: 0.55; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+  }
+
+  @keyframes hero-zap {
+    0%, 100% { opacity: 0.18; }
+    42% { opacity: 0.5; }
+    52% { opacity: 0.38; }
+    62% { opacity: 0.55; }
+  }
+
+  /* Reduced motion: everything holds still — sparkles stay as static set dressing */
+  @media (prefers-reduced-motion: reduce) {
+    .spk, .drift, .hero-glow, .hero-beam {
+      animation: none;
+    }
+    .spk { opacity: 0.75; }
+    .hero-beam { opacity: 0.22; }
+    .mote { display: none; }
+  }
+</style>
+
+<script>
+  import '../scripts/parallax';
+</script>

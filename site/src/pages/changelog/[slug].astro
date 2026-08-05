@@ -1,12 +1,11 @@
 ---
 import { getCollection, render } from 'astro:content';
 import Base from '../../layouts/Base.astro';
+import { sortChangelogEntries } from '../../lib/changelog';
 
 export async function getStaticPaths() {
   const entries = await getCollection('changelog');
-  const sorted = entries.sort(
-    (a, b) => b.data.date.getTime() - a.data.date.getTime()
-  );
+  const sorted = sortChangelogEntries(entries);
   return sorted.map(entry => ({
     params: { slug: entry.data.version },
     props:  { entry, allEntries: sorted },
@@ -17,8 +16,8 @@ const { entry, allEntries } = Astro.props;
 const { Content } = await render(entry);
 
 const tagClass: Record<string, string> = {
-  feat:     'bg-violet/10 text-violet border border-violet/20',
-  fix:      'bg-coral/10 text-coral border border-coral/20',
+  feat:     'bg-gold/10 text-gold border border-gold/30',
+  fix:      'bg-coral/10 text-coral border border-coral/30',
   breaking: 'bg-ink text-cream',
 };
 
@@ -31,7 +30,7 @@ const fmt = new Intl.DateTimeFormat('en-US', {
   title={`v${entry.data.version} — pncli changelog`}
   description={entry.data.summary}
 >
-  <div class="max-w-5xl mx-auto px-6 py-16 flex gap-12">
+  <div class="max-w-5xl mx-auto px-6 py-10 flex gap-12">
 
     <!-- Main content -->
     <article class="flex-1 min-w-0">
@@ -45,7 +44,7 @@ const fmt = new Intl.DateTimeFormat('en-US', {
 
       <div class="mb-8">
         <div class="flex flex-wrap items-center gap-3 mb-3">
-          <span class="font-mono text-2xl font-bold text-coral">v{entry.data.version}</span>
+          <span class="font-mono text-2xl font-bold text-gold">v{entry.data.version}</span>
           <div class="flex gap-2">
             {entry.data.tags.map(tag => (
               <span class={`text-xs font-mono px-2.5 py-1 rounded-full ${tagClass[tag]}`}>{tag}</span>
@@ -56,15 +55,17 @@ const fmt = new Intl.DateTimeFormat('en-US', {
       </div>
 
       <div class="prose prose-neutral max-w-none
-        prose-headings:font-display prose-headings:text-ink
+        prose-headings:font-display prose-headings:text-ink prose-headings:font-black
         prose-h3:text-lg prose-h3:mt-8 prose-h3:mb-3
+        prose-p:text-ink/70
         prose-li:text-ink/70 prose-li:text-sm prose-li:leading-relaxed
-        prose-a:text-coral prose-a:no-underline hover:prose-a:underline
-        prose-code:font-mono prose-code:text-sm prose-code:bg-ink/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
+        prose-strong:text-ink
+        prose-a:text-gold prose-a:font-semibold prose-a:no-underline hover:prose-a:underline
+        prose-code:font-mono prose-code:text-sm prose-code:text-ink prose-code:bg-ink/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
         <Content />
       </div>
 
-      <div class="mt-12 pt-6 border-t border-ink/10">
+      <div class="mt-10">
         <a
           href={`/pncli/feedback/?version=${entry.data.version}`}
           class="inline-flex items-center gap-2 text-sm text-ink/50 hover:text-ink transition-colors"
@@ -84,7 +85,7 @@ const fmt = new Intl.DateTimeFormat('en-US', {
             href={`/pncli/changelog/${e.data.version}/`}
             class={`font-mono text-sm px-2.5 py-1.5 rounded-lg transition-colors ${
               e.data.version === entry.data.version
-                ? 'bg-coral text-cream font-semibold'
+                ? 'bg-gold text-cream font-bold'
                 : 'text-ink/50 hover:text-ink hover:bg-ink/5'
             }`}
           >

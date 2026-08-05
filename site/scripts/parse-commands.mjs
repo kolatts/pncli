@@ -6,6 +6,15 @@
  * Strategy: split each commands.ts file on `.action(` to get per-command blocks,
  * then extract the last `.command('name')`, `.description('text')`, and all
  * `.option`/`.requiredOption` calls from each block.
+ *
+ * Nested subgroups (e.g. `const entities = dynatrace.command('entities')` with
+ * leaves registered as `entities.command('list')`) are handled by a first pass
+ * that maps each subgroup variable to its path segments. A variable whose parent
+ * is untracked (`program`, or a Command passed in as a function parameter) is the
+ * file's root group — its own name is assumed to be covered by the SERVICES
+ * prefix, so its path is empty. Leaf names are then built as
+ * `pncli <prefix> <subgroup path...> <leaf>`, which lets one file mix flat
+ * commands and nested subgroups (dynatrace, checkmarx, servicenow, contrast).
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
@@ -31,38 +40,94 @@ const SERVICES = [
   { name: 'Azure DevOps — Repos & PRs',  file: 'src/services/ado/commands/repo.ts',       prefix: 'ado repo' },
   { name: 'Azure DevOps — Pipelines',    file: 'src/services/ado/commands/pipeline.ts',   prefix: 'ado pipeline' },
   { name: 'Azure DevOps — Projects',     file: 'src/services/ado/commands/project.ts',    prefix: 'ado project' },
-  { name: 'Jenkins',                      file: 'src/services/jenkins/commands.ts',        prefix: 'jenkins pipeline' },
+  { name: 'Jenkins',                      file: 'src/services/jenkins/commands.ts',        prefix: 'jenkins' },
   { name: 'JFrog Artifactory',           file: 'src/services/artifactory/commands.ts',    prefix: 'artifactory' },
   { name: 'IBM UrbanCode Deploy',        file: 'src/services/udeploy/commands.ts',        prefix: 'udeploy' },
   { name: 'Checkmarx',                   file: 'src/services/checkmarx/commands.ts',      prefix: 'checkmarx' },
+  { name: 'GitHub',                      file: 'src/services/github/commands.ts',         prefix: 'github' },
+  { name: 'ServiceNow',                  file: 'src/services/servicenow/commands.ts',     prefix: 'servicenow' },
+  { name: 'Contrast IAST',               file: 'src/services/contrast/commands.ts',       prefix: 'contrast' },
+  { name: 'Dynatrace',                   file: 'src/services/dynatrace/commands.ts',      prefix: 'dynatrace' },
 ];
+
+// Command groups hidden from the public site. The CLI still ships these commands;
+// they just don't render on /commands/. Remove a prefix here to re-add its group.
+const SKIP_PREFIXES = new Set(['udeploy']);
+
+// Site-only text scrubs applied to command/option descriptions so hidden services
+// aren't mentioned in other groups' docs. The CLI source text is unchanged.
+// Each entry: [pattern, replacement]. Remove an entry to restore the mention.
+const DESCRIPTION_SCRUBS = [
+  [/ or uDeploy component names/g, ' names'],
+];
+
+// Wrap flag-like tokens (--foo, -x) in backticks so they render as code spans.
+// Without this, remark turns "--" in prose into an em dash. Skips text already
+// inside inline code spans to avoid double-wrapping.
+function scrubDescription(text) {
+  for (const [pattern, replacement] of DESCRIPTION_SCRUBS) {
+    text = text.replace(pattern, replacement);
+  }
+  return text;
+}
+
+function codeifyFlags(text) {
+  return text
+    .split(/(`[^`]*`)/)
+    .map((part, i) => {
+      if (i % 2 === 1) return part; // already an inline code span
+      return part.replace(/(^|[\s(,"'/])(--?[a-zA-Z][\w-]*)/g, '$1`$2`');
+    })
+    .join('');
+}
+
+// Matches `.command('name')` with optional receiver variable and optional
+// `const <var> =` declaration. Whitespace (incl. newlines) may separate the
+// receiver from `.command(`, e.g. `entities\n  .command('list')`.
+const COMMAND_RE = /(?:const\s+(\w+)\s*=\s*)?(\w+)\s*\.command\s*\(\s*'([^']+)'\s*\)/g;
 
 function extractCommands(filePath, prefix) {
   const content = readFileSync(filePath, 'utf8');
   const commands = [];
 
-  // Split on .action( so each segment ends with the registration for one command.
+  // Pass 1: map subgroup variables to their path segments.
+  // `const <var> = <parent>.command('<name>')` — if <parent> is tracked, the
+  // subgroup's path is the parent's path + name; otherwise <var> is the file's
+  // root group and its name is already covered by the SERVICES prefix.
+  const groupPaths = new Map();
+  for (const m of content.matchAll(COMMAND_RE)) {
+    const [, declaredVar, parentVar, name] = m;
+    if (!declaredVar) continue;
+    groupPaths.set(
+      declaredVar,
+      groupPaths.has(parentVar) ? [...groupPaths.get(parentVar), name] : []
+    );
+  }
+
+  // Pass 2: split on .action( so each segment ends with the registration for one command.
   const segments = content.split(/\.action\s*\(/);
 
   for (let i = 0; i < segments.length - 1; i++) {
     const segment = segments[i];
 
-    // Find all .command('name') in this segment; take the last one — that's the leaf subcommand.
-    const cmdMatches = [...segment.matchAll(/\.command\s*\(\s*'([^']+)'\s*\)/g)];
+    // Find all .command('name') in this segment; the last one that is not a
+    // subgroup declaration is the leaf subcommand.
+    const cmdMatches = [...segment.matchAll(COMMAND_RE)].filter(m => !m[1]);
     if (cmdMatches.length === 0) continue;
     const lastCmd = cmdMatches[cmdMatches.length - 1];
-    const cmdName = lastCmd[1];
+    const receiverVar = lastCmd[2];
+    const cmdName = [...(groupPaths.get(receiverVar) ?? []), lastCmd[3]].join(' ');
 
     // Slice from the last .command('name') onwards to find description and options.
     const afterCmd = segment.slice(lastCmd.index + lastCmd[0].length);
 
     const descMatch = afterCmd.match(/\.description\s*\(\s*'([^']+)'\s*\)/);
     if (!descMatch) continue;
-    const description = descMatch[1];
+    const description = scrubDescription(descMatch[1]);
 
     const options = [];
     for (const m of afterCmd.matchAll(/\.(requiredOption|option)\s*\(\s*'([^']+)'\s*,\s*'([^']+)'/g)) {
-      options.push({ flag: m[2], description: m[3], required: m[1] === 'requiredOption' });
+      options.push({ flag: m[2], description: scrubDescription(m[3]), required: m[1] === 'requiredOption' });
     }
 
     commands.push({
@@ -97,13 +162,13 @@ function buildMdx(services) {
     for (const cmd of commands) {
       lines.push(`### \`${cmd.name}\``);
       lines.push('');
-      lines.push(cmd.description);
+      lines.push(codeifyFlags(cmd.description));
       lines.push('');
 
       if (cmd.options.length > 0) {
         for (const opt of cmd.options) {
           const req = opt.required ? ' **required**' : '';
-          lines.push(`- \`${opt.flag}\`${req} — ${opt.description}`);
+          lines.push(`- \`${opt.flag}\`${req} — ${codeifyFlags(opt.description)}`);
         }
         lines.push('');
       }
@@ -113,7 +178,7 @@ function buildMdx(services) {
   return lines.join('\n');
 }
 
-const services = SERVICES.map(({ name, file, prefix }) => ({
+const services = SERVICES.filter(({ prefix }) => !SKIP_PREFIXES.has(prefix)).map(({ name, file, prefix }) => ({
   name,
   commands: extractCommands(join(root, file), prefix),
 }));

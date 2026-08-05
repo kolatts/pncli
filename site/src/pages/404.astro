@@ -5,14 +5,17 @@ import notFound from '../assets/404.png';
 ---
 
 <Base title="404 — pncli" description="Page not found">
-  <section class="w-full flex flex-col items-center justify-center px-6 py-24 text-center">
-    <Image
-      src={notFound}
-      alt="404 illustration"
-      width={320}
-      class="w-full max-w-xs mb-8"
-    />
-    <h1 class="font-display text-4xl md:text-5xl font-bold text-ink mb-4">
+  <section class="w-full flex flex-col items-center justify-center px-6 py-16 text-center">
+    <div class="w-56 h-56 md:w-64 md:h-64 rounded-full overflow-hidden border-[3px] border-ink/80 bg-[#f4eee0] shadow-[0_6px_0_rgb(0_0_0/0.35)] mb-8">
+      <Image
+        src={notFound}
+        alt="404 illustration"
+        width={320}
+        class="w-full h-full object-cover"
+      />
+    </div>
+    <p class="stamp text-coral mb-5">File not found — return to sender</p>
+    <h1 class="font-display headline-shadow text-4xl md:text-5xl font-black text-ink tracking-tight mb-4">
       404 — Lost in the backlog
     </h1>
     <p class="text-ink/50 text-lg max-w-md leading-relaxed mb-8">
@@ -21,13 +24,13 @@ import notFound from '../assets/404.png';
     <div class="flex flex-wrap gap-4 justify-center">
       <a
         href="/pncli/"
-        class="inline-flex items-center gap-2 bg-coral text-cream font-semibold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity"
+        class="btn-sticker bg-gold text-cream px-6 py-2.5"
       >
         ← Back home
       </a>
       <a
         href="/pncli/changelog/"
-        class="inline-flex items-center gap-2 border border-ink/20 text-ink font-semibold px-6 py-3 rounded-lg hover:border-ink/40 hover:bg-ink/5 transition-all"
+        class="btn-sticker bg-panel text-ink px-6 py-2.5"
       >
         Latest release →
       </a>

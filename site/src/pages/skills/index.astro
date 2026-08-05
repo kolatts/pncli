@@ -14,31 +14,31 @@ const uncategorized = getUncategorizedSkills(distributableEntries);
   title="Skills — pncli"
   description="Claude Code skills for common engineering workflows — works with Bitbucket and Azure DevOps."
 >
-  <div class="max-w-4xl mx-auto px-6 py-16">
+  <div class="max-w-4xl mx-auto px-6 py-10">
     <div class="mb-6">
-      <p class="font-mono text-xs uppercase tracking-wider text-ink/40 mb-2">Skills</p>
-      <h1 class="font-display text-5xl font-bold text-ink mb-3">Skills</h1>
+      <p class="stamp text-gold mb-4">Standard operating procedures</p>
+      <h1 class="font-display headline-shadow text-5xl font-black text-ink tracking-tight mb-3">Skills</h1>
       <p class="text-ink/50 text-lg max-w-xl">
         Step-by-step Claude Code skills for common engineering workflows. Install with <code class="font-mono text-sm bg-ink/5 px-1.5 py-0.5 rounded">pncli skills install --agent claude-code</code> and invoke by name.
       </p>
     </div>
 
-    <div class="mb-10 rounded-xl border border-ink/10 overflow-hidden">
-      <div class="bg-ink/5 border-b border-ink/10 px-5 py-2.5">
-        <span class="font-mono text-xs text-ink/40">Install &amp; test</span>
+    <div class="mb-10 rounded-xl overflow-hidden border-[3px] border-ink/80 shadow-[0_4px_0_rgb(0_0_0/0.35)]">
+      <div class="bg-[#242428] border-b border-[#3a3a40] px-5 py-2.5">
+        <span class="font-mono text-xs text-[#8a8f98]">Install &amp; test</span>
       </div>
-      <div class="bg-ink divide-y divide-cream/5">
+      <div class="bg-[#1e1e20] divide-y divide-[#3a3a40]">
         <div class="px-6 py-4">
-          <code class="font-mono text-sm text-cream/90">pncli skills install --agent claude-code</code>
-          <p class="text-xs text-cream/35 mt-1">Install to <code class="font-mono text-[11px]">.claude/skills/</code> in the current repo. Add <code class="font-mono text-[11px]">--scope user</code> for global access.</p>
+          <code class="font-mono text-sm text-[#f2ead9]/90">pncli skills install --agent claude-code</code>
+          <p class="text-xs text-[#b9b2a4]/70 mt-1">Install to <code class="font-mono text-[11px]">.claude/skills/</code> in the current repo. Add <code class="font-mono text-[11px]">--scope user</code> for global access.</p>
         </div>
         <div class="px-6 py-4">
-          <code class="font-mono text-sm text-cream/90">pncli skills install</code>
-          <p class="text-xs text-cream/35 mt-1">Install to <code class="font-mono text-[11px]">.agents/skills/</code> for GitHub Copilot.</p>
+          <code class="font-mono text-sm text-[#f2ead9]/90">pncli skills install</code>
+          <p class="text-xs text-[#b9b2a4]/70 mt-1">Install to <code class="font-mono text-[11px]">.agents/skills/</code> for GitHub Copilot.</p>
         </div>
         <div class="px-6 py-4">
-          <code class="font-mono text-sm text-cream/90">pncli config test</code>
-          <p class="text-xs text-cream/35 mt-1">Verify all configured service connections are reachable.</p>
+          <code class="font-mono text-sm text-[#f2ead9]/90">pncli config test</code>
+          <p class="text-xs text-[#b9b2a4]/70 mt-1">Verify all configured service connections are reachable.</p>
         </div>
       </div>
     </div>
@@ -87,9 +87,9 @@ const uncategorized = getUncategorizedSkills(distributableEntries);
     )}
 
     {exampleEntries.length > 0 && (
-      <div class="mt-16">
+      <div class="mt-12">
         <div class="mb-6">
-          <h2 class="font-display text-2xl font-bold text-ink mb-2">Example Skills</h2>
+          <h2 class="font-display text-2xl font-black text-ink mb-2">Example Skills</h2>
           <p class="text-ink/50 text-sm max-w-xl">
             Reference implementations showing how to build skills for common PR and planning workflows. Not distributed by <code class="font-mono text-xs bg-ink/5 px-1 py-0.5 rounded">pncli skills install</code> — use as a starting point for your own skills.
           </p>

@@ -1,25 +1,21 @@
 ---
 import { Image } from 'astro:assets';
-import logo from '../assets/logo-transparent.png';
 import logoDark from '../assets/logo-dark.png';
-import DarkModeToggle from './DarkModeToggle.astro';
 
 const path = Astro.url.pathname;
 const isActive = (prefix: string) => path === prefix || path.startsWith(prefix + '/') || (prefix !== '/pncli/' && path.startsWith(prefix));
 const linkClass = (prefix: string) =>
-  `font-mono text-sm transition-colors ${isActive(prefix) ? 'text-coral' : 'text-ink/60 hover:text-ink'}`;
+  `font-mono text-sm transition-colors ${isActive(prefix) ? 'text-gold font-semibold' : 'text-ink/60 hover:text-ink'}`;
 ---
 
-<nav class="w-full px-6 py-4 flex items-center justify-between border-b border-ink/10 bg-cream">
+<nav class="w-full px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-cream">
   <a href="/pncli/" class="flex items-center no-underline shrink-0">
-    <Image src={logo} alt="pncli" width={400} class="h-16 md:h-20 w-auto dark:hidden" />
-    <Image src={logoDark} alt="pncli" width={400} class="h-16 md:h-20 w-auto hidden dark:block" />
+    <Image src={logoDark} alt="pncli" width={400} class="h-16 md:h-20 w-auto" />
   </a>
-  <div class="flex items-center gap-6">
+  <div class="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 sm:gap-x-6">
     <a href="/pncli/getting-started/" class={linkClass('/pncli/getting-started')}>Docs</a>
     <a href="/pncli/skills/"          class={linkClass('/pncli/skills')}>Skills</a>
     <a href="/pncli/changelog/"       class={linkClass('/pncli/changelog')}>Changelog</a>
     <a href="/pncli/feedback/"        class={linkClass('/pncli/feedback')}>Feedback</a>
-    <DarkModeToggle />
   </div>
 </nav>
