@@ -75,6 +75,44 @@ describe('BitbucketClient — getDiff', () => {
   });
 });
 
+describe('BitbucketClient — approvePR / unapprovePR', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('POSTs to the /approve endpoint with no body', async () => {
+    const calls: Array<{ url: string; method: string; body?: unknown }> = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      calls.push({ url, method: init.method ?? 'GET', body: init.body });
+      return new Response(JSON.stringify({ approved: true }), { status: 200 });
+    });
+
+    const client = new BitbucketClient(new HttpClient(makeConfig()));
+    await client.approvePR('PROJ', 'REPO', 42);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].method).toBe('POST');
+    expect(calls[0].url).toMatch(/\/rest\/api\/1\.0\/projects\/PROJ\/repos\/REPO\/pull-requests\/42\/approve$/);
+    expect(calls[0].url).not.toContain('/participants');
+    expect(calls[0].body).toBeUndefined();
+  });
+
+  it('DELETEs the /approve endpoint to unapprove', async () => {
+    const calls: Array<{ url: string; method: string; body?: unknown }> = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      calls.push({ url, method: init.method ?? 'GET', body: init.body });
+      return new Response(JSON.stringify({ approved: false }), { status: 200 });
+    });
+
+    const client = new BitbucketClient(new HttpClient(makeConfig()));
+    await client.unapprovePR('PROJ', 'REPO', 42);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].method).toBe('DELETE');
+    expect(calls[0].url).toMatch(/\/rest\/api\/1\.0\/projects\/PROJ\/repos\/REPO\/pull-requests\/42\/approve$/);
+    expect(calls[0].url).not.toContain('/participants');
+    expect(calls[0].body).toBeUndefined();
+  });
+});
+
 describe('BitbucketClient — needsWorkPR', () => {
   beforeEach(() => { vi.unstubAllGlobals(); });
   afterEach(() => { vi.unstubAllGlobals(); });
