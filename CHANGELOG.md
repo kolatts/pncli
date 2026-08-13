@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.20.0](https://github.com/kolatts/pncli/compare/v1.19.0...v1.20.0) (2026-08-13)
+
+
+### Features
+
+* **site:** Context Overflow-inspired makeover with robot art ([#297](https://github.com/kolatts/pncli/issues/297)) ([ee08f76](https://github.com/kolatts/pncli/commit/ee08f76a7246c3a415535609e48c34b4ec1930a7)), closes [#296](https://github.com/kolatts/pncli/issues/296)
+
+
+### Bug Fixes
+
+* **bitbucket:** replace unsupported /users/~ with whoami + /users/{slug} lookup ([#304](https://github.com/kolatts/pncli/issues/304)) ([358cc2a](https://github.com/kolatts/pncli/commit/358cc2a98e5afc033f573dcaf185cd8c43f45ea5)), closes [#303](https://github.com/kolatts/pncli/issues/303)
+* **bitbucket:** resolve needs-work 403 by auto-promoting the caller to reviewer ([#302](https://github.com/kolatts/pncli/issues/302)) ([6baa0cb](https://github.com/kolatts/pncli/commit/6baa0cbc8f4231e328a9a92f67500c48adcf4634))
+* **bitbucket:** use X-AUSERNAME header from application-properties to resolve current user ([#306](https://github.com/kolatts/pncli/issues/306)) ([7f62bc1](https://github.com/kolatts/pncli/commit/7f62bc1dba03b426372755ca4c1cdf5747682141)), closes [#305](https://github.com/kolatts/pncli/issues/305)
+* **ci:** drop the workflows permission from claude-triage ([#301](https://github.com/kolatts/pncli/issues/301)) ([1cae8c1](https://github.com/kolatts/pncli/commit/1cae8c12c0ed3ddd669d740d9fa52a01d853a703))
+
 ## [1.19.0](https://github.com/kolatts/pncli/compare/v1.18.0...v1.19.0) (2026-07-31)
 
 
