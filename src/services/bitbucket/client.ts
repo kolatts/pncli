@@ -266,7 +266,11 @@ export class BitbucketClient {
   }
 
   async getCurrentUser(): Promise<BitbucketUser> {
-    return this.http.bitbucket<BitbucketUser>(`${API}/users/~`);
+    // GET /plugins/servlet/applinks/whoami returns the caller's slug as plain text.
+    // This is more widely supported than GET /users/~ which 404s on Bitbucket Server
+    // instances that do not recognise ~ as a user-slug alias.
+    const slug = await this.http.bitbucketText('/plugins/servlet/applinks/whoami');
+    return this.http.bitbucket<BitbucketUser>(`${API}/users/${encodeURIComponent(slug.trim())}`);
   }
 
   async approvePR(project: string, repo: string, prId: number): Promise<unknown> {

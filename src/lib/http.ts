@@ -434,6 +434,35 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
+  async bitbucketText(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<string> {
+    const baseUrl = this.config.bitbucket.baseUrl;
+    if (!baseUrl) throw new PncliError('Bitbucket baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = { ...this.bitbucketHeaders(), Accept: 'text/plain' };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      fs.writeSync(process.stderr.fd, `DRY RUN: ${opts.method ?? 'GET'} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const response = await fetchWithTimeout(url, {
+      method: opts.method ?? 'GET',
+      headers
+    }, opts.timeoutMs ?? 30000);
+
+    if (!response.ok) {
+      throw new PncliError(`HTTP ${response.status} ${response.statusText}`, response.status, url);
+    }
+
+    return response.text();
+  }
+
   private confluenceToken(): string {
     const { apiToken } = this.config.confluence;
     if (!apiToken) throw new PncliError('Confluence credentials not configured. Run: pncli config init');

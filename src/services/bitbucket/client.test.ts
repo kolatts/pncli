@@ -144,7 +144,10 @@ describe('BitbucketClient — needsWorkPR', () => {
       const body = init.body ? JSON.parse(init.body as string) : undefined;
       calls.push({ url, method: init.method ?? 'GET', body });
 
-      if (url.includes('/users/~')) {
+      if (url.includes('/plugins/servlet/applinks/whoami')) {
+        return new Response(mockUser.slug, { status: 200 });
+      }
+      if (url.includes(`/users/${mockUser.slug}`)) {
         return new Response(JSON.stringify(mockUser), { status: 200 });
       }
       if (url.endsWith('/pull-requests/42') && (init.method ?? 'GET') === 'GET') {
@@ -179,7 +182,10 @@ describe('BitbucketClient — needsWorkPR', () => {
     vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
       calls.push({ url, method: init.method ?? 'GET' });
 
-      if (url.includes('/users/~')) {
+      if (url.includes('/plugins/servlet/applinks/whoami')) {
+        return new Response(mockUser.slug, { status: 200 });
+      }
+      if (url.includes(`/users/${mockUser.slug}`)) {
         return new Response(JSON.stringify(mockUser), { status: 200 });
       }
       if (url.endsWith('/pull-requests/42') && (init.method ?? 'GET') === 'GET') {
