@@ -463,6 +463,43 @@ export class HttpClient {
     return response.text();
   }
 
+  async bitbucketRaw<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<{ data: T; headers: Headers }> {
+    const baseUrl = this.config.bitbucket.baseUrl;
+    if (!baseUrl) throw new PncliError('Bitbucket baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.bitbucketHeaders();
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      fs.writeSync(process.stderr.fd, `DRY RUN: ${opts.method ?? 'GET'} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const response = await fetchWithTimeout(url, {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    }, opts.timeoutMs ?? 30000);
+
+    if (!response.ok) {
+      let message = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const parsed = JSON.parse(await response.text());
+        if (parsed.message) message = String(parsed.message);
+      } catch { /* ignore */ }
+      throw new PncliError(message, response.status, url);
+    }
+
+    const text = await response.text();
+    const data = text ? JSON.parse(text) as T : undefined as T;
+    return { data, headers: response.headers };
+  }
+
   private confluenceToken(): string {
     const { apiToken } = this.config.confluence;
     if (!apiToken) throw new PncliError('Confluence credentials not configured. Run: pncli config init');

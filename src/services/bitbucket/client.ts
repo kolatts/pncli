@@ -1,4 +1,5 @@
 import type { HttpClient } from '../../lib/http.js';
+import { PncliError } from '../../lib/errors.js';
 import type {
   BitbucketPR,
   BitbucketUser,
@@ -266,11 +267,23 @@ export class BitbucketClient {
   }
 
   async getCurrentUser(): Promise<BitbucketUser> {
-    // GET /plugins/servlet/applinks/whoami returns the caller's slug as plain text.
-    // This is more widely supported than GET /users/~ which 404s on Bitbucket Server
-    // instances that do not recognise ~ as a user-slug alias.
-    const slug = await this.http.bitbucketText('/plugins/servlet/applinks/whoami');
-    return this.http.bitbucket<BitbucketUser>(`${API}/users/${encodeURIComponent(slug.trim())}`);
+    // GET /rest/api/1.0/application-properties is a lightweight endpoint present on all
+    // Bitbucket Server versions. Every authenticated REST response sets X-AUSERNAME to
+    // the caller's username, which is more reliable than GET /plugins/servlet/applinks/whoami
+    // — that endpoint returns an empty body for PAT/Bearer-token requests on some instances
+    // (e.g. Bitbucket Server v9.4.16), causing a mis-resolved user lookup.
+    const { headers } = await this.http.bitbucketRaw<{ version?: string }>(
+      `${API}/application-properties`
+    );
+    const username = headers.get('x-ausername');
+    if (!username) {
+      throw new PncliError(
+        'Could not determine current Bitbucket user: X-AUSERNAME header was absent from the server response',
+        1,
+        `${API}/application-properties`
+      );
+    }
+    return this.http.bitbucket<BitbucketUser>(`${API}/users/${encodeURIComponent(username)}`);
   }
 
   async approvePR(project: string, repo: string, prId: number): Promise<unknown> {
