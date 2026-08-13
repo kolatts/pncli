@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { BitbucketClient } from './client.js';
 import { HttpClient } from '../../lib/http.js';
 import type { ResolvedConfig } from '../../types/config.js';
@@ -72,5 +72,93 @@ describe('BitbucketClient — getDiff', () => {
     await client.getDiff('PROJ', 'REPO', 42, undefined, 5);
 
     expect(capturedUrls[0]).toContain('contextLines=5');
+  });
+});
+
+describe('BitbucketClient — needsWorkPR', () => {
+  beforeEach(() => { vi.unstubAllGlobals(); });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  const mockUser = { name: 'jsmith', slug: 'jsmith', displayName: 'John Smith' };
+
+  function makePR(reviewerSlug?: string) {
+    return {
+      id: 42,
+      title: 'Test PR',
+      state: 'OPEN',
+      author: { user: { name: 'other', slug: 'other', displayName: 'Other User' }, approved: false },
+      reviewers: reviewerSlug
+        ? [{ user: { name: reviewerSlug, slug: reviewerSlug, displayName: reviewerSlug }, approved: false, status: 'UNAPPROVED' }]
+        : [],
+      fromRef: { id: 'refs/heads/feat', displayId: 'feat', repository: { slug: 'REPO', project: { key: 'PROJ' } } },
+      toRef: { id: 'refs/heads/main', displayId: 'main', repository: { slug: 'REPO', project: { key: 'PROJ' } } },
+      links: { self: [{ href: 'https://bb.imagile.dev/projects/PROJ/repos/REPO/pull-requests/42' }] },
+      createdDate: 0,
+      updatedDate: 0,
+      version: 1,
+    };
+  }
+
+  it('auto-adds the current user as a reviewer when they are not one, then marks needs-work', async () => {
+    const calls: Array<{ url: string; method: string; body?: unknown }> = [];
+
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      const body = init.body ? JSON.parse(init.body as string) : undefined;
+      calls.push({ url, method: init.method ?? 'GET', body });
+
+      if (url.includes('/users/~')) {
+        return new Response(JSON.stringify(mockUser), { status: 200 });
+      }
+      if (url.endsWith('/pull-requests/42') && (init.method ?? 'GET') === 'GET') {
+        return new Response(JSON.stringify(makePR()), { status: 200 });
+      }
+      // POST /participants (add reviewer)
+      if (url.endsWith('/participants') && (init.method ?? 'GET') === 'POST') {
+        return new Response(JSON.stringify({}), { status: 201 });
+      }
+      // PUT /participants/{slug} (set status)
+      if (url.endsWith('/participants/jsmith') && (init.method ?? 'GET') === 'PUT') {
+        return new Response(JSON.stringify({ status: 'NEEDS_WORK' }), { status: 200 });
+      }
+      return new Response('Not Found', { status: 404 });
+    });
+
+    const client = new BitbucketClient(new HttpClient(makeConfig()));
+    await client.needsWorkPR('PROJ', 'REPO', 42);
+
+    const postCall = calls.find(c => c.url.endsWith('/participants') && c.method === 'POST');
+    expect(postCall).toBeDefined();
+    expect(postCall?.body).toEqual({ user: { name: 'jsmith' }, role: 'REVIEWER' });
+
+    const putCall = calls.find(c => c.url.endsWith('/participants/jsmith') && c.method === 'PUT');
+    expect(putCall).toBeDefined();
+    expect(putCall?.body).toEqual({ status: 'NEEDS_WORK' });
+  });
+
+  it('skips the reviewer add when the user is already a reviewer', async () => {
+    const calls: Array<{ url: string; method: string }> = [];
+
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      calls.push({ url, method: init.method ?? 'GET' });
+
+      if (url.includes('/users/~')) {
+        return new Response(JSON.stringify(mockUser), { status: 200 });
+      }
+      if (url.endsWith('/pull-requests/42') && (init.method ?? 'GET') === 'GET') {
+        return new Response(JSON.stringify(makePR('jsmith')), { status: 200 });
+      }
+      if (url.endsWith('/participants/jsmith') && (init.method ?? 'GET') === 'PUT') {
+        return new Response(JSON.stringify({ status: 'NEEDS_WORK' }), { status: 200 });
+      }
+      return new Response('Not Found', { status: 404 });
+    });
+
+    const client = new BitbucketClient(new HttpClient(makeConfig()));
+    await client.needsWorkPR('PROJ', 'REPO', 42);
+
+    expect(calls.find(c => c.method === 'POST')).toBeUndefined();
+
+    const putCall = calls.find(c => c.url.endsWith('/participants/jsmith') && c.method === 'PUT');
+    expect(putCall).toBeDefined();
   });
 });

@@ -1,6 +1,7 @@
 import type { HttpClient } from '../../lib/http.js';
 import type {
   BitbucketPR,
+  BitbucketUser,
   BitbucketComment,
   BitbucketPageResponse,
   BitbucketBuildStatus,
@@ -264,23 +265,46 @@ export class BitbucketClient {
     return (result.values ?? []).map(v => (typeof v.path === 'string' ? v.path : JSON.stringify(v.path)));
   }
 
+  async getCurrentUser(): Promise<BitbucketUser> {
+    return this.http.bitbucket<BitbucketUser>(`${API}/users/~`);
+  }
+
   async approvePR(project: string, repo: string, prId: number): Promise<unknown> {
+    // POST /approve is the dedicated endpoint — no user slug required, and Bitbucket
+    // Server auto-promotes the caller to reviewer if they aren't one already.
     return this.http.bitbucket<unknown>(
-      `${API}/projects/${project}/repos/${repo}/pull-requests/${prId}/participants/~`,
-      { method: 'PUT', body: { status: 'APPROVED' } }
+      `${API}/projects/${project}/repos/${repo}/pull-requests/${prId}/approve`,
+      { method: 'POST' }
     );
   }
 
   async unapprovePR(project: string, repo: string, prId: number): Promise<unknown> {
     return this.http.bitbucket<unknown>(
-      `${API}/projects/${project}/repos/${repo}/pull-requests/${prId}/participants/~`,
+      `${API}/projects/${project}/repos/${repo}/pull-requests/${prId}/approve`,
       { method: 'DELETE' }
     );
   }
 
   async needsWorkPR(project: string, repo: string, prId: number): Promise<unknown> {
+    // Bitbucket Server only allows reviewers to set NEEDS_WORK — unlike APPROVED, which
+    // auto-promotes the caller to reviewer, NEEDS_WORK returns 403 for non-reviewers.
+    // Resolve the current user and the PR in parallel, auto-add the user as a reviewer
+    // if they aren't already, then mark needs-work using the resolved slug.
+    const [currentUser, pr] = await Promise.all([
+      this.getCurrentUser(),
+      this.getPR(project, repo, prId),
+    ]);
+
+    const isReviewer = pr.reviewers.some(r => r.user.slug === currentUser.slug);
+    if (!isReviewer) {
+      await this.http.bitbucket<unknown>(
+        `${API}/projects/${project}/repos/${repo}/pull-requests/${prId}/participants`,
+        { method: 'POST', body: { user: { name: currentUser.name }, role: 'REVIEWER' } }
+      );
+    }
+
     return this.http.bitbucket<unknown>(
-      `${API}/projects/${project}/repos/${repo}/pull-requests/${prId}/participants/~`,
+      `${API}/projects/${project}/repos/${repo}/pull-requests/${prId}/participants/${currentUser.slug}`,
       { method: 'PUT', body: { status: 'NEEDS_WORK' } }
     );
   }
