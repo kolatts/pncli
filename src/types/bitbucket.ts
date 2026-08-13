@@ -1,6 +1,7 @@
 // Phase 2 — Bitbucket Server types
 
 export interface BitbucketUser {
+  name: string;
   slug: string;
   displayName: string;
   emailAddress?: string;
