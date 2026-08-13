@@ -69,12 +69,12 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
   }
 }
 
-async function request<T>(
+async function requestRaw<T>(
   url: string,
   init: RequestInit,
   timeoutMs: number,
   fetcher: typeof fetch = fetch
-): Promise<T> {
+): Promise<{ data: T; headers: Headers }> {
   let lastError: unknown;
 
   if (isDebugEnabled()) {
@@ -144,15 +144,25 @@ async function request<T>(
     }
 
     if (response.status === 204) {
-      return undefined as T;
+      return { data: undefined as T, headers: response.headers };
     }
 
     const text = await response.text();
-    if (!text) return undefined as T;
-    return JSON.parse(text) as T;
+    if (!text) return { data: undefined as T, headers: response.headers };
+    return { data: JSON.parse(text) as T, headers: response.headers };
   }
 
   throw lastError ?? new PncliError('Request failed after retries', 1, url);
+}
+
+async function request<T>(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  fetcher: typeof fetch = fetch
+): Promise<T> {
+  const { data } = await requestRaw<T>(url, init, timeoutMs, fetcher);
+  return data;
 }
 
 export class HttpClient {
@@ -434,33 +444,36 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
-  async bitbucketText(
+  /**
+   * Same as {@link bitbucket}, but also returns the raw response headers.
+   * Bitbucket Server stamps every authenticated response with X-AUSERNAME,
+   * which is how getCurrentUser() resolves the caller.
+   */
+  async bitbucketRaw<T>(
     path: string,
     opts: HttpRequestOptions = {}
-  ): Promise<string> {
+  ): Promise<{ data: T; headers: Headers }> {
     const baseUrl = this.config.bitbucket.baseUrl;
     if (!baseUrl) throw new PncliError('Bitbucket baseUrl not configured. Run: pncli config init');
 
     const url = buildUrl(baseUrl, path, opts.params);
-    const headers = { ...this.bitbucketHeaders(), Accept: 'text/plain' };
+    const headers = this.bitbucketHeaders();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
 
     if (this.dryRun) {
       const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
-      fs.writeSync(process.stderr.fd, `DRY RUN: ${opts.method ?? 'GET'} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`);
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
       process.exitCode = ExitCode.SUCCESS;
       throw new PncliError('dry-run', 0);
     }
 
-    const response = await fetchWithTimeout(url, {
-      method: opts.method ?? 'GET',
-      headers
-    }, opts.timeoutMs ?? 30000);
-
-    if (!response.ok) {
-      throw new PncliError(`HTTP ${response.status} ${response.statusText}`, response.status, url);
-    }
-
-    return response.text();
+    return requestRaw<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
   private confluenceToken(): string {

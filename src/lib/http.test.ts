@@ -227,6 +227,49 @@ describe('HttpClient — sonarPaginate', () => {
   });
 });
 
+describe('HttpClient — bitbucketRaw', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('returns both the parsed body and the response headers', async () => {
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ version: '9.4.16' }), {
+      status: 200,
+      headers: { 'x-ausername': 'jsmith' }
+    }));
+
+    const client = new HttpClient(baseConfig());
+    const { data, headers } = await client.bitbucketRaw<{ version: string }>('/rest/api/1.0/application-properties');
+
+    expect(data).toEqual({ version: '9.4.16' });
+    expect(headers.get('x-ausername')).toBe('jsmith');
+  });
+
+  it('surfaces Bitbucket Server errors[].message rather than the bare status line', async () => {
+    vi.stubGlobal('fetch', async () => new Response(
+      JSON.stringify({ errors: [{ message: 'Authentication failed. Please check your credentials.' }] }),
+      { status: 401, statusText: 'Unauthorized' }
+    ));
+
+    const client = new HttpClient(baseConfig());
+    await expect(client.bitbucketRaw('/rest/api/1.0/application-properties')).rejects.toMatchObject({
+      status: 401,
+      message: 'Authentication failed. Please check your credentials.'
+    });
+  });
+
+  it('returns an empty body as undefined instead of throwing on JSON.parse', async () => {
+    vi.stubGlobal('fetch', async () => new Response('', {
+      status: 200,
+      headers: { 'x-ausername': 'jsmith' }
+    }));
+
+    const client = new HttpClient(baseConfig());
+    const { data, headers } = await client.bitbucketRaw('/rest/api/1.0/application-properties');
+
+    expect(data).toBeUndefined();
+    expect(headers.get('x-ausername')).toBe('jsmith');
+  });
+});
+
 describe('HttpClient — paginate (Bitbucket)', () => {
   it('collects single page', async () => {
     const client = new HttpClient(baseConfig());

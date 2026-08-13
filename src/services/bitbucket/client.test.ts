@@ -144,8 +144,11 @@ describe('BitbucketClient — needsWorkPR', () => {
       const body = init.body ? JSON.parse(init.body as string) : undefined;
       calls.push({ url, method: init.method ?? 'GET', body });
 
-      if (url.includes('/plugins/servlet/applinks/whoami')) {
-        return new Response(mockUser.slug, { status: 200 });
+      if (url.includes('/application-properties')) {
+        return new Response(JSON.stringify({ version: '9.4.16' }), {
+          status: 200,
+          headers: { 'x-ausername': mockUser.slug }
+        });
       }
       if (url.includes(`/users/${mockUser.slug}`)) {
         return new Response(JSON.stringify(mockUser), { status: 200 });
@@ -182,8 +185,11 @@ describe('BitbucketClient — needsWorkPR', () => {
     vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
       calls.push({ url, method: init.method ?? 'GET' });
 
-      if (url.includes('/plugins/servlet/applinks/whoami')) {
-        return new Response(mockUser.slug, { status: 200 });
+      if (url.includes('/application-properties')) {
+        return new Response(JSON.stringify({ version: '9.4.16' }), {
+          status: 200,
+          headers: { 'x-ausername': mockUser.slug }
+        });
       }
       if (url.includes(`/users/${mockUser.slug}`)) {
         return new Response(JSON.stringify(mockUser), { status: 200 });
@@ -204,5 +210,20 @@ describe('BitbucketClient — needsWorkPR', () => {
 
     const putCall = calls.find(c => c.url.endsWith('/participants/jsmith') && c.method === 'PUT');
     expect(putCall).toBeDefined();
+  });
+
+  it('throws a clear error when X-AUSERNAME header is absent from application-properties response', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/application-properties')) {
+        // Simulate a server that returns 200 but no X-AUSERNAME header (e.g. empty whoami body case)
+        return new Response(JSON.stringify({ version: '9.4.16' }), { status: 200 });
+      }
+      return new Response('Not Found', { status: 404 });
+    });
+
+    const client = new BitbucketClient(new HttpClient(makeConfig()));
+    await expect(client.needsWorkPR('PROJ', 'REPO', 42)).rejects.toThrow(
+      'Could not determine current Bitbucket user: X-AUSERNAME header was absent from the server response'
+    );
   });
 });
