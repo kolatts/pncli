@@ -331,6 +331,13 @@ export class BitbucketClient {
     return pr.reviewers;
   }
 
+  async addReviewer(project: string, repo: string, prId: number, username: string): Promise<unknown> {
+    return this.http.bitbucket<unknown>(
+      `${API}/projects/${project}/repos/${repo}/pull-requests/${prId}/participants`,
+      { method: 'POST', body: { user: { name: username }, role: 'REVIEWER' } }
+    );
+  }
+
   async listBuilds(project: string, repo: string, prId: number): Promise<BitbucketBuildStatus[]> {
     // Get the latest commit on the source branch
     const commits = await this.http.bitbucket<BitbucketPageResponse<{ id: string }>>(
