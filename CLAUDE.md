@@ -114,7 +114,7 @@ When `site/src/` files are edited:
 
 1. Start the dev server in `site/` with `--host 0.0.0.0` so the Docker-based browser tool can reach it:
    ```bash
-   node scripts/parse-changelog.mjs && node scripts/parse-instructions.mjs && node scripts/parse-skills.mjs && node_modules/.bin/astro dev --port 4323 --host 0.0.0.0
+   node scripts/parse-changelog.mjs && node scripts/parse-instructions.mjs && node scripts/parse-skills.mjs && node scripts/parse-commands.mjs && node_modules/.bin/astro dev --port 4323 --host 0.0.0.0
    ```
    The server will print a `Network` URL like `http://192.168.0.80:4323/pncli/`. Use that IP (not `localhost` or `172.17.0.1`) with `mcp__MCP_DOCKER__browser_navigate`.
 2. Take screenshots with `mcp__MCP_DOCKER__browser_take_screenshot`

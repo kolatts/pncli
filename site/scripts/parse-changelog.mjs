@@ -14,22 +14,50 @@ const raw = readFileSync(changelogPath, 'utf8');
 // inside code spans and fenced code blocks, where MDX already treats them
 // as literal text (and a backslash would render verbatim).
 function escapeMdxLine(line) {
-  return line
-    .split(/(`+[^`]*`+)/)
-    .map((part, i) => (i % 2 === 1 ? part : part.replace(/[{}<]/g, '\\$&')))
-    .join('');
+  let out = '';
+  let i = 0;
+  while (i < line.length) {
+    if (line[i] === '`') {
+      const runStart = i;
+      while (i < line.length && line[i] === '`') i++;
+      const run = line.slice(runStart, i);
+      // CommonMark: a code span closes only on a backtick run of equal length
+      const closer = line.slice(i).match(new RegExp(`(?<!\`)${run}(?!\`)`));
+      if (closer) {
+        out += run + line.slice(i, i + closer.index + run.length);
+        i += closer.index + run.length;
+      } else {
+        out += run;
+      }
+    } else {
+      const start = i;
+      while (i < line.length && line[i] !== '`') i++;
+      out += line.slice(start, i).replace(/[{}<]/g, '\\$&');
+    }
+  }
+  return out;
 }
 
 function escapeMdxBody(body) {
-  let inFence = false;
+  let fence = null;
   return body
     .split('\n')
     .map(line => {
-      if (/^\s*(```|~~~)/.test(line)) {
-        inFence = !inFence;
-        return line;
+      const m = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+      if (m) {
+        const [, marker, info] = m;
+        if (!fence) {
+          // backtick fences may not have backticks in the info string
+          if (!(marker[0] === '`' && info.includes('`'))) {
+            fence = { char: marker[0], len: marker.length };
+            return line;
+          }
+        } else if (marker[0] === fence.char && marker.length >= fence.len && info.trim() === '') {
+          fence = null;
+          return line;
+        }
       }
-      return inFence ? line : escapeMdxLine(line);
+      return fence ? line : escapeMdxLine(line);
     })
     .join('\n');
 }
