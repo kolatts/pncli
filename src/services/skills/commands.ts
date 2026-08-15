@@ -6,6 +6,8 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
 import select from '@inquirer/select';
+import checkbox, { Separator } from '@inquirer/checkbox';
+import input from '@inquirer/input';
 import { writeGlobalConfig, getGlobalConfigPath, loadJsonFile } from '../../lib/config.js';
 import type { GlobalConfig, MarketplaceConfig } from '../../types/config.js';
 
@@ -92,6 +94,13 @@ function resolveAgentPaths(agentName: string): { project: string; user: string }
   return agentConfig;
 }
 
+function resolveTargetDir(opts: { agent?: string; claude?: boolean; scope?: string; target?: string }): string {
+  if (opts.target) return path.resolve(opts.target);
+  const agentConfig = resolveAgentPaths(resolveAgentName(opts));
+  const scopePath = (opts.scope ?? 'user') === 'project' ? agentConfig.project : agentConfig.user;
+  return path.resolve(scopePath);
+}
+
 // Resolve the bundled skills directory relative to this file (dist/cli.js → ../skills)
 function getBundledSkillsDir(): string {
   try {
@@ -134,9 +143,16 @@ export interface SkillOrigin {
 
 const SKILL_ORIGIN_FILENAME = 'pncli-origin.json';
 
+/**
+ * Hidden subdirectory inside the skills target dir where disabled skills are stashed.
+ * Starts with '.' so agents don't pick it up as a skills folder.
+ */
+export const DISABLED_SUBDIR = '.pncli-disabled';
+
 export interface InstalledMeta {
   version: 1;
   skills: Record<string, InstalledSkillRecord>;
+  disabled?: Record<string, InstalledSkillRecord>;
 }
 
 /**
@@ -168,6 +184,178 @@ export function readSkillOrigin(skillDir: string): SkillOrigin | null {
     if (raw && raw.version === 1 && raw.source) return raw;
   } catch { /* ignore parse errors */ }
   return null;
+}
+
+function matchesMarketplaceFilter(record: InstalledSkillRecord, filter?: string): boolean {
+  return !filter || record.marketplace === filter || record.installedFrom === filter;
+}
+
+/**
+ * Resolves the install record for a skill directory, preferring the directory-level
+ * index and falling back to the per-skill pncli-origin.json for skills installed
+ * before the index existed.
+ */
+function resolveSkillRecord(meta: InstalledMeta, targetDir: string, skillName: string): InstalledSkillRecord | null {
+  const fromMeta = meta.skills[skillName];
+  if (fromMeta) return fromMeta;
+  const perSkill = readSkillOrigin(path.join(targetDir, skillName));
+  if (!perSkill) return null;
+  return {
+    source: perSkill.source,
+    marketplace: perSkill.marketplace,
+    plugin: perSkill.plugin,
+    installedFrom: perSkill.installedFrom,
+    branch: perSkill.branch,
+    installedAt: perSkill.installedAt,
+  };
+}
+
+function listActiveSkillDirs(targetDir: string): string[] {
+  return fs.readdirSync(targetDir).filter(name => {
+    if (name.startsWith('.')) return false;
+    const p = path.join(targetDir, name);
+    try { return fs.statSync(p).isDirectory(); } catch { return false; }
+  });
+}
+
+export interface DisablePluginResult {
+  disabled: string[];
+  alreadyDisabled: string[];
+  skipped: string[];
+}
+
+/**
+ * Moves every active skill belonging to `plugin` into the hidden stash directory and
+ * records the move in the `disabled` map of .pncli-installed.json. Skills already
+ * stashed are reported in `alreadyDisabled`; skills belonging to other plugins (or
+ * not installed from a marketplace) in `skipped`. The metadata file is only written
+ * when a skill actually moved.
+ */
+export function disablePluginSkills(targetDir: string, plugin: string, marketplaceFilter?: string): DisablePluginResult {
+  const resolvedTarget = path.resolve(targetDir);
+  const stashDir = path.join(targetDir, DISABLED_SUBDIR);
+  const meta = readInstalledMeta(targetDir);
+  const disabled: string[] = [];
+  const alreadyDisabled: string[] = [];
+  const skipped: string[] = [];
+
+  for (const skillName of listActiveSkillDirs(targetDir)) {
+    const skillDir = path.resolve(targetDir, skillName);
+    if (!skillDir.startsWith(resolvedTarget + path.sep)) continue;
+
+    const record = resolveSkillRecord(meta, targetDir, skillName);
+    if (!record || record.source !== 'marketplace') { skipped.push(skillName); continue; }
+    if (!matchesMarketplaceFilter(record, marketplaceFilter) || record.plugin !== plugin) { skipped.push(skillName); continue; }
+
+    const stashDest = path.join(stashDir, skillName);
+    fs.mkdirSync(stashDir, { recursive: true });
+    if (fs.existsSync(stashDest)) fs.rmSync(stashDest, { recursive: true, force: true });
+    fs.renameSync(skillDir, stashDest);
+    delete meta.skills[skillName];
+    meta.disabled = meta.disabled ?? {};
+    meta.disabled[skillName] = record;
+    disabled.push(skillName);
+  }
+
+  for (const [skillName, record] of Object.entries(meta.disabled ?? {})) {
+    if (record.plugin === plugin && matchesMarketplaceFilter(record, marketplaceFilter) && !disabled.includes(skillName)) {
+      alreadyDisabled.push(skillName);
+    }
+  }
+
+  if (disabled.length > 0) {
+    fs.writeFileSync(getInstalledMetaPath(targetDir), JSON.stringify(meta, null, 2), 'utf8');
+  }
+  return { disabled, alreadyDisabled, skipped };
+}
+
+export interface EnablePluginResult {
+  enabled: string[];
+  stashMissing: string[];
+  skipped: string[];
+  hadDisabled: boolean;
+}
+
+/**
+ * Moves every stashed skill belonging to `plugin` back into the skills directory and
+ * returns its record to the `skills` map of .pncli-installed.json. Skills whose stash
+ * directory has gone missing stay recorded in `disabled` (so metadata never claims an
+ * install that isn't on disk) and are surfaced in `stashMissing` — the fix is to
+ * re-install the plugin. The metadata file is only written when a skill actually moved.
+ */
+export function enablePluginSkills(targetDir: string, plugin: string, marketplaceFilter?: string): EnablePluginResult {
+  const resolvedTarget = path.resolve(targetDir);
+  const stashDir = path.join(targetDir, DISABLED_SUBDIR);
+  const meta = readInstalledMeta(targetDir);
+  const enabled: string[] = [];
+  const stashMissing: string[] = [];
+  const skipped: string[] = [];
+
+  const disabledEntries = Object.entries(meta.disabled ?? {});
+  for (const [skillName, record] of disabledEntries) {
+    if (record.plugin !== plugin || !matchesMarketplaceFilter(record, marketplaceFilter)) { skipped.push(skillName); continue; }
+
+    // skillName comes from user-editable JSON — reject anything that would escape targetDir.
+    const dest = path.resolve(targetDir, skillName);
+    if (!dest.startsWith(resolvedTarget + path.sep)) { skipped.push(skillName); continue; }
+
+    const stashSrc = path.join(stashDir, skillName);
+    if (!fs.existsSync(stashSrc)) {
+      stashMissing.push(skillName);
+      continue;
+    }
+
+    if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true });
+    fs.renameSync(stashSrc, dest);
+    meta.skills[skillName] = record;
+    delete meta.disabled![skillName];
+    enabled.push(skillName);
+  }
+
+  if (fs.existsSync(stashDir) && fs.readdirSync(stashDir).length === 0) {
+    fs.rmdirSync(stashDir);
+  }
+
+  if (enabled.length > 0) {
+    fs.writeFileSync(getInstalledMetaPath(targetDir), JSON.stringify(meta, null, 2), 'utf8');
+  }
+  return { enabled, stashMissing, skipped, hadDisabled: disabledEntries.length > 0 };
+}
+
+export interface PluginToggleState {
+  plugin: string;
+  marketplace?: string;
+  activeSkills: string[];
+  disabledSkills: string[];
+}
+
+/**
+ * Groups the marketplace skills in a target directory by (marketplace, plugin) with
+ * their enabled/disabled split. Feeds the interactive `marketplace toggle` picker.
+ */
+export function listPluginStates(targetDir: string): PluginToggleState[] {
+  const meta = readInstalledMeta(targetDir);
+  const byKey = new Map<string, PluginToggleState>();
+  const bucketFor = (record: InstalledSkillRecord): PluginToggleState | null => {
+    if (record.source !== 'marketplace' || !record.plugin) return null;
+    const marketplaceName = record.marketplace ?? record.installedFrom;
+    const key = `${marketplaceName ?? ''}\u0000${record.plugin}`;
+    let state = byKey.get(key);
+    if (!state) {
+      state = { plugin: record.plugin, marketplace: marketplaceName, activeSkills: [], disabledSkills: [] };
+      byKey.set(key, state);
+    }
+    return state;
+  };
+
+  for (const skillName of listActiveSkillDirs(targetDir)) {
+    const record = resolveSkillRecord(meta, targetDir, skillName);
+    if (record) bucketFor(record)?.activeSkills.push(skillName);
+  }
+  for (const [skillName, record] of Object.entries(meta.disabled ?? {})) {
+    bucketFor(record)?.disabledSkills.push(skillName);
+  }
+  return [...byKey.values()].sort((a, b) => a.plugin.localeCompare(b.plugin));
 }
 
 /**
@@ -461,42 +649,78 @@ interface MarketplaceAddOptions {
 }
 
 /**
+ * Core of `marketplace add`: clones/registers the marketplace and installs all of its
+ * plugins. Shared by the `add`/`setup` commands and the interactive `manage` hub.
+ * Throws on failure; the callers wrap it in success/fail output.
+ */
+function performMarketplaceAdd(url: string, localPath: string | undefined, opts: MarketplaceAddOptions): Record<string, unknown> {
+  const resolvedPath = path.resolve(localPath ?? defaultMarketplacePath(url));
+  const marketplaceName = opts.name ?? repoNameFromUrl(url);
+
+  cloneOrReuseMarketplace(url, resolvedPath, opts);
+
+  const configPath = getGlobalConfigPath();
+  const { existing, all } = loadMarketplacesConfig(configPath);
+  const entry: MarketplaceConfig = {
+    name: marketplaceName,
+    repoUrl: url,
+    localPath: resolvedPath,
+    ...(opts.token ? { token: opts.token } : {}),
+  };
+  upsertMarketplace(all, entry);
+  saveMarketplaces(configPath, existing, all);
+
+  const targetDir = resolveAgentPaths(resolveAgentName(opts)).user;
+
+  const { pluginResults, totalInstalled } = installAllPlugins(resolvedPath, marketplaceName, url, targetDir);
+
+  return {
+    name: marketplaceName,
+    repoUrl: url,
+    localPath: resolvedPath,
+    branch: opts.branch ?? null,
+    tokenConfigured: !!opts.token,
+    plugins: pluginResults,
+    total: totalInstalled,
+    target: targetDir,
+  };
+}
+
+/**
+ * Core of `marketplace remove`: unregisters a marketplace from the global config
+ * (does not delete the local clone). Shared by the `remove` command and the
+ * interactive `manage` hub. Throws when the marketplace is not found.
+ */
+function performMarketplaceRemove(name: string): Record<string, unknown> {
+  const configPath = getGlobalConfigPath();
+  const { existing, all } = loadMarketplacesConfig(configPath);
+
+  const idx = all.findIndex(m => m.name === name || m.repoUrl === name);
+  if (idx === -1) {
+    throw new Error(`Marketplace "${name}" not found. Run: pncli skills marketplace list`);
+  }
+
+  const removed = all.splice(idx, 1)[0];
+  saveMarketplaces(configPath, existing, all);
+
+  return {
+    removed: {
+      name: marketplaceLabel(removed),
+      repoUrl: removed.repoUrl,
+      localPath: removed.localPath,
+    },
+    remaining: all.length,
+  };
+}
+
+/**
  * Shared implementation for `marketplace add` and `marketplace setup` (kept as a backward-compatible
  * alias) — clones/registers the marketplace and installs all of its plugins.
  */
 async function marketplaceAddAction(url: string, localPath: string | undefined, opts: MarketplaceAddOptions, commandName: 'marketplace-add' | 'marketplace-setup'): Promise<void> {
   const start = Date.now();
   try {
-    const resolvedPath = path.resolve(localPath ?? defaultMarketplacePath(url));
-    const marketplaceName = opts.name ?? repoNameFromUrl(url);
-
-    cloneOrReuseMarketplace(url, resolvedPath, opts);
-
-    const configPath = getGlobalConfigPath();
-    const { existing, all } = loadMarketplacesConfig(configPath);
-    const entry: MarketplaceConfig = {
-      name: marketplaceName,
-      repoUrl: url,
-      localPath: resolvedPath,
-      ...(opts.token ? { token: opts.token } : {}),
-    };
-    upsertMarketplace(all, entry);
-    saveMarketplaces(configPath, existing, all);
-
-    const targetDir = resolveAgentPaths(resolveAgentName(opts)).user;
-
-    const { pluginResults, totalInstalled } = installAllPlugins(resolvedPath, marketplaceName, url, targetDir);
-
-    success({
-      name: marketplaceName,
-      repoUrl: url,
-      localPath: resolvedPath,
-      branch: opts.branch ?? null,
-      tokenConfigured: !!opts.token,
-      plugins: pluginResults,
-      total: totalInstalled,
-      target: targetDir,
-    }, 'skills', commandName, start);
+    success(performMarketplaceAdd(url, localPath, opts), 'skills', commandName, start);
   } catch (err) {
     fail(err, 'skills', commandName, start);
   }
@@ -795,25 +1019,7 @@ export function registerSkillsCommands(program: Command): void {
     .action((name: string) => {
       const start = Date.now();
       try {
-        const configPath = getGlobalConfigPath();
-        const { existing, all } = loadMarketplacesConfig(configPath);
-
-        const idx = all.findIndex(m => m.name === name || m.repoUrl === name);
-        if (idx === -1) {
-          throw new Error(`Marketplace "${name}" not found. Run: pncli skills marketplace list`);
-        }
-
-        const removed = all.splice(idx, 1)[0];
-        saveMarketplaces(configPath, existing, all);
-
-        success({
-          removed: {
-            name: marketplaceLabel(removed),
-            repoUrl: removed.repoUrl,
-            localPath: removed.localPath,
-          },
-          remaining: all.length,
-        }, 'skills', 'marketplace-remove', start);
+        success(performMarketplaceRemove(name), 'skills', 'marketplace-remove', start);
       } catch (err) {
         fail(err, 'skills', 'marketplace-remove', start);
       }
@@ -821,7 +1027,7 @@ export function registerSkillsCommands(program: Command): void {
 
   marketplace
     .command('sync')
-    .description('Pull latest marketplace content and install plugin skills')
+    .description('Pull latest marketplace content and install plugin skills (interactive picker when no plugin is given)')
     .argument('[plugin]', 'Plugin name to install, or "all" to install every plugin (skips interactive selection)')
     .option('--marketplace <name>', 'Marketplace name to sync, or "all" to sync every registered marketplace (skips interactive selection)')
     .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
@@ -1041,6 +1247,209 @@ export function registerSkillsCommands(program: Command): void {
         }, 'skills', 'marketplace-purge-plugin', start);
       } catch (err) {
         fail(err, 'skills', 'marketplace-purge-plugin', start);
+      }
+    });
+
+  marketplace
+    .command('disable')
+    .description('Temporarily deactivate a plugin\'s skills without deleting them (re-enable with `marketplace enable`)')
+    .argument('<plugin>', 'Plugin name to disable')
+    .option('--marketplace <name>', 'Restrict to skills from this marketplace (by name or repo URL)')
+    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
+    .option('--claude', 'Shorthand for --agent claude-code')
+    .option('--scope <scope>', 'Installation scope: project | user (default: user)')
+    .option('--target <dir>', 'Override skills directory')
+    .action((plugin: string, opts: { marketplace?: string; agent?: string; claude?: boolean; scope?: string; target?: string }) => {
+      const start = Date.now();
+      try {
+        const targetDir = resolveTargetDir(opts);
+        if (!fs.existsSync(targetDir)) {
+          success({ disabled: [], total: 0, target: targetDir, message: 'No skills directory found.' }, 'skills', 'marketplace-disable', start);
+          return;
+        }
+
+        const result = disablePluginSkills(targetDir, plugin, opts.marketplace);
+        success({
+          disabled: result.disabled,
+          alreadyDisabled: result.alreadyDisabled,
+          skipped: result.skipped.length,
+          total: result.disabled.length,
+          target: targetDir,
+          plugin,
+          stash: path.join(targetDir, DISABLED_SUBDIR),
+          ...(opts.marketplace ? { marketplace: opts.marketplace } : {}),
+        }, 'skills', 'marketplace-disable', start);
+      } catch (err) {
+        fail(err, 'skills', 'marketplace-disable', start);
+      }
+    });
+
+  marketplace
+    .command('enable')
+    .description('Re-activate a previously disabled plugin\'s skills')
+    .argument('<plugin>', 'Plugin name to enable')
+    .option('--marketplace <name>', 'Restrict to skills from this marketplace (by name or repo URL)')
+    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
+    .option('--claude', 'Shorthand for --agent claude-code')
+    .option('--scope <scope>', 'Installation scope: project | user (default: user)')
+    .option('--target <dir>', 'Override skills directory')
+    .action((plugin: string, opts: { marketplace?: string; agent?: string; claude?: boolean; scope?: string; target?: string }) => {
+      const start = Date.now();
+      try {
+        const targetDir = resolveTargetDir(opts);
+        if (!fs.existsSync(targetDir)) {
+          success({ enabled: [], total: 0, target: targetDir, message: 'No skills directory found.' }, 'skills', 'marketplace-enable', start);
+          return;
+        }
+
+        const result = enablePluginSkills(targetDir, plugin, opts.marketplace);
+        if (!result.hadDisabled) {
+          success({ enabled: [], total: 0, target: targetDir, plugin, message: `No disabled skills found for plugin "${plugin}".` }, 'skills', 'marketplace-enable', start);
+          return;
+        }
+
+        success({
+          enabled: result.enabled,
+          skipped: result.skipped.length,
+          total: result.enabled.length,
+          target: targetDir,
+          plugin,
+          ...(result.stashMissing.length > 0 ? {
+            stashMissing: result.stashMissing,
+            warning: `Skills marked disabled but missing from the stash were left as-is. Re-install the plugin (pncli skills marketplace sync ${plugin}) to restore them.`,
+          } : {}),
+          ...(opts.marketplace ? { marketplace: opts.marketplace } : {}),
+        }, 'skills', 'marketplace-enable', start);
+      } catch (err) {
+        fail(err, 'skills', 'marketplace-enable', start);
+      }
+    });
+
+  marketplace
+    .command('manage')
+    .description('Manage marketplaces and plugins: toggle plugins on/off, add or remove marketplaces (interactive)')
+    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
+    .option('--claude', 'Shorthand for --agent claude-code')
+    .option('--scope <scope>', 'Installation scope: project | user (default: user)')
+    .option('--target <dir>', 'Override skills directory')
+    .action(async (opts: { agent?: string; claude?: boolean; scope?: string; target?: string }) => {
+      const start = Date.now();
+      try {
+        assertInteractive('Use `pncli skills marketplace enable|disable <plugin>`, `add <url>`, and `remove <name>` to manage non-interactively.');
+        const targetDir = resolveTargetDir(opts);
+
+        interface PluginChange { plugin: string; marketplace?: string; skills: string[] }
+        const enabledPlugins: PluginChange[] = [];
+        const disabledPlugins: PluginChange[] = [];
+        const stashMissing: string[] = [];
+        const addedMarketplaces: Record<string, unknown>[] = [];
+        const removedMarketplaces: Record<string, unknown>[] = [];
+
+        // Hub loop: each pass re-reads config and the skills dir so the menu reflects
+        // whatever the previous action changed.
+        for (;;) {
+          const states = fs.existsSync(targetDir) ? listPluginStates(targetDir) : [];
+          const registered = loadMarketplaces(getGlobalConfigPath());
+
+          const action = await select({
+            message: `Manage skills marketplaces (target: ${targetDir}):`,
+            choices: [
+              ...(states.length > 0 ? [{ value: 'toggle', name: `Toggle plugins on/off (${states.length} installed)` }] : []),
+              { value: 'add', name: 'Add a marketplace' },
+              ...(registered.length > 0 ? [{ value: 'remove', name: `Remove a marketplace (${registered.length} registered)` }] : []),
+              { value: 'done', name: 'Done' },
+            ],
+          });
+          if (action === 'done') break;
+
+          if (action === 'toggle') {
+            // Group the checkbox list by marketplace with separator headers.
+            const sorted = [...states].sort((a, b) =>
+              (a.marketplace ?? '').localeCompare(b.marketplace ?? '') || a.plugin.localeCompare(b.plugin));
+            const choices: (Separator | { name: string; value: number; checked: boolean })[] = [];
+            let lastMarketplace: string | null = null;
+            sorted.forEach((state, index) => {
+              const marketplaceName = state.marketplace ?? '(unknown marketplace)';
+              if (marketplaceName !== lastMarketplace) {
+                choices.push(new Separator(`── ${marketplaceName} ──`));
+                lastMarketplace = marketplaceName;
+              }
+              const active = state.activeSkills.length;
+              const stashed = state.disabledSkills.length;
+              const skillCount =
+                stashed === 0 ? `${active} skill${active === 1 ? '' : 's'}` :
+                active === 0 ? `${stashed} skill${stashed === 1 ? '' : 's'}, disabled` :
+                `${active} active, ${stashed} disabled`;
+              choices.push({ name: `${state.plugin} (${skillCount})`, value: index, checked: active > 0 });
+            });
+
+            const checkedIndexes = await checkbox<number>({
+              message: 'Toggle plugins (space toggles, enter applies):',
+              choices,
+              pageSize: 15,
+            });
+            const wanted = new Set(checkedIndexes);
+
+            sorted.forEach((state, index) => {
+              if (wanted.has(index)) {
+                // Desired state: enabled. Restore any stashed skills (no-op when fully active).
+                if (state.disabledSkills.length === 0) return;
+                const result = enablePluginSkills(targetDir, state.plugin, state.marketplace);
+                stashMissing.push(...result.stashMissing);
+                if (result.enabled.length > 0) {
+                  enabledPlugins.push({ plugin: state.plugin, marketplace: state.marketplace, skills: result.enabled });
+                }
+              } else {
+                // Desired state: disabled. Stash any active skills (no-op when fully stashed).
+                if (state.activeSkills.length === 0) return;
+                const result = disablePluginSkills(targetDir, state.plugin, state.marketplace);
+                if (result.disabled.length > 0) {
+                  disabledPlugins.push({ plugin: state.plugin, marketplace: state.marketplace, skills: result.disabled });
+                }
+              }
+            });
+          } else if (action === 'add') {
+            const url = (await input({
+              message: 'Git clone URL of the marketplace repository:',
+              validate: v => v.trim().length > 0 || 'URL is required',
+            })).trim();
+            const name = (await input({
+              message: 'Marketplace name:',
+              default: repoNameFromUrl(url),
+            })).trim();
+            addedMarketplaces.push(performMarketplaceAdd(url, undefined, {
+              name: name || undefined,
+              agent: opts.agent,
+              claude: opts.claude,
+            }));
+          } else if (action === 'remove') {
+            const chosen = await select({
+              message: 'Remove which marketplace? (the local clone is kept on disk)',
+              choices: [
+                // Index-based values: labels alone aren't guaranteed unique (two marketplaces can share a derived name).
+                ...registered.map((m, i) => ({ value: String(i), name: `${marketplaceLabel(m)} — ${m.repoUrl ?? ''}` })),
+                { value: BACK, name: '← Back' },
+              ],
+            });
+            if (chosen === BACK) continue;
+            const target = registered[Number(chosen)];
+            removedMarketplaces.push(performMarketplaceRemove(target.repoUrl ?? marketplaceLabel(target)));
+          }
+        }
+
+        success({
+          enabled: enabledPlugins,
+          disabled: disabledPlugins,
+          addedMarketplaces,
+          removedMarketplaces,
+          target: targetDir,
+          ...(stashMissing.length > 0 ? {
+            stashMissing,
+            warning: 'Skills marked disabled but missing from the stash were left as-is. Re-install their plugin (pncli skills marketplace sync <plugin>) to restore them.',
+          } : {}),
+        }, 'skills', 'marketplace-manage', start);
+      } catch (err) {
+        fail(err, 'skills', 'marketplace-manage', start);
       }
     });
 

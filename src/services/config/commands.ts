@@ -26,7 +26,7 @@ export function registerConfigCommands(program: Command): void {
 
   config
     .command('init')
-    .description('Interactive setup wizard')
+    .description('Setup wizard for service credentials (interactive)')
     .option('--repo', 'Write repo config (.pncli.json) instead of global config')
     .action(async (opts: { repo?: boolean }) => {
       const start = Date.now();

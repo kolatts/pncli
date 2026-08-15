@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin } from './commands.js';
+import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin, DISABLED_SUBDIR, disablePluginSkills, enablePluginSkills, listPluginStates } from './commands.js';
+import type { InstalledMeta, InstalledSkillRecord } from './commands.js';
 import type { GlobalConfig } from '../../types/config.js';
 
 type ReaddirResult = ReturnType<typeof fs.readdirSync>;
@@ -474,5 +475,206 @@ describe('readSkillOrigin', () => {
     expect(origin).not.toBeNull();
     expect(origin!.plugin).toBe('sunny');
     expect(origin!.branch).toBe('main');
+  });
+});
+
+// ── DISABLED_SUBDIR ───────────────────────────────────────────────────────────
+
+describe('DISABLED_SUBDIR', () => {
+  it('starts with a dot so agents do not pick it up as a skills folder', () => {
+    expect(DISABLED_SUBDIR.startsWith('.')).toBe(true);
+  });
+
+  it('has the expected value', () => {
+    expect(DISABLED_SUBDIR).toBe('.pncli-disabled');
+  });
+});
+
+// ── readInstalledMeta with disabled field ─────────────────────────────────────
+
+describe('readInstalledMeta (disabled field)', () => {
+  it('preserves a disabled map when present in the metadata file', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: {},
+      disabled: {
+        'skill-one': {
+          source: 'marketplace',
+          marketplace: 'my-market',
+          plugin: 'sunny',
+          installedFrom: 'https://github.com/org/my-market.git',
+          installedAt: '2026-08-01T00:00:00Z',
+        },
+      },
+    }));
+    const meta = readInstalledMeta('/some/target');
+    expect(meta.disabled).toBeDefined();
+    expect(meta.disabled!['skill-one'].plugin).toBe('sunny');
+    expect(meta.skills).toEqual({});
+  });
+
+  it('returns undefined disabled when not present in the file', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: { 'skill-a': { source: 'bundled', installedAt: '2026-08-01T00:00:00Z' } },
+    }));
+    const meta = readInstalledMeta('/some/target');
+    expect(meta.disabled).toBeUndefined();
+  });
+
+  it('returns empty meta when file is absent', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    const meta = readInstalledMeta('/some/target');
+    expect(meta).toEqual({ version: 1, skills: {} });
+    expect(meta.disabled).toBeUndefined();
+  });
+});
+
+// ── disable/enable/toggle helpers (real filesystem) ───────────────────────────
+
+describe('plugin enable/disable helpers', () => {
+  let targetDir: string;
+
+  const record = (plugin: string, marketplace = 'internal-ai'): InstalledSkillRecord => ({
+    source: 'marketplace',
+    marketplace,
+    plugin,
+    installedFrom: `https://ghe.imagile.dev/org/${marketplace}.git`,
+    installedAt: '2026-08-01T00:00:00Z',
+  });
+
+  const seed = (skills: Record<string, InstalledSkillRecord>, disabled?: Record<string, InstalledSkillRecord>) => {
+    const meta: InstalledMeta = { version: 1, skills, disabled };
+    for (const name of Object.keys(skills)) {
+      fs.mkdirSync(path.join(targetDir, name), { recursive: true });
+      fs.writeFileSync(path.join(targetDir, name, 'SKILL.md'), `# ${name}`, 'utf8');
+    }
+    for (const name of Object.keys(disabled ?? {})) {
+      fs.mkdirSync(path.join(targetDir, DISABLED_SUBDIR, name), { recursive: true });
+      fs.writeFileSync(path.join(targetDir, DISABLED_SUBDIR, name, 'SKILL.md'), `# ${name}`, 'utf8');
+    }
+    fs.writeFileSync(getInstalledMetaPath(targetDir), JSON.stringify(meta, null, 2), 'utf8');
+  };
+
+  beforeEach(() => {
+    targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-toggle-test-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(targetDir, { recursive: true, force: true });
+  });
+
+  describe('disablePluginSkills', () => {
+    it('moves matching skills into the stash and updates metadata', () => {
+      seed({ 'skill-a': record('sunny'), 'skill-b': record('sunny'), 'skill-c': record('other') });
+      const result = disablePluginSkills(targetDir, 'sunny');
+
+      expect(result.disabled.sort()).toEqual(['skill-a', 'skill-b']);
+      expect(result.skipped).toEqual(['skill-c']);
+      expect(fs.existsSync(path.join(targetDir, DISABLED_SUBDIR, 'skill-a'))).toBe(true);
+      expect(fs.existsSync(path.join(targetDir, 'skill-a'))).toBe(false);
+      expect(fs.existsSync(path.join(targetDir, 'skill-c'))).toBe(true);
+
+      const meta = readInstalledMeta(targetDir);
+      expect(Object.keys(meta.skills)).toEqual(['skill-c']);
+      expect(Object.keys(meta.disabled ?? {}).sort()).toEqual(['skill-a', 'skill-b']);
+    });
+
+    it('skips bundled skills', () => {
+      seed({ 'bundled-skill': { source: 'bundled', installedAt: '2026-08-01T00:00:00Z' } });
+      const result = disablePluginSkills(targetDir, 'sunny');
+      expect(result.disabled).toEqual([]);
+      expect(result.skipped).toEqual(['bundled-skill']);
+    });
+
+    it('respects the marketplace filter', () => {
+      seed({ 'skill-a': record('sunny', 'market-one'), 'skill-b': record('sunny', 'market-two') });
+      const result = disablePluginSkills(targetDir, 'sunny', 'market-one');
+      expect(result.disabled).toEqual(['skill-a']);
+      expect(result.skipped).toEqual(['skill-b']);
+    });
+
+    it('reports already-stashed skills without rewriting metadata', () => {
+      seed({}, { 'skill-a': record('sunny') });
+      const before = fs.readFileSync(getInstalledMetaPath(targetDir), 'utf8');
+      const result = disablePluginSkills(targetDir, 'sunny');
+      expect(result.disabled).toEqual([]);
+      expect(result.alreadyDisabled).toEqual(['skill-a']);
+      expect(fs.readFileSync(getInstalledMetaPath(targetDir), 'utf8')).toBe(before);
+    });
+  });
+
+  describe('enablePluginSkills', () => {
+    it('restores stashed skills and updates metadata', () => {
+      seed({}, { 'skill-a': record('sunny'), 'skill-b': record('other') });
+      const result = enablePluginSkills(targetDir, 'sunny');
+
+      expect(result.enabled).toEqual(['skill-a']);
+      expect(result.skipped).toEqual(['skill-b']);
+      expect(result.hadDisabled).toBe(true);
+      expect(fs.existsSync(path.join(targetDir, 'skill-a'))).toBe(true);
+      expect(fs.existsSync(path.join(targetDir, DISABLED_SUBDIR, 'skill-a'))).toBe(false);
+
+      const meta = readInstalledMeta(targetDir);
+      expect(Object.keys(meta.skills)).toEqual(['skill-a']);
+      expect(Object.keys(meta.disabled ?? {})).toEqual(['skill-b']);
+    });
+
+    it('keeps the record in disabled and reports stashMissing when stash files are gone', () => {
+      seed({}, { 'skill-a': record('sunny') });
+      fs.rmSync(path.join(targetDir, DISABLED_SUBDIR, 'skill-a'), { recursive: true, force: true });
+
+      const result = enablePluginSkills(targetDir, 'sunny');
+      expect(result.enabled).toEqual([]);
+      expect(result.stashMissing).toEqual(['skill-a']);
+
+      // Metadata must stay consistent with the filesystem: still disabled, not "installed".
+      const meta = readInstalledMeta(targetDir);
+      expect(meta.skills['skill-a']).toBeUndefined();
+      expect(meta.disabled?.['skill-a']).toBeDefined();
+    });
+
+    it('reports hadDisabled=false when nothing is disabled', () => {
+      seed({ 'skill-a': record('sunny') });
+      const result = enablePluginSkills(targetDir, 'sunny');
+      expect(result.hadDisabled).toBe(false);
+      expect(result.enabled).toEqual([]);
+    });
+
+    it('removes the stash dir once it is empty', () => {
+      seed({}, { 'skill-a': record('sunny') });
+      enablePluginSkills(targetDir, 'sunny');
+      expect(fs.existsSync(path.join(targetDir, DISABLED_SUBDIR))).toBe(false);
+    });
+  });
+
+  describe('listPluginStates', () => {
+    it('groups active and disabled skills by plugin', () => {
+      seed(
+        { 'skill-a': record('sunny'), 'skill-b': record('sunny'), 'skill-c': record('other') },
+        { 'skill-d': record('sunny') },
+      );
+      const states = listPluginStates(targetDir);
+
+      expect(states.map(s => s.plugin)).toEqual(['other', 'sunny']);
+      const sunny = states.find(s => s.plugin === 'sunny')!;
+      expect(sunny.activeSkills.sort()).toEqual(['skill-a', 'skill-b']);
+      expect(sunny.disabledSkills).toEqual(['skill-d']);
+      expect(sunny.marketplace).toBe('internal-ai');
+    });
+
+    it('separates same-named plugins from different marketplaces', () => {
+      seed({ 'skill-a': record('sunny', 'market-one'), 'skill-b': record('sunny', 'market-two') });
+      const states = listPluginStates(targetDir);
+      expect(states).toHaveLength(2);
+      expect(states.map(s => s.marketplace).sort()).toEqual(['market-one', 'market-two']);
+    });
+
+    it('excludes bundled skills', () => {
+      seed({ 'bundled-skill': { source: 'bundled', installedAt: '2026-08-01T00:00:00Z' } });
+      expect(listPluginStates(targetDir)).toEqual([]);
+    });
   });
 });

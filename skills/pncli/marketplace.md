@@ -64,6 +64,35 @@ pncli skills marketplace sync --marketplace all
 
 `sync` skips reinstalling when a marketplace has no new upstream changes (single-plugin and `all` installs alike). Pass `--force` to reinstall anyway.
 
+## Enable / disable installed plugins
+
+Temporarily switch a plugin's skills off without deleting them (no re-download needed to switch back on):
+
+```
+pncli skills marketplace disable <plugin>
+pncli skills marketplace enable <plugin>
+```
+
+`disable` moves the plugin's skills into a hidden `.pncli-disabled/` stash inside the skills directory, so agent hosts stop picking them up. `enable` moves them back. Both accept the same targeting flags as `sync` (`--claude`, `--agent`, `--scope`, `--target`) plus `--marketplace <name>` to disambiguate plugins with the same name from different marketplaces.
+
+If `enable` reports `stashMissing`, the stashed files were deleted out from under pncli — re-install the plugin with `pncli skills marketplace sync <plugin>`.
+
+## Interactive management hub
+
+For humans there is an interactive hub, similar to Claude Code's plugin manager:
+
+```
+pncli skills marketplace manage
+```
+
+It loops through a menu until you're done:
+
+- **Toggle plugins on/off** — a checkbox list of every installed plugin, grouped under its marketplace, with skill counts (checked = enabled). The selection you leave on submit becomes the desired state.
+- **Add a marketplace** — prompts for the clone URL and a name, then clones, registers, and installs its plugins (same as `marketplace add`).
+- **Remove a marketplace** — pick one to unregister (the local clone is kept on disk).
+
+Everything the session changed is emitted as one JSON summary at the end. Agents should use the scriptable equivalents instead: `enable`, `disable`, `add`, `remove`.
+
 ## Remove a marketplace
 
 ```
