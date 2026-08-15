@@ -9,6 +9,59 @@ const outDir = join(__dirname, '../src/content/changelog');
 
 const raw = readFileSync(changelogPath, 'utf8');
 
+// MDX evaluates {expr} and parses <tag> as JSX, so a commit subject like
+// "/users/{slug}" crashes the build. Escape those chars everywhere except
+// inside code spans and fenced code blocks, where MDX already treats them
+// as literal text (and a backslash would render verbatim).
+function escapeMdxLine(line) {
+  let out = '';
+  let i = 0;
+  while (i < line.length) {
+    if (line[i] === '`') {
+      const runStart = i;
+      while (i < line.length && line[i] === '`') i++;
+      const run = line.slice(runStart, i);
+      // CommonMark: a code span closes only on a backtick run of equal length
+      const closer = line.slice(i).match(new RegExp(`(?<!\`)${run}(?!\`)`));
+      if (closer) {
+        out += run + line.slice(i, i + closer.index + run.length);
+        i += closer.index + run.length;
+      } else {
+        out += run;
+      }
+    } else {
+      const start = i;
+      while (i < line.length && line[i] !== '`') i++;
+      out += line.slice(start, i).replace(/[{}<]/g, '\\$&');
+    }
+  }
+  return out;
+}
+
+function escapeMdxBody(body) {
+  let fence = null;
+  return body
+    .split('\n')
+    .map(line => {
+      const m = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+      if (m) {
+        const [, marker, info] = m;
+        if (!fence) {
+          // backtick fences may not have backticks in the info string
+          if (!(marker[0] === '`' && info.includes('`'))) {
+            fence = { char: marker[0], len: marker.length };
+            return line;
+          }
+        } else if (marker[0] === fence.char && marker.length >= fence.len && info.trim() === '') {
+          fence = null;
+          return line;
+        }
+      }
+      return fence ? line : escapeMdxLine(line);
+    })
+    .join('\n');
+}
+
 // Matches both ## [1.4.0](...) (2026-04-11) and ## 1.0.0 (2026-04-04)
 const HEADING_RE = /^## (?:\[(\d+\.\d+\.\d+)\]\([^)]+\)|(\d+\.\d+\.\d+))\s+\((\d{4}-\d{2}-\d{2})\)/;
 
@@ -52,7 +105,7 @@ for (const block of blocks) {
 
   // Body = everything after the heading line (the ###-level content)
   const headingEnd = block.indexOf('\n') + 1;
-  const body = block.slice(headingEnd).trim();
+  const body = escapeMdxBody(block.slice(headingEnd).trim());
 
   const escaped = summary.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 
