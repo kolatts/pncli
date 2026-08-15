@@ -266,6 +266,11 @@ pncli jira set-sprint
 ### Bitbucket
 
 ```
+pncli bitbucket create-repo
+  --name <name>         Repository name (slug)
+  --description <desc>  Repository description
+  --project <key>       Bitbucket project key (overrides parent --project)
+
 pncli bitbucket list-prs
   --state <state>        PR state: OPEN|MERGED|DECLINED|ALL (default: "OPEN")
   --author <username>    Filter by author username
@@ -350,6 +355,10 @@ pncli bitbucket needs-work
 pncli bitbucket list-reviewers
   --pr <pr-id>  Pull request ID
 
+pncli bitbucket add-reviewer
+  --pr <pr-id>       Pull request ID
+  --user <username>  Username to add as a reviewer
+
 pncli bitbucket list-builds
   --pr <pr-id>  Pull request ID
 
@@ -360,6 +369,20 @@ pncli bitbucket get-build-status
 ### Github
 
 ```
+pncli github create-repo
+  --name <name>         Repository name
+  --description <desc>  Repository description
+  --private             Create as a private repository
+  --auto-init           Initialize with a README
+
+pncli github create-issue
+  --title <title>     Issue title
+  --body <body>       Issue body (markdown)
+  --body-file <path>  Read issue body from a file (use - for stdin); overridden
+  by --body
+  --label <label>     Label to apply (repeatable) (default: [])
+  --assignee <login>  Assignee login (repeatable) (default: [])
+
 pncli github list-prs
   --state <state>  PR state (choices: "open", "closed", "all", default: "open")
   --head <branch>  Filter by head branch (user:branch)
@@ -369,13 +392,15 @@ pncli github get-pr
   --number <n>  Pull request number
 
 pncli github create-pr
-  --title <title>  PR title
-  --head <branch>  Source branch (or user:branch for forks)
-  --base <branch>  Target branch (defaults to config or main)
-  --body <body>    PR description
-  --draft          Create as draft PR
-  --owner <owner>  GitHub owner (overrides parent --owner)
-  --repo <repo>    GitHub repository name (overrides parent --repo)
+  --title <title>     PR title
+  --head <branch>     Source branch (or user:branch for forks)
+  --base <branch>     Target branch (defaults to config or main)
+  --body <body>       PR description
+  --body-file <path>  Read PR description from a file (use - for stdin);
+  overridden by --body
+  --draft             Create as draft PR
+  --owner <owner>     GitHub owner (overrides parent --owner)
+  --repo <repo>       GitHub repository name (overrides parent --repo)
 
 pncli github update-pr
   --number <n>     Pull request number
@@ -533,6 +558,17 @@ pncli confluence get-space
   --key <space-key>  Space key
 
 pncli confluence list-attachments
+  --id <page-id>  Page ID
+
+pncli confluence upload-attachment
+  --id <page-id>    Page ID
+  --file <path>     Path to the file to upload
+  --comment <text>  Optional comment to attach to the file version
+
+pncli confluence delete-attachment
+  --id <attachment-id>  Attachment content ID
+
+pncli confluence get-page-history
   --id <page-id>  Page ID
 ```
 
@@ -834,6 +870,9 @@ pncli ado work schema
 
 pncli ado repo list
 
+pncli ado repo create
+  --name <name>  Repository name
+
 pncli ado repo get
 
 pncli ado repo list-prs
@@ -1064,17 +1103,17 @@ pncli udeploy request-info
 pncli checkmarx project list
 
 pncli checkmarx project get
-  --id <id>   Project ID
+  --id <id>   Project UUID
 
 pncli checkmarx scan list
-  --project <id>  Filter by project ID
-  --last <n>      Return only the last N scans per project
+  --project <id>  Filter by project UUID
+  --last <n>      Return only the last N scans
 
 pncli checkmarx scan get
-  --id <id>   Scan ID
+  --id <id>   Scan UUID
 
 pncli checkmarx scan stats
-  --id <id>   Scan ID
+  --id <id>   Scan UUID
 ```
 
 ### Servicenow
@@ -1209,6 +1248,46 @@ pncli skills marketplace sync
   --claude              Shorthand for --agent claude-code
   --force               Reinstall even if a marketplace has no new changes
   (applies to single-plugin and "all" installs alike)
+
+pncli skills marketplace purge-plugin
+  --marketplace <name>  Restrict purge to skills from this marketplace (by name
+  or repo URL)
+  --agent <agent>       Target agent host: github-copilot | claude-code
+  (default: github-copilot)
+  --claude              Shorthand for --agent claude-code
+  --scope <scope>       Installation scope: project | user (default: user)
+  --target <dir>        Override skills directory
+
+pncli skills marketplace disable
+  --marketplace <name>  Restrict to skills from this marketplace (by name or
+  repo URL)
+  --agent <agent>       Target agent host: github-copilot | claude-code
+  (default: github-copilot)
+  --claude              Shorthand for --agent claude-code
+  --scope <scope>       Installation scope: project | user (default: user)
+  --target <dir>        Override skills directory
+
+pncli skills marketplace enable
+  --marketplace <name>  Restrict to skills from this marketplace (by name or
+  repo URL)
+  --agent <agent>       Target agent host: github-copilot | claude-code
+  (default: github-copilot)
+  --claude              Shorthand for --agent claude-code
+  --scope <scope>       Installation scope: project | user (default: user)
+  --target <dir>        Override skills directory
+
+pncli skills marketplace toggle
+  --agent <agent>  Target agent host: github-copilot | claude-code (default:
+  github-copilot)
+  --claude         Shorthand for --agent claude-code
+  --scope <scope>  Installation scope: project | user (default: user)
+  --target <dir>   Override skills directory
+
+pncli skills purge-user
+  --agent <agent>  Target agent host: github-copilot | claude-code (default:
+  github-copilot)
+  --claude         Shorthand for --agent claude-code
+  --force          Skip confirmation — remove all skills without prompting
 ```
 
 ### Jwt
@@ -1241,6 +1320,43 @@ pncli openshift logs
 
 pncli openshift pod-metrics
   --namespace <ns>  Kubernetes namespace
+```
+
+### Dynatrace
+
+```
+pncli dynatrace entities list
+  --selector <selector>  Dynatrace entity selector, e.g. type("SERVICE")
+  --from <time>          Start time (ISO 8601 or relative, e.g. now-2h)
+  --to <time>            End time (ISO 8601 or relative)
+  --fields <fields>      Additional entity fields
+
+pncli dynatrace entities get
+  --id <id>          Entity ID, e.g. SERVICE-1234567890ABCDEF
+  --from <time>      Start time
+  --to <time>        End time
+  --fields <fields>  Additional entity fields
+
+pncli dynatrace services
+  --from <time>  Start time
+  --to <time>    End time
+
+pncli dynatrace workloads
+  --from <time>  Start time
+  --to <time>    End time
+
+pncli dynatrace problems list
+  --from <time>                  Start time (default: now-2h)
+  --to <time>                    End time (default: now)
+  --problem-selector <selector>  Dynatrace problem selector
+  --entity-selector <selector>   Affected entity selector
+
+pncli dynatrace problems get
+  --id <id>          Problem ID
+  --fields <fields>  Additional fields
+
+pncli dynatrace trace
+  --id <trace-id>  16- or 32-character hexadecimal trace ID
 ```
 
 <!-- COMMAND-REFERENCE:END -->
