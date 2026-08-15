@@ -9,6 +9,23 @@ import Sparkles from '../components/Sparkles.astro';
 import mundane from '../assets/mundane-paperwork.png';
 import maverick from '../assets/maverick-badge.png';
 import robotParty from '../assets/robot-party.png';
+import chibiAlignSys from '../assets/chibi-align-sys.png';
+import chibiPatchwork from '../assets/chibi-patchwork-exe.png';
+import chibiOverseer from '../assets/chibi-overseer-yaml.png';
+import chibiZerotrust from '../assets/chibi-zerotrust-9.png';
+import chibiCheckbox from '../assets/chibi-checkbox-3000.png';
+import chibiMundane from '../assets/chibi-mundane.png';
+import chibiMaverick from '../assets/chibi-maverick.png';
+
+const cast = [
+  { src: chibiAlignSys, name: 'ALIGN.SYS', role: 'compliance', alt: 'ALIGN.SYS, a chibi robot with a satellite-dish antenna, necktie, and lanyard tag, holding a tablet and a report.' },
+  { src: chibiPatchwork, name: 'PATCHWORK.EXE', role: 'compliance', alt: 'PATCHWORK.EXE, a weathered chibi robot held together with duct tape, wearily hugging a taped parcel.' },
+  { src: chibiOverseer, name: 'OVERSEER.YAML', role: 'compliance', alt: 'OVERSEER.YAML, a dome-headed chibi robot on a wheeled cart, holding four dashboard screens in four arms.' },
+  { src: chibiZerotrust, name: 'ZEROTRUST-9', role: 'compliance', alt: 'ZEROTRUST-9, a hulking chibi robot ringed with security cameras, arms crossed over a gold rubber stamp.' },
+  { src: chibiCheckbox, name: 'CHECKBOX-3000', role: 'compliance', alt: 'CHECKBOX-3000, a squat chibi robot with a checkbox-grid screen face and a file-drawer chest, holding a binder.' },
+  { src: chibiMundane, name: 'MUNDANE', role: 'management', alt: 'MUNDANE, a deadpan chibi robot with half-lidded eyes, holding a steaming coffee mug.' },
+  { src: chibiMaverick, name: 'MAVERICK', role: 'morale officer', alt: 'MAVERICK, a starry-eyed chibi robot cheering with a fist raised among stars and lightning bolts.' },
+];
 import { sortChangelogEntries } from '../lib/changelog';
 
 const latestEntries = sortChangelogEntries(await getCollection('changelog')).slice(0, 3);
@@ -159,7 +176,7 @@ const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', y
       <figure class="mb-2">
         <Image
           src={robotParty}
-          alt="Five bureaucrat robots stand around a beige sheet cake under a pennant banner, a lone balloon tied to an empty folding chair: ALIGN.SYS holds a tablet, PATCHWORK.EXE clutches a taped parcel and a cup, OVERSEER.YAML raises four dashboard screens in a party hat, ZEROTRUST-9 grips a gold rubber stamp, and CHECKBOX-3000 files forms mid-party."
+          alt="Five chibi bureaucrat robots in crooked party hats gather around a beige sheet cake, balloons and a pennant banner overhead and an empty folding chair to the side: ALIGN.SYS holds a tablet, PATCHWORK.EXE hugs a taped parcel, OVERSEER.YAML raises four dashboard screens, ZEROTRUST-9 looms with its camera cluster, and CHECKBOX-3000 brings its file drawer and binder."
           class="block w-full max-w-3xl mx-auto h-auto"
           data-parallax="0.05"
           data-parallax-view
@@ -169,11 +186,25 @@ const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', y
           <p class="text-[#b9b2a4] text-sm leading-relaxed italic">
             &ldquo;Your paperwork has been automated. Attendance at this celebration is mandatory. Enthusiasm was not budgeted.&rdquo;
           </p>
-          <p class="font-mono text-xs text-[#8a8f98] mt-2 tracking-wide uppercase">
-            ALIGN.SYS · PATCHWORK.EXE · OVERSEER.YAML · ZEROTRUST-9 · CHECKBOX-3000
-          </p>
         </figcaption>
       </figure>
+
+      <!-- Personnel file — the full cast, transparent chibi cutouts on the band -->
+      <ul class="flex flex-wrap justify-center items-end gap-x-5 gap-y-6 mt-10 list-none p-0" aria-label="The Context Overflow cast">
+        {cast.map(bot => (
+          <li class="flex flex-col items-center w-24 md:w-28 text-center">
+            <Image
+              src={bot.src}
+              alt={bot.alt}
+              class="block w-full h-auto hover:-translate-y-1 transition-transform"
+              widths={[112, 224]}
+              sizes="(min-width: 768px) 112px, 96px"
+            />
+            <span class="font-mono text-[11px] text-[#b9b2a4] mt-2 tracking-wide">{bot.name}</span>
+            <span class="font-mono text-[9px] text-[#8a8f98] uppercase tracking-[0.14em]">{bot.role}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   </section>
 
