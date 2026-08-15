@@ -21,3 +21,6 @@ site/src/content/skills/
 functions/feedback/bin/
 functions/feedback/obj/
 functions/feedback/local.settings.json
+
+# Image generation working folders (prompt records + multi-MB masters)
+.claude/image-generation/
