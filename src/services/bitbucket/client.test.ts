@@ -113,6 +113,30 @@ describe('BitbucketClient — approvePR / unapprovePR', () => {
   });
 });
 
+describe('BitbucketClient — addReviewer', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('POSTs to the /participants endpoint with username and REVIEWER role', async () => {
+    const calls: Array<{ url: string; method: string; body?: unknown }> = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      const body = init.body ? JSON.parse(init.body as string) : undefined;
+      calls.push({ url, method: init.method ?? 'GET', body });
+      return new Response(
+        JSON.stringify({ user: { name: 'jsmith', slug: 'jsmith' }, role: 'REVIEWER' }),
+        { status: 201 }
+      );
+    });
+
+    const client = new BitbucketClient(new HttpClient(makeConfig()));
+    await client.addReviewer('PROJ', 'REPO', 42, 'jsmith');
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].method).toBe('POST');
+    expect(calls[0].url).toMatch(/\/rest\/api\/1\.0\/projects\/PROJ\/repos\/REPO\/pull-requests\/42\/participants$/);
+    expect(calls[0].body).toEqual({ user: { name: 'jsmith' }, role: 'REVIEWER' });
+  });
+});
+
 describe('BitbucketClient — needsWorkPR', () => {
   beforeEach(() => { vi.unstubAllGlobals(); });
   afterEach(() => { vi.unstubAllGlobals(); });

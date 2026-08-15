@@ -335,6 +335,19 @@ export function registerBitbucketCommands(program: Command): void {
       } catch (err) { fail(err, 'bitbucket', 'list-reviewers', start); }
     });
 
+  bb.command('add-reviewer')
+    .description('Add a reviewer to a pull request')
+    .requiredOption('--pr <pr-id>', 'Pull request ID')
+    .requiredOption('--user <username>', 'Username to add as a reviewer')
+    .action(async (opts: { pr: string; user: string }) => {
+      const start = Date.now();
+      try {
+        const { client, project, repo } = getClient(bb);
+        const data = await client.addReviewer(project, repo, parseInt(opts.pr, 10), opts.user);
+        success(data, 'bitbucket', 'add-reviewer', start);
+      } catch (err) { fail(err, 'bitbucket', 'add-reviewer', start); }
+    });
+
   // ── Build Status ───────────────────────────────────────────────────
 
   bb.command('list-builds')
