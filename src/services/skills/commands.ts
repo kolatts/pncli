@@ -6,7 +6,8 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
 import select from '@inquirer/select';
-import checkbox from '@inquirer/checkbox';
+import checkbox, { Separator } from '@inquirer/checkbox';
+import input from '@inquirer/input';
 import { writeGlobalConfig, getGlobalConfigPath, loadJsonFile } from '../../lib/config.js';
 import type { GlobalConfig, MarketplaceConfig } from '../../types/config.js';
 
@@ -648,42 +649,78 @@ interface MarketplaceAddOptions {
 }
 
 /**
+ * Core of `marketplace add`: clones/registers the marketplace and installs all of its
+ * plugins. Shared by the `add`/`setup` commands and the interactive `manage` hub.
+ * Throws on failure; the callers wrap it in success/fail output.
+ */
+function performMarketplaceAdd(url: string, localPath: string | undefined, opts: MarketplaceAddOptions): Record<string, unknown> {
+  const resolvedPath = path.resolve(localPath ?? defaultMarketplacePath(url));
+  const marketplaceName = opts.name ?? repoNameFromUrl(url);
+
+  cloneOrReuseMarketplace(url, resolvedPath, opts);
+
+  const configPath = getGlobalConfigPath();
+  const { existing, all } = loadMarketplacesConfig(configPath);
+  const entry: MarketplaceConfig = {
+    name: marketplaceName,
+    repoUrl: url,
+    localPath: resolvedPath,
+    ...(opts.token ? { token: opts.token } : {}),
+  };
+  upsertMarketplace(all, entry);
+  saveMarketplaces(configPath, existing, all);
+
+  const targetDir = resolveAgentPaths(resolveAgentName(opts)).user;
+
+  const { pluginResults, totalInstalled } = installAllPlugins(resolvedPath, marketplaceName, url, targetDir);
+
+  return {
+    name: marketplaceName,
+    repoUrl: url,
+    localPath: resolvedPath,
+    branch: opts.branch ?? null,
+    tokenConfigured: !!opts.token,
+    plugins: pluginResults,
+    total: totalInstalled,
+    target: targetDir,
+  };
+}
+
+/**
+ * Core of `marketplace remove`: unregisters a marketplace from the global config
+ * (does not delete the local clone). Shared by the `remove` command and the
+ * interactive `manage` hub. Throws when the marketplace is not found.
+ */
+function performMarketplaceRemove(name: string): Record<string, unknown> {
+  const configPath = getGlobalConfigPath();
+  const { existing, all } = loadMarketplacesConfig(configPath);
+
+  const idx = all.findIndex(m => m.name === name || m.repoUrl === name);
+  if (idx === -1) {
+    throw new Error(`Marketplace "${name}" not found. Run: pncli skills marketplace list`);
+  }
+
+  const removed = all.splice(idx, 1)[0];
+  saveMarketplaces(configPath, existing, all);
+
+  return {
+    removed: {
+      name: marketplaceLabel(removed),
+      repoUrl: removed.repoUrl,
+      localPath: removed.localPath,
+    },
+    remaining: all.length,
+  };
+}
+
+/**
  * Shared implementation for `marketplace add` and `marketplace setup` (kept as a backward-compatible
  * alias) — clones/registers the marketplace and installs all of its plugins.
  */
 async function marketplaceAddAction(url: string, localPath: string | undefined, opts: MarketplaceAddOptions, commandName: 'marketplace-add' | 'marketplace-setup'): Promise<void> {
   const start = Date.now();
   try {
-    const resolvedPath = path.resolve(localPath ?? defaultMarketplacePath(url));
-    const marketplaceName = opts.name ?? repoNameFromUrl(url);
-
-    cloneOrReuseMarketplace(url, resolvedPath, opts);
-
-    const configPath = getGlobalConfigPath();
-    const { existing, all } = loadMarketplacesConfig(configPath);
-    const entry: MarketplaceConfig = {
-      name: marketplaceName,
-      repoUrl: url,
-      localPath: resolvedPath,
-      ...(opts.token ? { token: opts.token } : {}),
-    };
-    upsertMarketplace(all, entry);
-    saveMarketplaces(configPath, existing, all);
-
-    const targetDir = resolveAgentPaths(resolveAgentName(opts)).user;
-
-    const { pluginResults, totalInstalled } = installAllPlugins(resolvedPath, marketplaceName, url, targetDir);
-
-    success({
-      name: marketplaceName,
-      repoUrl: url,
-      localPath: resolvedPath,
-      branch: opts.branch ?? null,
-      tokenConfigured: !!opts.token,
-      plugins: pluginResults,
-      total: totalInstalled,
-      target: targetDir,
-    }, 'skills', commandName, start);
+    success(performMarketplaceAdd(url, localPath, opts), 'skills', commandName, start);
   } catch (err) {
     fail(err, 'skills', commandName, start);
   }
@@ -982,25 +1019,7 @@ export function registerSkillsCommands(program: Command): void {
     .action((name: string) => {
       const start = Date.now();
       try {
-        const configPath = getGlobalConfigPath();
-        const { existing, all } = loadMarketplacesConfig(configPath);
-
-        const idx = all.findIndex(m => m.name === name || m.repoUrl === name);
-        if (idx === -1) {
-          throw new Error(`Marketplace "${name}" not found. Run: pncli skills marketplace list`);
-        }
-
-        const removed = all.splice(idx, 1)[0];
-        saveMarketplaces(configPath, existing, all);
-
-        success({
-          removed: {
-            name: marketplaceLabel(removed),
-            repoUrl: removed.repoUrl,
-            localPath: removed.localPath,
-          },
-          remaining: all.length,
-        }, 'skills', 'marketplace-remove', start);
+        success(performMarketplaceRemove(name), 'skills', 'marketplace-remove', start);
       } catch (err) {
         fail(err, 'skills', 'marketplace-remove', start);
       }
@@ -1307,8 +1326,8 @@ export function registerSkillsCommands(program: Command): void {
     });
 
   marketplace
-    .command('toggle')
-    .description('Enable or disable installed plugins with a checkbox picker (interactive)')
+    .command('manage')
+    .description('Manage marketplaces and plugins: toggle plugins on/off, add or remove marketplaces (interactive)')
     .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--scope <scope>', 'Installation scope: project | user (default: user)')
@@ -1316,74 +1335,121 @@ export function registerSkillsCommands(program: Command): void {
     .action(async (opts: { agent?: string; claude?: boolean; scope?: string; target?: string }) => {
       const start = Date.now();
       try {
+        assertInteractive('Use `pncli skills marketplace enable|disable <plugin>`, `add <url>`, and `remove <name>` to manage non-interactively.');
         const targetDir = resolveTargetDir(opts);
-        const states = fs.existsSync(targetDir) ? listPluginStates(targetDir) : [];
-        if (states.length === 0) {
-          success({ enabled: [], disabled: [], unchanged: 0, target: targetDir, message: 'No marketplace plugins installed — nothing to toggle.' }, 'skills', 'marketplace-toggle', start);
-          return;
-        }
-        assertInteractive('Use `pncli skills marketplace enable <plugin>` and `disable <plugin>` to toggle non-interactively.');
-
-        const checkedIndexes = await checkbox<number>({
-          message: `Toggle plugins in ${targetDir} (space toggles, enter applies)`,
-          choices: states.map((state, index) => {
-            const active = state.activeSkills.length;
-            const stashed = state.disabledSkills.length;
-            const skillCount =
-              stashed === 0 ? `${active} skill${active === 1 ? '' : 's'}` :
-              active === 0 ? `${stashed} skill${stashed === 1 ? '' : 's'}, disabled` :
-              `${active} active, ${stashed} disabled`;
-            return {
-              name: `${state.plugin}${state.marketplace ? ` — ${state.marketplace}` : ''} (${skillCount})`,
-              value: index,
-              checked: active > 0,
-            };
-          }),
-          pageSize: 15,
-        });
-        const wanted = new Set(checkedIndexes);
 
         interface PluginChange { plugin: string; marketplace?: string; skills: string[] }
         const enabledPlugins: PluginChange[] = [];
         const disabledPlugins: PluginChange[] = [];
         const stashMissing: string[] = [];
-        let unchanged = 0;
+        const addedMarketplaces: Record<string, unknown>[] = [];
+        const removedMarketplaces: Record<string, unknown>[] = [];
 
-        states.forEach((state, index) => {
-          if (wanted.has(index)) {
-            // Desired state: enabled. Restore any stashed skills (no-op when fully active).
-            if (state.disabledSkills.length === 0) { unchanged++; return; }
-            const result = enablePluginSkills(targetDir, state.plugin, state.marketplace);
-            stashMissing.push(...result.stashMissing);
-            if (result.enabled.length > 0) {
-              enabledPlugins.push({ plugin: state.plugin, marketplace: state.marketplace, skills: result.enabled });
-            } else {
-              unchanged++;
-            }
-          } else {
-            // Desired state: disabled. Stash any active skills (no-op when fully stashed).
-            if (state.activeSkills.length === 0) { unchanged++; return; }
-            const result = disablePluginSkills(targetDir, state.plugin, state.marketplace);
-            if (result.disabled.length > 0) {
-              disabledPlugins.push({ plugin: state.plugin, marketplace: state.marketplace, skills: result.disabled });
-            } else {
-              unchanged++;
-            }
+        // Hub loop: each pass re-reads config and the skills dir so the menu reflects
+        // whatever the previous action changed.
+        for (;;) {
+          const states = fs.existsSync(targetDir) ? listPluginStates(targetDir) : [];
+          const registered = loadMarketplaces(getGlobalConfigPath());
+
+          const action = await select({
+            message: `Manage skills marketplaces (target: ${targetDir}):`,
+            choices: [
+              ...(states.length > 0 ? [{ value: 'toggle', name: `Toggle plugins on/off (${states.length} installed)` }] : []),
+              { value: 'add', name: 'Add a marketplace' },
+              ...(registered.length > 0 ? [{ value: 'remove', name: `Remove a marketplace (${registered.length} registered)` }] : []),
+              { value: 'done', name: 'Done' },
+            ],
+          });
+          if (action === 'done') break;
+
+          if (action === 'toggle') {
+            // Group the checkbox list by marketplace with separator headers.
+            const sorted = [...states].sort((a, b) =>
+              (a.marketplace ?? '').localeCompare(b.marketplace ?? '') || a.plugin.localeCompare(b.plugin));
+            const choices: (Separator | { name: string; value: number; checked: boolean })[] = [];
+            let lastMarketplace: string | null = null;
+            sorted.forEach((state, index) => {
+              const marketplaceName = state.marketplace ?? '(unknown marketplace)';
+              if (marketplaceName !== lastMarketplace) {
+                choices.push(new Separator(`── ${marketplaceName} ──`));
+                lastMarketplace = marketplaceName;
+              }
+              const active = state.activeSkills.length;
+              const stashed = state.disabledSkills.length;
+              const skillCount =
+                stashed === 0 ? `${active} skill${active === 1 ? '' : 's'}` :
+                active === 0 ? `${stashed} skill${stashed === 1 ? '' : 's'}, disabled` :
+                `${active} active, ${stashed} disabled`;
+              choices.push({ name: `${state.plugin} (${skillCount})`, value: index, checked: active > 0 });
+            });
+
+            const checkedIndexes = await checkbox<number>({
+              message: 'Toggle plugins (space toggles, enter applies):',
+              choices,
+              pageSize: 15,
+            });
+            const wanted = new Set(checkedIndexes);
+
+            sorted.forEach((state, index) => {
+              if (wanted.has(index)) {
+                // Desired state: enabled. Restore any stashed skills (no-op when fully active).
+                if (state.disabledSkills.length === 0) return;
+                const result = enablePluginSkills(targetDir, state.plugin, state.marketplace);
+                stashMissing.push(...result.stashMissing);
+                if (result.enabled.length > 0) {
+                  enabledPlugins.push({ plugin: state.plugin, marketplace: state.marketplace, skills: result.enabled });
+                }
+              } else {
+                // Desired state: disabled. Stash any active skills (no-op when fully stashed).
+                if (state.activeSkills.length === 0) return;
+                const result = disablePluginSkills(targetDir, state.plugin, state.marketplace);
+                if (result.disabled.length > 0) {
+                  disabledPlugins.push({ plugin: state.plugin, marketplace: state.marketplace, skills: result.disabled });
+                }
+              }
+            });
+          } else if (action === 'add') {
+            const url = (await input({
+              message: 'Git clone URL of the marketplace repository:',
+              validate: v => v.trim().length > 0 || 'URL is required',
+            })).trim();
+            const name = (await input({
+              message: 'Marketplace name:',
+              default: repoNameFromUrl(url),
+            })).trim();
+            addedMarketplaces.push(performMarketplaceAdd(url, undefined, {
+              name: name || undefined,
+              agent: opts.agent,
+              claude: opts.claude,
+            }));
+          } else if (action === 'remove') {
+            const chosen = await select({
+              message: 'Remove which marketplace? (the local clone is kept on disk)',
+              choices: [
+                // Index-based values: labels alone aren't guaranteed unique (two marketplaces can share a derived name).
+                ...registered.map((m, i) => ({ value: String(i), name: `${marketplaceLabel(m)} — ${m.repoUrl ?? ''}` })),
+                { value: BACK, name: '← Back' },
+              ],
+            });
+            if (chosen === BACK) continue;
+            const target = registered[Number(chosen)];
+            removedMarketplaces.push(performMarketplaceRemove(target.repoUrl ?? marketplaceLabel(target)));
           }
-        });
+        }
 
         success({
           enabled: enabledPlugins,
           disabled: disabledPlugins,
-          unchanged,
+          addedMarketplaces,
+          removedMarketplaces,
           target: targetDir,
           ...(stashMissing.length > 0 ? {
             stashMissing,
             warning: 'Skills marked disabled but missing from the stash were left as-is. Re-install their plugin (pncli skills marketplace sync <plugin>) to restore them.',
           } : {}),
-        }, 'skills', 'marketplace-toggle', start);
+        }, 'skills', 'marketplace-manage', start);
       } catch (err) {
-        fail(err, 'skills', 'marketplace-toggle', start);
+        fail(err, 'skills', 'marketplace-manage', start);
       }
     });
 

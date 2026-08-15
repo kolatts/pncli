@@ -1276,7 +1276,7 @@ pncli skills marketplace enable
   --scope <scope>       Installation scope: project | user (default: user)
   --target <dir>        Override skills directory
 
-pncli skills marketplace toggle
+pncli skills marketplace manage
   --agent <agent>  Target agent host: github-copilot | claude-code (default:
   github-copilot)
   --claude         Shorthand for --agent claude-code
