@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.21.0](https://github.com/kolatts/pncli/compare/v1.20.0...v1.21.0) (2026-08-15)
+
+
+### Features
+
+* add bitbucket add-reviewer command ([#308](https://github.com/kolatts/pncli/issues/308)) ([2de56bd](https://github.com/kolatts/pncli/commit/2de56bd21b50392f1bf392bf402ad3b25cf910c9)), closes [#307](https://github.com/kolatts/pncli/issues/307)
+
+
+### Bug Fixes
+
+* **skills:** github-copilot user scope should target ~/.agents/skills ([#311](https://github.com/kolatts/pncli/issues/311)) ([e4a337d](https://github.com/kolatts/pncli/commit/e4a337d01ba9be3167ecb74ec887512516fef572)), closes [#309](https://github.com/kolatts/pncli/issues/309)
+
 ## [1.20.0](https://github.com/kolatts/pncli/compare/v1.19.0...v1.20.0) (2026-08-13)
 
 
