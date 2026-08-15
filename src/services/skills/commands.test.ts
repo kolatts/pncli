@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin } from './commands.js';
+import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin, DISABLED_SUBDIR } from './commands.js';
 import type { GlobalConfig } from '../../types/config.js';
 
 type ReaddirResult = ReturnType<typeof fs.readdirSync>;
@@ -474,5 +474,59 @@ describe('readSkillOrigin', () => {
     expect(origin).not.toBeNull();
     expect(origin!.plugin).toBe('sunny');
     expect(origin!.branch).toBe('main');
+  });
+});
+
+// ── DISABLED_SUBDIR ───────────────────────────────────────────────────────────
+
+describe('DISABLED_SUBDIR', () => {
+  it('starts with a dot so agents do not pick it up as a skills folder', () => {
+    expect(DISABLED_SUBDIR.startsWith('.')).toBe(true);
+  });
+
+  it('has the expected value', () => {
+    expect(DISABLED_SUBDIR).toBe('.pncli-disabled');
+  });
+});
+
+// ── readInstalledMeta with disabled field ─────────────────────────────────────
+
+describe('readInstalledMeta (disabled field)', () => {
+  it('preserves a disabled map when present in the metadata file', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: {},
+      disabled: {
+        'skill-one': {
+          source: 'marketplace',
+          marketplace: 'my-market',
+          plugin: 'sunny',
+          installedFrom: 'https://github.com/org/my-market.git',
+          installedAt: '2026-08-01T00:00:00Z',
+        },
+      },
+    }));
+    const meta = readInstalledMeta('/some/target');
+    expect(meta.disabled).toBeDefined();
+    expect(meta.disabled!['skill-one'].plugin).toBe('sunny');
+    expect(meta.skills).toEqual({});
+  });
+
+  it('returns undefined disabled when not present in the file', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: { 'skill-a': { source: 'bundled', installedAt: '2026-08-01T00:00:00Z' } },
+    }));
+    const meta = readInstalledMeta('/some/target');
+    expect(meta.disabled).toBeUndefined();
+  });
+
+  it('returns empty meta when file is absent', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+    const meta = readInstalledMeta('/some/target');
+    expect(meta).toEqual({ version: 1, skills: {} });
+    expect(meta.disabled).toBeUndefined();
   });
 });

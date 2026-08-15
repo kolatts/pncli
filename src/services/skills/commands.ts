@@ -92,6 +92,13 @@ function resolveAgentPaths(agentName: string): { project: string; user: string }
   return agentConfig;
 }
 
+function resolveTargetDir(opts: { agent?: string; claude?: boolean; scope?: string; target?: string }): string {
+  if (opts.target) return path.resolve(opts.target);
+  const agentConfig = resolveAgentPaths(resolveAgentName(opts));
+  const scopePath = (opts.scope ?? 'user') === 'project' ? agentConfig.project : agentConfig.user;
+  return path.resolve(scopePath);
+}
+
 // Resolve the bundled skills directory relative to this file (dist/cli.js → ../skills)
 function getBundledSkillsDir(): string {
   try {
@@ -134,9 +141,16 @@ export interface SkillOrigin {
 
 const SKILL_ORIGIN_FILENAME = 'pncli-origin.json';
 
+/**
+ * Hidden subdirectory inside the skills target dir where disabled skills are stashed.
+ * Starts with '.' so agents don't pick it up as a skills folder.
+ */
+export const DISABLED_SUBDIR = '.pncli-disabled';
+
 export interface InstalledMeta {
   version: 1;
   skills: Record<string, InstalledSkillRecord>;
+  disabled?: Record<string, InstalledSkillRecord>;
 }
 
 /**
@@ -1041,6 +1055,189 @@ export function registerSkillsCommands(program: Command): void {
         }, 'skills', 'marketplace-purge-plugin', start);
       } catch (err) {
         fail(err, 'skills', 'marketplace-purge-plugin', start);
+      }
+    });
+
+  marketplace
+    .command('disable')
+    .description('Temporarily deactivate a plugin\'s skills without deleting them (re-enable with `marketplace enable`)')
+    .argument('<plugin>', 'Plugin name to disable')
+    .option('--marketplace <name>', 'Restrict to skills from this marketplace (by name or repo URL)')
+    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
+    .option('--claude', 'Shorthand for --agent claude-code')
+    .option('--scope <scope>', 'Installation scope: project | user (default: user)')
+    .option('--target <dir>', 'Override skills directory')
+    .action((plugin: string, opts: { marketplace?: string; agent?: string; claude?: boolean; scope?: string; target?: string }) => {
+      const start = Date.now();
+      try {
+        const targetDir = resolveTargetDir(opts);
+        const resolvedTarget = path.resolve(targetDir);
+        const stashDir = path.join(targetDir, DISABLED_SUBDIR);
+
+        if (!fs.existsSync(targetDir)) {
+          success({ disabled: [], total: 0, target: targetDir, message: 'No skills directory found.' }, 'skills', 'marketplace-disable', start);
+          return;
+        }
+
+        const meta = readInstalledMeta(targetDir);
+        const disabled: string[] = [];
+        const alreadyDisabled: string[] = [];
+        const skipped: string[] = [];
+
+        // Check both active and already-disabled skills for already-disabled
+        const activeSkillDirs = fs.readdirSync(targetDir).filter(name => {
+          if (name.startsWith('.')) return false;
+          const p = path.join(targetDir, name);
+          try { return fs.statSync(p).isDirectory(); } catch { return false; }
+        });
+
+        for (const skillName of activeSkillDirs) {
+          const skillDir = path.resolve(targetDir, skillName);
+          if (!skillDir.startsWith(resolvedTarget + path.sep)) continue;
+
+          let record: InstalledSkillRecord | null = meta.skills[skillName] ?? null;
+          if (!record) {
+            const perSkill = readSkillOrigin(skillDir);
+            if (perSkill) {
+              record = {
+                source: perSkill.source,
+                marketplace: perSkill.marketplace,
+                plugin: perSkill.plugin,
+                installedFrom: perSkill.installedFrom,
+                branch: perSkill.branch,
+                installedAt: perSkill.installedAt,
+              };
+            }
+          }
+
+          if (!record || record.source !== 'marketplace') { skipped.push(skillName); continue; }
+
+          const matchesMarketplace = !opts.marketplace ||
+            record.marketplace === opts.marketplace ||
+            record.installedFrom === opts.marketplace;
+          if (!matchesMarketplace || record.plugin !== plugin) { skipped.push(skillName); continue; }
+
+          const stashDest = path.resolve(stashDir, skillName);
+          if (!stashDest.startsWith(path.resolve(stashDir) + path.sep)) { skipped.push(skillName); continue; }
+
+          fs.mkdirSync(stashDir, { recursive: true });
+          if (fs.existsSync(stashDest)) fs.rmSync(stashDest, { recursive: true, force: true });
+          fs.renameSync(skillDir, stashDest);
+          delete meta.skills[skillName];
+          meta.disabled = meta.disabled ?? {};
+          meta.disabled[skillName] = record;
+          disabled.push(skillName);
+        }
+
+        // Report skills already in the disabled stash
+        if (fs.existsSync(stashDir)) {
+          for (const skillName of Object.keys(meta.disabled ?? {})) {
+            const record = meta.disabled![skillName];
+            const matchesPlugin = record.plugin === plugin;
+            const matchesMarketplace = !opts.marketplace ||
+              record.marketplace === opts.marketplace ||
+              record.installedFrom === opts.marketplace;
+            if (matchesPlugin && matchesMarketplace && !disabled.includes(skillName)) {
+              alreadyDisabled.push(skillName);
+            }
+          }
+        }
+
+        if (disabled.length > 0 || alreadyDisabled.length > 0) {
+          fs.writeFileSync(getInstalledMetaPath(targetDir), JSON.stringify(meta, null, 2), 'utf8');
+        }
+
+        success({
+          disabled,
+          alreadyDisabled,
+          skipped: skipped.length,
+          total: disabled.length,
+          target: targetDir,
+          plugin,
+          stash: stashDir,
+          ...(opts.marketplace ? { marketplace: opts.marketplace } : {}),
+        }, 'skills', 'marketplace-disable', start);
+      } catch (err) {
+        fail(err, 'skills', 'marketplace-disable', start);
+      }
+    });
+
+  marketplace
+    .command('enable')
+    .description('Re-activate a previously disabled plugin\'s skills')
+    .argument('<plugin>', 'Plugin name to enable')
+    .option('--marketplace <name>', 'Restrict to skills from this marketplace (by name or repo URL)')
+    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
+    .option('--claude', 'Shorthand for --agent claude-code')
+    .option('--scope <scope>', 'Installation scope: project | user (default: user)')
+    .option('--target <dir>', 'Override skills directory')
+    .action((plugin: string, opts: { marketplace?: string; agent?: string; claude?: boolean; scope?: string; target?: string }) => {
+      const start = Date.now();
+      try {
+        const targetDir = resolveTargetDir(opts);
+        const resolvedTarget = path.resolve(targetDir);
+        const stashDir = path.join(targetDir, DISABLED_SUBDIR);
+
+        if (!fs.existsSync(targetDir)) {
+          success({ enabled: [], total: 0, target: targetDir, message: 'No skills directory found.' }, 'skills', 'marketplace-enable', start);
+          return;
+        }
+
+        const meta = readInstalledMeta(targetDir);
+        const enabled: string[] = [];
+        const notDisabled: string[] = [];
+
+        const disabledEntries = Object.entries(meta.disabled ?? {});
+        if (disabledEntries.length === 0) {
+          success({ enabled: [], total: 0, target: targetDir, plugin, message: `No disabled skills found for plugin "${plugin}".` }, 'skills', 'marketplace-enable', start);
+          return;
+        }
+
+        for (const [skillName, record] of disabledEntries) {
+          const matchesPlugin = record.plugin === plugin;
+          const matchesMarketplace = !opts.marketplace ||
+            record.marketplace === opts.marketplace ||
+            record.installedFrom === opts.marketplace;
+          if (!matchesPlugin || !matchesMarketplace) { notDisabled.push(skillName); continue; }
+
+          const stashSrc = path.resolve(stashDir, skillName);
+          const dest = path.resolve(targetDir, skillName);
+          if (!dest.startsWith(resolvedTarget + path.sep)) { notDisabled.push(skillName); continue; }
+
+          if (!fs.existsSync(stashSrc)) {
+            // Stash file missing but metadata says disabled — restore metadata only, noting the gap.
+            meta.skills[skillName] = record;
+            delete meta.disabled![skillName];
+            notDisabled.push(skillName);
+            continue;
+          }
+
+          if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true });
+          fs.renameSync(stashSrc, dest);
+          meta.skills[skillName] = record;
+          delete meta.disabled![skillName];
+          enabled.push(skillName);
+        }
+
+        // Clean up empty stash dir
+        if (fs.existsSync(stashDir) && fs.readdirSync(stashDir).length === 0) {
+          fs.rmdirSync(stashDir);
+        }
+
+        if (enabled.length > 0 || notDisabled.length > 0) {
+          fs.writeFileSync(getInstalledMetaPath(targetDir), JSON.stringify(meta, null, 2), 'utf8');
+        }
+
+        success({
+          enabled,
+          skipped: notDisabled.length,
+          total: enabled.length,
+          target: targetDir,
+          plugin,
+          ...(opts.marketplace ? { marketplace: opts.marketplace } : {}),
+        }, 'skills', 'marketplace-enable', start);
+      } catch (err) {
+        fail(err, 'skills', 'marketplace-enable', start);
       }
     });
 
