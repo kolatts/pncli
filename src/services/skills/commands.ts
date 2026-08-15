@@ -76,7 +76,7 @@ function assertInteractive(hint: string): void {
 }
 
 const AGENT_PATHS: Record<string, { project: string; user: string }> = {
-  'github-copilot': { project: '.agents/skills',  user: path.join(os.homedir(), '.copilot/skills') },
+  'github-copilot': { project: '.agents/skills',  user: path.join(os.homedir(), '.agents/skills') },
   'claude-code':    { project: '.claude/skills',   user: path.join(os.homedir(), '.claude/skills') },
 };
 
