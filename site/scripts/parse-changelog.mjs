@@ -9,6 +9,31 @@ const outDir = join(__dirname, '../src/content/changelog');
 
 const raw = readFileSync(changelogPath, 'utf8');
 
+// MDX evaluates {expr} and parses <tag> as JSX, so a commit subject like
+// "/users/{slug}" crashes the build. Escape those chars everywhere except
+// inside code spans and fenced code blocks, where MDX already treats them
+// as literal text (and a backslash would render verbatim).
+function escapeMdxLine(line) {
+  return line
+    .split(/(`+[^`]*`+)/)
+    .map((part, i) => (i % 2 === 1 ? part : part.replace(/[{}<]/g, '\\$&')))
+    .join('');
+}
+
+function escapeMdxBody(body) {
+  let inFence = false;
+  return body
+    .split('\n')
+    .map(line => {
+      if (/^\s*(```|~~~)/.test(line)) {
+        inFence = !inFence;
+        return line;
+      }
+      return inFence ? line : escapeMdxLine(line);
+    })
+    .join('\n');
+}
+
 // Matches both ## [1.4.0](...) (2026-04-11) and ## 1.0.0 (2026-04-04)
 const HEADING_RE = /^## (?:\[(\d+\.\d+\.\d+)\]\([^)]+\)|(\d+\.\d+\.\d+))\s+\((\d{4}-\d{2}-\d{2})\)/;
 
@@ -52,7 +77,7 @@ for (const block of blocks) {
 
   // Body = everything after the heading line (the ###-level content)
   const headingEnd = block.indexOf('\n') + 1;
-  const body = block.slice(headingEnd).trim();
+  const body = escapeMdxBody(block.slice(headingEnd).trim());
 
   const escaped = summary.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 
