@@ -15,7 +15,11 @@ on:
         type: string
 
 concurrency:
-  group: claude-triage-${{ github.event.issue.number || inputs.issue_number }}-${{ github.event.label.name || 'manual' }}
+  # Keyed on the issue alone, deliberately not on the triggering label. A manual
+  # re-triage must cancel the stranded run it is replacing, and two labels on one
+  # issue should not triage concurrently either — in both cases the losing run
+  # would race the winner into duplicate branches, comments and PRs.
+  group: claude-triage-${{ github.event.issue.number || inputs.issue_number }}
   cancel-in-progress: true
 
 jobs:
@@ -217,8 +221,10 @@ jobs:
             5. Add the `triaged` label using `gh label create triaged --color 0e8a16 --force` then
                `gh issue edit ${{ steps.issue.outputs.number }} --add-label triaged`.
                Remove the `claude-triage` label if the issue carries it, using
-               `gh issue edit ${{ steps.issue.outputs.number }} --remove-label "claude-triage"`.
-               This is a no-op when the label is absent (e.g. a manual re-triage run).
+               `gh issue edit ${{ steps.issue.outputs.number }} --remove-label "claude-triage" || true`.
+               Keep the `|| true`: on a manual re-triage the label may be absent, and if it
+               has never been created in the repo at all `gh` exits non-zero rather than
+               no-opping. That is expected — do not treat it as a triage failure.
                Do not remove `from-website`; it is a persistent provenance label used by
                downstream notification and reporting workflows.
 
@@ -235,8 +241,11 @@ jobs:
           claude_args: |
             --model sonnet --max-turns 300 --allowedTools "Read,Glob,Grep,Edit,Write,Bash(gh issue list:*),Bash(gh issue comment:*),Bash(gh issue close:*),Bash(gh issue edit:*),Bash(gh label create:*),Bash(gh pr view:*),Bash(npm run build:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(npm test:*),Bash(git checkout -b:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
 
+      # The issue number guard is load-bearing, not defensive dressing: without it an
+      # empty number turns the branch glob below into `origin/claude/issue-*`, which
+      # matches an unrelated issue's branch and opens a PR for it.
       - name: Create PR if branch was pushed without one
-        if: success() || failure()
+        if: (success() || failure()) && steps.issue.outputs.number != ''
         env:
           GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
         run: |
@@ -270,8 +279,11 @@ jobs:
             --repo "${{ github.repository }}" \
             --body "Implemented in PR: $PR_URL"
 
+      # Guarded on a resolved issue number: if "Resolve target issue" failed there is
+      # no issue to describe, and an unguarded run renders "Issue #" with a blank
+      # title and a dead link, hiding the actual failure.
       - name: Write job summary
-        if: always()
+        if: always() && steps.issue.outputs.number != ''
         env:
           # Via env, not inline `${{ }}`: the title is untrusted and would
           # otherwise be interpolated straight into the shell.
@@ -294,7 +306,9 @@ jobs:
       # leave `claude-triage` behind, and the whole point of the dispatch path is
       # to finish the job that run started.
       - name: Remove triggering label
-        if: always() && (github.event.label.name == 'claude-triage' || github.event_name == 'workflow_dispatch')
+        if: >-
+          always() && steps.issue.outputs.number != '' &&
+          (github.event.label.name == 'claude-triage' || github.event_name == 'workflow_dispatch')
         env:
           GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
         run: gh issue edit ${{ steps.issue.outputs.number }} --remove-label "claude-triage" --repo "${{ github.repository }}" || true
