@@ -339,6 +339,19 @@ export function registerConfluenceCommands(program: Command): void {
       } catch (err) { fail(err, 'confluence', 'upload-attachment', start); }
     });
 
+  confluence.command('download-attachment')
+    .description('Download a Confluence attachment to a local file')
+    .requiredOption('--id <attachment-id>', 'Attachment content ID')
+    .option('--out <path>', 'Output file path (defaults to the attachment filename)')
+    .action(async (opts: { id: string; out?: string }) => {
+      const start = Date.now();
+      try {
+        const client = getClient(program);
+        const data = await client.downloadAttachment(opts.id, opts.out);
+        success(data, 'confluence', 'download-attachment', start);
+      } catch (err) { fail(err, 'confluence', 'download-attachment', start); }
+    });
+
   confluence.command('delete-attachment')
     .description('Delete an attachment from Confluence by its content ID (moves it to the trash; does not permanently purge it)')
     .requiredOption('--id <attachment-id>', 'Attachment content ID')

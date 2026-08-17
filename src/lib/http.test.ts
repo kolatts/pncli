@@ -634,6 +634,59 @@ describe('HttpClient — confluenceUpload', () => {
   });
 });
 
+describe('HttpClient — confluenceBuffer', () => {
+  it('throws PncliError with status 0 on dry-run', async () => {
+    const client = new HttpClient(baseConfig(), true);
+    await expect(client.confluenceBuffer('/download/attachments/10001/file.png')).rejects.toMatchObject({ status: 0, message: 'dry-run' });
+  });
+
+  it('throws on missing confluence apiToken', async () => {
+    const config = baseConfig();
+    config.confluence = { baseUrl: 'https://conf.imagile.dev', apiToken: undefined, apiTokenExplicit: false };
+    const client = new HttpClient(config);
+    await expect(client.confluenceBuffer('/download/attachments/10001/file.png')).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('throws on missing confluence baseUrl', async () => {
+    const config = baseConfig();
+    config.confluence = { baseUrl: undefined, apiToken: 'tok', apiTokenExplicit: true };
+    const client = new HttpClient(config);
+    await expect(client.confluenceBuffer('/download/attachments/10001/file.png')).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('returns a Buffer with binary content and sends Bearer auth', async () => {
+    const fakeBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+    let capturedUrl = '';
+    let capturedAuth = '';
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      capturedUrl = url;
+      capturedAuth = (init.headers as Record<string, string>)?.['Authorization'] ?? '';
+      return new Response(fakeBytes.buffer, { status: 200 });
+    });
+    try {
+      const client = new HttpClient(baseConfig());
+      const buf = await client.confluenceBuffer('/download/attachments/10001/file.png');
+      expect(buf).toBeInstanceOf(Buffer);
+      expect(buf.length).toBe(4);
+      expect(buf[0]).toBe(0x89);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(capturedUrl).toBe('https://conf.imagile.dev/download/attachments/10001/file.png');
+    expect(capturedAuth).toBe('Bearer tok');
+  });
+
+  it('throws on non-OK response', async () => {
+    vi.stubGlobal('fetch', async () => new Response('Not Found', { status: 404, statusText: 'Not Found' }));
+    try {
+      const client = new HttpClient(baseConfig());
+      await expect(client.confluenceBuffer('/download/attachments/10001/missing.png')).rejects.toMatchObject({ status: 404 });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
 describe('HttpClient — Contrast', () => {
   it('throws on missing credentials', async () => {
     const config = baseConfig({ contrast: { baseUrl: undefined, orgUuid: 'org', apiKey: undefined, serviceKey: undefined, username: undefined } });

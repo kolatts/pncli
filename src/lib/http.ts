@@ -965,6 +965,31 @@ export class HttpClient {
     return results;
   }
 
+  async confluenceBuffer(path: string, opts: { timeoutMs?: number } = {}): Promise<Buffer> {
+    const baseUrl = this.config.confluence.baseUrl;
+    if (!baseUrl) throw new PncliError('Confluence baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path);
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${this.confluenceToken()}`,
+      'Connection': 'close'
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: GET ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`;
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const response = await fetchWithTimeout(url, { headers }, opts.timeoutMs ?? 60000);
+    if (!response.ok) {
+      throw new PncliError(`HTTP ${response.status} ${response.statusText}`, response.status, url);
+    }
+    return Buffer.from(await response.arrayBuffer());
+  }
+
   async confluenceUpload<T>(
     path: string,
     formData: FormData,

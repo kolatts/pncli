@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { basename } from 'path';
 import type { HttpClient } from '../../lib/http.js';
 import { guessMimeType } from '../../lib/mime.js';
@@ -217,6 +217,15 @@ export class ConfluenceClient {
       formData
     );
     return result.results;
+  }
+
+  async downloadAttachment(attachmentId: string, outputPath?: string): Promise<{ savedTo: string; bytes: number }> {
+    const attachment = await this.http.confluence<ConfluenceAttachment>(`${API}/content/${attachmentId}`);
+    const downloadPath = attachment._links.download;
+    const savedTo = outputPath ?? attachment.title;
+    const buffer = await this.http.confluenceBuffer(downloadPath);
+    writeFileSync(savedTo, buffer);
+    return { savedTo, bytes: buffer.length };
   }
 
   async deleteAttachment(attachmentId: string): Promise<void> {
