@@ -3,14 +3,27 @@ name: Claude Issue Triage
 on:
   issues:
     types: [labeled]
+  # Manual re-triage. The `issues: [labeled]` trigger is one-shot: `from-website`
+  # is a persistent provenance label that step 5 never removes, so a transient
+  # failure (e.g. a GitHub 503 during the action's permission check) would
+  # otherwise strand a website-submitted issue with no way to re-fire triage.
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to triage'
+        required: true
+        type: string
 
 concurrency:
-  group: claude-triage-${{ github.event.issue.number }}-${{ github.event.label.name }}
+  group: claude-triage-${{ github.event.issue.number || inputs.issue_number }}-${{ github.event.label.name || 'manual' }}
   cancel-in-progress: true
 
 jobs:
   triage:
-    if: github.event.label.name == 'claude-triage' || github.event.label.name == 'from-website'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.label.name == 'claude-triage' ||
+      github.event.label.name == 'from-website'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -36,6 +49,37 @@ jobs:
           BOT_LOGIN="${{ steps.imagile-token.outputs.app-slug }}[bot]"
           echo "id=$(gh api "/users/${BOT_LOGIN}" --jq .id)" >> "$GITHUB_OUTPUT"
           echo "login=${BOT_LOGIN}" >> "$GITHUB_OUTPUT"
+
+      # The issue payload is only present on the `issues` trigger, so fetch the
+      # fields the prompt needs from the API instead. Every later reference goes
+      # through these outputs so both triggers take the identical code path.
+      - name: Resolve target issue
+        id: issue
+        env:
+          GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+        run: |
+          if ! [[ "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid issue number: '$ISSUE_NUMBER'"
+            exit 1
+          fi
+          gh issue view "$ISSUE_NUMBER" --repo "${{ github.repository }}" \
+            --json title,body,url,author > /tmp/issue.json
+          # Random delimiters: the title and body are untrusted and a fixed
+          # delimiter appearing in one would let it forge further step outputs.
+          TITLE_EOF="EOF_$(openssl rand -hex 16)"
+          BODY_EOF="EOF_$(openssl rand -hex 16)"
+          {
+            echo "number=${ISSUE_NUMBER}"
+            echo "url=$(jq -r '.url' /tmp/issue.json)"
+            echo "author=$(jq -r '.author.login // "unknown"' /tmp/issue.json)"
+            echo "title<<${TITLE_EOF}"
+            jq -r '.title // ""' /tmp/issue.json
+            echo "${TITLE_EOF}"
+            echo "body<<${BODY_EOF}"
+            jq -r '.body // ""' /tmp/issue.json
+            echo "${BODY_EOF}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -85,16 +129,16 @@ jobs:
 
             === ISSUE METADATA ===
             Repository: ${{ github.repository }}
-            Issue number: #${{ github.event.issue.number }}
-            Issue author: ${{ github.event.issue.user.login }}
+            Issue number: #${{ steps.issue.outputs.number }}
+            Issue author: ${{ steps.issue.outputs.author }}
             Action run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
             === BEGIN UNTRUSTED ISSUE TITLE ===
-            ${{ github.event.issue.title }}
+            ${{ steps.issue.outputs.title }}
             === END UNTRUSTED ISSUE TITLE ===
 
             === BEGIN UNTRUSTED USER INPUT (issue body) ===
-            ${{ github.event.issue.body }}
+            ${{ steps.issue.outputs.body }}
             === END UNTRUSTED USER INPUT ===
 
             === YOUR TASK ===
@@ -151,10 +195,10 @@ jobs:
                     2. `npm run lint`
                     3. `npm test`
                     Do NOT proceed to branch/commit/PR if any check fails.
-                  - Create a branch named `claude/issue-${{ github.event.issue.number }}`.
+                  - Create a branch named `claude/issue-${{ steps.issue.outputs.number }}`.
                   - Commit your changes and push the branch.
                   - Write the proposed PR title to `/tmp/pr-title.txt` and the complete PR body
-                    (including `Closes #${{ github.event.issue.number }}`) to `/tmp/pr-body.md`.
+                    (including `Closes #${{ steps.issue.outputs.number }}`) to `/tmp/pr-body.md`.
                     The workflow creates the PR after your action finishes.
                   - Do not create the PR or post the implementation comment yourself. The workflow
                     uses the files above to create the PR and link it from the issue after your
@@ -167,13 +211,14 @@ jobs:
                     the project's purpose or rules where relevant.
                   - Suggest alternatives if applicable.
                   - Add the `denied` label: `gh label create denied --color e11d48 --force` then
-                    `gh issue edit ${{ github.event.issue.number }} --add-label denied`.
-                  - Close the issue: `gh issue close ${{ github.event.issue.number }} --reason "not planned"`.
+                    `gh issue edit ${{ steps.issue.outputs.number }} --add-label denied`.
+                  - Close the issue: `gh issue close ${{ steps.issue.outputs.number }} --reason "not planned"`.
 
             5. Add the `triaged` label using `gh label create triaged --color 0e8a16 --force` then
-               `gh issue edit ${{ github.event.issue.number }} --add-label triaged`.
-               If the triggering label is `claude-triage`, remove it using
-               `gh issue edit ${{ github.event.issue.number }} --remove-label "claude-triage"`.
+               `gh issue edit ${{ steps.issue.outputs.number }} --add-label triaged`.
+               Remove the `claude-triage` label if the issue carries it, using
+               `gh issue edit ${{ steps.issue.outputs.number }} --remove-label "claude-triage"`.
+               This is a no-op when the label is absent (e.g. a manual re-triage run).
                Do not remove `from-website`; it is a persistent provenance label used by
                downstream notification and reporting workflows.
 
@@ -195,9 +240,9 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
         run: |
-          BRANCH=$(git branch -r --list "origin/claude/issue-${{ github.event.issue.number }}*" | head -1 | tr -d ' ')
+          BRANCH=$(git branch -r --list "origin/claude/issue-${{ steps.issue.outputs.number }}*" | head -1 | tr -d ' ')
           if [ -z "$BRANCH" ]; then
-            echo "No claude branch found for issue ${{ github.event.issue.number }}, skipping"
+            echo "No claude branch found for issue ${{ steps.issue.outputs.number }}, skipping"
             exit 0
           fi
           BRANCH_NAME="${BRANCH#origin/}"
@@ -206,12 +251,12 @@ jobs:
             echo "PR #$EXISTING already exists for $BRANCH_NAME"
             exit 0
           fi
-          TITLE="fix: issue #${{ github.event.issue.number }} (automated)"
+          TITLE="fix: issue #${{ steps.issue.outputs.number }} (automated)"
           if [ -s /tmp/pr-title.txt ]; then
             TITLE=$(head -1 /tmp/pr-title.txt)
           fi
           if [ ! -s /tmp/pr-body.md ]; then
-            printf 'Closes #%s\n' '${{ github.event.issue.number }}' > /tmp/pr-body.md
+            printf 'Closes #%s\n' '${{ steps.issue.outputs.number }}' > /tmp/pr-body.md
           fi
           echo "No PR found for $BRANCH_NAME — creating PR"
           PR_URL=$(gh pr create \
@@ -221,17 +266,23 @@ jobs:
             --base "${{ github.event.repository.default_branch }}" \
             --repo "${{ github.repository }}")
           echo "Created $PR_URL"
-          gh issue comment '${{ github.event.issue.number }}' \
+          gh issue comment '${{ steps.issue.outputs.number }}' \
             --repo "${{ github.repository }}" \
             --body "Implemented in PR: $PR_URL"
 
       - name: Write job summary
         if: always()
+        env:
+          # Via env, not inline `${{ }}`: the title is untrusted and would
+          # otherwise be interpolated straight into the shell.
+          ISSUE_TITLE: ${{ steps.issue.outputs.title }}
+          ISSUE_URL: ${{ steps.issue.outputs.url }}
+          TRIGGER: ${{ github.event.label.name || 'manual re-triage (workflow_dispatch)' }}
         run: |
-          echo "## Claude Triage — Issue #${{ github.event.issue.number }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Claude Triage — Issue #${{ steps.issue.outputs.number }}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Issue:** [${{ github.event.issue.title }}](${{ github.event.issue.html_url }})" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Triggered by label:** \`${{ github.event.label.name }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Issue:** [${ISSUE_TITLE}](${ISSUE_URL})" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Triggered by:** \`${TRIGGER}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ -f /tmp/triage-summary.md ]; then
             cat /tmp/triage-summary.md >> "$GITHUB_STEP_SUMMARY"
@@ -239,8 +290,11 @@ jobs:
             echo "_No summary file written by Claude._" >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      # Also runs on manual re-triage: a run stranded by a transient failure can
+      # leave `claude-triage` behind, and the whole point of the dispatch path is
+      # to finish the job that run started.
       - name: Remove triggering label
-        if: always() && github.event.label.name == 'claude-triage'
+        if: always() && (github.event.label.name == 'claude-triage' || github.event_name == 'workflow_dispatch')
         env:
           GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
-        run: gh issue edit ${{ github.event.issue.number }} --remove-label "claude-triage" --repo "${{ github.repository }}" || true
+        run: gh issue edit ${{ steps.issue.outputs.number }} --remove-label "claude-triage" --repo "${{ github.repository }}" || true
