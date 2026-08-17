@@ -77,6 +77,7 @@ export class AdoGitClient {
       sourceRefName: string;
       targetRefName: string;
       reviewers?: Array<{ id: string }>;
+      isDraft?: boolean;
     }
   ): Promise<AdoPullRequest> {
     return this.http.ado<AdoPullRequest>(
@@ -90,7 +91,7 @@ export class AdoGitClient {
     project: string,
     repo: string,
     prId: number,
-    body: Partial<{ title: string; description: string; reviewers: Array<{ id: string }> }>
+    body: Partial<{ title: string; description: string; reviewers: Array<{ id: string }>; isDraft: boolean }>
   ): Promise<AdoPullRequest> {
     return this.http.ado<AdoPullRequest>(
       `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repo)}/pullrequests/${prId}?api-version=${API}`,
