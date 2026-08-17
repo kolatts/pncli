@@ -1,6 +1,6 @@
 # Confluence
 
-Enables: `pncli confluence get-page`, `create-page`, `update-page`, `delete-page`, `search`, `list-pages`, `list-spaces`, `list-comments`, `add-comment`, `add-label`/`remove-label`, `list-attachments`, `upload-attachment`, `delete-attachment`, `get-page-history`, and more — create, read, update, and delete pages, spaces, comments, labels, and attachments.
+Enables: `pncli confluence get-page`, `create-page`, `update-page`, `delete-page`, `search`, `list-pages`, `list-spaces`, `list-comments`, `add-comment`, `add-label`/`remove-label`, `list-attachments`, `upload-attachment`, `download-attachment`, `delete-attachment`, `get-page-history`, and more — create, read, update, and delete pages, spaces, comments, labels, and attachments.
 
 ## Required config
 
