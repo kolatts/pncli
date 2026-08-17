@@ -32,6 +32,47 @@ jobs:
     permissions:
       contents: read
     steps:
+      # Every `gh` call in this job is a single point of failure: a transient 5xx
+      # anywhere strands the issue mid-triage. That is not hypothetical — during the
+      # 2026-08-17 GitHub incident (~20% API error rates) this job failed twice on
+      # different calls, the second time after the agent had already implemented the
+      # fix and pushed a branch, losing the PR. Retry the transient classes only, so
+      # a genuine 404 or 422 still fails fast instead of burning a minute first.
+      - name: Install gh retry helper
+        run: |
+          cat > "${RUNNER_TEMP}/gh-retry.sh" <<'HELPER'
+          gh_retry() {
+            local attempt=1 max=5 delay=5 out rc
+            while :; do
+              if out=$("$@" 2>&1); then
+                printf '%s' "$out"
+                return 0
+              else
+                # Captured in the else, not after the fi: an `if` with no else
+                # exits 0 when its condition fails, so `rc=$?` after `fi` would
+                # always read 0 and turn every genuine failure into a success.
+                rc=$?
+              fi
+              # Transient only: 5xx, gateway timeouts, and the connection-level
+              # failures that surface as curl/network errors rather than an HTTP code.
+              if ! printf '%s' "$out" | grep -qiE 'HTTP (50[0-9]|429)|No server is currently available|timeout|timed out|connection reset|EOF|temporarily unavailable'; then
+                printf '%s\n' "$out" >&2
+                return "$rc"
+              fi
+              if [ "$attempt" -ge "$max" ]; then
+                printf '%s\n' "$out" >&2
+                echo "::error::gh call failed after ${max} attempts: $*" >&2
+                return "$rc"
+              fi
+              echo "::warning::transient failure on attempt ${attempt}/${max}, retrying in ${delay}s: $*" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          HELPER
+          echo "Wrote ${RUNNER_TEMP}/gh-retry.sh"
+
       - name: Generate Imagile Bot token
         id: imagile-token
         uses: actions/create-github-app-token@v3
@@ -50,8 +91,13 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
         run: |
+          source "${RUNNER_TEMP}/gh-retry.sh"
           BOT_LOGIN="${{ steps.imagile-token.outputs.app-slug }}[bot]"
-          echo "id=$(gh api "/users/${BOT_LOGIN}" --jq .id)" >> "$GITHUB_OUTPUT"
+          # Assigned separately, not inlined into `echo`: a command substitution
+          # inside an `echo` argument has its exit status masked by echo's own 0,
+          # so a failed lookup would silently write `id=` and fail much later.
+          BOT_ID=$(gh_retry gh api "/users/${BOT_LOGIN}" --jq .id)
+          echo "id=${BOT_ID}" >> "$GITHUB_OUTPUT"
           echo "login=${BOT_LOGIN}" >> "$GITHUB_OUTPUT"
 
       # The issue payload is only present on the `issues` trigger, so fetch the
@@ -63,11 +109,12 @@ jobs:
           GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
         run: |
+          source "${RUNNER_TEMP}/gh-retry.sh"
           if ! [[ "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
             echo "::error::Invalid issue number: '$ISSUE_NUMBER'"
             exit 1
           fi
-          gh issue view "$ISSUE_NUMBER" --repo "${{ github.repository }}" \
+          gh_retry gh issue view "$ISSUE_NUMBER" --repo "${{ github.repository }}" \
             --json title,body,url,author > /tmp/issue.json
           # Random delimiters: the title and body are untrusted and a fixed
           # delimiter appearing in one would let it forge further step outputs.
@@ -249,13 +296,19 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
         run: |
+          source "${RUNNER_TEMP}/gh-retry.sh"
           BRANCH=$(git branch -r --list "origin/claude/issue-${{ steps.issue.outputs.number }}*" | head -1 | tr -d ' ')
           if [ -z "$BRANCH" ]; then
             echo "No claude branch found for issue ${{ steps.issue.outputs.number }}, skipping"
             exit 0
           fi
           BRANCH_NAME="${BRANCH#origin/}"
-          EXISTING=$(gh pr list --state all --head "$BRANCH_NAME" --repo "${{ github.repository }}" --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
+          # Deliberately NOT `|| echo ""`. Swallowing an API error into an empty
+          # string is indistinguishable from "no PR exists", so a 5xx here would
+          # fall through and open a duplicate PR. Let a genuine failure fail the
+          # step; gh_retry already absorbs the transient case.
+          EXISTING=$(gh_retry gh pr list --state all --head "$BRANCH_NAME" \
+            --repo "${{ github.repository }}" --json number --jq '.[0].number // empty')
           if [ -n "$EXISTING" ]; then
             echo "PR #$EXISTING already exists for $BRANCH_NAME"
             exit 0
@@ -268,14 +321,14 @@ jobs:
             printf 'Closes #%s\n' '${{ steps.issue.outputs.number }}' > /tmp/pr-body.md
           fi
           echo "No PR found for $BRANCH_NAME — creating PR"
-          PR_URL=$(gh pr create \
+          PR_URL=$(gh_retry gh pr create \
             --title "$TITLE" \
             --body-file /tmp/pr-body.md \
             --head "$BRANCH_NAME" \
             --base "${{ github.event.repository.default_branch }}" \
             --repo "${{ github.repository }}")
           echo "Created $PR_URL"
-          gh issue comment '${{ steps.issue.outputs.number }}' \
+          gh_retry gh issue comment '${{ steps.issue.outputs.number }}' \
             --repo "${{ github.repository }}" \
             --body "Implemented in PR: $PR_URL"
 
@@ -311,4 +364,7 @@ jobs:
           (github.event.label.name == 'claude-triage' || github.event_name == 'workflow_dispatch')
         env:
           GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
-        run: gh issue edit ${{ steps.issue.outputs.number }} --remove-label "claude-triage" --repo "${{ github.repository }}" || true
+        run: |
+          source "${RUNNER_TEMP}/gh-retry.sh"
+          gh_retry gh issue edit ${{ steps.issue.outputs.number }} \
+            --remove-label "claude-triage" --repo "${{ github.repository }}" || true
