@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { basename } from 'path';
 import type { HttpClient } from '../../lib/http.js';
 import { guessMimeType } from '../../lib/mime.js';
+import { PncliError } from '../../lib/errors.js';
 import type {
   ConfluencePage,
   ConfluenceSpace,
@@ -217,6 +218,25 @@ export class ConfluenceClient {
       formData
     );
     return result.results;
+  }
+
+  async getAttachment(attachmentId: string): Promise<ConfluenceAttachment> {
+    return this.http.confluence<ConfluenceAttachment>(`${API}/content/${attachmentId}`);
+  }
+
+  async downloadAttachment(attachment: ConfluenceAttachment): Promise<Buffer> {
+    // `/rest/api/content/{id}` resolves any content type, so a page ID here returns
+    // a page with no download link. The declared type says `download` is required,
+    // so TS won't catch it — without this guard buildUrl gets undefined and throws
+    // a bare TypeError instead of a PncliError with a usable exit code.
+    const downloadPath = attachment._links.download;
+    if (!downloadPath) {
+      throw new PncliError(
+        `Content ${attachment.id} has no download link — is it an attachment? (title: ${attachment.title})`,
+        1
+      );
+    }
+    return this.http.confluenceBuffer(downloadPath);
   }
 
   async deleteAttachment(attachmentId: string): Promise<void> {

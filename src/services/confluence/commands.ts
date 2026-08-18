@@ -1,4 +1,5 @@
-import { existsSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import path from 'path';
 import { Command } from 'commander';
 import { ConfluenceClient } from './client.js';
 import { createHttpClient } from '../../lib/http.js';
@@ -12,6 +13,24 @@ import { resolveTextInput } from '../../lib/input.js';
  * extracts the offending line from the submitted body and returns a diagnostic hint.
  * Returns null if the error doesn't match the pattern or the row is out of range.
  */
+/**
+ * Resolves where a downloaded attachment is written.
+ *
+ * `title` comes from the Confluence API, so it is untrusted: without basename()
+ * a title like `../../.gitconfig` (or an absolute path) escapes `outDir` and
+ * writes anywhere the process can reach. Exported so that containment is
+ * directly testable — see commands.test.ts.
+ */
+export function resolveAttachmentPath(outDir: string, title: string): string {
+  // Split on both separators rather than path.basename(): on POSIX, basename()
+  // does not treat `\` as a separator, so a title from a Windows-hosted
+  // Confluence would survive intact as a literal `..\..\file` filename. Handling
+  // both makes containment independent of the platform pncli happens to run on.
+  const segments = title.split(/[\\/]/).filter(s => s !== '' && s !== '.' && s !== '..');
+  const name = segments.pop() ?? 'attachment';
+  return path.join(outDir, name);
+}
+
 export function xmlParseHint(err: unknown, bodyContent: string, convertedFromMarkdown = false): string | null {
   if (!(err instanceof Error)) return null;
   const m = err.message.match(/at \[row,col\]=\{(\d+),(\d+)\}/);
@@ -337,6 +356,24 @@ export function registerConfluenceCommands(program: Command): void {
         const data = await client.uploadAttachment(opts.id, opts.file, opts.comment);
         success(data, 'confluence', 'upload-attachment', start);
       } catch (err) { fail(err, 'confluence', 'upload-attachment', start); }
+    });
+
+  confluence.command('download-attachment')
+    .description('Download a Confluence attachment to .pncli/ (or --dir)')
+    .requiredOption('--id <attachment-id>', 'Attachment content ID')
+    .option('--dir <path>', 'Output directory (default: .pncli relative to cwd)')
+    .action(async (opts: { id: string; dir?: string }) => {
+      const start = Date.now();
+      try {
+        const client = getClient(program);
+        const attachment = await client.getAttachment(opts.id);
+        const outDir = opts.dir ?? path.join(process.cwd(), '.pncli');
+        mkdirSync(outDir, { recursive: true });
+        const outPath = resolveAttachmentPath(outDir, attachment.title);
+        const buffer = await client.downloadAttachment(attachment);
+        writeFileSync(outPath, buffer);
+        success({ saved: outPath, filename: attachment.title, size: buffer.length }, 'confluence', 'download-attachment', start);
+      } catch (err) { fail(err, 'confluence', 'download-attachment', start); }
     });
 
   confluence.command('delete-attachment')

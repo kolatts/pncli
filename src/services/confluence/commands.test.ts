@@ -1,5 +1,47 @@
 import { describe, it, expect } from 'vitest';
-import { xmlParseHint } from './commands.js';
+import path from 'path';
+import { xmlParseHint, resolveAttachmentPath } from './commands.js';
+
+describe('resolveAttachmentPath', () => {
+  const outDir = path.join('/tmp', 'out');
+
+  it('joins a normal filename into the output directory', () => {
+    expect(resolveAttachmentPath(outDir, 'diagram.png')).toBe(path.join(outDir, 'diagram.png'));
+  });
+
+  // The API supplies `title`, so these are the cases that matter.
+  it('contains a POSIX traversal title', () => {
+    expect(resolveAttachmentPath(outDir, '../../.gitconfig')).toBe(path.join(outDir, '.gitconfig'));
+  });
+
+  it('contains a Windows traversal title', () => {
+    const resolved = resolveAttachmentPath(outDir, '..\\..\\.gitconfig');
+    expect(resolved.startsWith(outDir)).toBe(true);
+    expect(resolved).not.toContain('..');
+  });
+
+  it('contains an absolute path title', () => {
+    const resolved = resolveAttachmentPath(outDir, '/etc/passwd');
+    expect(resolved).toBe(path.join(outDir, 'passwd'));
+  });
+
+  it('never escapes the output directory for any traversal shape', () => {
+    const titles = [
+      '../x', '../../../../x', './../x', 'a/../../x', '/abs/x',
+      '..\\x', '..\\..\\..\\x', 'C:\\Windows\\x', 'a/b\\c/../x'
+    ];
+    for (const title of titles) {
+      const resolved = resolveAttachmentPath(outDir, title);
+      expect(resolved.startsWith(outDir)).toBe(true);
+      expect(resolved).toBe(path.join(outDir, 'x'));
+    }
+  });
+
+  it('falls back to a placeholder when the title has no usable segment', () => {
+    expect(resolveAttachmentPath(outDir, '../..')).toBe(path.join(outDir, 'attachment'));
+    expect(resolveAttachmentPath(outDir, '/')).toBe(path.join(outDir, 'attachment'));
+  });
+});
 
 // resolveTextInput (formerly this file's local resolveBody) is now shared —
 // see src/lib/input.test.ts for its coverage, including the '-' = stdin case.

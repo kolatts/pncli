@@ -565,6 +565,10 @@ pncli confluence upload-attachment
   --file <path>     Path to the file to upload
   --comment <text>  Optional comment to attach to the file version
 
+pncli confluence download-attachment
+  --id <attachment-id>  Attachment content ID
+  --dir <path>          Output directory (default: .pncli relative to cwd)
+
 pncli confluence delete-attachment
   --id <attachment-id>  Attachment content ID
 
