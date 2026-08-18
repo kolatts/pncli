@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.0](https://github.com/kolatts/pncli/compare/v1.22.0...v1.23.0) (2026-08-18)
+
+
+### Features
+
+* **logscale:** add CrowdStrike Falcon LogScale integration ([#337](https://github.com/kolatts/pncli/issues/337)) ([ae3cde5](https://github.com/kolatts/pncli/commit/ae3cde59dc20491ffd84b0cd9bc9ab68b5c2edb4)), closes [#336](https://github.com/kolatts/pncli/issues/336)
+
 ## [1.22.0](https://github.com/kolatts/pncli/compare/v1.21.0...v1.22.0) (2026-08-18)
 
 
