@@ -298,6 +298,17 @@ export function registerConfigCommands(program: Command): void {
           results.dynatrace_platform = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.logscale.baseUrl && cfg.logscale.token) {
+          try {
+            await http.logscale<unknown[]>('/api/v1/repositories');
+            results.logscale = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.logscale = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.logscale = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -586,6 +597,20 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        // LogScale
+        if (!cfg.logscale.token) {
+          results.logscale = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.logscale.baseUrl) {
+          results.logscale = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.logscale<unknown[]>('/api/v1/repositories', { timeoutMs: 10_000 });
+            results.logscale = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.logscale = categorize(err);
+          }
+        }
+
         // Exit code: prefer AUTH_ERROR if any invalid, else NETWORK_ERROR if any errors
         const statuses = Object.values(results).map(r => r.status);
         if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
@@ -593,7 +618,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform'] as const;
+          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -611,7 +636,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform'] as const;
+            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -1332,6 +1357,45 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── LogScale ──────────────────────────────────────\n');
+  const useLogscale = await confirm({
+    message: 'Configure LogScale (Falcon LogScale / Humio) for log queries?',
+    default: false
+  });
+
+  let logscaleBaseUrl = '';
+  let logscaleToken = '';
+
+  if (useLogscale) {
+    logscaleBaseUrl = await input({
+      message: 'LogScale base URL (e.g. https://logscale.imagile.dev):',
+      default: ''
+    });
+
+    logscaleToken = await password({
+      message: 'LogScale personal access token:'
+    });
+
+    if (logscaleBaseUrl && logscaleToken) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          logscale: {
+            baseUrl: normalizeBaseUrl(logscaleBaseUrl),
+            token: logscaleToken
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.logscale<unknown[]>('/api/v1/repositories');
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to LogScale: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your URL and token and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -1474,6 +1538,12 @@ async function initGlobalConfig(start: number): Promise<void> {
         apiToken: dynatraceApiToken || undefined,
         platformUrl: normalizeBaseUrl(dynatracePlatformUrl) || undefined,
         platformToken: dynatracePlatformToken || undefined
+      }
+    } : {}),
+    ...(useLogscale && logscaleBaseUrl ? {
+      logscale: {
+        baseUrl: normalizeBaseUrl(logscaleBaseUrl),
+        token: logscaleToken || undefined
       }
     } : {}),
     defaults: {
