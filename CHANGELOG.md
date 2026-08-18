@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.22.0](https://github.com/kolatts/pncli/compare/v1.21.0...v1.22.0) (2026-08-18)
+
+
+### Features
+
+* **ado:** add --draft flag to create-pr and update-pr ([#327](https://github.com/kolatts/pncli/issues/327)) ([d94869f](https://github.com/kolatts/pncli/commit/d94869fe9d4db7588a13cae1c8d5b6cb53ca5c7d))
+* **confluence:** add download-attachment command ([#325](https://github.com/kolatts/pncli/issues/325)) ([8d14c19](https://github.com/kolatts/pncli/commit/8d14c1975e237645fdf132558cdf92717b2563e1))
+* **site:** consistent chibi art, robot party, and changelog MDX escaping fix ([#314](https://github.com/kolatts/pncli/issues/314)) ([8a009e7](https://github.com/kolatts/pncli/commit/8a009e7f07962d62ae7b5d7b7489dcdb5cb385d6))
+* **site:** transparent chibi art and full cast lineup ([#317](https://github.com/kolatts/pncli/issues/317)) ([06b2e44](https://github.com/kolatts/pncli/commit/06b2e44c9818138852ca9587ee1484caf16b90ab)), closes [#316](https://github.com/kolatts/pncli/issues/316)
+* **skills:** add marketplace enable/disable plugin toggle ([#319](https://github.com/kolatts/pncli/issues/319)) ([f129ffa](https://github.com/kolatts/pncli/commit/f129ffae1c1e888a9c124d075b64763b986d1577))
+
+
+### Bug Fixes
+
+* **ci:** add manual re-triage path to claude-triage workflow ([#322](https://github.com/kolatts/pncli/issues/322)) ([8941761](https://github.com/kolatts/pncli/commit/8941761cbeefd9256359a3ff84732d9a93ec2a31))
+* **ci:** gate track_progress on the issues event so re-triage works ([#332](https://github.com/kolatts/pncli/issues/332)) ([925f752](https://github.com/kolatts/pncli/commit/925f7529e5a900ef43f12916686278e3980a5bb7)), closes [#331](https://github.com/kolatts/pncli/issues/331)
+* **ci:** retry transient gh failures in claude-triage ([#324](https://github.com/kolatts/pncli/issues/324)) ([95e4ae4](https://github.com/kolatts/pncli/commit/95e4ae4bb11f4a9387aaa4a7c268d02897f7abdb))
+* **ci:** stop no-op label runs from cancelling claude-triage ([#330](https://github.com/kolatts/pncli/issues/330)) ([3ff189c](https://github.com/kolatts/pncli/commit/3ff189ceefbb7eadf566d6de1cbe2bca76574579)), closes [#329](https://github.com/kolatts/pncli/issues/329)
+* **jira:** add --jql-file to search to avoid PowerShell quoting failures ([#333](https://github.com/kolatts/pncli/issues/333)) ([c53f480](https://github.com/kolatts/pncli/commit/c53f48044654c1b6f82070da6431c1fc1aa22a0e))
+
 ## [1.21.0](https://github.com/kolatts/pncli/compare/v1.20.0...v1.21.0) (2026-08-15)
 
 
