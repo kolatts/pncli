@@ -15,15 +15,36 @@ on:
         type: string
 
 concurrency:
-  # Keyed on the issue alone, deliberately not on the triggering label. A manual
-  # re-triage must cancel the stranded run it is replacing, and two labels on one
-  # issue should not triage concurrently either — in both cases the losing run
-  # would race the winner into duplicate branches, comments and PRs.
-  group: claude-triage-${{ github.event.issue.number || inputs.issue_number }}
+  # Real triage runs are keyed on the issue alone, deliberately not on the
+  # triggering label. A manual re-triage must cancel the stranded run it is
+  # replacing, and two labels on one issue should not triage concurrently either
+  # — in both cases the losing run would race the winner into duplicate
+  # branches, comments and PRs.
+  #
+  # Everything else gets a unique per-run group so it cancels nothing. This is
+  # load-bearing: `on: issues: [labeled]` cannot filter by label, so EVERY label
+  # added to an issue creates a run, and workflow-level concurrency is evaluated
+  # at run-creation time — before the job's `if` below. A run that is about to
+  # skip still claims the group and, with cancel-in-progress, kills the real
+  # triage run. Triage did this to itself: step 5 adds `triaged`, the resulting
+  # `labeled` event cancelled the job seconds later, and the PR-creation step
+  # (`if: success() || failure()`) never runs on a cancelled job — issue #328
+  # was left with a pushed branch and no PR. The website adding `bug` alongside
+  # `from-website` is the same collision from a different identity.
+  #
+  # Keep this condition in sync with the job's `if`.
+  group: >-
+    claude-triage-${{
+    (github.event_name == 'workflow_dispatch'
+    || github.event.label.name == 'claude-triage'
+    || github.event.label.name == 'from-website')
+    && format('issue-{0}', github.event.issue.number || inputs.issue_number)
+    || format('noop-{0}', github.run_id) }}
   cancel-in-progress: true
 
 jobs:
   triage:
+    # Keep in sync with the `concurrency.group` condition above.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.label.name == 'claude-triage' ||
