@@ -8,7 +8,7 @@ import { createHttpClient } from '../../lib/http.js';
 import { loadConfig } from '../../lib/config.js';
 import { success, fail, warn, writeRawOutput } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
-import { readJsonInputFile, resolveAtFileRef, mergeWithOverrides } from '../../lib/input.js';
+import { readJsonInputFile, resolveAtFileRef, mergeWithOverrides, resolveTextInput } from '../../lib/input.js';
 import type { CustomFieldMap } from '../../types/jira.js';
 
 /** Shape of the JSON accepted by --input-file on create-issue / update-issue. */
@@ -302,14 +302,17 @@ export function registerJiraCommands(program: Command): void {
 
   jira.command('search')
     .description('Search Jira issues with JQL (consider --output-file for large results)')
-    .requiredOption('--jql <query>', 'JQL query string')
+    .option('--jql <query>', 'JQL query string')
+    .option('--jql-file <path>', "File containing JQL query; '-' = stdin. Avoids shell quoting issues on Windows/PowerShell")
     .option('--max-results <n>', 'Maximum number of results')
-    .action(async (opts: { jql: string; maxResults?: string }) => {
+    .action(async (opts: { jql?: string; jqlFile?: string; maxResults?: string }) => {
       const start = Date.now();
       try {
         const { client, fieldMap, customFields } = getClientAndFields(program);
+        const jql = resolveTextInput(opts.jql, opts.jqlFile, 'jql');
+        if (!jql?.trim()) throw new PncliError('Must specify --jql or --jql-file', 1);
         const maxResults = opts.maxResults ? parseInt(opts.maxResults, 10) : undefined;
-        const translatedJql = translateJql(opts.jql, fieldMap);
+        const translatedJql = translateJql(jql.trim(), fieldMap);
         const data = await client.search(translatedJql, maxResults, customFields);
         const translatedIssues = data.issues.map(issue => ({
           ...issue,
