@@ -17,3 +17,31 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+
+  # Separate job: needs no npm install, so it runs in parallel with the checks
+  # above and reports workflow problems even when the Node build is broken.
+  workflows:
+    name: lint workflows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to a release with a verified checksum rather than piping the
+      # upstream install script into bash: this step runs on every PR, and a
+      # compromised or simply changed script would execute unreviewed.
+      - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          TARBALL="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL -o "$TARBALL"             "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${TARBALL}"
+          echo "${ACTIONLINT_SHA256}  ${TARBALL}" | sha256sum --check --status             || { echo "::error::actionlint checksum mismatch"; exit 1; }
+          tar -xzf "$TARBALL" actionlint
+          ./actionlint -version
+
+      # shellcheck is preinstalled on ubuntu runners and actionlint delegates
+      # every `run:` block to it, so this lints the workflows' embedded bash too
+      # — which is where this repo's non-trivial CI logic actually lives.
+      - name: Lint workflows
+        run: ./actionlint -color
