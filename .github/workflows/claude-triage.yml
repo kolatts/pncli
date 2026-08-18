@@ -174,7 +174,16 @@ jobs:
           github_token: ${{ steps.imagile-token.outputs.token }}
           bot_id: ${{ steps.imagile-bot.outputs.id }}
           bot_name: ${{ steps.imagile-bot.outputs.login }}
-          track_progress: true
+          # Gated on the event, not hardcoded true: the action rejects
+          # `track_progress` outright on `workflow_dispatch` ("only supported for
+          # events: pull_request, issues, ..."), which made the manual re-triage
+          # path fail in ~234ms before the agent ever started — it had never once
+          # executed successfully. The action's own default is the string "false",
+          # so emitting "false" here is equivalent to omitting the input.
+          # Losing tracking comments on the dispatch path costs nothing: the prompt
+          # already gets every issue field through `steps.issue.outputs.*`, and the
+          # workflow creates the PR and issue comment itself in later steps.
+          track_progress: ${{ github.event_name == 'issues' }}
           plugin_marketplaces: |
             https://github.com/kolatts/claude-marketplace.git
           plugins: |
