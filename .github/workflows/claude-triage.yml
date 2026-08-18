@@ -374,16 +374,20 @@ jobs:
           ISSUE_URL: ${{ steps.issue.outputs.url }}
           TRIGGER: ${{ github.event.label.name || 'manual re-triage (workflow_dispatch)' }}
         run: |
-          echo "## Claude Triage — Issue #${{ steps.issue.outputs.number }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Issue:** [${ISSUE_TITLE}](${ISSUE_URL})" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Triggered by:** \`${TRIGGER}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f /tmp/triage-summary.md ]; then
-            cat /tmp/triage-summary.md >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "_No summary file written by Claude._" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          # Grouped into one redirect rather than a series of `>>` appends
+          # (shellcheck SC2129).
+          {
+            echo "## Claude Triage — Issue #${{ steps.issue.outputs.number }}"
+            echo ""
+            echo "**Issue:** [${ISSUE_TITLE}](${ISSUE_URL})"
+            echo "**Triggered by:** \`${TRIGGER}\`"
+            echo ""
+            if [ -f /tmp/triage-summary.md ]; then
+              cat /tmp/triage-summary.md
+            else
+              echo "_No summary file written by Claude._"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # Also runs on manual re-triage: a run stranded by a transient failure can
       # leave `claude-triage` behind, and the whole point of the dispatch path is
