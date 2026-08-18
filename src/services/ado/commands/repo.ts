@@ -108,7 +108,8 @@ export function registerAdoRepoCommands(ado: Command): void {
     .option('--target <branch>', 'Target branch (default: main)', 'main')
     .option('--description <text>', 'PR description')
     .option('--reviewers <ids>', 'Comma-separated reviewer IDs or display names')
-    .action(async (opts: { title: string; source: string; target: string; description?: string; reviewers?: string }) => {
+    .option('--draft', 'Create as a draft pull request')
+    .action(async (opts: { title: string; source: string; target: string; description?: string; reviewers?: string; draft?: boolean }) => {
       const start = Date.now();
       try {
         const { collection, project, repo, gitClient } = getAdoContext(ado, true);
@@ -120,7 +121,8 @@ export function registerAdoRepoCommands(ado: Command): void {
           description: opts.description,
           sourceRefName: `refs/heads/${opts.source}`,
           targetRefName: `refs/heads/${opts.target}`,
-          reviewers
+          reviewers,
+          ...(opts.draft !== undefined ? { isDraft: opts.draft } : {})
         });
         success(data, 'ado', 'repo-create-pr', start);
       } catch (err) { fail(err, 'ado', 'repo-create-pr', start); }
@@ -133,7 +135,8 @@ export function registerAdoRepoCommands(ado: Command): void {
     .option('--title <title>', 'New title')
     .option('--description <text>', 'New description')
     .option('--reviewers <ids>', 'Comma-separated reviewer IDs')
-    .action(async (opts: { id: string; title?: string; description?: string; reviewers?: string }) => {
+    .option('--draft <bool>', 'Set draft status: true|false')
+    .action(async (opts: { id: string; title?: string; description?: string; reviewers?: string; draft?: string }) => {
       const start = Date.now();
       try {
         const { collection, project, repo, gitClient } = getAdoContext(ado, true);
@@ -144,6 +147,7 @@ export function registerAdoRepoCommands(ado: Command): void {
         if (opts.title) body.title = opts.title;
         if (opts.description !== undefined) body.description = opts.description;
         if (reviewers) body.reviewers = reviewers;
+        if (opts.draft !== undefined) body.isDraft = opts.draft === 'true';
         const data = await gitClient.updatePR(collection, project, repo, parseInt(opts.id, 10), body);
         success(data, 'ado', 'repo-update-pr', start);
       } catch (err) { fail(err, 'ado', 'repo-update-pr', start); }
