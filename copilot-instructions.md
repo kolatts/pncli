@@ -211,6 +211,7 @@ pncli jira list-comments
 
 pncli jira search
   --jql <query>      JQL query string
+  --jql-file <path>  Path to a file containing the JQL query ('-' = stdin)
   --max-results <n>  Maximum number of results
 
 pncli jira add-label
@@ -894,12 +895,14 @@ pncli ado repo create-pr
   --target <branch>     Target branch (default: main) (default: "main")
   --description <text>  PR description
   --reviewers <ids>     Comma-separated reviewer IDs or display names
+  --draft               Create as a draft pull request
 
 pncli ado repo update-pr
   --id <n>              Pull request ID
   --title <title>       New title
   --description <text>  New description
   --reviewers <ids>     Comma-separated reviewer IDs
+  --draft <bool>        Set draft status: true|false
 
 pncli ado repo merge-pr
   --id <n>         Pull request ID

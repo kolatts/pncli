@@ -8,7 +8,7 @@ import { createHttpClient } from '../../lib/http.js';
 import { loadConfig } from '../../lib/config.js';
 import { success, fail, warn, writeRawOutput } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
-import { readJsonInputFile, resolveAtFileRef, mergeWithOverrides } from '../../lib/input.js';
+import { readJsonInputFile, resolveAtFileRef, mergeWithOverrides, resolveTextInput } from '../../lib/input.js';
 import type { CustomFieldMap } from '../../types/jira.js';
 
 /** Shape of the JSON accepted by --input-file on create-issue / update-issue. */
@@ -91,6 +91,21 @@ function getDefaults(program: Command): { project?: string; issueType?: string; 
     issueType: config.defaults.jira?.issueType,
     priority: config.defaults.jira?.priority
   };
+}
+
+/**
+ * Resolves the JQL for `jira search` from --jql or --jql-file (see resolveTextInput
+ * for the shared inline/file/stdin contract). Trimmed because a --jql-file almost
+ * always ends in a newline and Jira rejects the trailing whitespace.
+ */
+export function resolveJqlInput(jql: string | undefined, jqlFile: string | undefined): string {
+  const raw = resolveTextInput(jql, jqlFile, 'jql');
+  if (raw === undefined) throw new PncliError('Must specify --jql or --jql-file', 1);
+  const trimmed = raw.trim();
+  // Reported separately from the missing case: telling someone who did pass
+  // --jql-file to "specify --jql or --jql-file" would be a lie.
+  if (!trimmed) throw new PncliError('JQL query is empty', 1);
+  return trimmed;
 }
 
 export function registerJiraCommands(program: Command): void {
@@ -302,14 +317,16 @@ export function registerJiraCommands(program: Command): void {
 
   jira.command('search')
     .description('Search Jira issues with JQL (consider --output-file for large results)')
-    .requiredOption('--jql <query>', 'JQL query string')
+    .option('--jql <query>', 'JQL query string')
+    .option('--jql-file <path>', "Path to a file containing the JQL query ('-' = stdin)")
     .option('--max-results <n>', 'Maximum number of results')
-    .action(async (opts: { jql: string; maxResults?: string }) => {
+    .action(async (opts: { jql?: string; jqlFile?: string; maxResults?: string }) => {
       const start = Date.now();
       try {
         const { client, fieldMap, customFields } = getClientAndFields(program);
+        const jql = resolveJqlInput(opts.jql, opts.jqlFile);
         const maxResults = opts.maxResults ? parseInt(opts.maxResults, 10) : undefined;
-        const translatedJql = translateJql(opts.jql, fieldMap);
+        const translatedJql = translateJql(jql, fieldMap);
         const data = await client.search(translatedJql, maxResults, customFields);
         const translatedIssues = data.issues.map(issue => ({
           ...issue,

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
-import { parseFieldArgs, parseFieldsFile, splitFieldsDictionary } from './commands.js';
+import { parseFieldArgs, parseFieldsFile, splitFieldsDictionary, resolveJqlInput } from './commands.js';
 import { buildFieldMap } from './custom-fields.js';
 
 vi.mock('fs', () => ({
@@ -173,5 +173,66 @@ describe('splitFieldsDictionary — --input-file `fields` dictionary', () => {
     );
     expect(builtin.description).toBe('<p>Long description</p>');
     expect(custom.customfield_10016).toBe('<p>Long description</p>');
+  });
+});
+
+describe('resolveJqlInput — --jql / --jql-file', () => {
+  it('returns an inline --jql unchanged', () => {
+    expect(resolveJqlInput('project = FAKE', undefined)).toBe('project = FAKE');
+  });
+
+  it('reads JQL from --jql-file', () => {
+    mockReadFileSync.mockReturnValue('project = FAKE AND status = Done' as unknown as ReturnType<typeof readFileSync>);
+
+    expect(resolveJqlInput(undefined, 'query.jql')).toBe('project = FAKE AND status = Done');
+    expect(mockReadFileSync).toHaveBeenCalledWith('query.jql', 'utf8');
+  });
+
+  it("reads JQL from stdin when --jql-file is '-'", () => {
+    mockReadFileSync.mockReturnValue('project = FAKE' as unknown as ReturnType<typeof readFileSync>);
+
+    expect(resolveJqlInput(undefined, '-')).toBe('project = FAKE');
+    expect(mockReadFileSync).toHaveBeenCalledWith(0, 'utf8');
+  });
+
+  // The whole point of --jql-file: a file written by an editor ends in a newline,
+  // and Jira rejects the trailing whitespace.
+  it('trims a trailing newline from file content', () => {
+    mockReadFileSync.mockReturnValue('project = FAKE\n' as unknown as ReturnType<typeof readFileSync>);
+
+    expect(resolveJqlInput(undefined, 'query.jql')).toBe('project = FAKE');
+  });
+
+  // The reported bug (#328): PowerShell 5.x mangles single-quoted --jql containing
+  // inner double quotes. Via a file the quotes survive verbatim.
+  it('preserves inner double quotes that PowerShell would have split on', () => {
+    const jql = 'project = FAKE AND status = "In Progress"';
+    mockReadFileSync.mockReturnValue(jql as unknown as ReturnType<typeof readFileSync>);
+
+    expect(resolveJqlInput(undefined, 'query.jql')).toBe(jql);
+  });
+
+  it('throws when neither --jql nor --jql-file is given', () => {
+    expect(() => resolveJqlInput(undefined, undefined))
+      .toThrow('Must specify --jql or --jql-file');
+  });
+
+  it('throws when both --jql and --jql-file are given', () => {
+    expect(() => resolveJqlInput('project = FAKE', 'query.jql'))
+      .toThrow('Cannot specify both --jql and --jql-file');
+  });
+
+  // Distinct from the missing-argument message: the user did pass --jql-file.
+  it('reports an empty --jql-file separately from a missing argument', () => {
+    mockReadFileSync.mockReturnValue('   \n  ' as unknown as ReturnType<typeof readFileSync>);
+
+    expect(() => resolveJqlInput(undefined, 'empty.jql')).toThrow('JQL query is empty');
+  });
+
+  it('surfaces a read failure with the file name', () => {
+    mockReadFileSync.mockImplementation(() => { throw new Error('ENOENT: no such file'); });
+
+    expect(() => resolveJqlInput(undefined, 'missing.jql'))
+      .toThrow('Cannot read jql file "missing.jql"');
   });
 });
