@@ -31,6 +31,7 @@ import { registerSkillsCommands } from './services/skills/commands.js';
 import { registerJwtCommands } from './services/jwt/commands.js';
 import { registerOpenShiftCommands } from './services/openshift/commands.js';
 import { registerDynatraceCommands } from './services/dynatrace/commands.js';
+import { registerLogscaleCommands } from './services/logscale/commands.js';
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -89,6 +90,7 @@ registerSkillsCommands(program);
 registerJwtCommands(program);
 registerOpenShiftCommands(program);
 registerDynatraceCommands(program);
+registerLogscaleCommands(program);
 
 program.addHelpText('after', `
 Services:
@@ -110,6 +112,7 @@ Services:
   sonatypeiq   Sonatype IQ Server (applications, organizations, policies)
   openshift    OpenShift / Kubernetes (pods, events, logs, metrics)
   dynatrace    Dynatrace (services, entities, problems, traces, Kubernetes workloads)
+  logscale     LogScale (log query, repositories)
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills
   jwt          JWT token utilities (decode header and payload)

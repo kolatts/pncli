@@ -56,6 +56,8 @@ const ENV_KEYS = {
   DYNATRACE_API_TOKEN: 'PNCLI_DYNATRACE_API_TOKEN',
   DYNATRACE_PLATFORM_URL: 'PNCLI_DYNATRACE_PLATFORM_URL',
   DYNATRACE_PLATFORM_TOKEN: 'PNCLI_DYNATRACE_PLATFORM_TOKEN',
+  LOGSCALE_BASE_URL: 'PNCLI_LOGSCALE_BASE_URL',
+  LOGSCALE_TOKEN: 'PNCLI_LOGSCALE_TOKEN',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -229,6 +231,10 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       platformUrl: process.env[ENV_KEYS.DYNATRACE_PLATFORM_URL] ?? globalConfig.dynatrace?.platformUrl,
       platformToken: process.env[ENV_KEYS.DYNATRACE_PLATFORM_TOKEN] ?? globalConfig.dynatrace?.platformToken,
     },
+    logscale: {
+      baseUrl: process.env[ENV_KEYS.LOGSCALE_BASE_URL] ?? globalConfig.logscale?.baseUrl,
+      token: process.env[ENV_KEYS.LOGSCALE_TOKEN] ?? globalConfig.logscale?.token,
+    },
     defaults: mergedDefaults
   };
 }
@@ -372,6 +378,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
       ...config.dynatrace,
       apiToken: config.dynatrace.apiToken ? '***' : undefined,
       platformToken: config.dynatrace.platformToken ? '***' : undefined
+    },
+    logscale: {
+      ...config.logscale,
+      token: config.logscale.token ? '***' : undefined
     }
   };
 }

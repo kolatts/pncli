@@ -150,6 +150,12 @@ export interface DynatraceConfig {
   platformToken?: string;
 }
 
+export interface LogscaleConfig {
+  /** On-premise LogScale base URL, for example https://logscale.imagile.dev */
+  baseUrl?: string;
+  token?: string;
+}
+
 export interface MarketplaceConfig {
   name?: string;
   repoUrl?: string;
@@ -196,6 +202,7 @@ export interface GlobalConfig {
   sonatypeiq?: SonatypeIqConfig;
   openshift?: OpenShiftConfig;
   dynatrace?: DynatraceConfig;
+  logscale?: LogscaleConfig;
   marketplace?: MarketplaceConfig;
   marketplaces?: MarketplaceConfig[];
   defaults?: Defaults;
@@ -291,6 +298,10 @@ export interface ResolvedConfig {
     apiToken: string | undefined;
     platformUrl: string | undefined;
     platformToken: string | undefined;
+  };
+  logscale: {
+    baseUrl: string | undefined;
+    token: string | undefined;
   };
   defaults: {
     jira: JiraDefaults;
