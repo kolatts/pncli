@@ -47,7 +47,7 @@ export function registerLogscaleCommands(program: Command): void {
     .option('--start <time>', 'Start time (ISO 8601 or relative such as 1h or 24h)', '1h')
     .option('--end <time>', 'End time (ISO 8601 or relative)', 'now')
     .option('--limit <n>', 'Maximum number of events to return', '200')
-    .option('--timeout-ms <ms>', 'Server-side query timeout in milliseconds', '30000')
+    .option('--timeout-ms <ms>', 'Client-side HTTP timeout in milliseconds', '30000')
     .action(async (opts: {
       repository: string;
       query: string;
@@ -62,6 +62,7 @@ export function registerLogscaleCommands(program: Command): void {
           queryString: opts.query,
           start: opts.start,
           end: opts.end,
+          limit: parseInt(opts.limit, 10),
           showQueryEventDistribution: false,
           isLive: false
         };
@@ -70,8 +71,7 @@ export function registerLogscaleCommands(program: Command): void {
           {
             method: 'POST',
             body,
-            params: { limit: opts.limit },
-            timeoutMs: parseInt(opts.timeoutMs, 10) + 5000
+            timeoutMs: parseInt(opts.timeoutMs, 10)
           }
         );
         success(

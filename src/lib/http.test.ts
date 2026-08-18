@@ -549,6 +549,62 @@ describe('HttpClient — ServiceNow', () => {
   });
 });
 
+describe('HttpClient — LogScale', () => {
+  it('throws on missing baseUrl', async () => {
+    const config = baseConfig({ logscale: { baseUrl: undefined, token: 'tok' } });
+    const client = new HttpClient(config);
+    await expect(client.logscale('/api/v1/repositories')).rejects.toThrow('LogScale baseUrl not configured');
+  });
+
+  it('throws on missing token', async () => {
+    const config = baseConfig({ logscale: { baseUrl: 'https://logscale.imagile.dev', token: undefined } });
+    const client = new HttpClient(config);
+    await expect(client.logscale('/api/v1/repositories')).rejects.toThrow('LogScale credentials not configured');
+  });
+
+  it('sends Bearer auth with the configured token', async () => {
+    const capturedHeaders: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
+      return new Response('[]', { status: 200 });
+    });
+    try {
+      const config = baseConfig({ logscale: { baseUrl: 'https://logscale.imagile.dev', token: 'my-token' } });
+      const client = new HttpClient(config);
+      await client.logscale('/api/v1/repositories');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(capturedHeaders[0]?.['authorization']).toBe('Bearer my-token');
+  });
+
+  it('serializes the POST body as JSON', async () => {
+    const captured: { url: string; body: string }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      captured.push({ url: String(url), body: String(init.body) });
+      return new Response('{"done":true,"cancelled":false,"events":[]}', { status: 200 });
+    });
+    try {
+      const config = baseConfig({ logscale: { baseUrl: 'https://logscale.imagile.dev', token: 'tok' } });
+      const client = new HttpClient(config);
+      await client.logscale('/api/v1/repositories/my-app/query', {
+        method: 'POST',
+        body: { queryString: 'error', limit: 500 }
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(captured[0]?.url).toBe('https://logscale.imagile.dev/api/v1/repositories/my-app/query');
+    expect(JSON.parse(captured[0]?.body ?? '{}')).toEqual({ queryString: 'error', limit: 500 });
+  });
+
+  it('throws PncliError with status 0 on dry-run', async () => {
+    const config = baseConfig({ logscale: { baseUrl: 'https://logscale.imagile.dev', token: 'tok' } });
+    const client = new HttpClient(config, true);
+    await expect(client.logscale('/api/v1/repositories')).rejects.toMatchObject({ status: 0, message: 'dry-run' });
+  });
+});
+
 describe('HttpClient — jiraUpload', () => {
   it('throws PncliError with status 0 on dry-run', async () => {
     const client = new HttpClient(baseConfig(), true);
