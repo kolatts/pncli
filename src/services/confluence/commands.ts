@@ -45,6 +45,43 @@ export function xmlParseHint(err: unknown, bodyContent: string, convertedFromMar
   return `Offending line ${row}${suffix}: ${line}\n${pointer}`;
 }
 
+/**
+ * When Confluence returns HTTP 500 (often a NullPointerException from the Java
+ * server), scans the submitted body for known storage-format mistakes and returns
+ * actionable hints. Returns null if no known issues are detected or the error is
+ * not an HTTP 500.
+ */
+export function storageFormatHint(err: unknown, bodyContent: string): string | null {
+  if (!(err instanceof PncliError) || err.status !== 500) return null;
+  const hints: string[] = [];
+
+  // <ac:parameter name="..."> uses a bare attribute — Confluence requires the ac: prefix.
+  // Negative lookbehind excludes the valid form ac:name= (preceded by ':').
+  if (/<ac:parameter[^>]*(?<![:\w])name\s*=/i.test(bodyContent)) {
+    hints.push(
+      '<ac:parameter name="..."> found — use ac:name="..." instead ' +
+      '(e.g. <ac:parameter ac:name="language">text</ac:parameter>).'
+    );
+  }
+
+  // <ac:structured-macro> without ac:macro-id causes a NullPointerException on some
+  // Confluence versions. Each macro tag must carry a unique UUID in this attribute.
+  const macroTagRe = /<ac:structured-macro(?:\s[^>]*)?\s*>/gi;
+  let macroMatch: RegExpExecArray | null;
+  while ((macroMatch = macroTagRe.exec(bodyContent)) !== null) {
+    if (!/\bac:macro-id\b/.test(macroMatch[0])) {
+      hints.push(
+        '<ac:structured-macro> without ac:macro-id found — add a unique UUID: ' +
+        'ac:macro-id="<uuid>" (e.g. ac:macro-id="a1b2c3d4-...").'
+      );
+      break;
+    }
+  }
+
+  if (hints.length === 0) return null;
+  return `HTTP 500 — possible storage-format causes:\n${hints.map(h => `  • ${h}`).join('\n')}`;
+}
+
 function getClient(program: Command): ConfluenceClient {
   const opts = program.optsWithGlobals();
   const config = loadConfig({ configPath: opts.config });
@@ -176,7 +213,9 @@ export function registerConfluenceCommands(program: Command): void {
         });
         success(data, 'confluence', 'create-page', start);
       } catch (err) {
-        const hint = bodyContent ? xmlParseHint(err, bodyContent, Boolean(opts.markdown)) : null;
+        const xmlHint = bodyContent ? xmlParseHint(err, bodyContent, Boolean(opts.markdown)) : null;
+        const sfHint = bodyContent ? storageFormatHint(err, bodyContent) : null;
+        const hint = [xmlHint, sfHint].filter(Boolean).join('\n\n') || null;
         if (hint) {
           const msg = err instanceof Error ? err.message : String(err);
           const status = err instanceof PncliError ? err.status : 1;
@@ -218,7 +257,9 @@ export function registerConfluenceCommands(program: Command): void {
         });
         success(data, 'confluence', 'update-page', start);
       } catch (err) {
-        const hint = bodyContent ? xmlParseHint(err, bodyContent, Boolean(opts.markdown)) : null;
+        const xmlHint = bodyContent ? xmlParseHint(err, bodyContent, Boolean(opts.markdown)) : null;
+        const sfHint = bodyContent ? storageFormatHint(err, bodyContent) : null;
+        const hint = [xmlHint, sfHint].filter(Boolean).join('\n\n') || null;
         if (hint) {
           const msg = err instanceof Error ? err.message : String(err);
           const status = err instanceof PncliError ? err.status : 1;
