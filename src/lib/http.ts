@@ -400,6 +400,53 @@ export class HttpClient {
     return response.text();
   }
 
+  async githubGraphQL<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+    const baseUrl = this.config.github.baseUrl;
+    if (!baseUrl) throw new PncliError('GitHub baseUrl not configured. Run: pncli config init');
+
+    // Derive GraphQL endpoint:
+    //   github.com:  'https://api.github.com'       → 'https://api.github.com/graphql'
+    //   GHES:        'https://ghe.imagile.dev/api/v3' → 'https://ghe.imagile.dev/api/graphql'
+    // Trailing slashes are trimmed first — config does not normalize them away, so
+    // '.../api/v3/' must still be recognized as a GHES REST root.
+    const trimmed = baseUrl.replace(/\/+$/, '');
+    const stripped = trimmed.endsWith('/v3') ? trimmed.slice(0, -3) : trimmed;
+    const url = stripped.endsWith('/') ? `${stripped}graphql` : `${stripped}/graphql`;
+
+    const headers = this.githubHeaders();
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: POST ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\nBody: ${JSON.stringify({ query, variables }, null, 2)}\n`;
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const result = await request<{ data?: T; errors?: Array<{ message: string }> }>(
+      url,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ query, variables })
+      },
+      30000
+    );
+
+    if (result.errors?.length) {
+      throw new PncliError(result.errors.map(e => e.message).join('; '), 1, url);
+    }
+
+    // GitHub can return a null/absent `data` with no `errors` array (e.g. an
+    // inaccessible or deleted repository). Fail cleanly instead of letting the
+    // caller dereference null.
+    if (result.data === null || result.data === undefined) {
+      throw new PncliError('GraphQL response contained no data', 1, url);
+    }
+
+    return result.data;
+  }
+
   async githubPaginate<T>(
     fetchPage: (page: number, perPage: number) => Promise<T[]>
   ): Promise<T[]> {

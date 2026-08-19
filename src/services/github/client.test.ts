@@ -242,3 +242,170 @@ describe('GitHubClient — createRepo', () => {
     expect(capturedUrl).toContain('/orgs/my-org/repos');
   });
 });
+
+describe('GitHubClient — listReviewThreads', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('POSTs GraphQL query to api.github.com/graphql and returns thread nodes', async () => {
+    let capturedUrl = '';
+    let capturedMethod = '';
+    let capturedBody: { query: string; variables: unknown } = { query: '', variables: {} };
+
+    const thread = {
+      id: 'PRT_kwDOHfWCIM4APCA',
+      isResolved: false,
+      isOutdated: false,
+      path: 'src/index.ts',
+      line: 10,
+      comments: { nodes: [{ id: 'IC_1', databaseId: 1, body: 'fix this', author: { login: 'alice' }, createdAt: '2024-01-01T00:00:00Z' }] }
+    };
+
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      capturedUrl = url;
+      capturedMethod = init.method ?? 'GET';
+      capturedBody = JSON.parse(init.body as string);
+      return new Response(
+        JSON.stringify({ data: { repository: { pullRequest: { reviewThreads: { nodes: [thread] } } } } }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    const threads = await client.listReviewThreads('o', 'r', 42);
+
+    expect(capturedUrl).toBe('https://api.github.com/graphql');
+    expect(capturedMethod).toBe('POST');
+    expect(capturedBody.variables).toEqual({ owner: 'o', repo: 'r', number: 42 });
+    expect(capturedBody.query).toContain('reviewThreads');
+    expect(threads).toHaveLength(1);
+    expect(threads[0].id).toBe('PRT_kwDOHfWCIM4APCA');
+    expect(threads[0].isResolved).toBe(false);
+  });
+
+  it('throws when the GraphQL response contains errors', async () => {
+    vi.stubGlobal('fetch', async () => {
+      return new Response(
+        JSON.stringify({ errors: [{ message: 'Could not resolve to a Repository' }] }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    await expect(client.listReviewThreads('o', 'r', 99)).rejects.toThrow('Could not resolve to a Repository');
+  });
+});
+
+describe('GitHubClient — resolveReviewThread', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('POSTs resolveReviewThread mutation to api.github.com/graphql', async () => {
+    let capturedUrl = '';
+    let capturedBody: { query: string; variables: unknown } = { query: '', variables: {} };
+
+    const thread = {
+      id: 'PRT_kwDOHfWCIM4APCA',
+      isResolved: true,
+      isOutdated: false,
+      path: 'src/index.ts',
+      line: 10,
+      comments: { nodes: [] }
+    };
+
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      capturedUrl = url;
+      capturedBody = JSON.parse(init.body as string);
+      return new Response(
+        JSON.stringify({ data: { resolveReviewThread: { thread } } }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    const result = await client.resolveReviewThread('PRT_kwDOHfWCIM4APCA');
+
+    expect(capturedUrl).toBe('https://api.github.com/graphql');
+    expect(capturedBody.query).toContain('resolveReviewThread');
+    expect(capturedBody.variables).toEqual({ threadId: 'PRT_kwDOHfWCIM4APCA' });
+    expect(result.isResolved).toBe(true);
+  });
+});
+
+describe('GitHubClient — GraphQL endpoint derivation', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  async function capturedGraphQLUrl(baseUrl: string): Promise<string> {
+    let capturedUrl = '';
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrl = url;
+      return new Response(
+        JSON.stringify({ data: { repository: { pullRequest: { reviewThreads: { nodes: [] } } } } }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+    const config = makeConfig();
+    config.github.baseUrl = baseUrl;
+    await new GitHubClient(new HttpClient(config)).listReviewThreads('o', 'r', 1);
+    return capturedUrl;
+  }
+
+  it('derives /api/graphql for a GHES REST root', async () => {
+    expect(await capturedGraphQLUrl('https://ghe.imagile.dev/api/v3')).toBe('https://ghe.imagile.dev/api/graphql');
+  });
+
+  it('derives /api/graphql for a GHES REST root with a trailing slash', async () => {
+    expect(await capturedGraphQLUrl('https://ghe.imagile.dev/api/v3/')).toBe('https://ghe.imagile.dev/api/graphql');
+  });
+
+  it('derives /graphql for api.github.com with a trailing slash', async () => {
+    expect(await capturedGraphQLUrl('https://api.github.com/')).toBe('https://api.github.com/graphql');
+  });
+});
+
+describe('GitHubClient — GraphQL null data handling', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('throws a clean error when data is null and no errors array is present', async () => {
+    vi.stubGlobal('fetch', async () => {
+      return new Response(JSON.stringify({ data: null }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    await expect(client.listReviewThreads('o', 'r', 7)).rejects.toThrow('GraphQL response contained no data');
+  });
+});
+
+describe('GitHubClient — listReviewThreads truncation', () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it('warns on stderr when more threads exist than were returned', async () => {
+    vi.stubGlobal('fetch', async () => {
+      return new Response(
+        JSON.stringify({
+          data: { repository: { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: true }, nodes: [] } } } }
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+    const warn = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    await new GitHubClient(new HttpClient(makeConfig())).listReviewThreads('o', 'r', 42);
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('warning:'));
+  });
+
+  it('does not warn when hasNextPage is false', async () => {
+    vi.stubGlobal('fetch', async () => {
+      return new Response(
+        JSON.stringify({
+          data: { repository: { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [] } } } }
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+    const warn = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    await new GitHubClient(new HttpClient(makeConfig())).listReviewThreads('o', 'r', 42);
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+});

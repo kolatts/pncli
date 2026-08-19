@@ -152,3 +152,23 @@ export interface GitHubRepo {
   created_at: string;
   updated_at: string;
 }
+
+export interface GitHubReviewThreadComment {
+  id: string;
+  databaseId: number;
+  body: string;
+  author?: { login: string } | null;
+  createdAt: string;
+}
+
+export interface GitHubReviewThread {
+  /** GraphQL node ID — pass this to resolve-thread --thread-id */
+  id: string;
+  isResolved: boolean;
+  isOutdated: boolean;
+  path?: string | null;
+  line?: number | null;
+  comments: {
+    nodes: GitHubReviewThreadComment[];
+  };
+}
