@@ -46,3 +46,20 @@ pncli github create-repo --name my-new-repo --private --auto-init
 # Create a repo in an org
 pncli github --owner myorg create-repo --name my-new-repo --description "My project" --private
 ```
+
+## Resolving review threads
+
+Review threads are resolved through GitHub's GraphQL API, which identifies them by
+node ID rather than by the REST comment ID. List the threads first to get the `id`,
+then resolve it:
+
+```
+# Thread node IDs are the `id` field on each returned thread
+pncli github list-review-threads --number 123
+
+pncli github resolve-thread --thread-id PRT_kwDOHfWCIM4APCA
+```
+
+`list-review-threads` returns the first 100 threads with their resolution status,
+file path/line, and first 10 comments. If a PR has more than 100 threads, a warning
+is written to stderr.

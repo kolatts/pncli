@@ -316,6 +316,7 @@ export class GitHubClient {
         repository(owner: $owner, name: $repo) {
           pullRequest(number: $number) {
             reviewThreads(first: 100) {
+              pageInfo { hasNextPage }
               nodes {
                 id
                 isResolved
@@ -340,11 +341,19 @@ export class GitHubClient {
     const data = await this.http.githubGraphQL<{
       repository: {
         pullRequest: {
-          reviewThreads: { nodes: GitHubReviewThread[] };
+          reviewThreads: {
+            pageInfo: { hasNextPage: boolean };
+            nodes: GitHubReviewThread[];
+          };
         };
       };
     }>(query, { owner, repo, number: pullNumber });
-    return data.repository.pullRequest.reviewThreads.nodes;
+    const threads = data.repository.pullRequest.reviewThreads;
+    if (threads.pageInfo?.hasNextPage) {
+      process.stderr.write(`warning: more than ${threads.nodes.length} review threads on PR #${pullNumber}; only showing the first ${threads.nodes.length}
+`);
+    }
+    return threads.nodes;
   }
 
   async resolveReviewThread(threadId: string): Promise<GitHubReviewThread> {

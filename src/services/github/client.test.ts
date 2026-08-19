@@ -329,3 +329,83 @@ describe('GitHubClient — resolveReviewThread', () => {
     expect(result.isResolved).toBe(true);
   });
 });
+
+describe('GitHubClient — GraphQL endpoint derivation', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  async function capturedGraphQLUrl(baseUrl: string): Promise<string> {
+    let capturedUrl = '';
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrl = url;
+      return new Response(
+        JSON.stringify({ data: { repository: { pullRequest: { reviewThreads: { nodes: [] } } } } }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+    const config = makeConfig();
+    config.github.baseUrl = baseUrl;
+    await new GitHubClient(new HttpClient(config)).listReviewThreads('o', 'r', 1);
+    return capturedUrl;
+  }
+
+  it('derives /api/graphql for a GHES REST root', async () => {
+    expect(await capturedGraphQLUrl('https://ghe.imagile.dev/api/v3')).toBe('https://ghe.imagile.dev/api/graphql');
+  });
+
+  it('derives /api/graphql for a GHES REST root with a trailing slash', async () => {
+    expect(await capturedGraphQLUrl('https://ghe.imagile.dev/api/v3/')).toBe('https://ghe.imagile.dev/api/graphql');
+  });
+
+  it('derives /graphql for api.github.com with a trailing slash', async () => {
+    expect(await capturedGraphQLUrl('https://api.github.com/')).toBe('https://api.github.com/graphql');
+  });
+});
+
+describe('GitHubClient — GraphQL null data handling', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('throws a clean error when data is null and no errors array is present', async () => {
+    vi.stubGlobal('fetch', async () => {
+      return new Response(JSON.stringify({ data: null }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    await expect(client.listReviewThreads('o', 'r', 7)).rejects.toThrow('GraphQL response contained no data');
+  });
+});
+
+describe('GitHubClient — listReviewThreads truncation', () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it('warns on stderr when more threads exist than were returned', async () => {
+    vi.stubGlobal('fetch', async () => {
+      return new Response(
+        JSON.stringify({
+          data: { repository: { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: true }, nodes: [] } } } }
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+    const warn = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    await new GitHubClient(new HttpClient(makeConfig())).listReviewThreads('o', 'r', 42);
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('warning:'));
+  });
+
+  it('does not warn when hasNextPage is false', async () => {
+    vi.stubGlobal('fetch', async () => {
+      return new Response(
+        JSON.stringify({
+          data: { repository: { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [] } } } }
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+    const warn = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    await new GitHubClient(new HttpClient(makeConfig())).listReviewThreads('o', 'r', 42);
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+});

@@ -407,7 +407,10 @@ export class HttpClient {
     // Derive GraphQL endpoint:
     //   github.com:  'https://api.github.com'       → 'https://api.github.com/graphql'
     //   GHES:        'https://ghe.imagile.dev/api/v3' → 'https://ghe.imagile.dev/api/graphql'
-    const stripped = baseUrl.endsWith('/v3') ? baseUrl.slice(0, -3) : baseUrl;
+    // Trailing slashes are trimmed first — config does not normalize them away, so
+    // '.../api/v3/' must still be recognized as a GHES REST root.
+    const trimmed = baseUrl.replace(/\/+$/, '');
+    const stripped = trimmed.endsWith('/v3') ? trimmed.slice(0, -3) : trimmed;
     const url = stripped.endsWith('/') ? `${stripped}graphql` : `${stripped}/graphql`;
 
     const headers = this.githubHeaders();
@@ -434,7 +437,14 @@ export class HttpClient {
       throw new PncliError(result.errors.map(e => e.message).join('; '), 1, url);
     }
 
-    return result.data as T;
+    // GitHub can return a null/absent `data` with no `errors` array (e.g. an
+    // inaccessible or deleted repository). Fail cleanly instead of letting the
+    // caller dereference null.
+    if (result.data === null || result.data === undefined) {
+      throw new PncliError('GraphQL response contained no data', 1, url);
+    }
+
+    return result.data;
   }
 
   async githubPaginate<T>(
