@@ -211,7 +211,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cfg.checkmarx.baseUrl && cfg.checkmarx.tenantName && (cfg.checkmarx.apiKey || (cfg.checkmarx.clientId && cfg.checkmarx.clientSecret))) {
           try {
-            await http.checkmarx<unknown>('/api/projects', { params: { limit: 1 } });
+            await http.checkmarx<unknown>('projects', { params: { limit: 1 } });
             results.checkmarx = { ok: true, message: 'connected' };
           } catch (err) {
             results.checkmarx = { ok: false, message: err instanceof Error ? err.message : String(err) };
@@ -494,7 +494,7 @@ export function registerConfigCommands(program: Command): void {
           results.checkmarx = { status: 'error', message: 'baseUrl not configured' };
         } else {
           try {
-            await http.checkmarx<unknown>('/api/projects', { params: { limit: 1 }, timeoutMs: 10_000 });
+            await http.checkmarx<unknown>('projects', { params: { limit: 1 }, timeoutMs: 10_000 });
             results.checkmarx = { status: 'valid', message: 'ok' };
           } catch (err) {
             results.checkmarx = categorize(err);
