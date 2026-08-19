@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import path from 'path';
-import { xmlParseHint, resolveAttachmentPath } from './commands.js';
+import { xmlParseHint, resolveAttachmentPath, storageFormatHint } from './commands.js';
+import { PncliError } from '../../lib/errors.js';
 
 describe('resolveAttachmentPath', () => {
   const outDir = path.join('/tmp', 'out');
@@ -86,5 +87,78 @@ describe('xmlParseHint', () => {
     const err = new Error('Error parsing xhtml: ... at [row,col]={2,9}...');
     const hint = xmlParseHint(err, body, true);
     expect(hint).toContain('Offending line 2 (converted from Markdown): <p>bad & char</p>');
+  });
+});
+
+describe('storageFormatHint', () => {
+  const err500 = new PncliError('HTTP 500 Internal Server Error', 500, 'https://confluence.imagile.dev/rest/api/content');
+
+  it('returns null for a non-Error value', () => {
+    expect(storageFormatHint('string error', '<ac:parameter name="language">text</ac:parameter>')).toBeNull();
+  });
+
+  it('returns null when the error status is not 500', () => {
+    const err400 = new PncliError('HTTP 400 Bad Request', 400);
+    expect(storageFormatHint(err400, '<ac:parameter name="language">text</ac:parameter>')).toBeNull();
+  });
+
+  it('returns null when body has no known storage-format issues', () => {
+    const body = '<p>Hello world</p>';
+    expect(storageFormatHint(err500, body)).toBeNull();
+  });
+
+  it('detects bare name= on ac:parameter', () => {
+    const body = '<ac:structured-macro ac:name="code" ac:macro-id="a1b2">' +
+      '<ac:parameter name="language">javascript</ac:parameter></ac:structured-macro>';
+    const hint = storageFormatHint(err500, body);
+    expect(hint).not.toBeNull();
+    expect(hint).toContain('<ac:parameter name="...">');
+    expect(hint).toContain('ac:name="..."');
+  });
+
+  it('does not flag ac:name= on ac:parameter', () => {
+    const body = '<ac:structured-macro ac:name="code" ac:macro-id="a1b2">' +
+      '<ac:parameter ac:name="language">javascript</ac:parameter></ac:structured-macro>';
+    expect(storageFormatHint(err500, body)).toBeNull();
+  });
+
+  it('detects ac:structured-macro without ac:macro-id', () => {
+    const body = '<ac:structured-macro ac:name="code">' +
+      '<ac:parameter ac:name="language">javascript</ac:parameter>' +
+      '<ac:plain-text-body><![CDATA[const x = 1;]]></ac:plain-text-body>' +
+      '</ac:structured-macro>';
+    const hint = storageFormatHint(err500, body);
+    expect(hint).not.toBeNull();
+    expect(hint).toContain('ac:macro-id');
+  });
+
+  it('does not flag ac:structured-macro that has ac:macro-id', () => {
+    const body = '<ac:structured-macro ac:name="code" ac:macro-id="a1b2c3d4-0000-0000-0000-000000000000">' +
+      '<ac:parameter ac:name="language">javascript</ac:parameter>' +
+      '</ac:structured-macro>';
+    expect(storageFormatHint(err500, body)).toBeNull();
+  });
+
+  it('reports both issues when both are present', () => {
+    const body = '<ac:structured-macro ac:name="code">' +
+      '<ac:parameter name="language">javascript</ac:parameter>' +
+      '</ac:structured-macro>';
+    const hint = storageFormatHint(err500, body);
+    expect(hint).not.toBeNull();
+    expect(hint).toContain('<ac:parameter name="...">');
+    expect(hint).toContain('ac:macro-id');
+  });
+
+  it('only flags macros missing ac:macro-id, not those that have it', () => {
+    const body =
+      '<ac:structured-macro ac:name="code" ac:macro-id="uid-1">' +
+      '<ac:parameter ac:name="language">js</ac:parameter>' +
+      '</ac:structured-macro>' +
+      '<ac:structured-macro ac:name="note">' +
+      '<ac:rich-text-body><p>Note text</p></ac:rich-text-body>' +
+      '</ac:structured-macro>';
+    const hint = storageFormatHint(err500, body);
+    expect(hint).not.toBeNull();
+    expect(hint).toContain('ac:macro-id');
   });
 });
