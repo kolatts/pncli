@@ -403,6 +403,30 @@ export function registerGitHubCommands(program: Command): void {
       } catch (err) { fail(err, 'github', 'list-reviewers', start); }
     });
 
+  gh.command('list-review-threads')
+    .description('List review threads on a pull request (includes thread node IDs for resolve-thread)')
+    .requiredOption('--number <n>', 'Pull request number')
+    .action(async (opts: { number: string }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        const data = await client.listReviewThreads(owner, repo, parseInt(opts.number, 10));
+        success(data, 'github', 'list-review-threads', start);
+      } catch (err) { fail(err, 'github', 'list-review-threads', start); }
+    });
+
+  gh.command('resolve-thread')
+    .description('Mark a review thread as resolved (use list-review-threads to get the thread id)')
+    .requiredOption('--thread-id <id>', 'GraphQL node ID of the review thread (e.g. PRT_kwDO...)')
+    .action(async (opts: { threadId: string }) => {
+      const start = Date.now();
+      try {
+        const { client } = getClient(gh);
+        const data = await client.resolveReviewThread(opts.threadId);
+        success(data, 'github', 'resolve-thread', start);
+      } catch (err) { fail(err, 'github', 'resolve-thread', start); }
+    });
+
   // ── Status & Checks ────────────────────────────────────────────────
 
   gh.command('get-status')

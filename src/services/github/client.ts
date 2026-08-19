@@ -7,7 +7,8 @@ import type {
   GitHubCombinedStatus,
   GitHubCheckRun,
   GitHubIssue,
-  GitHubRepo
+  GitHubRepo,
+  GitHubReviewThread
 } from '../../types/github.js';
 
 export interface ListPRsOpts {
@@ -307,5 +308,71 @@ export class GitHubClient {
         ...(opts.autoInit !== undefined ? { auto_init: opts.autoInit } : {})
       }
     });
+  }
+
+  async listReviewThreads(owner: string, repo: string, pullNumber: number): Promise<GitHubReviewThread[]> {
+    const query = `
+      query($owner: String!, $repo: String!, $number: Int!) {
+        repository(owner: $owner, name: $repo) {
+          pullRequest(number: $number) {
+            reviewThreads(first: 100) {
+              nodes {
+                id
+                isResolved
+                isOutdated
+                path
+                line
+                comments(first: 10) {
+                  nodes {
+                    id
+                    databaseId
+                    body
+                    author { login }
+                    createdAt
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+    const data = await this.http.githubGraphQL<{
+      repository: {
+        pullRequest: {
+          reviewThreads: { nodes: GitHubReviewThread[] };
+        };
+      };
+    }>(query, { owner, repo, number: pullNumber });
+    return data.repository.pullRequest.reviewThreads.nodes;
+  }
+
+  async resolveReviewThread(threadId: string): Promise<GitHubReviewThread> {
+    const mutation = `
+      mutation($threadId: ID!) {
+        resolveReviewThread(input: { threadId: $threadId }) {
+          thread {
+            id
+            isResolved
+            isOutdated
+            path
+            line
+            comments(first: 10) {
+              nodes {
+                id
+                databaseId
+                body
+                author { login }
+                createdAt
+              }
+            }
+          }
+        }
+      }
+    `;
+    const data = await this.http.githubGraphQL<{
+      resolveReviewThread: { thread: GitHubReviewThread };
+    }>(mutation, { threadId });
+    return data.resolveReviewThread.thread;
   }
 }
