@@ -5,6 +5,7 @@ import { loadConfig } from '../../lib/config.js';
 import { getGitContext } from '../../lib/git-context.js';
 import { success, fail } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
+import type { BitbucketPR } from '../../types/bitbucket.js';
 
 function getClient(
   program: Command,
@@ -107,6 +108,69 @@ export function registerBitbucketCommands(program: Command): void {
         const data = await client.createPR({ project, repo, title: opts.title, source: opts.source, target, description: opts.description, reviewers });
         success(data, 'bitbucket', 'create-pr', start);
       } catch (err) { fail(err, 'bitbucket', 'create-pr', start); }
+    });
+
+  bb.command('create-prs')
+    .description('Create pull requests for multiple repositories in a project')
+    .requiredOption('--from <branch>', 'Source branch')
+    .requiredOption('--to <branch>', 'Target branch')
+    .requiredOption('--repos <slugs>', 'Comma-separated repository slugs')
+    .option('--title <title>', 'PR title (defaults to "Promote <from> to <to>")')
+    .option('--description <desc>', 'PR description')
+    .option('--reviewers <users>', 'Comma-separated reviewer usernames')
+    .option('--project <key>', 'Bitbucket project key (overrides parent --project)')
+    .action(async (opts: { from: string; to: string; repos: string; title?: string; description?: string; reviewers?: string; project?: string }) => {
+      const start = Date.now();
+      try {
+        const globalOpts = bb.optsWithGlobals();
+        const config = loadConfig({ configPath: globalOpts.config });
+        const http = createHttpClient(config, Boolean(globalOpts.dryRun));
+        const client = new BitbucketClient(http);
+        const ctx = getGitContext(config);
+
+        const project: string = opts.project ?? globalOpts.project ?? ctx?.project ?? config.defaults.bitbucket?.project ?? '';
+        if (!project) {
+          throw new PncliError('Could not determine Bitbucket project. Pass --project, or run pncli config init.', 1);
+        }
+
+        const repos = opts.repos.split(',').map(s => s.trim()).filter(Boolean);
+        if (repos.length === 0) {
+          throw new PncliError('--repos must contain at least one repository slug', 1);
+        }
+
+        const title = opts.title ?? `Promote ${opts.from} to ${opts.to}`;
+        const reviewers = opts.reviewers ? opts.reviewers.split(',').map(s => s.trim()) : [];
+
+        type RepoResult =
+          | { repo: string; status: 'created'; pr: BitbucketPR }
+          | { repo: string; status: 'nothing_to_promote' }
+          | { repo: string; status: 'error'; error: string };
+
+        const results: RepoResult[] = [];
+        let created = 0;
+        let nothingToPromote = 0;
+        let errors = 0;
+
+        for (const repo of repos) {
+          try {
+            const hasCommits = await client.compareCommits(project, repo, opts.from, opts.to);
+            if (!hasCommits) {
+              results.push({ repo, status: 'nothing_to_promote' });
+              nothingToPromote++;
+              continue;
+            }
+            const pr = await client.createPR({ project, repo, title, source: opts.from, target: opts.to, description: opts.description, reviewers });
+            results.push({ repo, status: 'created', pr });
+            created++;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            results.push({ repo, status: 'error', error: message });
+            errors++;
+          }
+        }
+
+        success({ results, summary: { created, nothing_to_promote: nothingToPromote, error: errors } }, 'bitbucket', 'create-prs', start);
+      } catch (err) { fail(err, 'bitbucket', 'create-prs', start); }
     });
 
   bb.command('update-pr')
