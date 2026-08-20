@@ -274,13 +274,55 @@ describe('loadConfig — CI env var fallbacks', () => {
     expect(config.github.baseUrl).toBe('https://api.github.com');
   });
 
+  it('prefers PNCLI_GITHUB_BASE_URL over GITHUB_API_URL', () => {
+    process.env['PNCLI_GITHUB_BASE_URL'] = 'https://ghe.imagile.dev/api/v3';
+    process.env['GITHUB_API_URL'] = 'https://api.github.com';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.github.baseUrl).toBe('https://ghe.imagile.dev/api/v3');
+  });
+
+  it('prefers GITHUB_API_URL fallback over stored global config', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ github: { baseUrl: 'https://stored.github.imagile.dev' } }));
+    process.env['GITHUB_API_URL'] = 'https://api.github.com';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.github.baseUrl).toBe('https://api.github.com');
+  });
+
   it('falls back to SONAR_TOKEN when PNCLI_SONAR_TOKEN is unset', () => {
     process.env['SONAR_TOKEN'] = 'ci-sonar-token';
     const config = loadConfig({ configPath: globalConfigPath });
     expect(config.sonar.token).toBe('ci-sonar-token');
   });
 
+  it('prefers PNCLI_SONAR_TOKEN over SONAR_TOKEN', () => {
+    process.env['PNCLI_SONAR_TOKEN'] = 'pncli-sonar-token';
+    process.env['SONAR_TOKEN'] = 'ci-sonar-token';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.sonar.token).toBe('pncli-sonar-token');
+  });
+
+  it('prefers SONAR_TOKEN fallback over stored global config', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ sonar: { token: 'stored-sonar-token' } }));
+    process.env['SONAR_TOKEN'] = 'ci-sonar-token';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.sonar.token).toBe('ci-sonar-token');
+  });
+
   it('falls back to SYSTEM_ACCESSTOKEN when PNCLI_ADO_PAT is unset', () => {
+    process.env['SYSTEM_ACCESSTOKEN'] = 'ci-ado-token';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.ado.pat).toBe('ci-ado-token');
+  });
+
+  it('prefers PNCLI_ADO_PAT over SYSTEM_ACCESSTOKEN', () => {
+    process.env['PNCLI_ADO_PAT'] = 'pncli-ado-pat';
+    process.env['SYSTEM_ACCESSTOKEN'] = 'ci-ado-token';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.ado.pat).toBe('pncli-ado-pat');
+  });
+
+  it('prefers SYSTEM_ACCESSTOKEN fallback over stored global config', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ ado: { pat: 'stored-ado-pat' } }));
     process.env['SYSTEM_ACCESSTOKEN'] = 'ci-ado-token';
     const config = loadConfig({ configPath: globalConfigPath });
     expect(config.ado.pat).toBe('ci-ado-token');

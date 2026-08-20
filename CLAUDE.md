@@ -63,8 +63,9 @@ Environment variables must always have the highest precedence for resolved confi
 
 Global precedence rule:
 1. Environment variable (`PNCLI_*`)
-2. Repository config/defaults (`.pncli.json`)
-3. Global user config (`~/.pncli/config.json`)
+2. Well-known CI-provided fallback env var, where one exists (see **CI Fallback Env Vars** below)
+3. Repository config/defaults (`.pncli.json`)
+4. Global user config (`~/.pncli/config.json`)
 
 The intent is to keep CI/CD and GitHub Actions usage safe and predictable: workflows inject environment variables at runtime and must be able to override repository and developer-local settings without editing files. If a change would make env vars lower priority for any field, treat it as a breaking behavior change and call it out explicitly in docs and PR notes.
 
