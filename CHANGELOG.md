@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.25.0](https://github.com/kolatts/pncli/compare/v1.24.0...v1.25.0) (2026-08-20)
+
+
+### Features
+
+* **bitbucket:** add create-prs command for batch PR creation across multiple repos ([#351](https://github.com/kolatts/pncli/issues/351)) ([d1bc920](https://github.com/kolatts/pncli/commit/d1bc9204b967bdf19a5747d0a4714e3d45a59392)), closes [#350](https://github.com/kolatts/pncli/issues/350)
+* **config:** fall back to well-known CI env vars for GitHub, Sonar, and ADO ([#354](https://github.com/kolatts/pncli/issues/354)) ([8d100fd](https://github.com/kolatts/pncli/commit/8d100fd67f236b743a7962c28ed89ccf499898c6))
+
+
+### Bug Fixes
+
+* issue [#346](https://github.com/kolatts/pncli/issues/346) (automated) ([8f05409](https://github.com/kolatts/pncli/commit/8f05409fd57a618a06ffc41255435c7b2de875d7))
+* show both missing github.baseUrl and github.token in one error ([#348](https://github.com/kolatts/pncli/issues/348)) ([4239531](https://github.com/kolatts/pncli/commit/423953185c4cdd00ee000768a2d7ca4b004ca51a)), closes [#347](https://github.com/kolatts/pncli/issues/347)
+
 ## [1.24.0](https://github.com/kolatts/pncli/compare/v1.23.0...v1.24.0) (2026-08-19)
 
 
