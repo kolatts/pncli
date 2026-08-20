@@ -9,8 +9,8 @@ import { Command } from 'commander';
 import { configureProxy } from './lib/proxyFetch.js';
 
 // Configure proxy before any fetch calls. Node's built-in fetch does not
-// honour HTTP_PROXY / HTTPS_PROXY; this installs a ProxyAgent dispatcher
-// when those env vars are present (Node ≥ 22.4).
+// honour HTTP_PROXY / HTTPS_PROXY / NO_PROXY; this installs an
+// EnvHttpProxyAgent dispatcher that reads them itself (Node ≥ 22.4).
 await configureProxy();
 import { createRequire } from 'module';
 import { setGlobalOptions, setGlobalUser } from './lib/output.js';

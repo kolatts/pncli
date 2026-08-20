@@ -1,80 +1,59 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mockSetGlobalDispatcher = vi.fn();
-const MockProxyAgent = vi.fn().mockImplementation((url: string) => ({ __proxyUrl: url }));
+const MockEnvHttpProxyAgent = vi.fn().mockImplementation(() => ({ __proxy: true }));
 
 vi.mock('node:undici', () => ({
   setGlobalDispatcher: mockSetGlobalDispatcher,
-  ProxyAgent: MockProxyAgent,
+  EnvHttpProxyAgent: MockEnvHttpProxyAgent,
 }));
 
 import { configureProxy } from './proxyFetch.js';
 
-const PROXY_VARS = ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy'] as const;
-
-function clearProxyEnv(): void {
-  for (const key of PROXY_VARS) {
-    delete process.env[key];
-  }
+function spyOnStderr() {
+  return vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 }
 
 describe('configureProxy', () => {
   beforeEach(() => {
-    clearProxyEnv();
     vi.clearAllMocks();
   });
 
   afterEach(() => {
-    clearProxyEnv();
+    vi.restoreAllMocks();
   });
 
-  it('does not call setGlobalDispatcher when no proxy env var is set', async () => {
+  it('installs an EnvHttpProxyAgent as the global dispatcher', async () => {
     await configureProxy();
-    expect(mockSetGlobalDispatcher).not.toHaveBeenCalled();
-    expect(MockProxyAgent).not.toHaveBeenCalled();
-  });
-
-  it('installs a ProxyAgent for HTTPS_PROXY', async () => {
-    process.env.HTTPS_PROXY = 'http://proxy.imagile.dev:3128';
-    await configureProxy();
-    expect(MockProxyAgent).toHaveBeenCalledWith('http://proxy.imagile.dev:3128');
+    expect(MockEnvHttpProxyAgent).toHaveBeenCalledOnce();
     expect(mockSetGlobalDispatcher).toHaveBeenCalledOnce();
   });
 
-  it('installs a ProxyAgent for lowercase https_proxy', async () => {
-    process.env.https_proxy = 'http://proxy.imagile.dev:3128';
+  it('passes the EnvHttpProxyAgent instance to setGlobalDispatcher', async () => {
     await configureProxy();
-    expect(MockProxyAgent).toHaveBeenCalledWith('http://proxy.imagile.dev:3128');
-    expect(mockSetGlobalDispatcher).toHaveBeenCalledOnce();
-  });
-
-  it('installs a ProxyAgent for HTTP_PROXY when HTTPS_PROXY is absent', async () => {
-    process.env.HTTP_PROXY = 'http://proxy.imagile.dev:8080';
-    await configureProxy();
-    expect(MockProxyAgent).toHaveBeenCalledWith('http://proxy.imagile.dev:8080');
-    expect(mockSetGlobalDispatcher).toHaveBeenCalledOnce();
-  });
-
-  it('prefers HTTPS_PROXY over HTTP_PROXY when both are set', async () => {
-    process.env.HTTPS_PROXY = 'http://secure-proxy.imagile.dev:3128';
-    process.env.HTTP_PROXY = 'http://other-proxy.imagile.dev:8080';
-    await configureProxy();
-    expect(MockProxyAgent).toHaveBeenCalledWith('http://secure-proxy.imagile.dev:3128');
-  });
-
-  it('passes the ProxyAgent instance to setGlobalDispatcher', async () => {
-    process.env.HTTPS_PROXY = 'http://proxy.imagile.dev:3128';
-    await configureProxy();
-    const agentInstance = MockProxyAgent.mock.results[0]?.value;
+    const agentInstance = MockEnvHttpProxyAgent.mock.results[0]?.value;
     expect(mockSetGlobalDispatcher).toHaveBeenCalledWith(agentInstance);
   });
 
-  it('warns to stderr when ProxyAgent constructor throws and does not propagate', async () => {
-    process.env.HTTPS_PROXY = 'not_a_valid_url';
-    MockProxyAgent.mockImplementationOnce(() => { throw new Error('bad proxy url'); });
-    const spy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  it('warns on stderr for errors other than module-not-found (e.g. a malformed proxy env var)', async () => {
+    const stderrSpy = spyOnStderr();
+    MockEnvHttpProxyAgent.mockImplementationOnce(() => {
+      throw new Error('boom');
+    });
     await expect(configureProxy()).resolves.toBeUndefined();
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('bad proxy url'));
-    spy.mockRestore();
+    expect(stderrSpy).toHaveBeenCalledOnce();
+    expect(stderrSpy.mock.calls[0]?.[0]).toContain('boom');
+  });
+
+  it('is a silent no-op when node:undici is unavailable (Node < 22.4)', async () => {
+    const stderrSpy = spyOnStderr();
+    const err = new Error('Cannot find module node:undici') as NodeJS.ErrnoException;
+    err.code = 'ERR_MODULE_NOT_FOUND';
+    MockEnvHttpProxyAgent.mockImplementationOnce(() => {
+      throw err;
+    });
+
+    await expect(configureProxy()).resolves.toBeUndefined();
+    expect(stderrSpy).not.toHaveBeenCalled();
   });
 });
