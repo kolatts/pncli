@@ -252,3 +252,44 @@ describe('BitbucketClient — needsWorkPR', () => {
     );
   });
 });
+
+describe('BitbucketClient — compareCommits', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('returns true when the from branch has commits not in to', async () => {
+    const capturedUrls: string[] = [];
+    const capturedParams: URLSearchParams[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      const u = new URL(url);
+      capturedUrls.push(u.pathname);
+      capturedParams.push(u.searchParams);
+      return new Response(
+        JSON.stringify({ values: [{ id: 'abc123' }], size: 1, isLastPage: true, start: 0, limit: 1 }),
+        { status: 200 }
+      );
+    });
+
+    const client = new BitbucketClient(new HttpClient(makeConfig()));
+    const result = await client.compareCommits('PROJ', 'REPO', 'stage-rnd', 'stage-qa');
+
+    expect(result).toBe(true);
+    expect(capturedUrls[0]).toContain('/rest/api/1.0/projects/PROJ/repos/REPO/commits');
+    expect(capturedParams[0].get('until')).toBe('stage-rnd');
+    expect(capturedParams[0].get('since')).toBe('stage-qa');
+    expect(capturedParams[0].get('limit')).toBe('1');
+  });
+
+  it('returns false when the from branch has no commits ahead of to', async () => {
+    vi.stubGlobal('fetch', async () => {
+      return new Response(
+        JSON.stringify({ values: [], size: 0, isLastPage: true, start: 0, limit: 1 }),
+        { status: 200 }
+      );
+    });
+
+    const client = new BitbucketClient(new HttpClient(makeConfig()));
+    const result = await client.compareCommits('PROJ', 'REPO', 'stage-rnd', 'stage-qa');
+
+    expect(result).toBe(false);
+  });
+});

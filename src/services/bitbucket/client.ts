@@ -369,4 +369,16 @@ export class BitbucketClient {
       }
     );
   }
+
+  /**
+   * Returns true if `from` has commits not yet in `to` (i.e. there is something
+   * to promote), false if the branches are at the same point.
+   */
+  async compareCommits(project: string, repo: string, from: string, to: string): Promise<boolean> {
+    const result = await this.http.bitbucket<BitbucketPageResponse<{ id: string }>>(
+      `${API}/projects/${project}/repos/${repo}/commits`,
+      { params: { until: from, since: to, limit: 1 } }
+    );
+    return (result.values?.length ?? 0) > 0;
+  }
 }
