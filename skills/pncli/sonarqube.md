@@ -23,6 +23,8 @@ export PNCLI_SONAR_BASE_URL=https://sonar.imagile.dev
 export PNCLI_SONAR_TOKEN=<token>
 ```
 
+`SONAR_TOKEN` (the variable name SonarSource's own scanner CLI and CI integrations use) is used as a fallback when `PNCLI_SONAR_TOKEN` isn't set. `PNCLI_SONAR_TOKEN` always takes precedence when set.
+
 ## Repo defaults
 
 ```

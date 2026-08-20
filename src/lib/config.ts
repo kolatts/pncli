@@ -14,6 +14,9 @@ const ENV_KEYS = {
   BITBUCKET_PAT: 'PNCLI_BITBUCKET_PAT',
   GITHUB_BASE_URL: 'PNCLI_GITHUB_BASE_URL',
   GITHUB_TOKEN: 'PNCLI_GITHUB_TOKEN',
+  // Well-known vars CI platforms provide without any pncli-specific setup.
+  GITHUB_TOKEN_FALLBACK: 'GITHUB_TOKEN',
+  GITHUB_API_URL_FALLBACK: 'GITHUB_API_URL',
   CONFLUENCE_BASE_URL: 'PNCLI_CONFLUENCE_BASE_URL',
   CONFLUENCE_API_TOKEN: 'PNCLI_CONFLUENCE_API_TOKEN',
   ARTIFACTORY_BASE_URL: 'PNCLI_ARTIFACTORY_BASE_URL',
@@ -23,9 +26,13 @@ const ENV_KEYS = {
   ARTIFACTORY_REPO_MAVEN: 'PNCLI_ARTIFACTORY_REPO_MAVEN',
   SONAR_BASE_URL: 'PNCLI_SONAR_BASE_URL',
   SONAR_TOKEN: 'PNCLI_SONAR_TOKEN',
+  // SonarSource's own scanner CLI standard var name — see the comment above GITHUB_TOKEN_FALLBACK.
+  SONAR_TOKEN_FALLBACK: 'SONAR_TOKEN',
   SDE_CONNECTION: 'PNCLI_SDE_CONNECTION',
   ADO_BASE_URL: 'PNCLI_ADO_BASE_URL',
   ADO_PAT: 'PNCLI_ADO_PAT',
+  // Azure Pipelines' conventional name for $(System.AccessToken) — see the comment above GITHUB_TOKEN_FALLBACK.
+  ADO_PAT_FALLBACK: 'SYSTEM_ACCESSTOKEN',
   JENKINS_BASE_URL: 'PNCLI_JENKINS_BASE_URL',
   JENKINS_USERNAME: 'PNCLI_JENKINS_USERNAME',
   JENKINS_API_TOKEN: 'PNCLI_JENKINS_API_TOKEN',
@@ -151,8 +158,8 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       pat: process.env[ENV_KEYS.BITBUCKET_PAT] ?? globalConfig.bitbucket?.pat
     },
     github: {
-      baseUrl: process.env[ENV_KEYS.GITHUB_BASE_URL] ?? globalConfig.github?.baseUrl,
-      token: process.env[ENV_KEYS.GITHUB_TOKEN] ?? globalConfig.github?.token
+      baseUrl: process.env[ENV_KEYS.GITHUB_BASE_URL] ?? process.env[ENV_KEYS.GITHUB_API_URL_FALLBACK] ?? globalConfig.github?.baseUrl,
+      token: process.env[ENV_KEYS.GITHUB_TOKEN] ?? process.env[ENV_KEYS.GITHUB_TOKEN_FALLBACK] ?? globalConfig.github?.token
     },
     confluence: {
       baseUrl: process.env[ENV_KEYS.CONFLUENCE_BASE_URL] ?? globalConfig.confluence?.baseUrl,
@@ -171,7 +178,7 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
     },
     sonar: {
       baseUrl: process.env[ENV_KEYS.SONAR_BASE_URL] ?? globalConfig.sonar?.baseUrl,
-      token: process.env[ENV_KEYS.SONAR_TOKEN] ?? globalConfig.sonar?.token
+      token: process.env[ENV_KEYS.SONAR_TOKEN] ?? process.env[ENV_KEYS.SONAR_TOKEN_FALLBACK] ?? globalConfig.sonar?.token
     },
     sde: (() => {
       const raw = process.env[ENV_KEYS.SDE_CONNECTION] ?? globalConfig.sde?.connection;
@@ -180,7 +187,7 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
     })(),
     ado: {
       baseUrl: process.env[ENV_KEYS.ADO_BASE_URL] ?? globalConfig.ado?.baseUrl,
-      pat: process.env[ENV_KEYS.ADO_PAT] ?? globalConfig.ado?.pat,
+      pat: process.env[ENV_KEYS.ADO_PAT] ?? process.env[ENV_KEYS.ADO_PAT_FALLBACK] ?? globalConfig.ado?.pat,
       fieldAliases: globalConfig.ado?.fieldAliases ?? {},
       discoveredFields: globalConfig.ado?.discoveredFields ?? [],
       discoveredTypes: globalConfig.ado?.discoveredTypes ?? []

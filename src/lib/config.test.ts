@@ -229,6 +229,113 @@ describe('loadConfig — jenkins.baseUrl resolution order', () => {
   });
 });
 
+describe('loadConfig — CI env var fallbacks', () => {
+  let tmpDir: string;
+  let globalConfigPath: string;
+
+  beforeEach(async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-test-'));
+    globalConfigPath = path.join(tmpDir, 'config.json');
+    fs.writeFileSync(globalConfigPath, JSON.stringify({}));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
+    const { execSync } = await import('child_process');
+    vi.mocked(execSync).mockReturnValue(tmpDir as unknown as ReturnType<typeof execSync>);
+  });
+
+  afterEach(() => {
+    delete process.env['PNCLI_GITHUB_TOKEN'];
+    delete process.env['GITHUB_TOKEN'];
+    delete process.env['PNCLI_GITHUB_BASE_URL'];
+    delete process.env['GITHUB_API_URL'];
+    delete process.env['PNCLI_SONAR_TOKEN'];
+    delete process.env['SONAR_TOKEN'];
+    delete process.env['PNCLI_ADO_PAT'];
+    delete process.env['SYSTEM_ACCESSTOKEN'];
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.clearAllMocks();
+  });
+
+  it('falls back to GITHUB_TOKEN when PNCLI_GITHUB_TOKEN is unset', () => {
+    process.env['GITHUB_TOKEN'] = 'ci-gh-token';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.github.token).toBe('ci-gh-token');
+  });
+
+  it('prefers PNCLI_GITHUB_TOKEN over GITHUB_TOKEN', () => {
+    process.env['PNCLI_GITHUB_TOKEN'] = 'pncli-gh-token';
+    process.env['GITHUB_TOKEN'] = 'ci-gh-token';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.github.token).toBe('pncli-gh-token');
+  });
+
+  it('falls back to GITHUB_API_URL when PNCLI_GITHUB_BASE_URL is unset', () => {
+    process.env['GITHUB_API_URL'] = 'https://api.github.com';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.github.baseUrl).toBe('https://api.github.com');
+  });
+
+  it('prefers PNCLI_GITHUB_BASE_URL over GITHUB_API_URL', () => {
+    process.env['PNCLI_GITHUB_BASE_URL'] = 'https://ghe.imagile.dev/api/v3';
+    process.env['GITHUB_API_URL'] = 'https://api.github.com';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.github.baseUrl).toBe('https://ghe.imagile.dev/api/v3');
+  });
+
+  it('prefers GITHUB_API_URL fallback over stored global config', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ github: { baseUrl: 'https://stored.github.imagile.dev' } }));
+    process.env['GITHUB_API_URL'] = 'https://api.github.com';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.github.baseUrl).toBe('https://api.github.com');
+  });
+
+  it('falls back to SONAR_TOKEN when PNCLI_SONAR_TOKEN is unset', () => {
+    process.env['SONAR_TOKEN'] = 'ci-sonar-token';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.sonar.token).toBe('ci-sonar-token');
+  });
+
+  it('prefers PNCLI_SONAR_TOKEN over SONAR_TOKEN', () => {
+    process.env['PNCLI_SONAR_TOKEN'] = 'pncli-sonar-token';
+    process.env['SONAR_TOKEN'] = 'ci-sonar-token';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.sonar.token).toBe('pncli-sonar-token');
+  });
+
+  it('prefers SONAR_TOKEN fallback over stored global config', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ sonar: { token: 'stored-sonar-token' } }));
+    process.env['SONAR_TOKEN'] = 'ci-sonar-token';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.sonar.token).toBe('ci-sonar-token');
+  });
+
+  it('falls back to SYSTEM_ACCESSTOKEN when PNCLI_ADO_PAT is unset', () => {
+    process.env['SYSTEM_ACCESSTOKEN'] = 'ci-ado-token';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.ado.pat).toBe('ci-ado-token');
+  });
+
+  it('prefers PNCLI_ADO_PAT over SYSTEM_ACCESSTOKEN', () => {
+    process.env['PNCLI_ADO_PAT'] = 'pncli-ado-pat';
+    process.env['SYSTEM_ACCESSTOKEN'] = 'ci-ado-token';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.ado.pat).toBe('pncli-ado-pat');
+  });
+
+  it('prefers SYSTEM_ACCESSTOKEN fallback over stored global config', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ ado: { pat: 'stored-ado-pat' } }));
+    process.env['SYSTEM_ACCESSTOKEN'] = 'ci-ado-token';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.ado.pat).toBe('ci-ado-token');
+  });
+
+  it('prefers fallback var over stored global config', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ github: { token: 'stored-gh-token' } }));
+    process.env['GITHUB_TOKEN'] = 'ci-gh-token';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.github.token).toBe('ci-gh-token');
+  });
+});
+
 describe('setConfigValue — JSON parsing', () => {
   let tmpDir: string;
   let globalConfigPath: string;
