@@ -14,6 +14,17 @@ function getClient(
 ): { client: GitHubClient; owner: string; repo: string; config: ResolvedConfig } {
   const opts = program.optsWithGlobals();
   const config = loadConfig({ configPath: opts.config });
+
+  const missing: string[] = [];
+  if (!config.github.baseUrl) missing.push('github.baseUrl  (e.g. pncli config set github.baseUrl https://api.github.com)');
+  if (!config.github.token)   missing.push('github.token    (e.g. pncli config set github.token <your-PAT>)');
+  if (missing.length) {
+    throw new PncliError(
+      `GitHub not configured. Missing required settings:\n  ${missing.join('\n  ')}`,
+      1
+    );
+  }
+
   const http = createHttpClient(config, Boolean(opts.dryRun));
   const client = new GitHubClient(http);
   const ctx = getGitContext(config);
