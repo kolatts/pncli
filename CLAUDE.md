@@ -46,7 +46,7 @@ Every new branch that represents a work request must have a corresponding GitHub
 When adding a new service integration (new entry under `src/services/`), these files must all be updated together:
 
 1. **`src/types/config.ts`** — add config interface and wire into `GlobalConfig` / `ResolvedConfig`
-2. **`src/lib/config.ts`** — add env-var resolution for the new service's fields
+2. **`src/lib/config.ts`** — add env-var resolution for the new service's fields, including a CI fallback var if one exists (see **CI Fallback Env Vars** under Configuration Precedence)
 3. **`src/lib/http.ts`** — add `private <service>Headers()` and `async <service><T>()` methods. Do NOT add a hardcoded default `baseUrl` — all service hosts must be user-supplied.
 4. **`src/services/config/commands.ts`** — add the service to `config init` prompts and `config check` / `config test` output
 5. **`src/cli.ts`** — import, register, and add to the help text block
@@ -67,6 +67,16 @@ Global precedence rule:
 3. Global user config (`~/.pncli/config.json`)
 
 The intent is to keep CI/CD and GitHub Actions usage safe and predictable: workflows inject environment variables at runtime and must be able to override repository and developer-local settings without editing files. If a change would make env vars lower priority for any field, treat it as a breaking behavior change and call it out explicitly in docs and PR notes.
+
+### CI Fallback Env Vars
+
+When adding or touching a service integration, check whether the target service's own ecosystem already has a well-known, CI-provided env var for its credential or base URL — one that a CI platform auto-injects, or that the service's own official CLI/scanner treats as standard (e.g. `GITHUB_TOKEN` / `GITHUB_API_URL` in GitHub Actions, `SONAR_TOKEN` for SonarSource's scanner, `SYSTEM_ACCESSTOKEN` for Azure Pipelines). If one exists, wire it in `src/lib/config.ts` as a fallback so users on that platform get working config with zero pncli-specific setup.
+
+Precedence for these fallbacks: `PNCLI_<SERVICE>_*` env var → well-known fallback var → stored config (`.pncli.json` / global config). The fallback sits directly below the `PNCLI_*` var and above config files — never lower, since the whole point is CI/CD env should win over checked-in or developer-local settings.
+
+Most services have no such standard var — don't invent one. Only add a fallback for a name the service's own tooling or a CI platform already treats as canonical; check the target platform's docs rather than guessing. When you add one:
+- Document it in the service's `skills/pncli/<service>.md` alongside the `PNCLI_*` var, noting the precedence.
+- Add a `loadConfig` test in `src/lib/config.test.ts` covering: fallback used when `PNCLI_*` unset, `PNCLI_*` wins when both set, fallback wins over stored config.
 
 ## Self-Containment Rule
 

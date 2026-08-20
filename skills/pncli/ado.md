@@ -25,6 +25,8 @@ export PNCLI_ADO_BASE_URL=https://tfs.imagile.dev
 export PNCLI_ADO_PAT=<token>
 ```
 
+`SYSTEM_ACCESSTOKEN` (the conventional name Azure Pipelines jobs map `$(System.AccessToken)` to) is used as a fallback when `PNCLI_ADO_PAT` isn't set. `PNCLI_ADO_PAT` always takes precedence when set.
+
 ## Repo defaults
 
 ```

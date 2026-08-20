@@ -25,6 +25,8 @@ export PNCLI_GITHUB_BASE_URL=https://api.github.com
 export PNCLI_GITHUB_TOKEN=<token>
 ```
 
+In GitHub Actions, `GITHUB_TOKEN` and `GITHUB_API_URL` are used as fallbacks when the `PNCLI_*` vars aren't set — no extra config needed if a workflow step already has `env: GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}`. `PNCLI_GITHUB_TOKEN` / `PNCLI_GITHUB_BASE_URL` always take precedence when set.
+
 ## Repo defaults
 
 ```
