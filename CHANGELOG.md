@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.24.0](https://github.com/kolatts/pncli/compare/v1.23.0...v1.24.0) (2026-08-19)
+
+
+### Features
+
+* add GitHub review thread resolution and list-review-threads ([#343](https://github.com/kolatts/pncli/issues/343)) ([909ee57](https://github.com/kolatts/pncli/commit/909ee57ab8c7ef1e2a6d84d8ab8b0f391b9a0081))
+
+
+### Bug Fixes
+
+* config test duplicates /api in Checkmarx endpoint ([#340](https://github.com/kolatts/pncli/issues/340)) ([eaead30](https://github.com/kolatts/pncli/commit/eaead306f291f31e1b2574a7e637da228ebbea9d))
+* **confluence:** add storage-format hint for HTTP 500 macro errors ([#345](https://github.com/kolatts/pncli/issues/345)) ([0d5233c](https://github.com/kolatts/pncli/commit/0d5233c77d4378caec30d4bd8c5ddf4bf1a83930)), closes [#344](https://github.com/kolatts/pncli/issues/344)
+
 ## [1.23.0](https://github.com/kolatts/pncli/compare/v1.22.0...v1.23.0) (2026-08-18)
 
 
