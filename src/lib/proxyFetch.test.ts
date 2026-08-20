@@ -68,4 +68,13 @@ describe('configureProxy', () => {
     const agentInstance = MockProxyAgent.mock.results[0]?.value;
     expect(mockSetGlobalDispatcher).toHaveBeenCalledWith(agentInstance);
   });
+
+  it('warns to stderr when ProxyAgent constructor throws and does not propagate', async () => {
+    process.env.HTTPS_PROXY = 'not_a_valid_url';
+    MockProxyAgent.mockImplementationOnce(() => { throw new Error('bad proxy url'); });
+    const spy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    await expect(configureProxy()).resolves.toBeUndefined();
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('bad proxy url'));
+    spy.mockRestore();
+  });
 });

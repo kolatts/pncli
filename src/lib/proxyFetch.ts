@@ -4,9 +4,7 @@
  *
  * Node's built-in fetch does not honour standard proxy environment variables.
  * This function installs a ProxyAgent as the global undici dispatcher via
- * node:undici (available in Node ≥ 22.4). On older Node versions the function
- * is a silent no-op — the proxy vars are present but cannot be honoured
- * without an additional npm package.
+ * node:undici (available since Node 22.4, the minimum required version).
  *
  * Priority order: HTTPS_PROXY > https_proxy > HTTP_PROXY > http_proxy
  */
@@ -31,8 +29,9 @@ export async function configureProxy(): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { setGlobalDispatcher, ProxyAgent } = (await import('node:undici' as any)) as UndiciMod;
     setGlobalDispatcher(new ProxyAgent(proxyUrl));
-  } catch {
-    // node:undici is not available (Node < 22.4). Proxy configuration is
-    // skipped; upgrade to Node ≥ 22.4 to enable proxy support.
+  } catch (err: unknown) {
+    // ProxyAgent constructor threw (e.g. malformed proxy URL). Warn so the
+    // user knows why their proxy is not being used.
+    process.stderr.write(`[pncli] Warning: failed to configure proxy (${proxyUrl}): ${String(err)}\n`);
   }
 }
