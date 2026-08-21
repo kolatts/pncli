@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.1](https://github.com/kolatts/pncli/compare/v1.25.0...v1.25.1) (2026-08-21)
+
+
+### Bug Fixes
+
+* **site:** escape angle brackets in generated command docs prose ([#356](https://github.com/kolatts/pncli/issues/356)) ([3a563e6](https://github.com/kolatts/pncli/commit/3a563e6ef01fe38b14f350643b5236d308cd1b46)), closes [#355](https://github.com/kolatts/pncli/issues/355)
+
 ## [1.25.0](https://github.com/kolatts/pncli/compare/v1.24.0...v1.25.0) (2026-08-20)
 
 
