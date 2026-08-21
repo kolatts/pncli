@@ -71,12 +71,19 @@ function scrubDescription(text) {
   return text;
 }
 
+// Escape raw angle brackets in prose (e.g. a description that mentions a
+// placeholder like "<from>") so the MDX/JSX parser doesn't mistake them for
+// an unclosed tag and fail the whole site build.
+function escapeAngleBrackets(text) {
+  return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function codeifyFlags(text) {
   return text
     .split(/(`[^`]*`)/)
     .map((part, i) => {
       if (i % 2 === 1) return part; // already an inline code span
-      return part.replace(/(^|[\s(,"'/])(--?[a-zA-Z][\w-]*)/g, '$1`$2`');
+      return escapeAngleBrackets(part).replace(/(^|[\s(,"'/])(--?[a-zA-Z][\w-]*)/g, '$1`$2`');
     })
     .join('');
 }
