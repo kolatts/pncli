@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.26.0](https://github.com/kolatts/pncli/compare/v1.25.1...v1.26.0) (2026-08-24)
+
+
+### Features
+
+* add --raw flag to openshift pods for full Kubernetes object output ([#364](https://github.com/kolatts/pncli/issues/364)) ([9495d22](https://github.com/kolatts/pncli/commit/9495d226966c1aff88a0a1480f219b377b432b95)), closes [#363](https://github.com/kolatts/pncli/issues/363)
+
+
+### Bug Fixes
+
+* issue [#358](https://github.com/kolatts/pncli/issues/358) (automated) ([#359](https://github.com/kolatts/pncli/issues/359)) ([3715390](https://github.com/kolatts/pncli/commit/3715390ac8e6abebeab77be6dadcec88d39cda7e))
+* preserve literal commas in URL query params (fixes --expand multi-field 404) ([#361](https://github.com/kolatts/pncli/issues/361)) ([60c8239](https://github.com/kolatts/pncli/commit/60c8239dd5cd34801d48ba4e98a2b4b17980e787))
+
 ## [1.25.1](https://github.com/kolatts/pncli/compare/v1.25.0...v1.25.1) (2026-08-21)
 
 
