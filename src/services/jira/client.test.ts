@@ -229,7 +229,7 @@ describe('JiraClient — listSprintsForBoard', () => {
     const client = new JiraClient(http);
     await client.listSprintsForBoard(3, ['active', 'future']);
 
-    expect(capturedUrls[0]).toContain('state=active%2Cfuture');
+    expect(capturedUrls[0]).toContain('state=active,future');
   });
 });
 
