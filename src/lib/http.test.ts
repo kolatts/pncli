@@ -395,6 +395,34 @@ describe('HttpClient — ADO URL encoding', () => {
   });
 });
 
+describe('HttpClient — comma-separated query params', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('sends literal commas in expand query param (not %2C) for Confluence get-page', async () => {
+    const capturedUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrls.push(url);
+      return new Response(JSON.stringify({ id: '123456', title: 'Test', version: { number: 1 } }), { status: 200 });
+    });
+    const client = new HttpClient(baseConfig());
+    await client.confluence('/rest/api/content/123456', { params: { expand: 'body.storage,version' } });
+    expect(capturedUrls[0]).toContain('expand=body.storage,version');
+    expect(capturedUrls[0]).not.toContain('%2C');
+  });
+
+  it('sends literal commas in multi-field expand with four fields', async () => {
+    const capturedUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrls.push(url);
+      return new Response('{}', { status: 200 });
+    });
+    const client = new HttpClient(baseConfig());
+    await client.confluence('/rest/api/content/123456', { params: { expand: 'body.storage,version,space,ancestors' } });
+    expect(capturedUrls[0]).toContain('expand=body.storage,version,space,ancestors');
+    expect(capturedUrls[0]).not.toContain('%2C');
+  });
+});
+
 describe('HttpClient — artifactory URL with path-component base URL', () => {
   it('preserves /artifactory base path when building Artifactory URL', async () => {
     const capturedUrls: string[] = [];

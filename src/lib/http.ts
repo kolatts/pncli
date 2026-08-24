@@ -56,7 +56,12 @@ function buildUrl(base: string, path: string, params?: Record<string, string | n
       }
     }
   }
-  return url.toString();
+  // URLSearchParams serializes via application/x-www-form-urlencoded, which
+  // encodes commas as %2C. REST APIs like Confluence's /rest/api/content require
+  // literal commas for multi-value params such as ?expand=body.storage,version.
+  // Commas are valid unencoded characters in URL query strings (RFC 3986 §3.4),
+  // so restoring them here is safe for all services.
+  return url.toString().replace(/%2C/gi, ',');
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, fetcher: typeof fetch = fetch): Promise<Response> {
