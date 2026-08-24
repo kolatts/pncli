@@ -60,8 +60,13 @@ function buildUrl(base: string, path: string, params?: Record<string, string | n
   // encodes commas as %2C. REST APIs like Confluence's /rest/api/content require
   // literal commas for multi-value params such as ?expand=body.storage,version.
   // Commas are valid unencoded characters in URL query strings (RFC 3986 §3.4),
-  // so restoring them here is safe for all services.
-  return url.toString().replace(/%2C/gi, ',');
+  // so restoring them here is safe for all services. Scope the replacement to the
+  // query string only — a percent-encoded comma in a path segment is significant
+  // and must be left alone.
+  if (url.search) {
+    url.search = url.search.replace(/%2C/gi, ',');
+  }
+  return url.toString();
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, fetcher: typeof fetch = fetch): Promise<Response> {
