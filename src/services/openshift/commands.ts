@@ -28,9 +28,23 @@ interface K8sPodCondition {
   message?: string;
 }
 
+interface K8sEnvVar {
+  name: string;
+  value?: string;
+  valueFrom?: Record<string, unknown>;
+}
+
+interface K8sContainer {
+  name: string;
+  image?: string;
+  env?: K8sEnvVar[];
+  resources?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 interface K8sPod {
-  metadata: { name: string; namespace: string; creationTimestamp?: string; labels?: Record<string, string> };
-  spec: { containers?: Array<{ name: string }> };
+  metadata: { name: string; namespace: string; creationTimestamp?: string; labels?: Record<string, string>; annotations?: Record<string, string>; [key: string]: unknown };
+  spec: { containers?: Array<K8sContainer>; initContainers?: Array<K8sContainer>; nodeName?: string; [key: string]: unknown };
   status: {
     phase?: string;
     reason?: string;
@@ -39,6 +53,7 @@ interface K8sPod {
     containerStatuses?: K8sContainerStatus[];
     initContainerStatuses?: K8sContainerStatus[];
     startTime?: string;
+    [key: string]: unknown;
   };
 }
 
@@ -111,10 +126,11 @@ export function registerOpenShiftCommands(program: Command): void {
 
   oc
     .command('pods')
-    .description('List pod health summary for a namespace — pre-processed for LLM analysis')
+    .description('List pod health summary for a namespace — pre-processed for LLM analysis. Use --raw to return the full unmodified Kubernetes pod objects.')
     .requiredOption('--namespace <ns>', 'Kubernetes namespace')
     .option('--label-selector <selector>', 'Label selector (e.g. app=my-app)')
-    .action(async (opts: { namespace: string; labelSelector?: string }) => {
+    .option('--raw', 'Return full Kubernetes pod objects without summarization (includes env vars, images, node name, annotations, resources, etc.)', false)
+    .action(async (opts: { namespace: string; labelSelector?: string; raw?: boolean }) => {
       const start = Date.now();
       try {
         const http = getHttp(program);
@@ -125,6 +141,14 @@ export function registerOpenShiftCommands(program: Command): void {
           `/api/v1/namespaces/${encodeURIComponent(opts.namespace)}/pods`,
           { params }
         );
+
+        if (opts.raw) {
+          success(
+            { namespace: opts.namespace, count: podList.items.length, pods: podList.items },
+            'openshift', 'pods', start
+          );
+          return;
+        }
 
         const summaryCounters = {
           total: podList.items.length,
