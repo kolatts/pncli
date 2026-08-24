@@ -91,6 +91,8 @@ export interface GitHubPRStatusResult {
     passed: number;
     failed: number;
     pending: number;
+    /** Checks that are neither passing, failing, nor pending (skipped, cancelled, neutral). */
+    other: number;
     details: Array<{
       name: string;
       status: string;

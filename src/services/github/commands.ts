@@ -212,7 +212,7 @@ export function registerGitHubCommands(program: Command): void {
   gh.command('enable-auto-merge')
     .description('Enable auto-merge on a pull request (merges automatically when all requirements are met)')
     .requiredOption('--number <n>', 'Pull request number')
-    .addOption(new Option('--method <method>', 'Merge method').choices(['MERGE', 'SQUASH', 'REBASE']))
+    .addOption(new Option('--method <method>', 'Merge method').choices(['merge', 'squash', 'rebase']))
     .option('--match-head-commit <sha>', 'Only enable if the PR head matches this SHA (prevents race conditions)')
     .action(async (opts: { number: string; method?: string; matchHeadCommit?: string }) => {
       const start = Date.now();
@@ -222,7 +222,7 @@ export function registerGitHubCommands(program: Command): void {
           owner,
           repo,
           pullNumber: parseInt(opts.number, 10),
-          mergeMethod: opts.method as 'MERGE' | 'SQUASH' | 'REBASE' | undefined,
+          mergeMethod: opts.method?.toUpperCase() as 'MERGE' | 'SQUASH' | 'REBASE' | undefined,
           expectedHeadOid: opts.matchHeadCommit
         });
         success(data, 'github', 'enable-auto-merge', start);
@@ -244,7 +244,7 @@ export function registerGitHubCommands(program: Command): void {
   gh.command('enqueue-pr')
     .description('Add a pull request to the repository merge queue')
     .requiredOption('--number <n>', 'Pull request number')
-    .addOption(new Option('--method <method>', 'Merge method').choices(['MERGE', 'SQUASH', 'REBASE']))
+    .addOption(new Option('--method <method>', 'Merge method').choices(['merge', 'squash', 'rebase']))
     .option('--match-head-commit <sha>', 'Only enqueue if the PR head matches this SHA (prevents race conditions)')
     .action(async (opts: { number: string; method?: string; matchHeadCommit?: string }) => {
       const start = Date.now();
@@ -254,7 +254,7 @@ export function registerGitHubCommands(program: Command): void {
           owner,
           repo,
           pullNumber: parseInt(opts.number, 10),
-          mergeMethod: opts.method as 'MERGE' | 'SQUASH' | 'REBASE' | undefined,
+          mergeMethod: opts.method?.toUpperCase() as 'MERGE' | 'SQUASH' | 'REBASE' | undefined,
           expectedHeadOid: opts.matchHeadCommit
         });
         success(data, 'github', 'enqueue-pr', start);

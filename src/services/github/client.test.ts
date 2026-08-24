@@ -569,6 +569,52 @@ describe('GitHubClient — getPRStatus', () => {
     expect(status.checks.passed).toBe(2);
     expect(status.checks.failed).toBe(1);
     expect(status.checks.pending).toBe(1);
+    expect(status.checks.other).toBe(0);
+  });
+
+  it('buckets skipped/cancelled/neutral checks into `other` so the counts sum to total', async () => {
+    const prData = {
+      number: 7,
+      title: 'Mixed',
+      state: 'OPEN',
+      isDraft: false,
+      merged: false,
+      mergeable: 'MERGEABLE',
+      mergeStateStatus: 'CLEAN',
+      reviewDecision: null,
+      autoMergeRequest: null,
+      commits: {
+        nodes: [{
+          commit: {
+            statusCheckRollup: {
+              contexts: {
+                nodes: [
+                  { __typename: 'CheckRun', name: 'ci', status: 'completed', conclusion: 'success' },
+                  { __typename: 'CheckRun', name: 'skipped-job', status: 'completed', conclusion: 'skipped' },
+                  { __typename: 'CheckRun', name: 'cancelled-job', status: 'completed', conclusion: 'cancelled' },
+                  { __typename: 'CheckRun', name: 'neutral-job', status: 'completed', conclusion: 'neutral' }
+                ]
+              }
+            }
+          }
+        }]
+      }
+    };
+
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify({ data: { repository: { pullRequest: prData } } }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    );
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    const status = await client.getPRStatus('o', 'r', 7);
+
+    expect(status.checks.total).toBe(4);
+    expect(status.checks.passed).toBe(1);
+    expect(status.checks.failed).toBe(0);
+    expect(status.checks.pending).toBe(0);
+    expect(status.checks.other).toBe(3);
+    expect(status.checks.passed + status.checks.failed + status.checks.pending + status.checks.other)
+      .toBe(status.checks.total);
   });
 
   it('handles a PR with no checks', async () => {

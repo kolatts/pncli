@@ -11,7 +11,9 @@ import type {
   GitHubReviewThread,
   GitHubAutoMergeResult,
   GitHubMergeQueueResult,
-  GitHubPRStatusResult
+  GitHubPRStatusResult,
+  GitHubLabel,
+  GitHubUser
 } from '../../types/github.js';
 
 export interface ListPRsOpts {
@@ -106,7 +108,7 @@ export interface EnqueuePROpts {
   expectedHeadOid?: string;
 }
 
-export interface AddReviewersOpts {
+export interface ReviewersOpts {
   owner: string;
   repo: string;
   pullNumber: number;
@@ -604,6 +606,10 @@ export class GitHubClient {
       d.status === 'queued' || d.status === 'in_progress' || d.status === 'pending'
     ).length;
 
+    // Conclusions like skipped/cancelled/neutral are neither passing, failing,
+    // nor pending — bucket them separately so the four counts sum to `total`.
+    const other = details.length - passed - failed - pending;
+
     return {
       number: pr.number,
       title: pr.title,
@@ -620,7 +626,7 @@ export class GitHubClient {
             enabledBy: pr.autoMergeRequest.enabledBy.login
           }
         : null,
-      checks: { total: details.length, passed, failed, pending, details }
+      checks: { total: details.length, passed, failed, pending, other, details }
     };
   }
 
@@ -664,8 +670,8 @@ export class GitHubClient {
 
   // ── Labels ─────────────────────────────────────────────────────────
 
-  async addLabels(owner: string, repo: string, issueNumber: number, labels: string[]): Promise<{ labels: import('../../types/github.js').GitHubLabel[] }> {
-    return this.http.github<{ labels: import('../../types/github.js').GitHubLabel[] }>(
+  async addLabels(owner: string, repo: string, issueNumber: number, labels: string[]): Promise<{ labels: GitHubLabel[] }> {
+    return this.http.github<{ labels: GitHubLabel[] }>(
       `/repos/${owner}/${repo}/issues/${issueNumber}/labels`,
       { method: 'POST', body: { labels } }
     );
@@ -682,17 +688,17 @@ export class GitHubClient {
 
   // ── Reviewers ──────────────────────────────────────────────────────
 
-  async addReviewers(opts: AddReviewersOpts): Promise<{ url: string; users: import('../../types/github.js').GitHubUser[]; teams: unknown[] }> {
+  async addReviewers(opts: ReviewersOpts): Promise<{ url: string; users: GitHubUser[]; teams: unknown[] }> {
     const body: Record<string, unknown> = {};
     if (opts.reviewers?.length) body.reviewers = opts.reviewers;
     if (opts.teamReviewers?.length) body.team_reviewers = opts.teamReviewers;
-    return this.http.github<{ url: string; users: import('../../types/github.js').GitHubUser[]; teams: unknown[] }>(
+    return this.http.github<{ url: string; users: GitHubUser[]; teams: unknown[] }>(
       `/repos/${opts.owner}/${opts.repo}/pulls/${opts.pullNumber}/requested_reviewers`,
       { method: 'POST', body }
     );
   }
 
-  async removeReviewers(opts: AddReviewersOpts): Promise<void> {
+  async removeReviewers(opts: ReviewersOpts): Promise<void> {
     const body: Record<string, unknown> = {};
     if (opts.reviewers?.length) body.reviewers = opts.reviewers;
     if (opts.teamReviewers?.length) body.team_reviewers = opts.teamReviewers;
