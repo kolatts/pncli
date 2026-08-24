@@ -409,3 +409,377 @@ describe('GitHubClient — listReviewThreads truncation', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 });
+
+describe('GitHubClient — enableAutoMerge', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('fetches the PR node_id then POSTs the enablePullRequestAutoMerge mutation', async () => {
+    const urls: string[] = [];
+    const bodies: unknown[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      urls.push(url);
+      if (url.endsWith('/graphql')) {
+        bodies.push(JSON.parse(init.body as string));
+        return new Response(
+          JSON.stringify({ data: { enablePullRequestAutoMerge: { pullRequest: { number: 5, autoMergeRequest: { mergeMethod: 'SQUASH', enabledAt: '2024-01-01T00:00:00Z', enabledBy: { login: 'alice' } } } } } }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      // REST call to get PR node_id
+      return new Response(
+        JSON.stringify({ number: 5, node_id: 'PR_node_123' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    const result = await client.enableAutoMerge({ owner: 'o', repo: 'r', pullNumber: 5, mergeMethod: 'SQUASH' });
+
+    expect(urls[0]).toContain('/repos/o/r/pulls/5');
+    expect(urls[1]).toBe('https://api.github.com/graphql');
+    const gqlBody = bodies[0] as { query: string; variables: Record<string, unknown> };
+    expect(gqlBody.query).toContain('enablePullRequestAutoMerge');
+    expect(gqlBody.variables.pullRequestId).toBe('PR_node_123');
+    expect(gqlBody.variables.mergeMethod).toBe('SQUASH');
+    expect(result.autoMergeRequest?.mergeMethod).toBe('SQUASH');
+  });
+
+  it('passes expectedHeadOid when --match-head-commit is provided', async () => {
+    let capturedVars: Record<string, unknown> = {};
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      if (url.endsWith('/graphql')) {
+        capturedVars = JSON.parse(init.body as string).variables;
+        return new Response(
+          JSON.stringify({ data: { enablePullRequestAutoMerge: { pullRequest: { number: 7, autoMergeRequest: null } } } }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(JSON.stringify({ number: 7, node_id: 'PR_node_456' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    await client.enableAutoMerge({ owner: 'o', repo: 'r', pullNumber: 7, expectedHeadOid: 'abc123sha' });
+
+    expect(capturedVars.expectedHeadOid).toBe('abc123sha');
+  });
+});
+
+describe('GitHubClient — disableAutoMerge', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('fetches the PR node_id then POSTs the disablePullRequestAutoMerge mutation', async () => {
+    const urls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      urls.push(url);
+      if (url.endsWith('/graphql')) {
+        const body = JSON.parse(init.body as string);
+        expect(body.query).toContain('disablePullRequestAutoMerge');
+        expect(body.variables.pullRequestId).toBe('PR_node_789');
+        return new Response(
+          JSON.stringify({ data: { disablePullRequestAutoMerge: { pullRequest: { number: 3, autoMergeRequest: null } } } }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(JSON.stringify({ number: 3, node_id: 'PR_node_789' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    const result = await client.disableAutoMerge('o', 'r', 3);
+
+    expect(urls).toHaveLength(2);
+    expect(result.autoMergeRequest).toBeNull();
+  });
+});
+
+describe('GitHubClient — enqueuePR', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('POSTs the addPullRequestToMergeQueue mutation and returns the queue URL', async () => {
+    let capturedBody: { query: string; variables: Record<string, unknown> } = { query: '', variables: {} };
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      if (url.endsWith('/graphql')) {
+        capturedBody = JSON.parse(init.body as string);
+        return new Response(
+          JSON.stringify({ data: { addPullRequestToMergeQueue: { mergeQueue: { url: 'https://github.com/o/r/queue' } } } }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(JSON.stringify({ number: 10, node_id: 'PR_node_enqueue' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    const result = await client.enqueuePR({ owner: 'o', repo: 'r', pullNumber: 10, mergeMethod: 'MERGE' });
+
+    expect(capturedBody.query).toContain('addPullRequestToMergeQueue');
+    expect(capturedBody.variables.pullRequestId).toBe('PR_node_enqueue');
+    expect(capturedBody.variables.mergeMethod).toBe('MERGE');
+    expect(result.mergeQueueUrl).toBe('https://github.com/o/r/queue');
+  });
+});
+
+describe('GitHubClient — getPRStatus', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('queries GraphQL and aggregates review, check, and auto-merge state', async () => {
+    const prData = {
+      number: 42,
+      title: 'My PR',
+      state: 'OPEN',
+      isDraft: false,
+      merged: false,
+      mergeable: 'MERGEABLE',
+      mergeStateStatus: 'CLEAN',
+      reviewDecision: 'APPROVED',
+      autoMergeRequest: { mergeMethod: 'SQUASH', enabledAt: '2024-01-01T00:00:00Z', enabledBy: { login: 'bot' } },
+      commits: {
+        nodes: [{
+          commit: {
+            statusCheckRollup: {
+              contexts: {
+                nodes: [
+                  { __typename: 'CheckRun', name: 'ci', status: 'completed', conclusion: 'success' },
+                  { __typename: 'CheckRun', name: 'lint', status: 'completed', conclusion: 'failure' },
+                  { __typename: 'CheckRun', name: 'build', status: 'in_progress', conclusion: null },
+                  { __typename: 'StatusContext', context: 'security', state: 'success' }
+                ]
+              }
+            }
+          }
+        }]
+      }
+    };
+
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      expect(url).toBe('https://api.github.com/graphql');
+      const body = JSON.parse(init.body as string);
+      expect(body.variables).toEqual({ owner: 'o', repo: 'r', number: 42 });
+      return new Response(
+        JSON.stringify({ data: { repository: { pullRequest: prData } } }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    const status = await client.getPRStatus('o', 'r', 42);
+
+    expect(status.number).toBe(42);
+    expect(status.reviewDecision).toBe('APPROVED');
+    expect(status.autoMergeRequest?.enabledBy).toBe('bot');
+    expect(status.checks.total).toBe(4);
+    expect(status.checks.passed).toBe(2);
+    expect(status.checks.failed).toBe(1);
+    expect(status.checks.pending).toBe(1);
+    expect(status.checks.other).toBe(0);
+  });
+
+  it('buckets skipped/cancelled/neutral checks into `other` so the counts sum to total', async () => {
+    const prData = {
+      number: 7,
+      title: 'Mixed',
+      state: 'OPEN',
+      isDraft: false,
+      merged: false,
+      mergeable: 'MERGEABLE',
+      mergeStateStatus: 'CLEAN',
+      reviewDecision: null,
+      autoMergeRequest: null,
+      commits: {
+        nodes: [{
+          commit: {
+            statusCheckRollup: {
+              contexts: {
+                nodes: [
+                  { __typename: 'CheckRun', name: 'ci', status: 'completed', conclusion: 'success' },
+                  { __typename: 'CheckRun', name: 'skipped-job', status: 'completed', conclusion: 'skipped' },
+                  { __typename: 'CheckRun', name: 'cancelled-job', status: 'completed', conclusion: 'cancelled' },
+                  { __typename: 'CheckRun', name: 'neutral-job', status: 'completed', conclusion: 'neutral' }
+                ]
+              }
+            }
+          }
+        }]
+      }
+    };
+
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify({ data: { repository: { pullRequest: prData } } }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    );
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    const status = await client.getPRStatus('o', 'r', 7);
+
+    expect(status.checks.total).toBe(4);
+    expect(status.checks.passed).toBe(1);
+    expect(status.checks.failed).toBe(0);
+    expect(status.checks.pending).toBe(0);
+    expect(status.checks.other).toBe(3);
+    expect(status.checks.passed + status.checks.failed + status.checks.pending + status.checks.other)
+      .toBe(status.checks.total);
+  });
+
+  it('handles a PR with no checks', async () => {
+    const prData = {
+      number: 1,
+      title: 'Minimal',
+      state: 'OPEN',
+      isDraft: true,
+      merged: false,
+      mergeable: 'UNKNOWN',
+      mergeStateStatus: 'DRAFT',
+      reviewDecision: null,
+      autoMergeRequest: null,
+      commits: { nodes: [{ commit: { statusCheckRollup: null } }] }
+    };
+
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify({ data: { repository: { pullRequest: prData } } }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    );
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    const status = await client.getPRStatus('o', 'r', 1);
+
+    expect(status.checks.total).toBe(0);
+    expect(status.autoMergeRequest).toBeNull();
+  });
+});
+
+describe('GitHubClient — convertToDraft / markReadyForReview', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('convertToDraft POSTs the convertPullRequestToDraft mutation', async () => {
+    let capturedQuery = '';
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      if (url.endsWith('/graphql')) {
+        capturedQuery = JSON.parse(init.body as string).query;
+        return new Response(
+          JSON.stringify({ data: { convertPullRequestToDraft: { pullRequest: { number: 8, isDraft: true } } } }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(JSON.stringify({ number: 8, node_id: 'PR_node_draft' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    const result = await new GitHubClient(new HttpClient(makeConfig())).convertToDraft('o', 'r', 8);
+    expect(capturedQuery).toContain('convertPullRequestToDraft');
+    expect(result.isDraft).toBe(true);
+  });
+
+  it('markReadyForReview POSTs the markPullRequestReadyForReview mutation', async () => {
+    let capturedQuery = '';
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      if (url.endsWith('/graphql')) {
+        capturedQuery = JSON.parse(init.body as string).query;
+        return new Response(
+          JSON.stringify({ data: { markPullRequestReadyForReview: { pullRequest: { number: 9, isDraft: false } } } }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(JSON.stringify({ number: 9, node_id: 'PR_node_ready' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    const result = await new GitHubClient(new HttpClient(makeConfig())).markReadyForReview('o', 'r', 9);
+    expect(capturedQuery).toContain('markPullRequestReadyForReview');
+    expect(result.isDraft).toBe(false);
+  });
+});
+
+describe('GitHubClient — addLabels / removeLabel', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('addLabels POSTs to the issues labels endpoint', async () => {
+    let capturedUrl = '';
+    let capturedBody: unknown;
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      capturedUrl = url;
+      capturedBody = JSON.parse(init.body as string);
+      return new Response(JSON.stringify({ labels: [{ name: 'bug' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    await new GitHubClient(new HttpClient(makeConfig())).addLabels('o', 'r', 5, ['bug', 'enhancement']);
+    expect(capturedUrl).toContain('/repos/o/r/issues/5/labels');
+    expect(capturedBody).toEqual({ labels: ['bug', 'enhancement'] });
+  });
+
+  it('removeLabel sends DELETE to the label endpoint', async () => {
+    let capturedUrl = '';
+    let capturedMethod = '';
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      capturedUrl = url;
+      capturedMethod = init.method ?? 'GET';
+      return new Response(JSON.stringify({}), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    await new GitHubClient(new HttpClient(makeConfig())).removeLabel('o', 'r', 5, 'bug');
+    expect(capturedUrl).toContain('/repos/o/r/issues/5/labels/bug');
+    expect(capturedMethod).toBe('DELETE');
+  });
+
+  it('removeLabel URL-encodes the label name via the URL constructor', async () => {
+    let capturedUrl = '';
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrl = url;
+      return new Response(JSON.stringify({}), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    await new GitHubClient(new HttpClient(makeConfig())).removeLabel('o', 'r', 5, 'help wanted');
+    expect(capturedUrl).toContain('/labels/help%20wanted');
+  });
+});
+
+describe('GitHubClient — addReviewers / removeReviewers', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('addReviewers POSTs to requested_reviewers with user and team slugs', async () => {
+    let capturedUrl = '';
+    let capturedBody: unknown;
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      capturedUrl = url;
+      capturedBody = JSON.parse(init.body as string);
+      return new Response(JSON.stringify({ url: 'https://api.github.com/repos/o/r/pulls/3' }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    await new GitHubClient(new HttpClient(makeConfig())).addReviewers({ owner: 'o', repo: 'r', pullNumber: 3, reviewers: ['alice'], teamReviewers: ['backend-team'] });
+    expect(capturedUrl).toContain('/repos/o/r/pulls/3/requested_reviewers');
+    expect(capturedBody).toEqual({ reviewers: ['alice'], team_reviewers: ['backend-team'] });
+  });
+
+  it('removeReviewers sends DELETE to requested_reviewers', async () => {
+    let capturedMethod = '';
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedMethod = init.method ?? 'GET';
+      return new Response('', { status: 200 });
+    });
+
+    await new GitHubClient(new HttpClient(makeConfig())).removeReviewers({ owner: 'o', repo: 'r', pullNumber: 3, reviewers: ['bob'] });
+    expect(capturedMethod).toBe('DELETE');
+  });
+});
+
+describe('GitHubClient — addAssignees / removeAssignees', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('addAssignees POSTs to the issues assignees endpoint', async () => {
+    let capturedUrl = '';
+    let capturedBody: unknown;
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      capturedUrl = url;
+      capturedBody = JSON.parse(init.body as string);
+      return new Response(JSON.stringify({ number: 7, assignees: [{ login: 'alice' }] }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    await new GitHubClient(new HttpClient(makeConfig())).addAssignees('o', 'r', 7, ['alice']);
+    expect(capturedUrl).toContain('/repos/o/r/issues/7/assignees');
+    expect(capturedBody).toEqual({ assignees: ['alice'] });
+  });
+
+  it('removeAssignees sends DELETE to the assignees endpoint', async () => {
+    let capturedMethod = '';
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedMethod = init.method ?? 'GET';
+      return new Response(JSON.stringify({ number: 7 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    await new GitHubClient(new HttpClient(makeConfig())).removeAssignees('o', 'r', 7, ['bob']);
+    expect(capturedMethod).toBe('DELETE');
+  });
+});

@@ -188,7 +188,7 @@ export function registerGitHubCommands(program: Command): void {
     });
 
   gh.command('merge-pr')
-    .description('Merge a pull request')
+    .description('Merge a pull request (immediate merge — use enable-auto-merge for auto-merge)')
     .requiredOption('--number <n>', 'Pull request number')
     .addOption(new Option('--method <method>', 'Merge method').choices(['merge', 'squash', 'rebase']).default('merge'))
     .option('--commit-title <title>', 'Commit title for merge/squash')
@@ -207,6 +207,58 @@ export function registerGitHubCommands(program: Command): void {
         });
         success(data, 'github', 'merge-pr', start);
       } catch (err) { fail(err, 'github', 'merge-pr', start); }
+    });
+
+  gh.command('enable-auto-merge')
+    .description('Enable auto-merge on a pull request (merges automatically when all requirements are met)')
+    .requiredOption('--number <n>', 'Pull request number')
+    .addOption(new Option('--method <method>', 'Merge method').choices(['merge', 'squash', 'rebase']))
+    .option('--match-head-commit <sha>', 'Only enable if the PR head matches this SHA (prevents race conditions)')
+    .action(async (opts: { number: string; method?: string; matchHeadCommit?: string }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        const data = await client.enableAutoMerge({
+          owner,
+          repo,
+          pullNumber: parseInt(opts.number, 10),
+          mergeMethod: opts.method?.toUpperCase() as 'MERGE' | 'SQUASH' | 'REBASE' | undefined,
+          expectedHeadOid: opts.matchHeadCommit
+        });
+        success(data, 'github', 'enable-auto-merge', start);
+      } catch (err) { fail(err, 'github', 'enable-auto-merge', start); }
+    });
+
+  gh.command('disable-auto-merge')
+    .description('Disable auto-merge on a pull request')
+    .requiredOption('--number <n>', 'Pull request number')
+    .action(async (opts: { number: string }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        const data = await client.disableAutoMerge(owner, repo, parseInt(opts.number, 10));
+        success(data, 'github', 'disable-auto-merge', start);
+      } catch (err) { fail(err, 'github', 'disable-auto-merge', start); }
+    });
+
+  gh.command('enqueue-pr')
+    .description('Add a pull request to the repository merge queue')
+    .requiredOption('--number <n>', 'Pull request number')
+    .addOption(new Option('--method <method>', 'Merge method').choices(['merge', 'squash', 'rebase']))
+    .option('--match-head-commit <sha>', 'Only enqueue if the PR head matches this SHA (prevents race conditions)')
+    .action(async (opts: { number: string; method?: string; matchHeadCommit?: string }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        const data = await client.enqueuePR({
+          owner,
+          repo,
+          pullNumber: parseInt(opts.number, 10),
+          mergeMethod: opts.method?.toUpperCase() as 'MERGE' | 'SQUASH' | 'REBASE' | undefined,
+          expectedHeadOid: opts.matchHeadCommit
+        });
+        success(data, 'github', 'enqueue-pr', start);
+      } catch (err) { fail(err, 'github', 'enqueue-pr', start); }
     });
 
   gh.command('close-pr')
@@ -462,5 +514,160 @@ export function registerGitHubCommands(program: Command): void {
         const data = await client.listCheckRuns(owner, repo, opts.ref);
         success(data, 'github', 'list-checks', start);
       } catch (err) { fail(err, 'github', 'list-checks', start); }
+    });
+
+  gh.command('pr-status')
+    .description('Aggregated PR status: review decision, checks, mergeability, draft state, and auto-merge')
+    .requiredOption('--number <n>', 'Pull request number')
+    .action(async (opts: { number: string }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        const data = await client.getPRStatus(owner, repo, parseInt(opts.number, 10));
+        success(data, 'github', 'pr-status', start);
+      } catch (err) { fail(err, 'github', 'pr-status', start); }
+    });
+
+  gh.command('convert-to-draft')
+    .description('Convert an open pull request to a draft')
+    .requiredOption('--number <n>', 'Pull request number')
+    .action(async (opts: { number: string }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        const data = await client.convertToDraft(owner, repo, parseInt(opts.number, 10));
+        success(data, 'github', 'convert-to-draft', start);
+      } catch (err) { fail(err, 'github', 'convert-to-draft', start); }
+    });
+
+  gh.command('ready-for-review')
+    .description('Mark a draft pull request as ready for review')
+    .requiredOption('--number <n>', 'Pull request number')
+    .action(async (opts: { number: string }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        const data = await client.markReadyForReview(owner, repo, parseInt(opts.number, 10));
+        success(data, 'github', 'ready-for-review', start);
+      } catch (err) { fail(err, 'github', 'ready-for-review', start); }
+    });
+
+  gh.command('reopen-pr')
+    .description('Reopen a closed pull request')
+    .requiredOption('--number <n>', 'Pull request number')
+    .action(async (opts: { number: string }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        const data = await client.reopenPR(owner, repo, parseInt(opts.number, 10));
+        success(data, 'github', 'reopen-pr', start);
+      } catch (err) { fail(err, 'github', 'reopen-pr', start); }
+    });
+
+  // ── Label management ───────────────────────────────────────────────
+
+  gh.command('add-labels')
+    .description('Add labels to a pull request or issue')
+    .requiredOption('--number <n>', 'PR or issue number')
+    .option('--label <label>', 'Label to add (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
+    .action(async (opts: { number: string; label: string[] }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        if (!opts.label.length) throw new PncliError('At least one --label is required', 1);
+        const data = await client.addLabels(owner, repo, parseInt(opts.number, 10), opts.label);
+        success(data, 'github', 'add-labels', start);
+      } catch (err) { fail(err, 'github', 'add-labels', start); }
+    });
+
+  gh.command('remove-label')
+    .description('Remove a label from a pull request or issue')
+    .requiredOption('--number <n>', 'PR or issue number')
+    .requiredOption('--label <label>', 'Label name to remove')
+    .action(async (opts: { number: string; label: string }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        await client.removeLabel(owner, repo, parseInt(opts.number, 10), opts.label);
+        success({ removed: true, label: opts.label }, 'github', 'remove-label', start);
+      } catch (err) { fail(err, 'github', 'remove-label', start); }
+    });
+
+  // ── Reviewer management ────────────────────────────────────────────
+
+  gh.command('add-reviewers')
+    .description('Request reviewers on a pull request')
+    .requiredOption('--number <n>', 'Pull request number')
+    .option('--reviewer <login>', 'User reviewer login (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
+    .option('--team-reviewer <slug>', 'Team slug to request (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
+    .action(async (opts: { number: string; reviewer: string[]; teamReviewer: string[] }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        if (!opts.reviewer.length && !opts.teamReviewer.length) {
+          throw new PncliError('At least one --reviewer or --team-reviewer is required', 1);
+        }
+        const data = await client.addReviewers({
+          owner,
+          repo,
+          pullNumber: parseInt(opts.number, 10),
+          reviewers: opts.reviewer.length ? opts.reviewer : undefined,
+          teamReviewers: opts.teamReviewer.length ? opts.teamReviewer : undefined
+        });
+        success(data, 'github', 'add-reviewers', start);
+      } catch (err) { fail(err, 'github', 'add-reviewers', start); }
+    });
+
+  gh.command('remove-reviewers')
+    .description('Remove requested reviewers from a pull request')
+    .requiredOption('--number <n>', 'Pull request number')
+    .option('--reviewer <login>', 'User reviewer login to remove (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
+    .option('--team-reviewer <slug>', 'Team slug to remove (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
+    .action(async (opts: { number: string; reviewer: string[]; teamReviewer: string[] }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        if (!opts.reviewer.length && !opts.teamReviewer.length) {
+          throw new PncliError('At least one --reviewer or --team-reviewer is required', 1);
+        }
+        await client.removeReviewers({
+          owner,
+          repo,
+          pullNumber: parseInt(opts.number, 10),
+          reviewers: opts.reviewer.length ? opts.reviewer : undefined,
+          teamReviewers: opts.teamReviewer.length ? opts.teamReviewer : undefined
+        });
+        success({ removed: true }, 'github', 'remove-reviewers', start);
+      } catch (err) { fail(err, 'github', 'remove-reviewers', start); }
+    });
+
+  // ── Assignee management ────────────────────────────────────────────
+
+  gh.command('add-assignees')
+    .description('Add assignees to a pull request or issue')
+    .requiredOption('--number <n>', 'PR or issue number')
+    .option('--assignee <login>', 'Assignee login (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
+    .action(async (opts: { number: string; assignee: string[] }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        if (!opts.assignee.length) throw new PncliError('At least one --assignee is required', 1);
+        const data = await client.addAssignees(owner, repo, parseInt(opts.number, 10), opts.assignee);
+        success(data, 'github', 'add-assignees', start);
+      } catch (err) { fail(err, 'github', 'add-assignees', start); }
+    });
+
+  gh.command('remove-assignees')
+    .description('Remove assignees from a pull request or issue')
+    .requiredOption('--number <n>', 'PR or issue number')
+    .option('--assignee <login>', 'Assignee login to remove (repeatable)', (v: string, acc: string[]) => { acc.push(v); return acc; }, [] as string[])
+    .action(async (opts: { number: string; assignee: string[] }) => {
+      const start = Date.now();
+      try {
+        const { client, owner, repo } = getClient(gh);
+        if (!opts.assignee.length) throw new PncliError('At least one --assignee is required', 1);
+        const data = await client.removeAssignees(owner, repo, parseInt(opts.number, 10), opts.assignee);
+        success(data, 'github', 'remove-assignees', start);
+      } catch (err) { fail(err, 'github', 'remove-assignees', start); }
     });
 }

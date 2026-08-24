@@ -28,6 +28,8 @@ export interface GitHubRef {
 
 export interface GitHubPR {
   number: number;
+  /** GraphQL node ID — used for mutations (enablePullRequestAutoMerge, etc.) */
+  node_id: string;
   title: string;
   body?: string;
   state: 'open' | 'closed';
@@ -49,6 +51,54 @@ export interface GitHubPR {
   additions?: number;
   deletions?: number;
   changed_files?: number;
+  /** Present when auto-merge is enabled */
+  auto_merge?: {
+    merge_method: 'merge' | 'squash' | 'rebase';
+    commit_title?: string;
+    commit_message?: string;
+  } | null;
+}
+
+export interface GitHubAutoMergeResult {
+  number: number;
+  autoMergeRequest: {
+    mergeMethod: 'MERGE' | 'SQUASH' | 'REBASE';
+    enabledAt: string;
+    enabledBy: { login: string };
+  } | null;
+}
+
+export interface GitHubMergeQueueResult {
+  mergeQueueUrl: string;
+}
+
+export interface GitHubPRStatusResult {
+  number: number;
+  title: string;
+  state: 'OPEN' | 'CLOSED' | 'MERGED';
+  isDraft: boolean;
+  merged: boolean;
+  mergeable: 'MERGEABLE' | 'CONFLICTING' | 'UNKNOWN';
+  mergeStateStatus: string;
+  reviewDecision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null;
+  autoMergeRequest: {
+    mergeMethod: string;
+    enabledAt: string;
+    enabledBy: string;
+  } | null;
+  checks: {
+    total: number;
+    passed: number;
+    failed: number;
+    pending: number;
+    /** Checks that are neither passing, failing, nor pending (skipped, cancelled, neutral). */
+    other: number;
+    details: Array<{
+      name: string;
+      status: string;
+      conclusion: string | null;
+    }>;
+  };
 }
 
 export interface GitHubComment {
