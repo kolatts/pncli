@@ -96,6 +96,10 @@ export interface JenkinsConfig {
   apiToken?: string;
 }
 
+export interface JenkinsInstanceConfig extends JenkinsConfig {
+  name: string;
+}
+
 export interface JenkinsDefaults {
   baseUrl?: string;
 }
@@ -195,6 +199,7 @@ export interface GlobalConfig {
   sde?: SdeConfig;
   ado?: AdoConfig;
   jenkins?: JenkinsConfig;
+  jenkinsInstances?: JenkinsInstanceConfig[];
   udeploy?: UdeployConfig;
   checkmarx?: CheckmarxConfig;
   servicenow?: ServiceNowConfig;
@@ -258,6 +263,7 @@ export interface ResolvedConfig {
     username: string | undefined;
     apiToken: string | undefined;
   };
+  jenkinsInstances: JenkinsInstanceConfig[];
   udeploy: {
     baseUrl: string | undefined;
     pat: string | undefined;

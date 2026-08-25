@@ -49,3 +49,41 @@ pncli config set --repo defaults.jenkins.baseUrl https://jenkins.myteam.imagile.
 ```
 
 Resolution order (highest to lowest): project `.pncli.json` → global config → `PNCLI_JENKINS_BASE_URL` env var.
+
+## Multiple Jenkins instances
+
+When you work with more than one Jenkins controller (e.g. a stable production instance plus ephemeral pipeline-as-code instances), add a `jenkinsInstances` array to your global config:
+
+```json
+{
+  "jenkinsInstances": [
+    {
+      "name": "prod",
+      "baseUrl": "https://jenkins.imagile.dev",
+      "username": "you@example.com",
+      "apiToken": "abc12345"
+    },
+    {
+      "name": "ephemeral",
+      "baseUrl": "https://jenkins-tmp.imagile.dev",
+      "username": "you@example.com",
+      "apiToken": "abc12345"
+    }
+  ]
+}
+```
+
+Set the array via the CLI (pass the full JSON value):
+
+```
+pncli config set jenkinsInstances '[{"name":"prod","baseUrl":"https://jenkins.imagile.dev","username":"you@example.com","apiToken":"abc12345"}]'
+```
+
+Then select an instance at run-time with `--instance`:
+
+```
+pncli jenkins --instance ephemeral pipeline list
+pncli jenkins --instance prod pipeline run --name my-job --wait
+```
+
+When `--instance` is omitted, pncli uses the default `jenkins.*` config as usual.

@@ -10,8 +10,16 @@ import type { JenkinsBuild } from '../../types/jenkins.js';
 function getClient(program: Command): JenkinsClient {
   const opts = program.optsWithGlobals();
   const config = loadConfig({ configPath: opts.config as string | undefined });
-  if (!config.jenkins.baseUrl) throw new PncliError('Jenkins not configured. Run: pncli config init');
-  const http = createHttpClient(config, Boolean(opts.dryRun));
+
+  let jenkins = config.jenkins;
+  if (opts.instance) {
+    const inst = config.jenkinsInstances.find(i => i.name === opts.instance);
+    if (!inst) throw new PncliError(`Jenkins instance "${opts.instance}" not found. Add it to your global config using pncli config set jenkinsInstances.`);
+    jenkins = { baseUrl: inst.baseUrl, username: inst.username, apiToken: inst.apiToken };
+  }
+
+  if (!jenkins.baseUrl) throw new PncliError('Jenkins not configured. Run: pncli config init');
+  const http = createHttpClient({ ...config, jenkins }, Boolean(opts.dryRun));
   return new JenkinsClient(http);
 }
 
@@ -50,7 +58,9 @@ async function pollBuildComplete(
 }
 
 export function registerJenkinsCommands(program: Command): void {
-  const jenkins = program.command('jenkins').description('Jenkins Data Center operations');
+  const jenkins = program.command('jenkins')
+    .description('Jenkins Data Center operations')
+    .option('--instance <name>', 'Named Jenkins instance from global config (overrides default jenkins config)');
   const pipeline = jenkins.command('pipeline').description('Pipeline (job/build) operations');
 
   pipeline
