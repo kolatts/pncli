@@ -37,6 +37,26 @@ When working on pncli, always use the repo-internal `/ship`.
 Always use `kolatts/<description>` or `kolatts/<issue#>-<description>`.
 - Example: `kolatts/add-ship-skill` or `kolatts/75-add-ship-skill`
 
+## Automated PR Feedback
+
+`.github/workflows/claude-pr-feedback.yml` reacts to a `CHANGES_REQUESTED` review
+on any open same-repo PR by implementing the requested changes and **pushing
+directly to the PR's source branch**. This applies to human-authored branches, not
+just automation-authored ones.
+
+Two labels control it:
+
+- **`no-auto-fix`** — the opt-out. The workflow leaves the branch alone entirely.
+  Add it when you are mid-rebase, or simply want to handle the review yourself.
+- **`needs-human`** — applied by the workflow itself after 3 pushed rounds on one
+  PR. It means the agent and the reviewer are not converging and the remaining
+  comments need a person. The workflow stops on that PR once it is set.
+
+The workflow only responds to reviews from `OWNER` / `MEMBER` / `COLLABORATOR`, or
+from `claude[bot]` / `imagile-bot[bot]` / `github-actions[bot]`. Anyone can submit
+a review on a public repo, so this allowlist is the authorization boundary — do not
+widen it without thinking about what a drive-by reviewer could make the agent do.
+
 ## GitHub Issues
 
 Every new branch that represents a work request must have a corresponding GitHub issue. Create the issue before or immediately after creating the branch. Always include the issue number in the branch name (`kolatts/<issue#>-<description>`).
