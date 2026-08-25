@@ -7,8 +7,10 @@ import { ExitCode } from '../../lib/exitCodes.js';
 import { PncliError } from '../../lib/errors.js';
 import type { JenkinsBuild } from '../../types/jenkins.js';
 
-function getClient(program: Command): JenkinsClient {
-  const opts = program.optsWithGlobals();
+// Takes the `jenkins` subcommand (not the root program) so that optsWithGlobals()
+// sees the subcommand-level --instance flag as well as the root-level options.
+function getClient(cmd: Command): JenkinsClient {
+  const opts = cmd.optsWithGlobals();
   const config = loadConfig({ configPath: opts.config as string | undefined });
 
   let jenkins = config.jenkins;
@@ -18,7 +20,12 @@ function getClient(program: Command): JenkinsClient {
     jenkins = { baseUrl: inst.baseUrl, username: inst.username, apiToken: inst.apiToken };
   }
 
-  if (!jenkins.baseUrl) throw new PncliError('Jenkins not configured. Run: pncli config init');
+  if (!jenkins.baseUrl) {
+    if (opts.instance) {
+      throw new PncliError(`Jenkins instance "${opts.instance}" has no baseUrl configured. Add a baseUrl to that entry in jenkinsInstances.`);
+    }
+    throw new PncliError('Jenkins not configured. Run: pncli config init');
+  }
   const http = createHttpClient({ ...config, jenkins }, Boolean(opts.dryRun));
   return new JenkinsClient(http);
 }
@@ -70,7 +77,7 @@ export function registerJenkinsCommands(program: Command): void {
     .action(async (opts: { folder?: string }) => {
       const start = Date.now();
       try {
-        const client = getClient(program);
+        const client = getClient(jenkins);
         const data = await client.listJobs(opts.folder);
         success(data, 'jenkins', 'pipeline-list', start);
       } catch (err) { fail(err, 'jenkins', 'pipeline-list', start); }
@@ -83,7 +90,7 @@ export function registerJenkinsCommands(program: Command): void {
     .action(async (opts: { name: string }) => {
       const start = Date.now();
       try {
-        const client = getClient(program);
+        const client = getClient(jenkins);
         const data = await client.getJob(opts.name);
         success(data, 'jenkins', 'pipeline-get', start);
       } catch (err) { fail(err, 'jenkins', 'pipeline-get', start); }
@@ -100,7 +107,7 @@ export function registerJenkinsCommands(program: Command): void {
     .action(async (opts: { name: string; parameter: string[]; wait?: boolean; timeout: string; poll: string }) => {
       const start = Date.now();
       try {
-        const client = getClient(program);
+        const client = getClient(jenkins);
 
         for (const p of opts.parameter) {
           if (!p.includes('=')) throw new PncliError(`Invalid --parameter "${p}". Expected format: key=value`, 1);
@@ -145,7 +152,7 @@ export function registerJenkinsCommands(program: Command): void {
     .action(async (opts: { name: string; top: string }) => {
       const start = Date.now();
       try {
-        const client = getClient(program);
+        const client = getClient(jenkins);
         const top = parseInt(opts.top, 10);
         if (isNaN(top) || top <= 0) throw new PncliError(`Invalid --top "${opts.top}". Expected a positive integer.`, 1);
         const data = await client.listBuilds(opts.name, top);
@@ -161,7 +168,7 @@ export function registerJenkinsCommands(program: Command): void {
     .action(async (opts: { name: string; number: string }) => {
       const start = Date.now();
       try {
-        const client = getClient(program);
+        const client = getClient(jenkins);
         const buildNumber = parseInt(opts.number, 10);
         if (isNaN(buildNumber)) throw new PncliError(`Invalid --number "${opts.number}". Expected an integer.`, 1);
         const data = await client.getBuild(opts.name, buildNumber);
@@ -177,7 +184,7 @@ export function registerJenkinsCommands(program: Command): void {
     .action(async (opts: { name: string; number: string }) => {
       const start = Date.now();
       try {
-        const client = getClient(program);
+        const client = getClient(jenkins);
         const buildNumber = parseInt(opts.number, 10);
         if (isNaN(buildNumber)) throw new PncliError(`Invalid --number "${opts.number}". Expected an integer.`, 1);
         const text = await client.getConsoleLog(opts.name, buildNumber);

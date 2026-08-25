@@ -87,3 +87,5 @@ pncli jenkins --instance prod pipeline run --name my-job --wait
 ```
 
 When `--instance` is omitted, pncli uses the default `jenkins.*` config as usual.
+
+**Note:** Per-instance credentials are read only from the global config file — there is no env-var override for a named instance. To override Jenkins credentials at runtime (CI/CD, GitHub Actions), use the default `jenkins.*` config with `PNCLI_JENKINS_BASE_URL`, `PNCLI_JENKINS_USERNAME`, and `PNCLI_JENKINS_API_TOKEN`, and omit `--instance`.
