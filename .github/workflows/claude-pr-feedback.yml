@@ -390,7 +390,7 @@ jobs:
                       path
                       line
                       comments(first: 50) {
-                        nodes { author { login } body }
+                        nodes { author { login } authorAssociation body }
                       }
                     }
                   }
@@ -408,7 +408,23 @@ jobs:
           if [ "$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage' /tmp/threads-raw.json)" = "true" ]; then
             echo "::warning::PR #${PR_NUMBER} has more than 100 review threads; only the first 100 were collected"
           fi
-          jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)]' \
+          # The same allowlist the REST review bodies get. Filtering only the review
+          # bodies left the whole gate bypassable: a drive-by reviewer posts
+          # adversarial inline comments, waits for any OWNER/MEMBER to legitimately
+          # request changes, and their text rides into the agent's context on that
+          # run. Inline comments are the softer target of the two, since leaving
+          # them needs no review submission at all.
+          #
+          # Untrusted comments are dropped from inside each thread rather than the
+          # thread being dropped whole, so a drive-by REPLY under a maintainer's
+          # legitimate thread is stripped too. Threads left with nothing are then
+          # dropped — they carry no instruction the agent should see.
+          jq '[.data.repository.pullRequest.reviewThreads.nodes[]
+               | select(.isResolved == false)
+               | .comments.nodes |= map(select(
+                   (.authorAssociation | IN("OWNER", "MEMBER", "COLLABORATOR"))
+                   or (.author.login | IN("claude[bot]", "imagile-bot[bot]", "github-actions[bot]"))))
+               | select((.comments.nodes | length) > 0)]' \
             /tmp/threads-raw.json > /tmp/threads.json
 
           # jq renders the markdown, so review text is never passed to the shell as
@@ -492,6 +508,17 @@ jobs:
           github_token: ${{ steps.imagile-token.outputs.token }}
           bot_id: ${{ steps.imagile-bot.outputs.id }}
           bot_name: ${{ steps.imagile-bot.outputs.login }}
+          # Without this the action hard-fails in under a second with "Workflow
+          # initiated by non-human actor: claude (type: Bot)" and the primary path
+          # — responding to claude-review.yml — never runs at all. The triggering
+          # actor here is whoever submitted the review, which for the loop this
+          # workflow exists to close is always a bot. claude-review.yml carries the
+          # same input for the same reason.
+          #
+          # Deliberately an explicit list rather than '*': it mirrors the reviewer
+          # allowlist in the job `if`, so widening one without the other cannot
+          # quietly let an unvetted bot drive the agent.
+          allowed_bots: 'claude,imagile-bot,github-actions'
           # Gated on the event, matching triage: the action rejects
           # `track_progress` outright on `workflow_dispatch`, which would fail the
           # manual path in milliseconds before the agent ever started.
