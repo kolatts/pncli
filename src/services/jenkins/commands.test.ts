@@ -33,6 +33,14 @@ function buildProgram(): Command {
   return program;
 }
 
+function readConfig(): { jenkinsInstances?: unknown } {
+  return JSON.parse(fs.readFileSync(configPath, 'utf8')) as { jenkinsInstances?: unknown };
+}
+
+async function runNoFetch(argv: string[]): Promise<void> {
+  await buildProgram().parseAsync(['node', 'pncli', '--config', configPath, ...argv]);
+}
+
 async function run(argv: string[], captured: { url: string; init: RequestInit }[]): Promise<void> {
   vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
     captured.push({ url: String(url), init });
@@ -86,5 +94,90 @@ describe('jenkins --instance', () => {
     await expect(run(['jenkins', '--instance', 'broken', 'pipeline', 'list'], [])).rejects.toThrow(
       /Jenkins instance "broken" has no baseUrl configured/
     );
+  });
+});
+
+describe('jenkins instance add', () => {
+  it('appends to the array instead of replacing it', async () => {
+    await runNoFetch([
+      'jenkins', 'instance', 'add',
+      '--name', 'prod',
+      '--base-url', 'jenkins-prod.imagile.dev',
+      '--username', 'prod-user',
+      '--api-token', 'prod-token'
+    ]);
+
+    const instances = readConfig().jenkinsInstances as { name: string; baseUrl: string }[];
+    expect(instances.map(i => i.name)).toEqual(['ephemeral', 'broken', 'prod']);
+    // bare host gets the scheme, matching config init's behavior
+    expect(instances[2]).toEqual({
+      name: 'prod',
+      baseUrl: 'https://jenkins-prod.imagile.dev',
+      username: 'prod-user',
+      apiToken: 'prod-token'
+    });
+  });
+
+  it('leaves the rest of the global config untouched', async () => {
+    await runNoFetch(['jenkins', 'instance', 'add', '--name', 'prod', '--base-url', 'https://jenkins-prod.imagile.dev']);
+
+    expect(readConfig()).toMatchObject({ jenkins: { baseUrl: 'https://jenkins.imagile.dev', apiToken: 'default-token' } });
+  });
+
+  it('refuses to clobber an existing name without --force', async () => {
+    await expect(
+      runNoFetch(['jenkins', 'instance', 'add', '--name', 'ephemeral', '--base-url', 'https://other.imagile.dev'])
+    ).rejects.toThrow(/already exists/);
+
+    const instances = readConfig().jenkinsInstances as { name: string; baseUrl: string }[];
+    expect(instances[0]?.baseUrl).toBe('https://jenkins-tmp.imagile.dev');
+  });
+
+  it('overwrites in place with --force, preserving order', async () => {
+    await runNoFetch([
+      'jenkins', 'instance', 'add',
+      '--name', 'ephemeral',
+      '--base-url', 'https://other.imagile.dev',
+      '--api-token', 'new-token',
+      '--force'
+    ]);
+
+    const instances = readConfig().jenkinsInstances as { name: string; baseUrl: string; apiToken?: string }[];
+    expect(instances.map(i => i.name)).toEqual(['ephemeral', 'broken']);
+    expect(instances[0]).toEqual({ name: 'ephemeral', baseUrl: 'https://other.imagile.dev', apiToken: 'new-token' });
+  });
+
+  it('writes a real array when the config has no instances yet', async () => {
+    fs.writeFileSync(configPath, JSON.stringify({ jenkins: { baseUrl: 'https://jenkins.imagile.dev' } }));
+    await runNoFetch(['jenkins', 'instance', 'add', '--name', 'prod', '--base-url', 'https://jenkins-prod.imagile.dev']);
+
+    expect(Array.isArray(readConfig().jenkinsInstances)).toBe(true);
+  });
+});
+
+describe('jenkins instance remove', () => {
+  it('removes only the named instance', async () => {
+    await runNoFetch(['jenkins', 'instance', 'remove', '--name', 'ephemeral']);
+
+    const instances = readConfig().jenkinsInstances as { name: string }[];
+    expect(instances.map(i => i.name)).toEqual(['broken']);
+  });
+
+  it('errors when the instance does not exist', async () => {
+    await expect(runNoFetch(['jenkins', 'instance', 'remove', '--name', 'nope'])).rejects.toThrow(/not found/);
+  });
+});
+
+describe('jenkins instance list', () => {
+  it('masks api tokens', async () => {
+    const written: string[] = [];
+    vi.mocked(process.stdout.write).mockImplementation((chunk: unknown) => { written.push(String(chunk)); return true; });
+
+    await runNoFetch(['jenkins', 'instance', 'list']);
+
+    const payload = JSON.parse(written.join('')) as { data: { instances: { name: string; apiToken?: string }[] } };
+    expect(payload.data.instances.map(i => i.name)).toEqual(['ephemeral', 'broken']);
+    expect(payload.data.instances.every(i => i.apiToken === '***')).toBe(true);
+    expect(written.join('')).not.toContain('tmp-token');
   });
 });

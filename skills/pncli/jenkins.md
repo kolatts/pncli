@@ -73,11 +73,18 @@ When you work with more than one Jenkins controller (e.g. a stable production in
 }
 ```
 
-Set the array via the CLI (pass the full JSON value — `config set` replaces the whole array, so include every instance you want to keep):
+Manage the array with the `instance` subcommands, which append rather than replace:
 
 ```
-pncli config set jenkinsInstances '[{"name":"prod","baseUrl":"https://jenkins.imagile.dev","username":"you@example.com","apiToken":"abc12345"}]'
+pncli jenkins instance add --name prod --base-url jenkins.imagile.dev --username you@example.com --api-token abc12345
+pncli jenkins instance add --name ephemeral --base-url jenkins-tmp.imagile.dev --username you@example.com
+pncli jenkins instance list
+pncli jenkins instance remove --name ephemeral
 ```
+
+Omit `--api-token` on an interactive terminal and pncli prompts for it, which keeps the token out of your shell history. `instance list` masks every token as `***`. Adding a name that already exists is rejected unless you pass `--force`, which overwrites that entry in place.
+
+`pncli config set jenkinsInstances '[...]'` also works, but it **replaces** the whole array — you must re-supply every instance you want to keep, including tokens that `config check` masks. Prefer `instance add`.
 
 Then select an instance at run-time with `--instance`:
 

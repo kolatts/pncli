@@ -79,6 +79,19 @@ Most services have no such standard var — don't invent one. Only add a fallbac
 - Document it in the service's `skills/pncli/<service>.md` alongside the `PNCLI_*` var, noting the precedence.
 - Add a `loadConfig` test in `src/lib/config.test.ts` covering: fallback used when `PNCLI_*` unset, `PNCLI_*` wins when both set, fallback wins over stored config.
 
+## Changing Existing Behavior
+
+Any change that touches functionality users already rely on must be checked for breaking behavior **before** it ships, not after a bug report. Existing installs already have a `~/.pncli/config.json`, existing `.pncli.json` files, existing scripts calling existing flags, and existing CI pipelines reading the JSON envelope. Assume every one of those exists in the wild.
+
+Before finishing a change, work through what it does to users who are already set up:
+
+- **Config already on disk.** Does the change read a config shape that older versions never wrote? Handle the missing key and the *wrong-shaped* key — a hand-edited or partially-written value must produce a `PncliError` with a fix, never a raw `TypeError`. Anything that rewrites the global config file (`writeGlobalConfig` overwrites wholesale) must carry through keys it does not prompt for, or it silently deletes credentials the user cannot recover because `config check` masks them.
+- **New config keys.** Prefer a subcommand that appends over telling users to hand-write JSON into `config set`, which replaces the whole value. If an array or object key can grow, ship the add/list/remove commands with it.
+- **Flags and output.** Renaming or repurposing a flag, changing a default, or removing a field from the JSON envelope breaks callers' scripts. Add rather than repurpose; keep the old name working when you must rename.
+- **Precedence.** Re-read **Configuration Precedence** above. Lowering env-var priority for any field is a breaking change.
+
+Call out what you checked in the PR description. If a break is genuinely unavoidable, use `feat!:` per **Commit Conventions**, say so explicitly in the PR, and document the migration users need to perform.
+
 ## Self-Containment Rule
 
 pncli integrations must be self-contained. Users cannot be required to have any other CLI installed (e.g. `az`, `gcloud`, `kubectl`, `aws`) to obtain credentials, exchange tokens, or otherwise use a pncli command. If an integration needs a bearer token from an OAuth2 exchange, pncli performs the exchange itself using credentials the user supplies (username/password, client ID, refresh token, etc.). The only external dependency allowed at runtime is the target service's HTTP API.

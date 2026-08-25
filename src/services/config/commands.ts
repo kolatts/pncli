@@ -10,7 +10,8 @@ import {
   setRepoConfigValue,
   maskConfig,
   getGlobalConfigPath,
-  loadJsonFile
+  loadJsonFile,
+  normalizeBaseUrl
 } from '../../lib/config.js';
 import type { GlobalConfig } from '../../types/config.js';
 import { createHttpClient } from '../../lib/http.js';
@@ -660,12 +661,6 @@ export function registerConfigCommands(program: Command): void {
         fail(err, 'config', 'check', start);
       }
     });
-}
-
-function normalizeBaseUrl(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return trimmed;
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
 async function initGlobalConfig(start: number): Promise<void> {

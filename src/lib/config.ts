@@ -247,6 +247,12 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
   };
 }
 
+export function normalizeBaseUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
 export function writeGlobalConfig(config: GlobalConfig, configPath?: string): void {
   const filePath = getGlobalConfigPath(configPath);
   const dir = path.dirname(filePath);
