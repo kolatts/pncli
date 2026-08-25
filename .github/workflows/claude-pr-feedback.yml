@@ -15,10 +15,11 @@ name: Claude PR Feedback
 on:
   pull_request_review:
     types: [submitted]
-  # Manual path for PRs the automatic gate deliberately skips — chiefly
-  # human-authored PRs, where pushing to someone's working branch without being
-  # asked is the wrong default (see "Resolve target PR" below) — and for
-  # re-running a round that died on a transient failure.
+  # Manual path, for re-running a round that died on a transient failure and for
+  # addressing a review that landed before this workflow existed. Not an opt-in
+  # gate: the automatic path already covers every same-repo PR, human-authored
+  # ones included. Opting *out* is the `no-auto-fix` label (see "Resolve target
+  # PR"), which the dispatch path honours too.
   workflow_dispatch:
     inputs:
       pr_number:
@@ -143,8 +144,6 @@ jobs:
           GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
           REVIEW_COMMIT: ${{ github.event.review.commit_id }}
-          EVENT_NAME: ${{ github.event_name }}
-          BOT_SLUG: ${{ steps.imagile-token.outputs.app-slug }}
         run: |
           source "${RUNNER_TEMP}/gh-retry.sh"
           if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
@@ -152,7 +151,7 @@ jobs:
             exit 1
           fi
           gh_retry gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" \
-            --json number,title,url,state,headRefName,headRefOid,baseRefName,author,isCrossRepository \
+            --json number,title,url,state,headRefName,headRefOid,baseRefName,author,isCrossRepository,labels \
             > /tmp/pr.json
 
           HEAD_REF=$(jq -r '.headRefName' /tmp/pr.json)
@@ -176,22 +175,17 @@ jobs:
             skip "PR is ${STATE}"
           fi
 
-          # `gh pr view` reports app authors as "imagile-bot" — the REST/GraphQL
-          # `login` without the "[bot]" suffix the webhook payload carries. Accept
-          # either form so the gate does not silently skip every real run.
-          IS_AUTOMATION=false
-          if { [ "$AUTHOR" = "$BOT_SLUG" ] || [ "$AUTHOR" = "${BOT_SLUG}[bot]" ]; } \
-             && [[ "$HEAD_REF" == claude/* ]]; then
-            IS_AUTOMATION=true
+          # Human-authored branches are in scope, same as automation-authored ones.
+          # The one escape hatch is a label: someone mid-rebase, or who simply wants
+          # to handle the review themselves, adds `no-auto-fix` and the workflow
+          # leaves the branch alone. Checked on the dispatch path too — a label that
+          # says "do not touch this branch" should not be overridden by a manual
+          # re-run, which is usually a retry rather than a considered override.
+          if jq -e '.labels[]? | select(.name == "no-auto-fix")' /tmp/pr.json >/dev/null; then
+            skip "PR carries the 'no-auto-fix' label"
           fi
-          # The automatic path is deliberately narrow. Pushing commits onto a
-          # human's working branch mid-review rewrites what is under their feet —
-          # it races their local work and can strand them behind an unexpected
-          # remote. Automation-authored branches have no such owner, so closing the
-          # loop there is free. Humans opt in per-PR with workflow_dispatch.
-          if [ "$IS_AUTOMATION" != "true" ] && [ "$EVENT_NAME" != "workflow_dispatch" ]; then
-            skip "not an automation-authored claude/* branch (author: ${AUTHOR}, branch: ${HEAD_REF}); re-run via workflow_dispatch to address it anyway"
-          fi
+
+          echo "PR #${PR_NUMBER} by ${AUTHOR} on ${HEAD_REF} is eligible"
 
           # A review submitted against an older commit has usually already been
           # answered by whatever produced the newer one; acting on it would redo
@@ -264,7 +258,7 @@ jobs:
             echo "proceed=false" >> "$GITHUB_OUTPUT"
             gh_retry gh pr comment "${{ steps.pr.outputs.number }}" \
               --repo "${{ github.repository }}" \
-              --body "Automated feedback handling stopped after ${MAX_ROUNDS} rounds of requested changes. The remaining review comments need a human — the agent and the reviewer are not converging."
+              --body "Automated feedback handling stopped after ${MAX_ROUNDS} rounds of requested changes. The remaining review comments need a human — the agent and the reviewer are not converging. Add the \`no-auto-fix\` label if you want this workflow to stay off the branch entirely."
             gh_retry gh label create needs-human --color d93f0b --force --repo "${{ github.repository }}" || true
             gh_retry gh pr edit "${{ steps.pr.outputs.number }}" \
               --repo "${{ github.repository }}" --add-label "needs-human" || true
@@ -533,6 +527,7 @@ jobs:
           GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
           HEAD_REF: ${{ steps.pr.outputs.head_ref }}
           BEFORE_SHA: ${{ steps.before.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           if [ "$(git rev-parse HEAD)" = "$BEFORE_SHA" ]; then
             echo "No new commits on ${HEAD_REF}, nothing to push"
@@ -546,8 +541,29 @@ jobs:
             exit 0
           fi
           echo "Agent left unpushed commits — pushing"
-          git push origin "HEAD:${HEAD_REF}"
-          echo "pushed=true" >> "$GITHUB_OUTPUT"
+          if git push origin "HEAD:${HEAD_REF}"; then
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Now that human-authored branches are in scope, losing this race is a
+          # real event rather than a theoretical one: the author pushes their own
+          # commit while the agent is working, and this non-fast-forward push is
+          # rejected. Rejection is the correct outcome — the alternative is
+          # --force, which discards the author's commit to save the bot's. But
+          # failing with a bare git error leaves the branch owner with no idea a
+          # round happened at all, so say so on the PR.
+          echo "pushed=false" >> "$GITHUB_OUTPUT"
+          echo "::error::Push to ${HEAD_REF} was rejected — the branch moved during this run"
+          source "${RUNNER_TEMP}/gh-retry.sh"
+          {
+            echo "Automated feedback round could not be pushed: \`${HEAD_REF}\` moved while this run was working, so the push was rejected as a non-fast-forward. Nothing was overwritten and the review is still unaddressed."
+            echo
+            echo "Re-run the \`Claude PR Feedback\` workflow against this PR once your branch has settled, or add the \`no-auto-fix\` label if you would rather handle the review yourself. ([run](${RUN_URL}))"
+          } > /tmp/push-rejected.md
+          gh_retry gh pr comment "${{ steps.pr.outputs.number }}" \
+            --repo "${{ github.repository }}" --body-file /tmp/push-rejected.md
+          exit 1
 
       # The marker that "Check feedback round limit" counts. Posted only when this
       # round actually pushed, because only a push can fire `synchronize` and bring
