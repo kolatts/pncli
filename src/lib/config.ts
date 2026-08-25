@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
-import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, GitHubDefaults, SonarDefaults, SdeDefaults, AdoDefaults, UdeployDefaults, JenkinsDefaults } from '../types/config.js';
+import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, GitHubDefaults, SonarDefaults, SdeDefaults, AdoDefaults, UdeployDefaults, JenkinsDefaults, JenkinsInstanceConfig } from '../types/config.js';
 import type { CustomFieldDefinition } from '../types/jira.js';
 
 const ENV_KEYS = {
@@ -197,6 +197,7 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       username: process.env[ENV_KEYS.JENKINS_USERNAME] ?? globalConfig.jenkins?.username,
       apiToken: process.env[ENV_KEYS.JENKINS_API_TOKEN] ?? globalConfig.jenkins?.apiToken
     },
+    jenkinsInstances: (Array.isArray(globalConfig.jenkinsInstances) ? globalConfig.jenkinsInstances : []) as JenkinsInstanceConfig[],
     udeploy: {
       baseUrl: process.env[ENV_KEYS.UDEPLOY_BASE_URL] ?? globalConfig.udeploy?.baseUrl,
       pat: process.env[ENV_KEYS.UDEPLOY_PAT] ?? globalConfig.udeploy?.pat,
@@ -244,6 +245,12 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
     },
     defaults: mergedDefaults
   };
+}
+
+export function normalizeBaseUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
 export function writeGlobalConfig(config: GlobalConfig, configPath?: string): void {
@@ -353,6 +360,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
       ...config.jenkins,
       apiToken: config.jenkins.apiToken ? '***' : undefined
     },
+    jenkinsInstances: config.jenkinsInstances.map(inst => ({
+      ...inst,
+      apiToken: inst.apiToken ? '***' : undefined
+    })),
     udeploy: {
       ...config.udeploy,
       pat: config.udeploy.pat ? '***' : undefined,

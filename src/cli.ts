@@ -109,7 +109,7 @@ Services:
   sonar        SonarQube Server (quality gates, issues, metrics, hotspots)
   sde          SDElements (threat modeling, countermeasures, compliance)
   ado          Azure DevOps Server (work items, repos, PRs, pipelines)
-  jenkins      Jenkins Data Center (jobs, builds, logs)
+  jenkins      Jenkins Data Center (jobs, builds, logs, named instances)
   artifactory  Artifactory (repos, artifact search, build info, properties)
   udeploy      IBM UrbanCode Deploy (component versions, deployment processes)
   checkmarx    Checkmarx One (projects, scans, scan statistics)

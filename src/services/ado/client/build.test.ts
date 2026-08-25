@@ -15,6 +15,7 @@ function makeConfig(): ResolvedConfig {
     sde: { baseUrl: 'https://sde.imagile.dev', token: 'tok' },
     ado: { baseUrl: 'https://ado.imagile.dev', pat: 'my-pat', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: 'https://jenkins.imagile.dev', username: 'user', apiToken: 'tok' },
+    jenkinsInstances: [],
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined },
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },

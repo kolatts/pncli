@@ -19,6 +19,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     sde: { baseUrl: 'https://sde.imagile.dev', token: 'secret-sde' },
     ado: { baseUrl: 'https://ado.imagile.dev', pat: 'secret-ado', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: 'https://jenkins.imagile.dev', username: 'user', apiToken: 'secret-jenkins' },
+    jenkinsInstances: [],
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined },
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
@@ -226,6 +227,58 @@ describe('loadConfig — jenkins.baseUrl resolution order', () => {
     const config = loadConfig({ configPath: globalConfigPath });
 
     expect(config.jenkins.baseUrl).toBe('https://project.jenkins.imagile.dev');
+  });
+});
+
+describe('loadConfig — jenkinsInstances', () => {
+  let tmpDir: string;
+  let globalConfigPath: string;
+
+  beforeEach(async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-test-'));
+    globalConfigPath = path.join(tmpDir, 'config.json');
+    const { execSync } = await import('child_process');
+    vi.mocked(execSync).mockReturnValue(tmpDir as unknown as ReturnType<typeof execSync>);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.clearAllMocks();
+  });
+
+  it('returns empty array when no jenkinsInstances in config', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({}));
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.jenkinsInstances).toEqual([]);
+  });
+
+  // `config set jenkinsInstances.0 '{...}'` on a config with no array yet writes an
+  // object keyed by index; without this guard the first --instance lookup dies on
+  // `.find is not a function` instead of reporting a bad config.
+  it('falls back to an empty array when jenkinsInstances is not an array', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jenkinsInstances: { '0': { name: 'prod' } } }));
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.jenkinsInstances).toEqual([]);
+  });
+
+  it('loads jenkinsInstances from global config', () => {
+    const instances = [
+      { name: 'prod', baseUrl: 'https://jenkins.imagile.dev', username: 'user', apiToken: 'token1' },
+      { name: 'ephemeral', baseUrl: 'https://jenkins-tmp.imagile.dev', username: 'user', apiToken: 'token2' }
+    ];
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jenkinsInstances: instances }));
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.jenkinsInstances).toEqual(instances);
+  });
+
+  it('masks apiToken in each jenkins instance', () => {
+    const instances = [
+      { name: 'prod', baseUrl: 'https://jenkins.imagile.dev', username: 'user', apiToken: 'secret' }
+    ];
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jenkinsInstances: instances }));
+    const config = loadConfig({ configPath: globalConfigPath });
+    const masked = maskConfig(config) as { jenkinsInstances: Array<{ apiToken?: string }> };
+    expect(masked.jenkinsInstances[0]?.apiToken).toBe('***');
   });
 });
 

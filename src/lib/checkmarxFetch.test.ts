@@ -14,6 +14,7 @@ function makeConfig(overrides: Partial<ResolvedConfig['checkmarx']> = {}): Resol
     sde: { baseUrl: undefined, token: undefined },
     ado: { baseUrl: undefined, pat: undefined, fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: undefined, username: undefined, apiToken: undefined },
+    jenkinsInstances: [],
     udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     checkmarx: {
       baseUrl: 'https://ast.checkmarx.net',
