@@ -252,6 +252,15 @@ describe('loadConfig — jenkinsInstances', () => {
     expect(config.jenkinsInstances).toEqual([]);
   });
 
+  // `config set jenkinsInstances.0 '{...}'` on a config with no array yet writes an
+  // object keyed by index; without this guard the first --instance lookup dies on
+  // `.find is not a function` instead of reporting a bad config.
+  it('falls back to an empty array when jenkinsInstances is not an array', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jenkinsInstances: { '0': { name: 'prod' } } }));
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.jenkinsInstances).toEqual([]);
+  });
+
   it('loads jenkinsInstances from global config', () => {
     const instances = [
       { name: 'prod', baseUrl: 'https://jenkins.imagile.dev', username: 'user', apiToken: 'token1' },

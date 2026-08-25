@@ -73,7 +73,7 @@ When you work with more than one Jenkins controller (e.g. a stable production in
 }
 ```
 
-Set the array via the CLI (pass the full JSON value):
+Set the array via the CLI (pass the full JSON value — `config set` replaces the whole array, so include every instance you want to keep):
 
 ```
 pncli config set jenkinsInstances '[{"name":"prod","baseUrl":"https://jenkins.imagile.dev","username":"you@example.com","apiToken":"abc12345"}]'

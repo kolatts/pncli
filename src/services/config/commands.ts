@@ -9,8 +9,10 @@ import {
   setConfigValue,
   setRepoConfigValue,
   maskConfig,
-  getGlobalConfigPath
+  getGlobalConfigPath,
+  loadJsonFile
 } from '../../lib/config.js';
+import type { GlobalConfig } from '../../types/config.js';
 import { createHttpClient } from '../../lib/http.js';
 import { AdoCoreClient } from '../ado/client/core.js';
 import { AdoWorkClient } from '../ado/client/work.js';
@@ -1424,7 +1426,16 @@ async function initGlobalConfig(start: number): Promise<void> {
     return;
   }
 
+  // init rewrites the whole file and never prompts for named Jenkins instances.
+  // Carry over whatever is already on disk so re-running init to change an unrelated
+  // token does not silently delete instance credentials the user cannot recover.
+  const existingGlobal = loadJsonFile<GlobalConfig>(getGlobalConfigPath());
+  const existingInstances = Array.isArray(existingGlobal?.jenkinsInstances)
+    ? existingGlobal.jenkinsInstances
+    : [];
+
   writeGlobalConfig({
+    jenkinsInstances: existingInstances,
     user: {
       email: userEmail || undefined,
       userId: userId || undefined

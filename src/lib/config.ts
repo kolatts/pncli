@@ -197,7 +197,7 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       username: process.env[ENV_KEYS.JENKINS_USERNAME] ?? globalConfig.jenkins?.username,
       apiToken: process.env[ENV_KEYS.JENKINS_API_TOKEN] ?? globalConfig.jenkins?.apiToken
     },
-    jenkinsInstances: (globalConfig.jenkinsInstances ?? []) as JenkinsInstanceConfig[],
+    jenkinsInstances: (Array.isArray(globalConfig.jenkinsInstances) ? globalConfig.jenkinsInstances : []) as JenkinsInstanceConfig[],
     udeploy: {
       baseUrl: process.env[ENV_KEYS.UDEPLOY_BASE_URL] ?? globalConfig.udeploy?.baseUrl,
       pat: process.env[ENV_KEYS.UDEPLOY_PAT] ?? globalConfig.udeploy?.pat,
