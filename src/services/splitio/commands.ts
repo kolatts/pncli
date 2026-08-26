@@ -279,8 +279,8 @@ export function registerSplitioCommands(program: Command): void {
 
         const rules = (current.rules ?? []) as Array<Record<string, unknown>>;
         const idx = parseInt(opts.ruleIndex, 10);
-        if (idx < 0 || idx >= rules.length) {
-          throw new PncliError(`Rule index ${idx} is out of range (flag has ${rules.length} rules)`);
+        if (Number.isNaN(idx) || idx < 0 || idx >= rules.length) {
+          throw new PncliError(`Rule index ${Number.isNaN(idx) ? JSON.stringify(opts.ruleIndex) : idx} is out of range (flag has ${rules.length} rules)`);
         }
 
         if (opts.treatment) {

@@ -898,6 +898,58 @@ describe('HttpClient — Dynatrace authentication', () => {
   });
 });
 
+describe('HttpClient — Split.IO', () => {
+  it('throws on missing baseUrl', async () => {
+    const config = baseConfig({ splitio: { baseUrl: undefined, adminApiKey: 'key' } });
+    const client = new HttpClient(config);
+    await expect(client.splitio('/internal/api/v2/workspaces')).rejects.toThrow('Split.IO baseUrl not configured');
+  });
+
+  it('throws on missing adminApiKey', async () => {
+    const config = baseConfig({ splitio: { baseUrl: 'https://api.split.io', adminApiKey: undefined } });
+    const client = new HttpClient(config);
+    await expect(client.splitio('/internal/api/v2/workspaces')).rejects.toThrow('Split.IO credentials not configured');
+  });
+
+  it('sends Bearer auth with the configured adminApiKey', async () => {
+    const capturedHeaders: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
+      return new Response('{"objects":[]}', { status: 200 });
+    });
+    try {
+      const config = baseConfig({ splitio: { baseUrl: 'https://api.split.io', adminApiKey: 'my-admin-key' } });
+      const client = new HttpClient(config);
+      await client.splitio('/internal/api/v2/workspaces');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(capturedHeaders[0]?.['authorization']).toBe('Bearer my-admin-key');
+  });
+
+  it('builds the correct URL and appends query params', async () => {
+    const captured: { url: string }[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      captured.push({ url: String(url) });
+      return new Response('{"objects":[]}', { status: 200 });
+    });
+    try {
+      const config = baseConfig({ splitio: { baseUrl: 'https://api.split.io', adminApiKey: 'key' } });
+      const client = new HttpClient(config);
+      await client.splitio('/internal/api/v2/splits', { params: { wsId: 'ws-abc', limit: 50 } });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(captured[0]?.url).toBe('https://api.split.io/internal/api/v2/splits?wsId=ws-abc&limit=50');
+  });
+
+  it('throws PncliError with status 0 on dry-run', async () => {
+    const config = baseConfig({ splitio: { baseUrl: 'https://api.split.io', adminApiKey: 'key' } });
+    const client = new HttpClient(config, true);
+    await expect(client.splitio('/internal/api/v2/workspaces')).rejects.toMatchObject({ status: 0, message: 'dry-run' });
+  });
+});
+
 describe('HttpClient — --debug mode', () => {
   beforeEach(() => {
     setGlobalOptions({ pretty: false, verbose: false, debug: true });
