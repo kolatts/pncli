@@ -69,7 +69,7 @@ interface FigmaProjectFilesResponse {
  * Figma URLs follow the pattern: https://www.figma.com/design/<key>/...
  * or the legacy: https://www.figma.com/file/<key>/...
  */
-function parseFileKey(input: string): string {
+export function parseFileKey(input: string): string {
   // If it looks like a URL, parse out the file key
   if (input.startsWith('http://') || input.startsWith('https://')) {
     const match = /figma\.com\/(?:design|file)\/([A-Za-z0-9]+)/i.exec(input);
@@ -96,8 +96,8 @@ export function registerFigmaCommands(program: Command): void {
     .command('file')
     .description('Get a Figma file — metadata, structure, and component/style inventory')
     .argument('<file-key-or-url>', 'Figma file key or full Figma URL (https://www.figma.com/design/<key>/...)')
-    .option('--no-document', 'Omit the document node tree (metadata only)')
-    .action(async (fileKeyOrUrl: string, opts: { document: boolean }) => {
+    .option('--document', 'Include the full document node tree (can be large; omitted by default)')
+    .action(async (fileKeyOrUrl: string, opts: { document?: boolean }) => {
       const start = Date.now();
       const { success, fail } = await import('../../lib/output.js');
       try {

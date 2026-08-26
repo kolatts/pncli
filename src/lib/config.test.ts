@@ -390,6 +390,59 @@ describe('loadConfig — CI env var fallbacks', () => {
   });
 });
 
+describe('loadConfig — PNCLI_FIGMA_* env vars', () => {
+  let tmpDir: string;
+  let globalConfigPath: string;
+
+  beforeEach(async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-test-'));
+    globalConfigPath = path.join(tmpDir, 'config.json');
+    fs.writeFileSync(globalConfigPath, JSON.stringify({}));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
+    const { execSync } = await import('child_process');
+    vi.mocked(execSync).mockReturnValue(tmpDir as unknown as ReturnType<typeof execSync>);
+  });
+
+  afterEach(() => {
+    delete process.env['PNCLI_FIGMA_BASE_URL'];
+    delete process.env['PNCLI_FIGMA_TOKEN'];
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.clearAllMocks();
+  });
+
+  it('resolves figma.baseUrl from PNCLI_FIGMA_BASE_URL', () => {
+    process.env['PNCLI_FIGMA_BASE_URL'] = 'https://api.figma.com';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.figma.baseUrl).toBe('https://api.figma.com');
+  });
+
+  it('resolves figma.token from PNCLI_FIGMA_TOKEN', () => {
+    process.env['PNCLI_FIGMA_TOKEN'] = 'figma-pat';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.figma.token).toBe('figma-pat');
+  });
+
+  it('PNCLI_FIGMA_BASE_URL wins over stored config', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ figma: { baseUrl: 'https://api.figma.com' } }));
+    process.env['PNCLI_FIGMA_BASE_URL'] = 'https://api.figma.com';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.figma.baseUrl).toBe('https://api.figma.com');
+  });
+
+  it('PNCLI_FIGMA_TOKEN wins over stored config', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ figma: { token: 'stored-token' } }));
+    process.env['PNCLI_FIGMA_TOKEN'] = 'env-token';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.figma.token).toBe('env-token');
+  });
+
+  it('falls back to stored config when PNCLI_FIGMA_TOKEN is unset', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ figma: { token: 'stored-token' } }));
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.figma.token).toBe('stored-token');
+  });
+});
+
 describe('setConfigValue — JSON parsing', () => {
   let tmpDir: string;
   let globalConfigPath: string;
