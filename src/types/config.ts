@@ -160,6 +160,12 @@ export interface LogscaleConfig {
   token?: string;
 }
 
+export interface SplitioConfig {
+  /** Split Admin API base URL, for example https://api.split.io */
+  baseUrl?: string;
+  adminApiKey?: string;
+}
+
 export interface MarketplaceConfig {
   name?: string;
   repoUrl?: string;
@@ -208,6 +214,7 @@ export interface GlobalConfig {
   openshift?: OpenShiftConfig;
   dynatrace?: DynatraceConfig;
   logscale?: LogscaleConfig;
+  splitio?: SplitioConfig;
   marketplace?: MarketplaceConfig;
   marketplaces?: MarketplaceConfig[];
   defaults?: Defaults;
@@ -308,6 +315,10 @@ export interface ResolvedConfig {
   logscale: {
     baseUrl: string | undefined;
     token: string | undefined;
+  };
+  splitio: {
+    baseUrl: string | undefined;
+    adminApiKey: string | undefined;
   };
   defaults: {
     jira: JiraDefaults;

@@ -312,6 +312,17 @@ export function registerConfigCommands(program: Command): void {
           results.logscale = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.splitio.baseUrl && cfg.splitio.adminApiKey) {
+          try {
+            await http.splitio<unknown>('/internal/api/v2/workspaces');
+            results.splitio = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.splitio = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.splitio = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -614,6 +625,20 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        // Split.IO
+        if (!cfg.splitio.adminApiKey) {
+          results.splitio = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.splitio.baseUrl) {
+          results.splitio = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.splitio<unknown>('/internal/api/v2/workspaces', { timeoutMs: 10_000 });
+            results.splitio = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.splitio = categorize(err);
+          }
+        }
+
         // Exit code: prefer AUTH_ERROR if any invalid, else NETWORK_ERROR if any errors
         const statuses = Object.values(results).map(r => r.status);
         if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
@@ -621,7 +646,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale'] as const;
+          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale', 'splitio'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -639,7 +664,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale'] as const;
+            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale', 'splitio'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -1393,6 +1418,45 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── Split.IO ──────────────────────────────────────\n');
+  const useSplitio = await confirm({
+    message: 'Configure Split.IO for feature flag administration?',
+    default: false
+  });
+
+  let splitioBaseUrl = '';
+  let splitioAdminApiKey = '';
+
+  if (useSplitio) {
+    splitioBaseUrl = await input({
+      message: 'Split.IO Admin API base URL (e.g. https://api.split.io):',
+      default: ''
+    });
+
+    splitioAdminApiKey = await password({
+      message: 'Split.IO Admin API key:'
+    });
+
+    if (splitioBaseUrl && splitioAdminApiKey) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          splitio: {
+            baseUrl: normalizeBaseUrl(splitioBaseUrl),
+            adminApiKey: splitioAdminApiKey
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.splitio<unknown>('/internal/api/v2/workspaces');
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to Split.IO: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your URL and API key and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -1550,6 +1614,12 @@ async function initGlobalConfig(start: number): Promise<void> {
       logscale: {
         baseUrl: normalizeBaseUrl(logscaleBaseUrl),
         token: logscaleToken || undefined
+      }
+    } : {}),
+    ...(useSplitio && splitioBaseUrl ? {
+      splitio: {
+        baseUrl: normalizeBaseUrl(splitioBaseUrl),
+        adminApiKey: splitioAdminApiKey || undefined
       }
     } : {}),
     defaults: {

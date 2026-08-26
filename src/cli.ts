@@ -38,6 +38,7 @@ import { registerJwtCommands } from './services/jwt/commands.js';
 import { registerOpenShiftCommands } from './services/openshift/commands.js';
 import { registerDynatraceCommands } from './services/dynatrace/commands.js';
 import { registerLogscaleCommands } from './services/logscale/commands.js';
+import { registerSplitioCommands } from './services/splitio/commands.js';
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,6 +98,7 @@ registerJwtCommands(program);
 registerOpenShiftCommands(program);
 registerDynatraceCommands(program);
 registerLogscaleCommands(program);
+registerSplitioCommands(program);
 
 program.addHelpText('after', `
 Services:
@@ -119,6 +121,7 @@ Services:
   openshift    OpenShift / Kubernetes (pods, events, logs, metrics)
   dynatrace    Dynatrace (services, entities, problems, traces, Kubernetes workloads)
   logscale     LogScale (log query, repositories)
+  splitio      Split.IO (feature flags, Change Requests)
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills
   jwt          JWT token utilities (decode header and payload)
