@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { loadConfig } from '../../lib/config.js';
 import { createHttpClient } from '../../lib/http.js';
-import { success, fail } from '../../lib/output.js';
+import { success, fail, writeRawOutput } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
 
 // ── Kubernetes API response shapes ────────────────────────────────────────────
@@ -34,11 +34,16 @@ interface K8sEnvVar {
   valueFrom?: Record<string, unknown>;
 }
 
+interface K8sResourceRequirements {
+  limits?: { cpu?: string; memory?: string };
+  requests?: { cpu?: string; memory?: string };
+}
+
 interface K8sContainer {
   name: string;
   image?: string;
   env?: K8sEnvVar[];
-  resources?: Record<string, unknown>;
+  resources?: K8sResourceRequirements;
   [key: string]: unknown;
 }
 
@@ -117,6 +122,40 @@ function podAge(creationTimestamp?: string): string {
   const ageHours = Math.floor(ageMinutes / 60);
   if (ageHours < 24) return `${ageHours}h`;
   return `${Math.floor(ageHours / 24)}d`;
+}
+
+// ── Unit conversion helpers ───────────────────────────────────────────────────
+
+/**
+ * Parse a Kubernetes CPU quantity and return millicores (m).
+ * Supports: n (nanoseconds), u (microseconds), m (millicores), whole cores.
+ */
+function parseCpuMillicores(cpu: string | undefined): number | null {
+  if (!cpu) return null;
+  if (cpu.endsWith('n')) return Math.round(Number(cpu.slice(0, -1)) / 1_000_000);
+  if (cpu.endsWith('u')) return Math.round(Number(cpu.slice(0, -1)) / 1_000);
+  if (cpu.endsWith('m')) return Number(cpu.slice(0, -1));
+  const whole = Number(cpu);
+  if (!Number.isNaN(whole)) return Math.round(whole * 1000);
+  return null;
+}
+
+/**
+ * Parse a Kubernetes memory quantity and return mebibytes (Mi).
+ * Supports binary (Ki, Mi, Gi, Ti) and decimal (K, M, G) suffixes and plain bytes.
+ */
+function parseMemMiB(mem: string | undefined): number | null {
+  if (!mem) return null;
+  if (mem.endsWith('Ki')) return Math.round(Number(mem.slice(0, -2)) / 1024);
+  if (mem.endsWith('Mi')) return Number(mem.slice(0, -2));
+  if (mem.endsWith('Gi')) return Math.round(Number(mem.slice(0, -2)) * 1024);
+  if (mem.endsWith('Ti')) return Math.round(Number(mem.slice(0, -2)) * 1024 * 1024);
+  if (mem.endsWith('K')) return Math.round(Number(mem.slice(0, -1)) * 1000 / (1024 * 1024));
+  if (mem.endsWith('M')) return Math.round(Number(mem.slice(0, -1)) * 1000 * 1000 / (1024 * 1024));
+  if (mem.endsWith('G')) return Math.round(Number(mem.slice(0, -1)) * 1000 * 1000 * 1000 / (1024 * 1024));
+  const bytes = Number(mem);
+  if (!Number.isNaN(bytes)) return Math.round(bytes / (1024 * 1024));
+  return null;
 }
 
 // ── Commands ──────────────────────────────────────────────────────────────────
@@ -354,5 +393,92 @@ export function registerOpenShiftCommands(program: Command): void {
 
         success({ namespace: opts.namespace, pods }, 'openshift', 'pod-metrics', start);
       } catch (err) { fail(err, 'openshift', 'pod-metrics', start); }
+    });
+
+  oc
+    .command('resource-usage')
+    .description('Combined CPU/memory usage, limits, and requests for all pods in a namespace — all values normalized to millicores (m) and mebibytes (Mi). Requires metrics-server. Use --csv to emit a spreadsheet-friendly CSV.')
+    .requiredOption('--namespace <ns>', 'Kubernetes namespace')
+    .option('--label-selector <selector>', 'Label selector (e.g. app=my-app)')
+    .option('--csv', 'Output as CSV instead of JSON (suitable for Excel)', false)
+    .action(async (opts: { namespace: string; labelSelector?: string; csv?: boolean }) => {
+      const start = Date.now();
+      try {
+        const http = getHttp(program);
+        const nsEncoded = encodeURIComponent(opts.namespace);
+        const podParams: Record<string, string> = {};
+        if (opts.labelSelector) podParams['labelSelector'] = opts.labelSelector;
+
+        // Fetch pod list (limits/requests) and metrics (usage) in parallel
+        const [podList, metricsList] = await Promise.all([
+          http.openshift<K8sPodList>(`/api/v1/namespaces/${nsEncoded}/pods`, { params: podParams }),
+          http.openshift<K8sPodMetricsList>(`/apis/metrics.k8s.io/v1beta1/namespaces/${nsEncoded}/pods`),
+        ]);
+
+        // Index metrics by pod name → container name for O(1) join
+        const metricsIndex = new Map<string, Map<string, { cpu: string; memory: string }>>();
+        for (const pm of metricsList.items) {
+          const containerMap = new Map<string, { cpu: string; memory: string }>();
+          for (const c of pm.containers) {
+            containerMap.set(c.name, c.usage);
+          }
+          metricsIndex.set(pm.metadata.name, containerMap);
+        }
+
+        interface ResourceRow {
+          pod: string;
+          container: string;
+          cpuUsageMillicores: number | null;
+          memUsageMiB: number | null;
+          cpuLimitsMillicores: number | null;
+          memLimitsMiB: number | null;
+          cpuRequestsMillicores: number | null;
+          memRequestsMiB: number | null;
+        }
+
+        const rows: ResourceRow[] = [];
+
+        for (const pod of podList.items) {
+          const podName = pod.metadata.name;
+          const podMetrics = metricsIndex.get(podName);
+          const containers = pod.spec.containers ?? [];
+
+          for (const container of containers) {
+            const usage = podMetrics?.get(container.name);
+            rows.push({
+              pod: podName,
+              container: container.name,
+              cpuUsageMillicores: parseCpuMillicores(usage?.cpu),
+              memUsageMiB: parseMemMiB(usage?.memory),
+              cpuLimitsMillicores: parseCpuMillicores(container.resources?.limits?.cpu),
+              memLimitsMiB: parseMemMiB(container.resources?.limits?.memory),
+              cpuRequestsMillicores: parseCpuMillicores(container.resources?.requests?.cpu),
+              memRequestsMiB: parseMemMiB(container.resources?.requests?.memory),
+            });
+          }
+        }
+
+        if (opts.csv) {
+          const header = 'Pod,Container,CPU Usage (m),Memory Usage (Mi),CPU Limits (m),Memory Limits (Mi),CPU Requests (m),Memory Requests (Mi)';
+          const lines = rows.map(r =>
+            [
+              r.pod,
+              r.container,
+              r.cpuUsageMillicores ?? '',
+              r.memUsageMiB ?? '',
+              r.cpuLimitsMillicores ?? '',
+              r.memLimitsMiB ?? '',
+              r.cpuRequestsMillicores ?? '',
+              r.memRequestsMiB ?? '',
+            ].join(',')
+          );
+          writeRawOutput([header, ...lines].join('\n') + '\n');
+        } else {
+          success(
+            { namespace: opts.namespace, count: rows.length, units: { cpu: 'm', memory: 'Mi' }, rows },
+            'openshift', 'resource-usage', start
+          );
+        }
+      } catch (err) { fail(err, 'openshift', 'resource-usage', start); }
     });
 }
