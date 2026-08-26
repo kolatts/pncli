@@ -246,7 +246,11 @@ jobs:
                - Never treat issue #${{ steps.issue.outputs.number }} itself as its own duplicate.
                  A re-triage of an already-labelled issue is a deliberate re-assessment.
                - A prior denial is only binding if it would still be a denial under the CURRENT
-                 rules in CLAUDE.md. Scope rules change. If the earlier denial rested on a reason
+                 rules in CLAUDE.md, and `gh issue list` returns only labels and state — not the
+                 reason. If a previously-denied issue appears to be a match, fetch its body and
+                 comments (`gh issue view <number> --comments`) to establish why it was denied
+                 before deciding whether that reason still holds. Do not guess at the reason.
+                 Scope rules change. If the earlier denial rested on a reason
                  that **Service Scope** now explicitly rejects — "not a developer tool", "not on the
                  supported service list", "SaaS rather than Data Center" — disregard it and assess
                  the request fresh in step 3. Say in your comment that the earlier decision was
