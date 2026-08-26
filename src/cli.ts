@@ -38,6 +38,7 @@ import { registerJwtCommands } from './services/jwt/commands.js';
 import { registerOpenShiftCommands } from './services/openshift/commands.js';
 import { registerDynatraceCommands } from './services/dynatrace/commands.js';
 import { registerLogscaleCommands } from './services/logscale/commands.js';
+import { registerSplitioCommands } from './services/splitio/commands.js';
 import { registerFigmaCommands } from './services/figma/commands.js';
 
 const require = createRequire(import.meta.url);
@@ -98,6 +99,7 @@ registerJwtCommands(program);
 registerOpenShiftCommands(program);
 registerDynatraceCommands(program);
 registerLogscaleCommands(program);
+registerSplitioCommands(program);
 registerFigmaCommands(program);
 
 program.addHelpText('after', `
@@ -121,6 +123,7 @@ Services:
   openshift    OpenShift / Kubernetes (pods, events, logs, metrics)
   dynatrace    Dynatrace (services, entities, problems, traces, Kubernetes workloads)
   logscale     LogScale (log query, repositories)
+  splitio      Split.IO (feature flags, Change Requests)
   figma        Figma (files, comments, version history)
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills

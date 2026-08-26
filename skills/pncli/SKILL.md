@@ -58,6 +58,7 @@ For detailed setup of any service, read the included file for that service.
 | OpenShift / Kubernetes | `openshift.md` | Pod health, events, logs, metrics |
 | Dynatrace | `dynatrace.md` | Services, entities, problems, traces, Kubernetes workloads |
 | LogScale | `logscale.md` | Log queries, repository listing |
+| Split.IO | `splitio.md` | Feature flag discovery, targeting updates, Change Requests |
 | Figma | `figma.md` | Design files, comments, version history |
 | Skills Marketplace | `marketplace.md` | Install org-internal skills |
 

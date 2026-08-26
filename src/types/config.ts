@@ -160,6 +160,12 @@ export interface LogscaleConfig {
   token?: string;
 }
 
+export interface SplitioConfig {
+  /** Split Admin API base URL, for example https://api.split.io */
+  baseUrl?: string;
+  adminApiKey?: string;
+}
+
 export interface FigmaConfig {
   /** Figma API base URL — always https://api.figma.com for cloud Figma */
   baseUrl?: string;
@@ -214,6 +220,7 @@ export interface GlobalConfig {
   openshift?: OpenShiftConfig;
   dynatrace?: DynatraceConfig;
   logscale?: LogscaleConfig;
+  splitio?: SplitioConfig;
   figma?: FigmaConfig;
   marketplace?: MarketplaceConfig;
   marketplaces?: MarketplaceConfig[];
@@ -315,6 +322,10 @@ export interface ResolvedConfig {
   logscale: {
     baseUrl: string | undefined;
     token: string | undefined;
+  };
+  splitio: {
+    baseUrl: string | undefined;
+    adminApiKey: string | undefined;
   };
   figma: {
     baseUrl: string | undefined;

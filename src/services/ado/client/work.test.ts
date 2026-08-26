@@ -27,6 +27,7 @@ function makeConfig(): ResolvedConfig {
     openshift: { baseUrl: undefined, token: undefined },
     dynatrace: { baseUrl: undefined, apiToken: undefined, platformUrl: undefined, platformToken: undefined },
     logscale: { baseUrl: undefined, token: undefined },
+    splitio: { baseUrl: undefined, adminApiKey: undefined },
     figma: { baseUrl: undefined, token: undefined },
     defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, udeploy: {}, jenkins: {} }
   };

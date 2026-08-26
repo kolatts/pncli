@@ -65,6 +65,8 @@ const ENV_KEYS = {
   DYNATRACE_PLATFORM_TOKEN: 'PNCLI_DYNATRACE_PLATFORM_TOKEN',
   LOGSCALE_BASE_URL: 'PNCLI_LOGSCALE_BASE_URL',
   LOGSCALE_TOKEN: 'PNCLI_LOGSCALE_TOKEN',
+  SPLITIO_BASE_URL: 'PNCLI_SPLITIO_BASE_URL',
+  SPLITIO_ADMIN_API_KEY: 'PNCLI_SPLITIO_ADMIN_API_KEY',
   FIGMA_BASE_URL: 'PNCLI_FIGMA_BASE_URL',
   FIGMA_TOKEN: 'PNCLI_FIGMA_TOKEN',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
@@ -245,6 +247,10 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       baseUrl: process.env[ENV_KEYS.LOGSCALE_BASE_URL] ?? globalConfig.logscale?.baseUrl,
       token: process.env[ENV_KEYS.LOGSCALE_TOKEN] ?? globalConfig.logscale?.token,
     },
+    splitio: {
+      baseUrl: process.env[ENV_KEYS.SPLITIO_BASE_URL] ?? globalConfig.splitio?.baseUrl,
+      adminApiKey: process.env[ENV_KEYS.SPLITIO_ADMIN_API_KEY] ?? globalConfig.splitio?.adminApiKey,
+    },
     figma: {
       baseUrl: process.env[ENV_KEYS.FIGMA_BASE_URL] ?? globalConfig.figma?.baseUrl,
       token: process.env[ENV_KEYS.FIGMA_TOKEN] ?? globalConfig.figma?.token,
@@ -406,6 +412,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     logscale: {
       ...config.logscale,
       token: config.logscale.token ? '***' : undefined
+    },
+    splitio: {
+      ...config.splitio,
+      adminApiKey: config.splitio.adminApiKey ? '***' : undefined
     },
     figma: {
       ...config.figma,
