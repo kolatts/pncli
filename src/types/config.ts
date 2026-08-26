@@ -166,6 +166,12 @@ export interface SplitioConfig {
   adminApiKey?: string;
 }
 
+export interface FigmaConfig {
+  /** Figma API base URL — always https://api.figma.com for cloud Figma */
+  baseUrl?: string;
+  token?: string;
+}
+
 export interface MarketplaceConfig {
   name?: string;
   repoUrl?: string;
@@ -215,6 +221,7 @@ export interface GlobalConfig {
   dynatrace?: DynatraceConfig;
   logscale?: LogscaleConfig;
   splitio?: SplitioConfig;
+  figma?: FigmaConfig;
   marketplace?: MarketplaceConfig;
   marketplaces?: MarketplaceConfig[];
   defaults?: Defaults;
@@ -319,6 +326,10 @@ export interface ResolvedConfig {
   splitio: {
     baseUrl: string | undefined;
     adminApiKey: string | undefined;
+  };
+  figma: {
+    baseUrl: string | undefined;
+    token: string | undefined;
   };
   defaults: {
     jira: JiraDefaults;

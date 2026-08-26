@@ -85,6 +85,27 @@ pncli openshift pod-metrics --namespace my-namespace
 Returns per-pod, per-container CPU and memory usage. Requires the metrics-server to be
 installed in the cluster (`GET /apis/metrics.k8s.io/v1beta1/...`).
 
+### Get combined resource usage, limits, and requests
+
+```bash
+pncli openshift resource-usage --namespace my-namespace
+pncli openshift resource-usage --namespace my-namespace --label-selector app=my-app
+pncli openshift resource-usage --namespace my-namespace --csv
+```
+
+Fetches pod specs (limits/requests) and metrics-server usage in parallel, joins them by
+pod + container, and normalizes all values to **millicores (m)** for CPU and **mebibytes (Mi)**
+for memory. Pods without metrics (e.g. not Running) appear with empty usage columns.
+
+Use `--csv` to emit a spreadsheet-ready CSV suitable for Excel:
+
+```
+Pod,Container,CPU Usage (m),Memory Usage (Mi),CPU Limits (m),Memory Limits (Mi),CPU Requests (m),Memory Requests (Mi)
+my-pod-abc,app,45,128,500,256,100,128
+```
+
+Requires the metrics-server (`GET /apis/metrics.k8s.io/v1beta1/...`) — same as `pod-metrics`.
+
 ## Test connectivity
 
 ```bash
@@ -93,7 +114,8 @@ pncli config test
 
 ## Minimum RBAC permissions
 
-The service account needs read access to pods, events, logs, and metrics in the target namespace:
+The service account needs read access to pods, events, logs, and metrics in the target namespace.
+`resource-usage` requires the same metrics-server permission as `pod-metrics`:
 
 ```yaml
 rules:

@@ -23,7 +23,7 @@ export interface HttpError {
   url: string;
 }
 
-const SENSITIVE_HEADERS = new Set(['authorization', 'api-key']);
+const SENSITIVE_HEADERS = new Set(['authorization', 'api-key', 'x-figma-token']);
 
 function redactHeaders(headers: RequestInit['headers']): Record<string, string> {
   if (!headers) return {};
@@ -1493,6 +1493,44 @@ export class HttpClient {
     };
 
     return request<T>(url, init, opts.timeoutMs ?? 30000, fetcher);
+  }
+
+  private figmaHeaders(): Record<string, string> {
+    const { token } = this.config.figma;
+    if (!token) throw new PncliError('Figma credentials not configured. Run: pncli config set figma.token <token>');
+    return {
+      'X-Figma-Token': token,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+  }
+
+  async figma<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.figma.baseUrl;
+    if (!baseUrl) throw new PncliError('Figma baseUrl not configured. Run: pncli config set figma.baseUrl https://api.figma.com');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.figmaHeaders();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, 'X-Figma-Token': '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 }
 

@@ -2,7 +2,9 @@
 
 ## Project Overview
 
-pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI coding agents and humans unified access to Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, IBM UrbanCode Deploy, Checkmarx, ServiceNow, and Contrast Security IAST. Built with TypeScript, Commander.js, and published as `@kolatts/pncli`.
+pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI coding agents and humans unified access to the enterprise tools their org runs — currently Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, IBM UrbanCode Deploy, Checkmarx, ServiceNow, Contrast Security IAST, Sonatype IQ Server, OpenShift/Kubernetes, Dynatrace, LogScale, and GitHub. Built with TypeScript, Commander.js, and published as `@kolatts/pncli`.
+
+**That list is a snapshot, not the boundary.** Any enterprise tool that meets the bar in **Service Scope** below is a candidate. See that section before rejecting a new-integration request.
 
 ## Key Directories
 
@@ -63,6 +65,8 @@ Every new branch that represents a work request must have a corresponding GitHub
 
 ## Adding a New Service Integration
 
+First confirm the service clears **Service Scope** below — in particular that it authenticates with a personal access token. If it doesn't, stop; no amount of implementation quality fixes a non-PAT auth story.
+
 When adding a new service integration (new entry under `src/services/`), these files must all be updated together:
 
 1. **`src/types/config.ts`** — add config interface and wire into `GlobalConfig` / `ResolvedConfig`
@@ -112,9 +116,45 @@ Before finishing a change, work through what it does to users who are already se
 
 Call out what you checked in the PR description. If a break is genuinely unavoidable, use `feat!:` per **Commit Conventions**, say so explicitly in the PR, and document the migration users need to perform.
 
+## Service Scope
+
+pncli's domain is **enterprise tooling**, broadly construed: anything an engineering org pays for, hosts, or is required to use as part of getting software built and shipped. That includes issue trackers, source hosts, wikis, CI/CD, artifact repositories, static and dynamic security scanners, ITSM, observability and logging, cloud/cluster control planes — and also **design, product, documentation, and collaboration tools** that engineers pull context out of. Figma, Miro, Notion, Slack, Linear, PagerDuty, Snyk, Datadog, and their equivalents are all in-domain.
+
+Do **not** reject a proposed integration on any of these grounds:
+
+- "It isn't on the current list of services." The list grows; that is the point of this section.
+- "It isn't a developer tool / SDLC tool." The bar is *enterprise tool an engineer needs data out of*, not *tool that compiles code*.
+- "It's cloud/SaaS, not Data Center." The on-prem story is what pncli started with, not a limit on what it covers.
+
+### The Authentication Bar
+
+**A new integration must authenticate with a personal access token — and nothing else.**
+
+That means: a long-lived, static credential the user generates in the target tool's own UI, copies once, and pastes into an env var or config file. Vendor naming varies and does not matter — Jira "API token", SonarQube "user token", Jenkins "API token", Figma "personal access token", GitHub "fine-grained PAT" all qualify. What matters is that pncli's entire auth story is *put the string in a header*.
+
+Explicitly **out of scope, regardless of how useful the integration would be**:
+
+- Interactive OAuth flows — authorization code, browser redirect, or device code.
+- SSO / SAML / OIDC login, or anything that needs a browser session.
+- Username + password login, including password-grant token exchanges.
+- Client-credential exchanges that require the user to register an OAuth app or service principal.
+- Cloud IAM credential chains (`az`, `aws`, `gcloud`, instance metadata, workload identity).
+- Anything requiring another CLI or external command to mint a token — see **Self-Containment Rule**.
+- mTLS or client-certificate auth.
+
+If a tool's *only* supported auth is one of the above, deny the request and say specifically which mechanism it needs and why that's the blocker. If the tool supports a PAT *alongside* other mechanisms, it's in scope — implement the PAT path and only the PAT path.
+
+Existing integrations that predate this rule (Checkmarx's OAuth2 password grant, UCD's username+password fallback) are grandfathered. Do not extend that pattern to anything new, and do not cite them as precedent for approving a non-PAT integration.
+
+### Shape of the Integration
+
+Beyond auth, an integration must be a plain HTTP API call that returns structured data pncli can reshape into its JSON envelope. pncli does not do local file parsing, image or PDF analysis, OCR, rendering, screenshotting, or ML inference. A request to "read a design from a Figma **link**" is in scope (that's a REST call). A request to "read a design from a Figma **image**" is not — but the right response there is to implement the link path and say so, not to deny the whole issue.
+
 ## Self-Containment Rule
 
-pncli integrations must be self-contained. Users cannot be required to have any other CLI installed (e.g. `az`, `gcloud`, `kubectl`, `aws`) to obtain credentials, exchange tokens, or otherwise use a pncli command. If an integration needs a bearer token from an OAuth2 exchange, pncli performs the exchange itself using credentials the user supplies (username/password, client ID, refresh token, etc.). The only external dependency allowed at runtime is the target service's HTTP API.
+pncli integrations must be self-contained. Users cannot be required to have any other CLI installed (e.g. `az`, `gcloud`, `kubectl`, `aws`) to obtain credentials, exchange tokens, or otherwise use a pncli command. The only external dependency allowed at runtime is the target service's HTTP API.
+
+For new integrations this collapses into the PAT rule above: the user supplies a token, pncli sets a header, there is no exchange to perform. Existing services that do perform a token exchange (Checkmarx) do it natively over HTTP inside pncli — never by shelling out — and remain grandfathered per **Service Scope**.
 
 ## Testing Rule
 
