@@ -9,7 +9,7 @@ metadata:
   services: config
 ---
 
-pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, IBM UrbanCode Deploy, Checkmarx, ServiceNow, Contrast Security IAST, Sonatype IQ Server, OpenShift / Kubernetes, Dynatrace, and LogScale.
+pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, IBM UrbanCode Deploy, Checkmarx, ServiceNow, Contrast Security IAST, Sonatype IQ Server, OpenShift / Kubernetes, Dynatrace, LogScale, and Figma.
 
 Every service authenticates the same way: a personal access token you generate in that tool's own UI and put in an env var or the config file. If a tool you need is missing from the table below, it is not out of scope by default — pncli covers enterprise tooling broadly, and the only hard requirement is personal-access-token auth.
 
@@ -58,6 +58,7 @@ For detailed setup of any service, read the included file for that service.
 | OpenShift / Kubernetes | `openshift.md` | Pod health, events, logs, metrics |
 | Dynatrace | `dynatrace.md` | Services, entities, problems, traces, Kubernetes workloads |
 | LogScale | `logscale.md` | Log queries, repository listing |
+| Figma | `figma.md` | Design files, comments, version history |
 | Skills Marketplace | `marketplace.md` | Install org-internal skills |
 
 ## Setup walkthrough
