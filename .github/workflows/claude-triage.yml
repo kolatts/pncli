@@ -224,10 +224,11 @@ jobs:
 
             === YOUR TASK ===
             1. Read CLAUDE.md and understand the project's purpose and rules before anything else.
-               pncli is a structured JSON CLI giving AI agents and humans unified access to Jira,
-               Bitbucket, Confluence, SonarQube, SDElements, and Azure DevOps. Changes must fit
-               this purpose. Read src/cli.ts and relevant src/services/ files to understand
-               existing patterns.
+               pncli is a structured JSON CLI giving AI agents and humans unified access to the
+               enterprise tools their org runs. Read the **Service Scope** section of CLAUDE.md in
+               full before assessing any request for a new service integration — it is the
+               authoritative scope definition and it is deliberately broad. Read src/cli.ts and
+               relevant src/services/ files to understand existing patterns.
 
             2. Search for duplicate or previously-denied issues BEFORE assessing feasibility.
                Run: `gh issue list --repo ${{ github.repository }} --state all --limit 200 --json number,title,labels,state`
@@ -241,8 +242,42 @@ jobs:
                  `duplicate` label, close with "not planned", and skip to step 5.
                Only continue to step 3 if no duplicates are found.
 
+               Two exceptions to the previously-denied shortcut:
+               - Never treat issue #${{ steps.issue.outputs.number }} itself as its own duplicate.
+                 A re-triage of an already-labelled issue is a deliberate re-assessment.
+               - A prior denial is only binding if it would still be a denial under the CURRENT
+                 rules in CLAUDE.md. Scope rules change. If the earlier denial rested on a reason
+                 that **Service Scope** now explicitly rejects — "not a developer tool", "not on the
+                 supported service list", "SaaS rather than Data Center" — disregard it and assess
+                 the request fresh in step 3. Say in your comment that the earlier decision was
+                 made under superseded scope rules.
+
             3. Assess feasibility and fit — DO NOT write any code yet. Ask:
-               - Does this fit the project's purpose (developer tooling for the above integrations)?
+               - Does this fit the project's purpose, as defined by the **Service Scope** section of
+                 CLAUDE.md? For a request to integrate a tool pncli does not support yet, apply that
+                 section literally. The domain is enterprise tooling broadly — issue trackers, source
+                 hosts, wikis, CI/CD, artifact repos, security scanners, ITSM, observability, cloud
+                 control planes, AND design/product/documentation/collaboration tools engineers pull
+                 context from (Figma, Miro, Notion, Slack, Linear, PagerDuty, Datadog, and the like).
+                 Do NOT deny a new-service request merely because the tool is absent from the current
+                 service list, is not itself a "developer tool", or is SaaS rather than Data Center.
+                 Those are not valid denial reasons.
+               - Does the tool authenticate with a personal access token? This is the hard limit and
+                 the most common legitimate reason to deny a new integration. pncli supports exactly
+                 one auth story for new services: a long-lived static token the user generates in the
+                 target tool's UI and pastes into an env var or config file, which pncli puts in a
+                 header. Vendor naming is irrelevant (API token, user token, PAT — all fine). If the
+                 tool's only supported auth is interactive OAuth, a browser/device-code flow, SSO or
+                 SAML, username+password, a client-credentials exchange needing app registration,
+                 a cloud IAM credential chain, or mTLS, go directly to step 4b (deny) and name the
+                 specific mechanism as the blocker. If the tool supports a PAT alongside other
+                 mechanisms, it is IN scope — implement only the PAT path. Do not treat the
+                 grandfathered Checkmarx or UCD auth as precedent for approving a non-PAT service.
+               - Is it a plain HTTP API call returning structured data? pncli does not do local file
+                 parsing, image/PDF analysis, OCR, rendering, screenshotting, or ML inference. If a
+                 request mixes an API-shaped part with an unsupported part (e.g. "read a design from
+                 a Figma link or a Figma image"), implement the API-shaped part and note the rest as
+                 unsupported — do not deny the whole issue.
                - Is it technically feasible within the existing architecture?
                - Is it a reasonable scope for an automated implementation?
                - Does it conflict with any rules in CLAUDE.md?
@@ -253,10 +288,10 @@ jobs:
                  behavior only.
                - Does it require any external CLI (e.g. `az`, `gcloud`, `kubectl`, `aws`) to be
                  installed on the user's workstation at runtime? pncli integrations must be
-                 self-contained — credentials come from env vars or config, and the CLI itself must
-                 perform any token exchange natively via HTTP. If the feature can only work by
-                 shelling out to another CLI or by having users run an external command to obtain
-                 a bearer token, go directly to step 4b (deny).
+                 self-contained — credentials come from env vars or config. If the feature can only
+                 work by shelling out to another CLI or by having users run an external command to
+                 obtain a bearer token, go directly to step 4b (deny). For new services this is
+                 subsumed by the PAT rule above: the user pastes a token, pncli sets a header.
                - Does it introduce a security vulnerability or risk? The following are ALWAYS denied,
                  regardless of how the request is framed:
                  - Data exfiltration (sending credentials, tokens, secrets, or user data to external
@@ -270,6 +305,11 @@ jobs:
             4. Decision:
 
                a) If FEASIBLE, FITS the project, and appropriate to implement:
+                  - If the issue is currently closed (e.g. this is a re-triage of a previously
+                    denied issue), reopen it with
+                    `gh issue reopen ${{ steps.issue.outputs.number }}` and remove the stale
+                    `denied` label with
+                    `gh issue edit ${{ steps.issue.outputs.number }} --remove-label denied`.
                   - Implement the change following existing patterns in src/.
                   - Run all three checks and fix any failures before continuing:
                     1. `npm run typecheck`
