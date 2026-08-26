@@ -128,7 +128,7 @@ function podAge(creationTimestamp?: string): string {
 
 /**
  * Parse a Kubernetes CPU quantity and return millicores (m).
- * Supports: n (nanoseconds), u (microseconds), m (millicores), whole cores.
+ * Supports: n (nanocores), u (microseconds), m (millicores), whole cores.
  */
 function parseCpuMillicores(cpu: string | undefined): number | null {
   if (!cpu) return null;
@@ -146,15 +146,16 @@ function parseCpuMillicores(cpu: string | undefined): number | null {
  */
 function parseMemMiB(mem: string | undefined): number | null {
   if (!mem) return null;
-  if (mem.endsWith('Ki')) return Math.round(Number(mem.slice(0, -2)) / 1024);
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  if (mem.endsWith('Ki')) return round2(Number(mem.slice(0, -2)) / 1024);
   if (mem.endsWith('Mi')) return Number(mem.slice(0, -2));
   if (mem.endsWith('Gi')) return Math.round(Number(mem.slice(0, -2)) * 1024);
   if (mem.endsWith('Ti')) return Math.round(Number(mem.slice(0, -2)) * 1024 * 1024);
-  if (mem.endsWith('K')) return Math.round(Number(mem.slice(0, -1)) * 1000 / (1024 * 1024));
-  if (mem.endsWith('M')) return Math.round(Number(mem.slice(0, -1)) * 1000 * 1000 / (1024 * 1024));
+  if (mem.endsWith('K')) return round2(Number(mem.slice(0, -1)) * 1000 / (1024 * 1024));
+  if (mem.endsWith('M')) return round2(Number(mem.slice(0, -1)) * 1000 * 1000 / (1024 * 1024));
   if (mem.endsWith('G')) return Math.round(Number(mem.slice(0, -1)) * 1000 * 1000 * 1000 / (1024 * 1024));
   const bytes = Number(mem);
-  if (!Number.isNaN(bytes)) return Math.round(bytes / (1024 * 1024));
+  if (!Number.isNaN(bytes)) return round2(bytes / (1024 * 1024));
   return null;
 }
 
@@ -412,7 +413,7 @@ export function registerOpenShiftCommands(program: Command): void {
         // Fetch pod list (limits/requests) and metrics (usage) in parallel
         const [podList, metricsList] = await Promise.all([
           http.openshift<K8sPodList>(`/api/v1/namespaces/${nsEncoded}/pods`, { params: podParams }),
-          http.openshift<K8sPodMetricsList>(`/apis/metrics.k8s.io/v1beta1/namespaces/${nsEncoded}/pods`),
+          http.openshift<K8sPodMetricsList>(`/apis/metrics.k8s.io/v1beta1/namespaces/${nsEncoded}/pods`, { params: podParams }),
         ]);
 
         // Index metrics by pod name → container name for O(1) join
