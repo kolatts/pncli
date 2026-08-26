@@ -24,6 +24,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     openshift: { baseUrl: undefined, token: undefined },
     dynatrace: { baseUrl: undefined, apiToken: undefined, platformUrl: undefined, platformToken: undefined },
     logscale: { baseUrl: undefined, token: undefined },
+    figma: { baseUrl: undefined, token: undefined },
     defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, udeploy: {}, jenkins: {} },
     ...overrides
   };
@@ -894,6 +895,41 @@ describe('HttpClient — Dynatrace authentication', () => {
     expect(capturedUrls[0]).toBe(
       'https://dynatrace.imagile.dev/e/abc12345-0000-0000-0000-000000000000/api/v2/entities'
     );
+  });
+});
+
+describe('HttpClient — Figma', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('throws on missing baseUrl', async () => {
+    const config = baseConfig({ figma: { baseUrl: undefined, token: 'tok' } });
+    const client = new HttpClient(config);
+    await expect(client.figma('/v1/me')).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('throws on missing token', async () => {
+    const config = baseConfig({ figma: { baseUrl: 'https://api.figma.com', token: undefined } });
+    const client = new HttpClient(config);
+    await expect(client.figma('/v1/me')).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('sends X-Figma-Token header (not Authorization)', async () => {
+    const capturedHeaders: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
+      return new Response('{"id":"1","email":"you@example.com","handle":"you","img_url":""}', { status: 200 });
+    });
+    const config = baseConfig({ figma: { baseUrl: 'https://api.figma.com', token: 'figma-pat' } });
+    const client = new HttpClient(config);
+    await client.figma('/v1/me');
+    expect(capturedHeaders[0]?.['x-figma-token']).toBe('figma-pat');
+    expect(capturedHeaders[0]?.['authorization']).toBeUndefined();
+  });
+
+  it('throws PncliError with status 0 on dry-run', async () => {
+    const config = baseConfig({ figma: { baseUrl: 'https://api.figma.com', token: 'tok' } });
+    const client = new HttpClient(config, true);
+    await expect(client.figma('/v1/me')).rejects.toMatchObject({ status: 0, message: 'dry-run' });
   });
 });
 

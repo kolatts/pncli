@@ -312,6 +312,17 @@ export function registerConfigCommands(program: Command): void {
           results.logscale = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.figma.baseUrl && cfg.figma.token) {
+          try {
+            await http.figma<unknown>('/v1/me');
+            results.figma = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.figma = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.figma = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -614,6 +625,20 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
+        // Figma
+        if (!cfg.figma.token) {
+          results.figma = { status: 'blank', message: 'not configured' };
+        } else if (!cfg.figma.baseUrl) {
+          results.figma = { status: 'error', message: 'baseUrl not configured' };
+        } else {
+          try {
+            await http.figma<unknown>('/v1/me', { timeoutMs: 10_000 });
+            results.figma = { status: 'valid', message: 'ok' };
+          } catch (err) {
+            results.figma = categorize(err);
+          }
+        }
+
         // Exit code: prefer AUTH_ERROR if any invalid, else NETWORK_ERROR if any errors
         const statuses = Object.values(results).map(r => r.status);
         if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
@@ -621,7 +646,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale'] as const;
+          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale', 'figma'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -639,7 +664,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale'] as const;
+            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale', 'figma'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -1393,6 +1418,41 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── Figma ─────────────────────────────────────────\n');
+  const useFigma = await confirm({
+    message: 'Configure Figma for reading design files and comments?',
+    default: false
+  });
+
+  let figmaToken = '';
+
+  if (useFigma) {
+    process.stderr.write('  Generate a personal access token in Figma under Account Settings → Personal access tokens.\n');
+
+    figmaToken = await password({
+      message: 'Figma personal access token:'
+    });
+
+    if (figmaToken) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          figma: {
+            baseUrl: 'https://api.figma.com',
+            token: figmaToken
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.figma<unknown>('/v1/me');
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to Figma: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your token and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -1550,6 +1610,12 @@ async function initGlobalConfig(start: number): Promise<void> {
       logscale: {
         baseUrl: normalizeBaseUrl(logscaleBaseUrl),
         token: logscaleToken || undefined
+      }
+    } : {}),
+    ...(useFigma && figmaToken ? {
+      figma: {
+        baseUrl: 'https://api.figma.com',
+        token: figmaToken
       }
     } : {}),
     defaults: {

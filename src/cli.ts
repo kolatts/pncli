@@ -38,6 +38,7 @@ import { registerJwtCommands } from './services/jwt/commands.js';
 import { registerOpenShiftCommands } from './services/openshift/commands.js';
 import { registerDynatraceCommands } from './services/dynatrace/commands.js';
 import { registerLogscaleCommands } from './services/logscale/commands.js';
+import { registerFigmaCommands } from './services/figma/commands.js';
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,6 +98,7 @@ registerJwtCommands(program);
 registerOpenShiftCommands(program);
 registerDynatraceCommands(program);
 registerLogscaleCommands(program);
+registerFigmaCommands(program);
 
 program.addHelpText('after', `
 Services:
@@ -119,6 +121,7 @@ Services:
   openshift    OpenShift / Kubernetes (pods, events, logs, metrics)
   dynatrace    Dynatrace (services, entities, problems, traces, Kubernetes workloads)
   logscale     LogScale (log query, repositories)
+  figma        Figma (files, comments, version history)
   config       Manage pncli configuration
   skills       Download and manage Claude Code skills
   jwt          JWT token utilities (decode header and payload)

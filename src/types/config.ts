@@ -160,6 +160,12 @@ export interface LogscaleConfig {
   token?: string;
 }
 
+export interface FigmaConfig {
+  /** Figma API base URL — always https://api.figma.com for cloud Figma */
+  baseUrl?: string;
+  token?: string;
+}
+
 export interface MarketplaceConfig {
   name?: string;
   repoUrl?: string;
@@ -208,6 +214,7 @@ export interface GlobalConfig {
   openshift?: OpenShiftConfig;
   dynatrace?: DynatraceConfig;
   logscale?: LogscaleConfig;
+  figma?: FigmaConfig;
   marketplace?: MarketplaceConfig;
   marketplaces?: MarketplaceConfig[];
   defaults?: Defaults;
@@ -306,6 +313,10 @@ export interface ResolvedConfig {
     platformToken: string | undefined;
   };
   logscale: {
+    baseUrl: string | undefined;
+    token: string | undefined;
+  };
+  figma: {
     baseUrl: string | undefined;
     token: string | undefined;
   };
