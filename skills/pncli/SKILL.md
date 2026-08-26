@@ -11,6 +11,8 @@ metadata:
 
 pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, IBM UrbanCode Deploy, Checkmarx, ServiceNow, Contrast Security IAST, Sonatype IQ Server, OpenShift / Kubernetes, Dynatrace, and LogScale.
 
+Every service authenticates the same way: a personal access token you generate in that tool's own UI and put in an env var or the config file. If a tool you need is missing from the table below, it is not out of scope by default — pncli covers enterprise tooling broadly, and the only hard requirement is personal-access-token auth.
+
 ## Two config levels
 
 **Env vars** — ephemeral, per-session, override the config file. Set before running pncli:

@@ -2,6 +2,8 @@
 
 > One command does what three meetings couldn't.
 
+> **Historical document.** This is the original scaffolding prompt that produced the first version of pncli. It describes the project's scope as it was at creation (Jira + Bitbucket only) and is kept for provenance. It is **not** a statement of current scope — see the **Service Scope** section of `CLAUDE.md` for that, and never cite this file when assessing whether a service integration fits the project.
+
 You are scaffolding a cross-platform CLI tool called `pncli` (Paperwork Nightmare CLI) that shims Jira Data Cloud and Bitbucket Server REST APIs so that AI coding agents (Claude Code, GitHub Copilot CLI) can perform PR reviews, address PR feedback, create issues, and manage code review workflows via shell commands — cutting through organizational red tape from the terminal.
 
 This CLI will be published to npm and installed globally (`npm install -g pncli`). Users already have Node.js — no other runtime dependencies. Once installed, `pncli` is available on PATH and invoked directly as a shell command by agents and humans.

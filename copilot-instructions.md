@@ -4,7 +4,7 @@
 
 ## What is pncli?
 
-pncli is a CLI tool that provides structured JSON access to Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, IBM UrbanCode Deploy, Checkmarx, and local git state. Use it for all interactions with these services. It exists because MCP servers aren't available in this environment — pncli is your agent-friendly shim layer.
+pncli is a CLI tool that provides structured JSON access to the enterprise tools your org runs — Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, IBM UrbanCode Deploy, Checkmarx, and local git state, among others. Use it for all interactions with these services. It exists because MCP servers aren't available in this environment — pncli is your agent-friendly shim layer.
 
 ## Important
 
