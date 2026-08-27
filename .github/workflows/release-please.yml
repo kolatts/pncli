@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Tag or SHA to publish (e.g. v1.26.0). Blank publishes the default branch.'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -41,6 +46,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -64,7 +71,39 @@ jobs:
 
       - run: npm ci
       - run: npm run build
-      - run: npm publish --access=public --provenance
+
+      # Backfilling a version older than what npm already serves (see #381) must
+      # not move `latest` backwards. Publish anything older than the current
+      # `latest` under a major-line tag (v1, v2) instead, which is also what
+      # users pinned to that major want to resolve against.
+      - name: Resolve dist-tag
+        id: disttag
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if npm view "@kolatts/pncli@$VERSION" version >/dev/null 2>&1; then
+            echo "@kolatts/pncli@$VERSION is already on npm; nothing to publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+          LATEST=$(npm view @kolatts/pncli version 2>/dev/null || echo '0.0.0')
+          NEWEST=$( { echo "$VERSION"; echo "$LATEST"; } | sort -V | tail -1 )
+          if [[ "$VERSION" == "$LATEST" || "$NEWEST" == "$VERSION" ]]; then
+            TAG=latest
+          else
+            TAG="v${VERSION%%.*}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Publishing $VERSION under dist-tag '$TAG' (npm latest is $LATEST)"
+
+      - name: Publish to npm
+        if: steps.disttag.outputs.skip == 'false'
+        run: npm publish --access=public --provenance --tag "${{ steps.disttag.outputs.tag }}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
