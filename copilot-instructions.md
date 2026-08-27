@@ -4,7 +4,7 @@
 
 ## What is pncli?
 
-pncli is a CLI tool that provides structured JSON access to the enterprise tools your org runs — Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, IBM UrbanCode Deploy, Checkmarx, and local git state, among others. Use it for all interactions with these services. It exists because MCP servers aren't available in this environment — pncli is your agent-friendly shim layer.
+pncli is a CLI tool that provides structured JSON access to the enterprise tools your org runs — Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, Checkmarx, and local git state, among others. Use it for all interactions with these services. It exists because MCP servers aren't available in this environment — pncli is your agent-friendly shim layer.
 
 ## Important
 
@@ -1067,41 +1067,6 @@ pncli artifactory builds
 pncli artifactory build-runs
 
 pncli artifactory build-info
-```
-
-### Udeploy
-
-```
-pncli udeploy apps
-
-pncli udeploy environments
-
-pncli udeploy components
-
-pncli udeploy versions
-  --component <name>  Component name or ID
-
-pncli udeploy import-version
-  --component <name>  Component name or ID
-  --name <name>       Version name
-  --no-finish         Skip marking the version as finished importing
-
-pncli udeploy run
-  --process <name>            Application process name or ID
-  --component <name>          Component name (repeatable) (default: [])
-  --component-version <name>  Component version (repeatable; positionally paired
-  with --component) (default: [])
-  --snapshot <name>           Snapshot name or ID (alternative to specifying
-  versions)
-  --only-changed              Deploy only changed components (default: false)
-  --wait                      Poll until the process completes (default: false)
-  --timeout <ms>              Max wait time in milliseconds (default: "600000")
-
-pncli udeploy request-status
-  --request-id <id>  Request ID returned by udeploy run
-
-pncli udeploy request-info
-  --request-id <id>  Request ID returned by udeploy run
 ```
 
 ### Checkmarx

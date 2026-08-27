@@ -20,7 +20,6 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     ado: { baseUrl: 'https://ado.imagile.dev', pat: 'secret-ado', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: 'https://jenkins.imagile.dev', username: 'user', apiToken: 'secret-jenkins' },
     jenkinsInstances: [],
-    udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined },
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
@@ -30,7 +29,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     logscale: { baseUrl: undefined, token: undefined },
     splitio: { baseUrl: undefined, adminApiKey: undefined },
     figma: { baseUrl: undefined, token: undefined },
-    defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, udeploy: {}, jenkins: {} },
+    defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, jenkins: {} },
     ...overrides
   };
 }
@@ -103,18 +102,6 @@ describe('maskConfig', () => {
     const masked = maskConfig(baseConfig()) as ResolvedConfig;
     expect(masked.jira.baseUrl).toBe('https://jira.imagile.dev');
     expect(masked.user.email).toBe('user@example.com');
-  });
-
-  it('masks udeploy password when present', () => {
-    const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.imagile.dev', pat: undefined, username: 'alice', password: 'secret' } });
-    const masked = maskConfig(config) as ResolvedConfig;
-    expect((masked.udeploy as { password?: string }).password).toBe('***');
-  });
-
-  it('leaves udeploy password undefined when not set', () => {
-    const config = baseConfig({ udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined } });
-    const masked = maskConfig(config) as ResolvedConfig;
-    expect((masked.udeploy as { password?: string }).password).toBeUndefined();
   });
 
   it('masks checkmarx clientSecret when present', () => {

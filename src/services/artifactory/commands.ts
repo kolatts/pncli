@@ -126,7 +126,7 @@ export function registerArtifactoryCommands(program: Command): void {
   // ── Builds ────────────────────────────────────────────────────────────────
 
   art.command('builds')
-    .description('List builds registered in Artifactory Build Integration (names may differ from ADO pipeline or uDeploy component names; use "search --repo" when empty)')
+    .description('List builds registered in Artifactory Build Integration (names may differ from ADO pipeline names; use "search --repo" when empty)')
     .option('--timeout <s>', 'Request timeout in seconds (default 60; increase for large Artifactory instances)', '60')
     .action(async (opts: { timeout: string }) => {
       const start = Date.now();

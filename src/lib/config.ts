@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
-import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, GitHubDefaults, SonarDefaults, SdeDefaults, AdoDefaults, UdeployDefaults, JenkinsDefaults, JenkinsInstanceConfig } from '../types/config.js';
+import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, GitHubDefaults, SonarDefaults, SdeDefaults, AdoDefaults, JenkinsDefaults, JenkinsInstanceConfig } from '../types/config.js';
 import type { CustomFieldDefinition } from '../types/jira.js';
 
 const ENV_KEYS = {
@@ -36,10 +36,6 @@ const ENV_KEYS = {
   JENKINS_BASE_URL: 'PNCLI_JENKINS_BASE_URL',
   JENKINS_USERNAME: 'PNCLI_JENKINS_USERNAME',
   JENKINS_API_TOKEN: 'PNCLI_JENKINS_API_TOKEN',
-  UDEPLOY_BASE_URL: 'PNCLI_UDEPLOY_BASE_URL',
-  UDEPLOY_PAT: 'PNCLI_UDEPLOY_PAT',
-  UDEPLOY_USERNAME: 'PNCLI_UDEPLOY_USERNAME',
-  UDEPLOY_PASSWORD: 'PNCLI_UDEPLOY_PASSWORD',
   CHECKMARX_BASE_URL: 'PNCLI_CHECKMARX_BASE_URL',
   CHECKMARX_TENANT_NAME: 'PNCLI_CHECKMARX_TENANT_NAME',
   CHECKMARX_API_KEY: 'PNCLI_CHECKMARX_API_KEY',
@@ -118,7 +114,7 @@ function mergeCustomFields(
 function mergeDefaults(
   global: GlobalConfig['defaults'],
   repo: RepoConfig['defaults']
-): { jira: JiraDefaults; bitbucket: BitbucketDefaults; github: GitHubDefaults; sonar: SonarDefaults; sde: SdeDefaults; ado: AdoDefaults; udeploy: UdeployDefaults; jenkins: JenkinsDefaults } {
+): { jira: JiraDefaults; bitbucket: BitbucketDefaults; github: GitHubDefaults; sonar: SonarDefaults; sde: SdeDefaults; ado: AdoDefaults; jenkins: JenkinsDefaults } {
   return {
     jira: { ...global?.jira, ...repo?.jira },
     bitbucket: { ...global?.bitbucket, ...repo?.bitbucket },
@@ -126,7 +122,6 @@ function mergeDefaults(
     sonar: { ...global?.sonar, ...repo?.sonar },
     sde: { ...global?.sde, ...repo?.sde },
     ado: { ...global?.ado, ...repo?.ado },
-    udeploy: { ...global?.udeploy, ...repo?.udeploy },
     jenkins: { ...global?.jenkins, ...repo?.jenkins }
   };
 }
@@ -202,12 +197,6 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       apiToken: process.env[ENV_KEYS.JENKINS_API_TOKEN] ?? globalConfig.jenkins?.apiToken
     },
     jenkinsInstances: (Array.isArray(globalConfig.jenkinsInstances) ? globalConfig.jenkinsInstances : []) as JenkinsInstanceConfig[],
-    udeploy: {
-      baseUrl: process.env[ENV_KEYS.UDEPLOY_BASE_URL] ?? globalConfig.udeploy?.baseUrl,
-      pat: process.env[ENV_KEYS.UDEPLOY_PAT] ?? globalConfig.udeploy?.pat,
-      username: process.env[ENV_KEYS.UDEPLOY_USERNAME] ?? globalConfig.udeploy?.username,
-      password: process.env[ENV_KEYS.UDEPLOY_PASSWORD] ?? globalConfig.udeploy?.password,
-    },
     checkmarx: {
       baseUrl: process.env[ENV_KEYS.CHECKMARX_BASE_URL] ?? globalConfig.checkmarx?.baseUrl,
       tenantName: process.env[ENV_KEYS.CHECKMARX_TENANT_NAME] ?? globalConfig.checkmarx?.tenantName,
@@ -376,11 +365,6 @@ export function maskConfig(config: ResolvedConfig): unknown {
       ...inst,
       apiToken: inst.apiToken ? '***' : undefined
     })),
-    udeploy: {
-      ...config.udeploy,
-      pat: config.udeploy.pat ? '***' : undefined,
-      password: config.udeploy.password ? '***' : undefined
-    },
     checkmarx: {
       ...config.checkmarx,
       apiKey: config.checkmarx.apiKey ? '***' : undefined,

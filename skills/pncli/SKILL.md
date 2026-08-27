@@ -9,7 +9,7 @@ metadata:
   services: config
 ---
 
-pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, IBM UrbanCode Deploy, Checkmarx, ServiceNow, Contrast Security IAST, Sonatype IQ Server, OpenShift / Kubernetes, Dynatrace, LogScale, and Figma.
+pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, Checkmarx, ServiceNow, Contrast Security IAST, Sonatype IQ Server, OpenShift / Kubernetes, Dynatrace, LogScale, and Figma.
 
 Every service authenticates the same way: a personal access token you generate in that tool's own UI and put in an env var or the config file. If a tool you need is missing from the table below, it is not out of scope by default — pncli covers enterprise tooling broadly, and the only hard requirement is personal-access-token auth.
 
@@ -49,7 +49,6 @@ For detailed setup of any service, read the included file for that service.
 | SonarQube | `sonarqube.md` | Code quality issues |
 | SDElements | `sde.md` | Threat model tasks |
 | Checkmarx | `checkmarx.md` | SAST findings |
-| IBM UrbanCode Deploy | `udeploy.md` | Component versions, deployments |
 | Jenkins | `jenkins.md` | Builds, job status |
 | Artifactory | `artifactory.md` | Packages, repos |
 | ServiceNow | `servicenow.md` | Change requests, incidents |

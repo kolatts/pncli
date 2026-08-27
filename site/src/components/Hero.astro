@@ -3,40 +3,49 @@ import { Image } from 'astro:assets';
 import hero from '../assets/hero-dark.png';
 ---
 
+<!--
+  Two-column hero: the pitch carries the left rail so the service inventory
+  below it lands as close to the fold as the art allows. On small screens the
+  columns stack and the art follows the copy.
+-->
 <section class="relative overflow-hidden w-full bg-cream pt-10 pb-0 px-6">
-  <div class="max-w-5xl mx-auto flex flex-col items-center text-center gap-6">
-    <div class="inline-flex items-center gap-2 bg-panel border-2 border-ink/15 rounded-full px-4 py-1.5 text-sm font-mono text-ink/55">
-      <span class="w-1.5 h-1.5 rounded-full bg-gold shrink-0"></span>
-      npm install -g @kolatts/pncli
+  <div class="max-w-6xl mx-auto grid md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-8 md:gap-10 items-center">
+    <div class="flex flex-col items-center md:items-start text-center md:text-left gap-5">
+      <p class="stamp text-gold">Agent-first</p>
+
+      <h1 class="font-display headline-shadow text-4xl md:text-5xl font-black text-ink leading-[1.05] tracking-tight">
+        One JSON API for<br class="hidden md:block" />
+        your whole stack.
+      </h1>
+
+      <p class="text-lg text-ink/60 leading-relaxed max-w-xl">
+        pncli gives GitHub Copilot, Claude Code, and Codex structured CLI access to the
+        tools your org actually runs — self-hosted or SaaS. No MCP servers required.
+      </p>
+
+      <div class="flex flex-wrap items-center justify-center md:justify-start gap-4">
+        <a
+          href="#install"
+          class="btn-sticker bg-gold text-cream px-7 py-3 text-base"
+        >
+          Install now
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+        <a
+          href="/pncli/changelog/"
+          class="btn-sticker bg-panel text-ink px-7 py-3 text-base"
+        >
+          View changelog
+        </a>
+      </div>
+
+      <div class="inline-flex items-center gap-2 bg-panel border-2 border-ink/15 rounded-full px-4 py-1.5 text-sm font-mono text-ink/55">
+        <span class="w-1.5 h-1.5 rounded-full bg-gold shrink-0"></span>
+        npm install -g @kolatts/pncli
+      </div>
     </div>
 
-    <h1 class="font-display headline-shadow text-5xl md:text-7xl font-black text-ink leading-[1.06] tracking-tight max-w-3xl">
-      One command does what three meetings couldn't.
-    </h1>
-
-    <p class="text-lg md:text-xl text-ink/60 max-w-2xl leading-relaxed">
-      pncli gives AI coding agents and humans structured CLI access to Jira Data Center,
-      Bitbucket Server, Confluence, SonarQube, and the rest of the self-hosted editions
-      your company still runs. No MCP servers required.
-    </p>
-
-    <div class="flex flex-wrap items-center justify-center gap-4 mt-2">
-      <a
-        href="#install"
-        class="btn-sticker bg-gold text-cream px-7 py-3 text-base"
-      >
-        Install now
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-      </a>
-      <a
-        href="/pncli/changelog/"
-        class="btn-sticker bg-panel text-ink px-7 py-3 text-base"
-      >
-        View changelog
-      </a>
-    </div>
-
-    <div class="hero-art relative w-full max-w-3xl mt-6 -mb-1">
+    <div class="hero-art relative w-full -mb-1">
       <!--
         Depth stack, back to front:
           1. back sparkle layer   (parallax 0.16 — lags most, reads farthest; the

@@ -1,0 +1,178 @@
+---
+/*
+ * Adds a copy-link button to every heading inside `.prose` on the generated
+ * docs pages. Astro already stamps an `id` on each heading, so this only has to
+ * supply the affordance for grabbing the URL that points at it.
+ *
+ * Done client-side rather than with a rehype plugin because the docs bodies are
+ * generated MDX — keeping the button out of the content means the generator
+ * scripts stay concerned with content only.
+ */
+interface Props {
+  /** Heading levels to decorate. */
+  levels?: string;
+}
+
+const { levels = 'h2, h3' } = Astro.props;
+const selector = levels
+  .split(',')
+  .map((l) => `.prose ${l.trim()}[id]`)
+  .join(', ');
+---
+
+<span class="heading-anchors" data-selector={selector} hidden></span>
+
+<style is:global>
+  .prose :is(h1, h2, h3, h4):has(> .heading-anchor) {
+    /* Keeps the button on the heading's own line and lets it sit tight to the text */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .heading-anchor {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.4rem;
+    border: 0;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--color-gold, #d9b84f);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, background-color 0.15s ease;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  .heading-anchor svg {
+    width: 0.85em;
+    height: 0.85em;
+    /* Tailwind Typography would otherwise give the icon prose margins */
+    margin: 0;
+  }
+
+  :is(h1, h2, h3, h4):hover > .heading-anchor,
+  .heading-anchor:focus-visible {
+    opacity: 1;
+    background: rgb(217 184 79 / 0.12);
+  }
+
+  .heading-anchor:focus-visible {
+    outline: 2px solid var(--color-gold, #d9b84f);
+    outline-offset: 1px;
+  }
+
+  .heading-anchor[data-copied='true'] {
+    opacity: 1;
+    background: rgb(217 184 79 / 0.18);
+  }
+
+  /* The label only appears once there is something to say */
+  .heading-anchor .heading-anchor-label:empty {
+    display: none;
+  }
+
+  /* No hover on touch — keep the buttons permanently visible but quiet */
+  @media (hover: none) {
+    .heading-anchor {
+      opacity: 0.45;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .heading-anchor {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  const LINK_ICON =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+  const CHECK_ICON =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+
+  /**
+   * The clipboard API needs a secure context, which rules out the LAN-IP dev
+   * server and any plain-http host. Fall back to a throwaway textarea so the
+   * button still works there instead of failing silently.
+   */
+  async function copyText(text: string): Promise<boolean> {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {
+      /* fall through to the legacy path */
+    }
+
+    try {
+      const scratch = document.createElement('textarea');
+      scratch.value = text;
+      scratch.setAttribute('readonly', '');
+      scratch.style.position = 'fixed';
+      scratch.style.top = '-9999px';
+      document.body.appendChild(scratch);
+      scratch.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(scratch);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
+  function decorate(host: HTMLElement) {
+    const selector = host.dataset.selector;
+    if (!selector) return;
+
+    for (const heading of document.querySelectorAll<HTMLElement>(selector)) {
+      if (heading.querySelector('.heading-anchor')) continue;
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'heading-anchor';
+      button.title = 'Copy link to this section';
+      button.setAttribute(
+        'aria-label',
+        `Copy link to “${heading.textContent?.trim() ?? 'this section'}”`
+      );
+      button.innerHTML = `${LINK_ICON}<span class="heading-anchor-label"></span>`;
+
+      let revert: ReturnType<typeof setTimeout> | undefined;
+
+      button.addEventListener('click', async () => {
+        const url = `${location.origin}${location.pathname}#${heading.id}`;
+        const ok = await copyText(url);
+
+        // Point the address bar at the section too, without adding a history entry
+        if (ok) history.replaceState(null, '', `#${heading.id}`);
+
+        button.innerHTML = `${ok ? CHECK_ICON : LINK_ICON}<span class="heading-anchor-label">${
+          ok ? 'Copied' : 'Copy failed'
+        }</span>`;
+        button.dataset.copied = 'true';
+
+        clearTimeout(revert);
+        revert = setTimeout(() => {
+          button.innerHTML = `${LINK_ICON}<span class="heading-anchor-label"></span>`;
+          delete button.dataset.copied;
+        }, 1600);
+      });
+
+      heading.appendChild(button);
+    }
+  }
+
+  for (const host of document.querySelectorAll<HTMLElement>('.heading-anchors')) {
+    decorate(host);
+  }
+</script>

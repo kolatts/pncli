@@ -20,7 +20,7 @@ const endIdx   = raw.indexOf(END_MARKER);
 // mentions are stripped from the rendered page only (their command reference is
 // already dropped via the COMMAND-REFERENCE markers + parse-commands SKIP list).
 // Remove a name here to bring a service back onto the site.
-const HIDDEN_SERVICES = ['IBM UrbanCode Deploy'];
+const HIDDEN_SERVICES = [];
 
 function hideHiddenServices(text) {
   for (const svc of HIDDEN_SERVICES) {
@@ -118,8 +118,7 @@ if (startIdxNoH1 === -1 || endIdxNoH1 === -1) {
 
     bodyBefore = escapedBody
       + '\n\n## Skills'
-      + '\n\nEach workflow is packaged as a Claude Code skill. Register your team’s marketplace once with `pncli skills marketplace setup <url>`, then keep every installed skill current with `pncli skills marketplace sync` (see Installing Skills above). Skills marked `/invoke` can be called directly by name once installed.'
-      + '\n\nBrowse all skills at [/skills](/pncli/skills/).';
+      + '\n\nEach workflow is packaged as a Claude Code skill. Register your team’s marketplace once with `pncli skills marketplace setup <url>`, then keep every installed skill current with `pncli skills marketplace sync` (see Installing Skills above). Skills marked `/invoke` can be called directly by name once installed.';
   } else {
     bodyBefore = escapeMdxOutsideFences(beforeRaw) + '\n\n<ConfigSetupCallout />';
   }

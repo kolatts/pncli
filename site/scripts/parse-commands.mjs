@@ -42,24 +42,28 @@ const SERVICES = [
   { name: 'Azure DevOps — Projects',     file: 'src/services/ado/commands/project.ts',    prefix: 'ado project' },
   { name: 'Jenkins',                      file: 'src/services/jenkins/commands.ts',        prefix: 'jenkins' },
   { name: 'JFrog Artifactory',           file: 'src/services/artifactory/commands.ts',    prefix: 'artifactory' },
-  { name: 'IBM UrbanCode Deploy',        file: 'src/services/udeploy/commands.ts',        prefix: 'udeploy' },
   { name: 'Checkmarx',                   file: 'src/services/checkmarx/commands.ts',      prefix: 'checkmarx' },
   { name: 'GitHub',                      file: 'src/services/github/commands.ts',         prefix: 'github' },
   { name: 'ServiceNow',                  file: 'src/services/servicenow/commands.ts',     prefix: 'servicenow' },
   { name: 'Contrast IAST',               file: 'src/services/contrast/commands.ts',       prefix: 'contrast' },
+  { name: 'Sonatype IQ',                 file: 'src/services/sonatypeiq/commands.ts',     prefix: 'sonatypeiq' },
+  { name: 'OpenShift / Kubernetes',      file: 'src/services/openshift/commands.ts',      prefix: 'openshift' },
   { name: 'Dynatrace',                   file: 'src/services/dynatrace/commands.ts',      prefix: 'dynatrace' },
+  { name: 'LogScale',                    file: 'src/services/logscale/commands.ts',       prefix: 'logscale' },
+  { name: 'Split.IO',                    file: 'src/services/splitio/commands.ts',        prefix: 'splitio' },
+  { name: 'Figma',                       file: 'src/services/figma/commands.ts',          prefix: 'figma' },
+  { name: 'Skills',                      file: 'src/services/skills/commands.ts',         prefix: 'skills' },
+  { name: 'JWT',                         file: 'src/services/jwt/commands.ts',            prefix: 'jwt' },
 ];
 
 // Command groups hidden from the public site. The CLI still ships these commands;
 // they just don't render on /commands/. Remove a prefix here to re-add its group.
-const SKIP_PREFIXES = new Set(['udeploy']);
+const SKIP_PREFIXES = new Set([]);
 
 // Site-only text scrubs applied to command/option descriptions so hidden services
 // aren't mentioned in other groups' docs. The CLI source text is unchanged.
 // Each entry: [pattern, replacement]. Remove an entry to restore the mention.
-const DESCRIPTION_SCRUBS = [
-  [/ or uDeploy component names/g, ' names'],
-];
+const DESCRIPTION_SCRUBS = [];
 
 // Wrap flag-like tokens (--foo, -x) in backticks so they render as code spans.
 // Without this, remark turns "--" in prose into an em dash. Skips text already
@@ -71,11 +75,17 @@ function scrubDescription(text) {
   return text;
 }
 
-// Escape raw angle brackets in prose (e.g. a description that mentions a
-// placeholder like "<from>") so the MDX/JSX parser doesn't mistake them for
-// an unclosed tag and fail the whole site build.
-function escapeAngleBrackets(text) {
-  return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// Escape raw angle brackets and curly braces in prose so the MDX/JSX parser
+// doesn't mistake them for markup and fail the whole site build. A description
+// mentioning a placeholder like "<from>" reads as an unclosed tag, and one
+// mentioning a shape like "{treatment, size}" reads as a JSX expression that
+// blows up at render time with "treatment is not defined".
+function escapeMdxChars(text) {
+  return text
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\{/g, '&#123;')
+    .replace(/\}/g, '&#125;');
 }
 
 function codeifyFlags(text) {
@@ -83,7 +93,7 @@ function codeifyFlags(text) {
     .split(/(`[^`]*`)/)
     .map((part, i) => {
       if (i % 2 === 1) return part; // already an inline code span
-      return escapeAngleBrackets(part).replace(/(^|[\s(,"'/])(--?[a-zA-Z][\w-]*)/g, '$1`$2`');
+      return escapeMdxChars(part).replace(/(^|[\s(,"'/])(--?[a-zA-Z][\w-]*)/g, '$1`$2`');
     })
     .join('');
 }

@@ -1,4 +1,4 @@
-// SonarQube Server (Data Center) API response types
+// SonarQube Server API response types
 
 export interface SonarSystemStatus {
   id: string;

@@ -1,7 +1,9 @@
 ---
 import TestingMeter from './TestingMeter.astro';
 import Sparkles from './Sparkles.astro';
-import { integrations } from '../lib/integrations';
+import { integrationsByMaturity, removedIntegrations } from '../lib/integrations';
+
+const services = integrationsByMaturity();
 ---
 
 <section class="relative w-full py-12 px-6 overflow-hidden bg-cream">
@@ -23,32 +25,36 @@ import { integrations } from '../lib/integrations';
       <h2 class="font-display headline-shadow text-4xl md:text-5xl font-black text-ink leading-[1.06] tracking-tight">
         Every tool your org<br class="hidden sm:block" /> throws at you.
       </h2>
-      <p class="mt-4 text-ink/50 text-lg">Give GitHub Copilot, Claude Code, and Codex a unified API into the Data Center editions your org hasn't migrated yet.</p>
-      <p class="mt-2 text-ink/35 text-sm font-mono">Testing maturity shown per integration — <code>untested</code> means shipped but not validated against a live instance.</p>
+      <p class="mt-4 text-ink/50 text-lg">Give GitHub Copilot, Claude Code, and Codex a unified API into the tools your org already pays for.</p>
+      <p class="mt-2 text-ink/35 text-sm font-mono">Every integration pncli ships gets a panel here. New ones land as <code>untested</code> — shipped, but not yet validated against a live instance — and move up as they get real mileage.</p>
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {integrations.map(service => (
+      {services.map(service => (
         <div
-          class={`rounded-xl px-5 py-4 border-2 transition-all ${
+          class={`rounded-xl px-5 py-4 border-2 transition-all flex flex-col h-full ${
             service.active
               ? 'bg-panel border-ink/15 hover:border-ink/40'
               : 'bg-cream/60 border-dashed border-ink/15'
           }`}
         >
-          <div class="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <p class={`font-display font-bold text-base ${service.active ? 'text-ink' : 'text-ink/40'}`}>
-                {service.name}
-              </p>
-              <p class={`text-sm mt-0.5 ${service.active ? 'text-ink/50' : 'text-ink/30'}`}>
-                {service.description}
-              </p>
-            </div>
+          <p class={`font-display font-bold text-base ${service.active ? 'text-ink' : 'text-ink/40'}`}>
+            {service.name}
+          </p>
+          <p class={`text-sm mt-0.5 ${service.active ? 'text-ink/50' : 'text-ink/30'}`}>
+            {service.description}
+          </p>
+          {/*
+            The status row is pinned to the bottom of every card on its own line
+            rather than floated beside the name. Sharing a line meant a long
+            service name bumped the meter onto a second row, so meters landed at
+            a different height in each card and the grid read as ragged.
+          */}
+          <div class="mt-auto pt-3">
             {service.active ? (
               <TestingMeter level={service.testing} />
             ) : (
-              <span class="shrink-0 text-xs font-mono text-ink/30 bg-ink/5 px-2 py-0.5 rounded-full whitespace-nowrap">
+              <span class="text-xs font-mono text-ink/30 bg-ink/5 px-2 py-0.5 rounded-full whitespace-nowrap">
                 soon
               </span>
             )}
@@ -56,5 +62,22 @@ import { integrations } from '../lib/integrations';
         </div>
       ))}
     </div>
+
+    {removedIntegrations.length > 0 && (
+      <div class="mt-8 rounded-xl border-2 border-dashed border-ink/15 bg-cream/60 px-5 py-4">
+        <p class="stamp text-ink/40 mb-2">Withdrawn</p>
+        <ul class="space-y-2">
+          {removedIntegrations.map(removed => (
+            <li>
+              <p class="font-display font-bold text-base text-ink/50">
+                {removed.name}
+                <span class="ml-2 text-xs font-mono font-normal text-ink/35">removed in {removed.removedIn}</span>
+              </p>
+              <p class="text-sm mt-0.5 text-ink/40">{removed.reason}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
   </div>
 </section>

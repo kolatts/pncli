@@ -16,7 +16,6 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     ado: { baseUrl: 'https://ado.imagile.dev', pat: 'tok', fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: 'https://jenkins.imagile.dev', username: 'user', apiToken: 'tok' },
     jenkinsInstances: [],
-    udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined },
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
@@ -26,7 +25,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     logscale: { baseUrl: undefined, token: undefined },
     splitio: { baseUrl: undefined, adminApiKey: undefined },
     figma: { baseUrl: undefined, token: undefined },
-    defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, udeploy: {}, jenkins: {} },
+    defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, jenkins: {} },
     ...overrides
   };
 }
@@ -107,70 +106,8 @@ describe('HttpClient — missing credentials', () => {
     const client = new HttpClient(config);
     await expect(client.ado('/_apis/projects')).rejects.toMatchObject({ name: 'PncliError' });
   });
-
-  it('throws on missing udeploy credentials', async () => {
-    const config = baseConfig();
-    config.udeploy = { baseUrl: 'https://ucd.imagile.dev', pat: undefined, username: undefined, password: undefined };
-    const client = new HttpClient(config);
-    await expect(client.udeploy('/cli/application')).rejects.toMatchObject({ name: 'PncliError' });
-  });
 });
 
-describe('HttpClient — udeploy auth encoding', () => {
-  it('encodes PAT using PasswordIsAuthToken JSON format', async () => {
-    const capturedHeaders: Record<string, string>[] = [];
-    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
-      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
-      return new Response('[]', { status: 200 });
-    });
-    try {
-      const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.imagile.dev', pat: 'my-pat', username: undefined, password: undefined } });
-      const client = new HttpClient(config);
-      await client.udeploy('/cli/application');
-    } finally {
-      vi.unstubAllGlobals();
-    }
-    const auth = capturedHeaders[0]?.['authorization'] ?? '';
-    const decoded = Buffer.from(auth.replace('Basic ', ''), 'base64').toString();
-    expect(decoded).toBe('PasswordIsAuthToken:{"token":"my-pat"}');
-  });
-
-  it('encodes username:password as standard Basic auth', async () => {
-    const capturedHeaders: Record<string, string>[] = [];
-    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
-      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
-      return new Response('[]', { status: 200 });
-    });
-    try {
-      const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.imagile.dev', pat: undefined, username: 'alice', password: 'secret' } });
-      const client = new HttpClient(config);
-      await client.udeploy('/cli/application');
-    } finally {
-      vi.unstubAllGlobals();
-    }
-    const auth = capturedHeaders[0]?.['authorization'] ?? '';
-    const decoded = Buffer.from(auth.replace('Basic ', ''), 'base64').toString();
-    expect(decoded).toBe('alice:secret');
-  });
-
-  it('prefers username:password over PAT when both are set', async () => {
-    const capturedHeaders: Record<string, string>[] = [];
-    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
-      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
-      return new Response('[]', { status: 200 });
-    });
-    try {
-      const config = baseConfig({ udeploy: { baseUrl: 'https://ucd.imagile.dev', pat: 'my-pat', username: 'alice', password: 'secret' } });
-      const client = new HttpClient(config);
-      await client.udeploy('/cli/application');
-    } finally {
-      vi.unstubAllGlobals();
-    }
-    const auth = capturedHeaders[0]?.['authorization'] ?? '';
-    const decoded = Buffer.from(auth.replace('Basic ', ''), 'base64').toString();
-    expect(decoded).toBe('alice:secret');
-  });
-});
 
 describe('HttpClient — sdePaginate', () => {
   it('collects single page', async () => {

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI coding agents and humans unified access to the enterprise tools their org runs — currently Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, IBM UrbanCode Deploy, Checkmarx, ServiceNow, Contrast Security IAST, Sonatype IQ Server, OpenShift/Kubernetes, Dynatrace, LogScale, and GitHub. Built with TypeScript, Commander.js, and published as `@kolatts/pncli`.
+pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI coding agents and humans unified access to the enterprise tools their org runs — currently Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, Checkmarx, ServiceNow, Contrast Security IAST, Sonatype IQ Server, OpenShift/Kubernetes, Dynatrace, LogScale, and GitHub. Built with TypeScript, Commander.js, and published as `@kolatts/pncli`.
 
 **That list is a snapshot, not the boundary.** Any enterprise tool that meets the bar in **Service Scope** below is a candidate. See that section before rejecting a new-integration request.
 
@@ -11,8 +11,9 @@ pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI codin
 - `src/` — TypeScript source (CLI entry: `src/cli.ts`, services in `src/services/`)
 - `site/` — Astro static site for GitHub Pages documentation
 - `skills/pncli/` — The one distributed skill. `SKILL.md` is a lightweight index; individual `<service>.md` files hold per-service setup docs. Installed via `pncli skills install`.
-- `example-skills/` — Workflow skills shown on the website as examples but not distributed by the installer (`ship`, `code-review`, `plan`, `security-review`, `address-pr-feedback`).
-- `.claude/skills/` — Skills active in this repo. `ship/` is repo-internal (GitHub only); all others are pointer files into `skills/` or `example-skills/`.
+- `.claude/skills/` — Skills active in this repo only: `ship/` and `conventions/` are repo-internal, and `pncli` is a pointer into `skills/pncli/`.
+
+`skills/pncli/` is the **only** skill this repo ships — it is the command reference for every service. There is no `example-skills/` directory and no workflow-skill collection; both were removed deliberately. Do not re-add one. A new skill either belongs to `skills/pncli/` as a service reference, or it is repo-internal under `.claude/skills/`.
 
 When documenting or choosing default install targets for skills, prefer `.agents/skills` because it works for GitHub Copilot and Codex. Keep Claude Code support available via `.claude/skills` and `--agent claude-code` / `--claude`.
 
@@ -27,12 +28,7 @@ npm run build          # Build CLI with tsup
 
 ## Opening Pull Requests
 
-This repo uses **two `/ship` skills**:
-
-- `.claude/skills/ship/` — **repo-internal** (GitHub only). Use this when working on pncli itself. Uses `gh` CLI, hardcoded `npm run` commands, and audits `site/src/`. Wires up `Closes #<issue>` automatically.
-- `skills/ship/` — **consumer-facing** (ADO/Bitbucket). Distributed to users via `pncli skills install`. Detects provider from `git remote`, asks the user for their build commands on first run, and uses `pncli bitbucket` / `pncli ado repo` to open the PR.
-
-When working on pncli, always use the repo-internal `/ship`.
+Use `.claude/skills/ship/` — repo-internal, GitHub only. It runs `gh`, the hardcoded `npm run` gate, and the `site/src/` audit, and wires up `Closes #<issue>` automatically.
 
 ## Branch Naming
 
@@ -76,10 +72,35 @@ When adding a new service integration (new entry under `src/services/`), these f
 5. **`src/cli.ts`** — import, register, and add to the help text block
 6. **`skills/pncli/<service>.md`** — create a service reference file with both config levels (env vars and `pncli config set`), all required keys, and example values
 7. **`skills/pncli/SKILL.md`** — add the service to the index table with a one-line description
+8. **`site/src/lib/integrations.ts`** — add a panel entry with `testing: 'untested'` (see **Integration Panels & Testing State** below)
+9. **`site/scripts/parse-commands.mjs`** — add the service to the `SERVICES` array so its commands render on `/commands/`
 
-Never ship a new integration without updating all seven of these. The `skills/pncli/` skill is the onboarding contract — review the index and service file on every service addition or credential change. If a service is missing or its config keys are wrong, new users won't know it exists or how to authenticate.
+Never ship a new integration without updating all nine of these. The `skills/pncli/` skill is the onboarding contract — review the index and service file on every service addition or credential change. If a service is missing or its config keys are wrong, new users won't know it exists or how to authenticate.
 
 If the new integration has a "ticket-shaped" create/update command with long rich-text fields (a description, an acceptance-criteria-style field, a body), read the `conventions` skill (`.claude/skills/conventions/`) for the `--input-file` pattern before inventing a one-off flag.
+
+## Integration Panels & Testing State
+
+Every integration pncli ships gets a panel in the service grid on the homepage. `site/src/lib/integrations.ts` is that list, and it is the public inventory — a service that ships without a row is a service nobody knows exists.
+
+Add the entry in the same change that registers the service in `src/cli.ts`, not as a follow-up. `src/lib/integrations-coverage.test.ts` fails `npm test` when the grid — or the `SERVICES` array in `site/scripts/parse-commands.mjs` that generates `/commands/` — disagrees with the CLI's registered services in either direction, so a missing panel or an undocumented service breaks the build rather than shipping quietly.
+
+`testing` describes how far the integration has been validated **against a real instance**, not how good the code is:
+
+| Level | Means |
+|-------|-------|
+| `untested` | Shipped, never run against a live instance |
+| `basic` | Smoke-tested against one instance; the common commands work |
+| `beta` | Exercised across several commands and instances, edges still rough |
+| `live` | Used routinely in day-to-day work |
+
+**A new integration is always added as `untested`.** Unit tests stub `fetch` (see **Testing Rule**), so a green suite says nothing about whether the real API behaves as assumed. Only promote a level after someone has actually pointed the commands at a live server, and say in the PR what was run.
+
+### Removing an Integration
+
+When an integration is withdrawn, remove it from the `integrations` array and add an entry to `removedIntegrations` in the same file with the version and the reason. Users on an older version need to know why the commands vanished rather than filing it as a bug. Strip every reference at the same time — `src/services/<service>/`, `src/types/<service>.ts`, the config interface and env-var resolution, the `http.ts` methods, `config init` / `check` / `test`, `src/cli.ts`, `site/scripts/parse-commands.mjs`, `skills/pncli/<service>.md` and its `SKILL.md` row, `README.md`, and `copilot-instructions.md`.
+
+The reason belongs in the commit message, not just here. `CHANGELOG.md` is generated by release-please from commit messages, so a removal ships as `feat!:` with a `BREAKING CHANGE:` footer spelling out *why* — that footer is what renders under **⚠ BREAKING CHANGES** in the changelog and is the only explanation a user upgrading will see.
 
 ## Configuration Precedence
 
@@ -124,7 +145,7 @@ Do **not** reject a proposed integration on any of these grounds:
 
 - "It isn't on the current list of services." The list grows; that is the point of this section.
 - "It isn't a developer tool / SDLC tool." The bar is *enterprise tool an engineer needs data out of*, not *tool that compiles code*.
-- "It's cloud/SaaS, not Data Center." The on-prem story is what pncli started with, not a limit on what it covers.
+- "It's cloud/SaaS, not self-hosted." The on-prem story is what pncli started with, not a limit on what it covers.
 
 ### The Authentication Bar
 
@@ -144,7 +165,9 @@ Explicitly **out of scope, regardless of how useful the integration would be**:
 
 If a tool's *only* supported auth is one of the above, deny the request and say specifically which mechanism it needs and why that's the blocker. If the tool supports a PAT *alongside* other mechanisms, it's in scope — implement the PAT path and only the PAT path.
 
-Existing integrations that predate this rule (Checkmarx's OAuth2 password grant, UCD's username+password fallback) are grandfathered. Do not extend that pattern to anything new, and do not cite them as precedent for approving a non-PAT integration.
+Checkmarx's OAuth2 password grant predates this rule and is grandfathered. Do not extend that pattern to anything new, and do not cite it as precedent for approving a non-PAT integration.
+
+IBM UrbanCode Deploy was removed in v2.0.0 for failing this bar: UCD has no personal access token usable as a standalone credential, so its only workable auth was a username and password — which meant asking users to put a real account password in a config file. It is not coming back; do not re-add it, and do not cite it as precedent.
 
 ### Shape of the Integration
 
@@ -168,7 +191,7 @@ Never commit a real hostname, environment ID, tenant ID, or account identifier �
 
 **Self-hosted / on-premise services** use `<service>.imagile.dev`:
 
-`jira.imagile.dev`, `bitbucket.imagile.dev`, `confluence.imagile.dev`, `sonar.imagile.dev`, `jenkins.imagile.dev`, `artifactory.imagile.dev`, `dynatrace.imagile.dev`, `ucd.imagile.dev`, `sde.imagile.dev`, `tfs.imagile.dev`, `ado.imagile.dev`, `iq.imagile.dev`, `ghe.imagile.dev`
+`jira.imagile.dev`, `bitbucket.imagile.dev`, `confluence.imagile.dev`, `sonar.imagile.dev`, `jenkins.imagile.dev`, `artifactory.imagile.dev`, `dynatrace.imagile.dev`, `sde.imagile.dev`, `tfs.imagile.dev`, `ado.imagile.dev`, `iq.imagile.dev`, `ghe.imagile.dev`
 
 **Vendor-hosted SaaS** keeps the vendor domain, with `imagile` as the tenant: `imagile.service-now.com`, `imagile.sdelements.com`, `abc12345.live.dynatrace.com`, `eu.ast.checkmarx.net`.
 
@@ -188,7 +211,9 @@ Use Conventional Commits: `fix:` (patch), `feat:` (minor), `feat!:` (breaking/ma
 
 ## GitHub Pages Site
 
-The site lives in `site/` and is built with Astro 6 + Tailwind v4. Skills, changelog, and docs are auto-generated from source files via prebuild scripts in `site/scripts/`.
+The site lives in `site/` and is built with Astro 6 + Tailwind v4. The changelog, docs, and command reference are auto-generated from source files via prebuild scripts in `site/scripts/`.
+
+The site does **not** document skills. There is no `/skills/` page — skill setup and the marketplace commands are covered in Docs (`/getting-started/`) and in the generated command reference. Do not re-add a skills gallery; `skills/pncli/` is the source of truth for skill content and the onboarding contract.
 
 ### Screenshot Requirement
 
@@ -198,7 +223,7 @@ When `site/src/` files are edited:
 
 1. Start the dev server in `site/` with `--host 0.0.0.0` so the Docker-based browser tool can reach it:
    ```bash
-   node scripts/parse-changelog.mjs && node scripts/parse-instructions.mjs && node scripts/parse-skills.mjs && node scripts/parse-commands.mjs && node_modules/.bin/astro dev --port 4323 --host 0.0.0.0
+   node scripts/parse-changelog.mjs && node scripts/parse-instructions.mjs && node scripts/parse-commands.mjs && node_modules/.bin/astro dev --port 4323 --host 0.0.0.0
    ```
    The server will print a `Network` URL like `http://192.168.0.80:4323/pncli/`. Use that IP (not `localhost` or `172.17.0.1`) with `mcp__MCP_DOCKER__browser_navigate`.
 2. Take screenshots with `mcp__MCP_DOCKER__browser_take_screenshot`
@@ -208,6 +233,3 @@ When `site/src/` files are edited:
 This applies to changes in:
 - `site/src/pages/` or `site/src/components/` — screenshot the affected pages
 
-### Skill Ordering
-
-When adding new skills, update the `order` array for the relevant category in `site/src/lib/skill-categories.ts` so the new skill appears on the site.
