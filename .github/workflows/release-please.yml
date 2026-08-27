@@ -45,6 +45,23 @@ jobs:
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+      # Fail fast with an actionable message. A missing or expired NPM_TOKEN
+      # makes `npm publish` return E404 ("not in this registry") rather than an
+      # auth error, which reads like the package was deleted. Check first.
+      - name: Verify npm credentials
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [[ -z "$NODE_AUTH_TOKEN" ]]; then
+            echo "::error::NPM_TOKEN secret is not set. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          if ! WHO=$(npm whoami 2>&1); then
+            echo "::error::npm rejected NPM_TOKEN ($WHO). npm granular tokens expire (90 days max) - mint a new one at https://www.npmjs.com/settings/kolatts/tokens with read+write access to @kolatts/pncli and update the NPM_TOKEN secret."
+            exit 1
+          fi
+          echo "Authenticated to npm as $WHO"
+
       - run: npm ci
       - run: npm run build
       - run: npm publish --access=public --provenance
@@ -66,6 +83,25 @@ jobs:
             --arg url "$RELEASE_URL" \
             --arg desc "[Release notes](${RELEASE_URL}) · [npm](${NPM_URL})" \
             --argjson color 16750848 \
+            '{"embeds":[{"title":$title,"url":$url,"description":$desc,"color":$color}]}' \
+          | curl -sf -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" -d @- \
+          || echo "Discord notify failed (non-fatal)"
+
+      # The 1.26.0 publish failed silently on 2026-08-24 and nobody noticed until
+      # 2.0.0 failed the same way three days later. Shout when publishing breaks.
+      - name: Notify Discord on failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [[ -z "$DISCORD_WEBHOOK" ]] && echo "DISCORD_WEBHOOK not set, skipping" && exit 0
+          VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo unknown)
+          jq -n \
+            --arg title "@kolatts/pncli v${VERSION} FAILED to publish" \
+            --arg url "$RUN_URL" \
+            --arg desc "The publish job failed. [View the run](${RUN_URL}) - npm still serves the previous version." \
+            --argjson color 15158332 \
             '{"embeds":[{"title":$title,"url":$url,"description":$desc,"color":$color}]}' \
           | curl -sf -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" -d @- \
           || echo "Discord notify failed (non-fatal)"
