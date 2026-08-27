@@ -11,8 +11,9 @@ pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI codin
 - `src/` — TypeScript source (CLI entry: `src/cli.ts`, services in `src/services/`)
 - `site/` — Astro static site for GitHub Pages documentation
 - `skills/pncli/` — The one distributed skill. `SKILL.md` is a lightweight index; individual `<service>.md` files hold per-service setup docs. Installed via `pncli skills install`.
-- `example-skills/` — Workflow skills shown on the website as examples but not distributed by the installer (`ship`, `code-review`, `plan`, `security-review`, `address-pr-feedback`).
-- `.claude/skills/` — Skills active in this repo. `ship/` is repo-internal (GitHub only); all others are pointer files into `skills/` or `example-skills/`.
+- `.claude/skills/` — Skills active in this repo only: `ship/` and `conventions/` are repo-internal, and `pncli` is a pointer into `skills/pncli/`.
+
+`skills/pncli/` is the **only** skill this repo ships — it is the command reference for every service. There is no `example-skills/` directory and no workflow-skill collection; both were removed deliberately. Do not re-add one. A new skill either belongs to `skills/pncli/` as a service reference, or it is repo-internal under `.claude/skills/`.
 
 When documenting or choosing default install targets for skills, prefer `.agents/skills` because it works for GitHub Copilot and Codex. Keep Claude Code support available via `.claude/skills` and `--agent claude-code` / `--claude`.
 
@@ -27,12 +28,7 @@ npm run build          # Build CLI with tsup
 
 ## Opening Pull Requests
 
-This repo uses **two `/ship` skills**:
-
-- `.claude/skills/ship/` — **repo-internal** (GitHub only). Use this when working on pncli itself. Uses `gh` CLI, hardcoded `npm run` commands, and audits `site/src/`. Wires up `Closes #<issue>` automatically.
-- `skills/ship/` — **consumer-facing** (ADO/Bitbucket). Distributed to users via `pncli skills install`. Detects provider from `git remote`, asks the user for their build commands on first run, and uses `pncli bitbucket` / `pncli ado repo` to open the PR.
-
-When working on pncli, always use the repo-internal `/ship`.
+Use `.claude/skills/ship/` — repo-internal, GitHub only. It runs `gh`, the hardcoded `npm run` gate, and the `site/src/` audit, and wires up `Closes #<issue>` automatically.
 
 ## Branch Naming
 
@@ -217,7 +213,7 @@ Use Conventional Commits: `fix:` (patch), `feat:` (minor), `feat!:` (breaking/ma
 
 The site lives in `site/` and is built with Astro 6 + Tailwind v4. The changelog, docs, and command reference are auto-generated from source files via prebuild scripts in `site/scripts/`.
 
-The site does **not** document skills. There is no `/skills/` page — skill setup and the marketplace commands are covered in Docs (`/getting-started/`) and in the generated command reference. Do not re-add a skills gallery; `skills/` and `example-skills/` are the source of truth for skill content, and the distributed `skills/pncli/` skill is the onboarding contract.
+The site does **not** document skills. There is no `/skills/` page — skill setup and the marketplace commands are covered in Docs (`/getting-started/`) and in the generated command reference. Do not re-add a skills gallery; `skills/pncli/` is the source of truth for skill content and the onboarding contract.
 
 ### Screenshot Requirement
 

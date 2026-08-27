@@ -1,6 +1,7 @@
 ---
 import { getEntry, render } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import HeadingAnchors from '../components/HeadingAnchors.astro';
 
 const entry = await getEntry('docs', 'commands');
 if (!entry) throw new Error('docs/commands entry not found — did the prebuild script run? (node scripts/parse-commands.mjs)');
@@ -27,6 +28,8 @@ const { Content } = await render(entry);
       prose-pre:bg-[#1e1e20] prose-pre:text-[#f2ead9] prose-pre:rounded-xl">
       <Content />
     </div>
+
+    <HeadingAnchors levels="h2, h3" />
 
     <footer class="mt-12 text-xs font-mono text-ink/30">
       Auto-generated from <code class="bg-ink/5 px-1 py-0.5 rounded">src/services/*/commands.ts</code> — run <code class="bg-ink/5 px-1 py-0.5 rounded">node scripts/parse-commands.mjs</code> to refresh.

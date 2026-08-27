@@ -1,6 +1,7 @@
 ---
 import { getEntry, render } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import HeadingAnchors from '../components/HeadingAnchors.astro';
 
 const entry = await getEntry('docs', 'getting-started');
 if (!entry) throw new Error('docs/getting-started entry not found — did the prebuild script run?');
@@ -27,6 +28,8 @@ const { Content } = await render(entry);
       prose-pre:bg-[#1e1e20] prose-pre:text-[#f2ead9] prose-pre:rounded-xl">
       <Content />
     </div>
+
+    <HeadingAnchors levels="h2, h3" />
   </div>
 </Base>
 

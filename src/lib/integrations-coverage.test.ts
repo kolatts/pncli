@@ -78,6 +78,16 @@ describe('site service grid covers every integration', () => {
     const slugs = gridEntries().map((e) => e.slug);
     expect(slugs).toEqual(Array.from(new Set(slugs)));
   });
+
+  it('renders sorted by maturity so the most-validated integrations lead', () => {
+    const grid = fs.readFileSync(
+      path.join(repoRoot, 'site/src/components/ServiceGrid.astro'),
+      'utf8'
+    );
+    // Rendering the raw array again would silently restore declaration order
+    expect(grid).toContain('integrationsByMaturity()');
+    expect(grid).not.toMatch(/\{\s*integrations\.map/);
+  });
 });
 
 describe('site command reference covers every service', () => {

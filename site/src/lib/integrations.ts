@@ -48,6 +48,23 @@ export const integrations: Integration[] = [
   { slug: 'deps',        name: 'Dependencies',   description: 'CVE detection, license audit',   active: true, testing: 'basic'    },
 ];
 
+/** Most-validated first. Ties keep the declaration order above. */
+const TESTING_RANK: Record<TestingLevel, number> = {
+  live: 0,
+  beta: 1,
+  basic: 2,
+  untested: 3,
+};
+
+/**
+ * The grid renders in this order rather than declaration order, so the
+ * integrations someone can actually rely on lead and the untested ones sit at
+ * the bottom. Add new entries wherever they read best in the array above.
+ */
+export function integrationsByMaturity(list: Integration[] = integrations): Integration[] {
+  return [...list].sort((a, b) => TESTING_RANK[a.testing] - TESTING_RANK[b.testing]);
+}
+
 export interface RemovedIntegration {
   name: string;
   removedIn: string;
