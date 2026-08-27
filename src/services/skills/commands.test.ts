@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin, DISABLED_SUBDIR, disablePluginSkills, enablePluginSkills, listPluginStates } from './commands.js';
+import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin, DISABLED_SUBDIR, disablePluginSkills, enablePluginSkills, listPluginStates, getInstalledPluginsForMarketplace } from './commands.js';
 import type { InstalledMeta, InstalledSkillRecord } from './commands.js';
 import type { GlobalConfig } from '../../types/config.js';
 
@@ -676,5 +676,87 @@ describe('plugin enable/disable helpers', () => {
       seed({ 'bundled-skill': { source: 'bundled', installedAt: '2026-08-01T00:00:00Z' } });
       expect(listPluginStates(targetDir)).toEqual([]);
     });
+  });
+});
+
+// ── getInstalledPluginsForMarketplace ──────────────────────────────────────────
+
+describe('getInstalledPluginsForMarketplace', () => {
+  it('returns active marketplace plugins matched by name', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: {
+        'skill-a': { source: 'marketplace', marketplace: 'my-market', plugin: 'sunny', installedFrom: 'https://ghe.imagile.dev/org/my-market.git', installedAt: '2026-08-01T00:00:00Z' },
+        'skill-b': { source: 'marketplace', marketplace: 'my-market', plugin: 'sunny', installedFrom: 'https://ghe.imagile.dev/org/my-market.git', installedAt: '2026-08-01T00:00:00Z' },
+        'skill-c': { source: 'marketplace', marketplace: 'other-market', plugin: 'other-plugin', installedFrom: 'https://ghe.imagile.dev/org/other.git', installedAt: '2026-08-01T00:00:00Z' },
+      },
+    }));
+
+    const plugins = getInstalledPluginsForMarketplace('/target', 'my-market');
+    expect(plugins).toEqual(['sunny']);
+  });
+
+  it('matches by installedFrom URL when marketplace name differs', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: {
+        'skill-a': { source: 'marketplace', marketplace: 'old-name', plugin: 'my-plugin', installedFrom: 'https://ghe.imagile.dev/org/my-market.git', installedAt: '2026-08-01T00:00:00Z' },
+      },
+    }));
+
+    const plugins = getInstalledPluginsForMarketplace('/target', 'new-name', 'https://ghe.imagile.dev/org/my-market.git');
+    expect(plugins).toEqual(['my-plugin']);
+  });
+
+  it('includes plugins from the disabled map', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: {
+        'skill-a': { source: 'marketplace', marketplace: 'my-market', plugin: 'active-plugin', installedFrom: 'https://ghe.imagile.dev/org/my-market.git', installedAt: '2026-08-01T00:00:00Z' },
+      },
+      disabled: {
+        'skill-b': { source: 'marketplace', marketplace: 'my-market', plugin: 'disabled-plugin', installedFrom: 'https://ghe.imagile.dev/org/my-market.git', installedAt: '2026-08-01T00:00:00Z' },
+      },
+    }));
+
+    const plugins = getInstalledPluginsForMarketplace('/target', 'my-market').sort();
+    expect(plugins).toEqual(['active-plugin', 'disabled-plugin']);
+  });
+
+  it('returns empty array when no matching plugins are installed', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+
+    const plugins = getInstalledPluginsForMarketplace('/target', 'nonexistent-market');
+    expect(plugins).toEqual([]);
+  });
+
+  it('deduplicates when multiple skills share the same plugin', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: {
+        'skill-a': { source: 'marketplace', marketplace: 'my-market', plugin: 'shared-plugin', installedFrom: 'https://ghe.imagile.dev/org/my-market.git', installedAt: '2026-08-01T00:00:00Z' },
+        'skill-b': { source: 'marketplace', marketplace: 'my-market', plugin: 'shared-plugin', installedFrom: 'https://ghe.imagile.dev/org/my-market.git', installedAt: '2026-08-01T00:00:00Z' },
+      },
+    }));
+
+    const plugins = getInstalledPluginsForMarketplace('/target', 'my-market');
+    expect(plugins).toEqual(['shared-plugin']);
+  });
+
+  it('excludes bundled skills', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: {
+        'bundled-skill': { source: 'bundled', installedAt: '2026-08-01T00:00:00Z' },
+      },
+    }));
+
+    const plugins = getInstalledPluginsForMarketplace('/target', 'my-market');
+    expect(plugins).toEqual([]);
   });
 });

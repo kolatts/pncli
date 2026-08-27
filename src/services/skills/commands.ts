@@ -375,6 +375,43 @@ export function detectRepoBranch(repoPath: string): string | undefined {
 }
 
 /**
+ * Reads the configured fetch URL for the `origin` remote of a git repository.
+ * Scrubs injected credentials before returning. Returns null when the path is
+ * not a git repo, has no `origin` remote, or git is unavailable.
+ */
+function getRepoRemoteUrl(repoPath: string): string | null {
+  try {
+    const raw = execFileSync('git', ['-C', repoPath, 'remote', 'get-url', 'origin'], {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    return raw ? scrubToken(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns the unique set of plugin names from a marketplace that are currently
+ * installed (active or disabled) in the given skills directory.
+ * Matches by marketplace name or, when repoUrl is supplied, by installedFrom URL.
+ */
+export function getInstalledPluginsForMarketplace(targetDir: string, marketplaceName: string, repoUrl?: string): string[] {
+  const meta = readInstalledMeta(targetDir);
+  const plugins = new Set<string>();
+  for (const records of [meta.skills, meta.disabled ?? {}]) {
+    for (const record of Object.values(records)) {
+      if (record.source === 'marketplace' && record.plugin) {
+        if (record.marketplace === marketplaceName || (repoUrl && record.installedFrom === repoUrl)) {
+          plugins.add(record.plugin);
+        }
+      }
+    }
+  }
+  return [...plugins];
+}
+
+/**
  * Records install provenance for one or more skills already copied into targetDir.
  * Writes to both the directory-level .pncli-installed.json index and a per-skill
  * pncli-origin.json inside each skill directory for self-contained traceability.
@@ -600,8 +637,10 @@ function installAllPlugins(resolvedPath: string, marketplaceName: string, url: s
  * Pulls and installs plugins for one marketplace, honoring an optional plugin name filter
  * ("all" installs every plugin). Used by the "sync every marketplace" flows. Never throws —
  * problems are reported back as a `skipped` result so one bad marketplace doesn't abort the rest.
+ * When `installedOnly` is true and `pluginFilter` is "all", only plugins already installed
+ * from this marketplace are synced instead of every plugin available in the repo.
  */
-function syncMarketplacePlugins(m: MarketplaceConfig, targetDir: string, force: boolean, pluginFilter: string): Record<string, unknown> {
+function syncMarketplacePlugins(m: MarketplaceConfig, targetDir: string, force: boolean, pluginFilter: string, installedOnly = false): Record<string, unknown> {
   const marketplaceName = marketplaceLabel(m);
   try {
     const marketplacePath = m.localPath;
@@ -623,7 +662,17 @@ function syncMarketplacePlugins(m: MarketplaceConfig, targetDir: string, force: 
 
     let pluginNames: string[];
     if (pluginFilter === 'all') {
-      pluginNames = pluginChoices.map(p => p.name);
+      if (installedOnly) {
+        const installed = getInstalledPluginsForMarketplace(targetDir, marketplaceName, m.repoUrl)
+          .filter(name => pluginChoices.some(p => p.name === name));
+        if (installed.length === 0) {
+          warn(`No installed plugins found for "${marketplaceName}" — skipping. Run marketplace sync without --installed-only to install plugins.`);
+          return { marketplace: marketplaceName, skipped: true, installedOnly: true, message: 'No installed plugins found — nothing to sync.' };
+        }
+        pluginNames = installed;
+      } else {
+        pluginNames = pluginChoices.map(p => p.name);
+      }
     } else if (pluginChoices.some(p => p.name === pluginFilter)) {
       pluginNames = [pluginFilter];
     } else {
@@ -939,6 +988,53 @@ export function registerSkillsCommands(program: Command): void {
       }
     });
 
+  skills
+    .command('locations')
+    .description('List all known skill install paths across all agent types and scopes')
+    .action(() => {
+      const start = Date.now();
+      try {
+        const locations = Object.entries(AGENT_PATHS).flatMap(([agentName, agentPaths]) =>
+          (['project', 'user'] as const).map(scope => {
+            const rawPath = scope === 'user' ? agentPaths.user : agentPaths.project;
+            const resolvedPath = path.resolve(rawPath);
+            const exists = fs.existsSync(resolvedPath);
+            let totalSkills = 0;
+            let marketplaceSkills = 0;
+            let bundledSkills = 0;
+            let disabledSkills = 0;
+            if (exists) {
+              const dirs = fs.readdirSync(resolvedPath).filter(name => {
+                if (name.startsWith('.')) return false;
+                const p = path.join(resolvedPath, name);
+                try { return fs.statSync(p).isDirectory(); } catch { return false; }
+              });
+              totalSkills = dirs.length;
+              const meta = readInstalledMeta(resolvedPath);
+              for (const record of Object.values(meta.skills)) {
+                if (record.source === 'marketplace') marketplaceSkills++;
+                else if (record.source === 'bundled') bundledSkills++;
+              }
+              disabledSkills = Object.keys(meta.disabled ?? {}).length;
+            }
+            return {
+              agent: agentName,
+              scope,
+              path: resolvedPath,
+              exists,
+              totalSkills,
+              marketplaceSkills,
+              bundledSkills,
+              disabledSkills,
+            };
+          })
+        );
+        success({ locations, activeLocations: locations.filter(l => l.exists).length }, 'skills', 'locations', start);
+      } catch (err) {
+        fail(err, 'skills', 'locations', start);
+      }
+    });
+
   const marketplace = skills.command('marketplace').description('Manage git-hosted skills marketplaces');
 
   function withMarketplaceAddOptions(cmd: Command): Command {
@@ -976,6 +1072,9 @@ export function registerSkillsCommands(program: Command): void {
             repoUrl: m.repoUrl,
             localPath: m.localPath,
             tokenConfigured: !!m.token,
+            upstreamRemote: m.localPath && fs.existsSync(m.localPath)
+              ? getRepoRemoteUrl(m.localPath)
+              : null,
           })),
           total: all.length,
         }, 'skills', 'marketplace-list', start);
@@ -1033,7 +1132,8 @@ export function registerSkillsCommands(program: Command): void {
     .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--force', 'Reinstall even if a marketplace has no new changes (applies to single-plugin and "all" installs alike)')
-    .action(async (plugin: string | undefined, opts: { marketplace?: string; agent?: string; claude?: boolean; force?: boolean }) => {
+    .option('--installed-only', 'Only sync plugins that are already installed — skip plugins newly added to the marketplace')
+    .action(async (plugin: string | undefined, opts: { marketplace?: string; agent?: string; claude?: boolean; force?: boolean; installedOnly?: boolean }) => {
       const start = Date.now();
       try {
         const configPath = getGlobalConfigPath();
@@ -1044,10 +1144,11 @@ export function registerSkillsCommands(program: Command): void {
 
         const targetDir = resolveAgentPaths(resolveAgentName(opts)).user;
         const force = opts.force ?? false;
+        const installedOnly = opts.installedOnly ?? false;
 
         // Non-interactive "sync everything" — explicit flag.
         if (opts.marketplace === 'all') {
-          const results = allMarketplaces.map(m => syncMarketplacePlugins(m, targetDir, force, plugin ?? 'all'));
+          const results = allMarketplaces.map(m => syncMarketplacePlugins(m, targetDir, force, plugin ?? 'all', installedOnly));
           success({ allMarketplaces: true, marketplaces: results, target: targetDir }, 'skills', 'marketplace-sync', start);
           return;
         }
@@ -1079,7 +1180,7 @@ export function registerSkillsCommands(program: Command): void {
               ],
             });
             if (chosen === ALL_MARKETPLACES) {
-              const results = allMarketplaces.map(m => syncMarketplacePlugins(m, targetDir, force, selectedPlugin ?? 'all'));
+              const results = allMarketplaces.map(m => syncMarketplacePlugins(m, targetDir, force, selectedPlugin ?? 'all', installedOnly));
               success({ allMarketplaces: true, marketplaces: results, target: targetDir }, 'skills', 'marketplace-sync', start);
               return;
             }
@@ -1132,11 +1233,31 @@ export function registerSkillsCommands(program: Command): void {
             return;
           }
 
-          const pluginNames = selectedPlugin === 'all' ? pluginChoices.map(p => p.name) : [selectedPlugin];
+          let pluginNames: string[];
+          if (selectedPlugin === 'all') {
+            if (installedOnly) {
+              const installed = getInstalledPluginsForMarketplace(targetDir, marketplaceName, selectedMarketplace.repoUrl)
+                .filter(name => pluginChoices.some(p => p.name === name));
+              if (installed.length === 0) {
+                success({
+                  marketplace: marketplaceName,
+                  skipped: true,
+                  installedOnly: true,
+                  message: `No installed plugins found for "${marketplaceName}" — run marketplace sync without --installed-only to install plugins.`,
+                }, 'skills', 'marketplace-sync', start);
+                return;
+              }
+              pluginNames = installed;
+            } else {
+              pluginNames = pluginChoices.map(p => p.name);
+            }
+          } else {
+            pluginNames = [selectedPlugin];
+          }
           const { results, totalInstalled } = installPluginsForMarketplace(marketplacePath, marketplaceName, selectedMarketplace.repoUrl, pluginNames, targetDir);
 
           if (selectedPlugin === 'all') {
-            success({ marketplace: marketplaceName, plugins: results, total: totalInstalled, target: targetDir, marketplaceUpdated: updated }, 'skills', 'marketplace-sync', start);
+            success({ marketplace: marketplaceName, plugins: results, total: totalInstalled, target: targetDir, marketplaceUpdated: updated, ...(installedOnly ? { installedOnly: true } : {}) }, 'skills', 'marketplace-sync', start);
           } else {
             const single = results[selectedPlugin] ?? { installed: [], failed: [] };
             success({
