@@ -15,7 +15,7 @@ pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI codin
 
 `skills/pncli/` is the **only** skill this repo ships — it is the command reference for every service. There is no `example-skills/` directory and no workflow-skill collection; both were removed deliberately. Do not re-add one. A new skill either belongs to `skills/pncli/` as a service reference, or it is repo-internal under `.claude/skills/`.
 
-When documenting or choosing default install targets for skills, prefer `.agents/skills` because it works for GitHub Copilot and Codex. Keep Claude Code support available via `.claude/skills` and `--agent claude-code` / `--claude`.
+When documenting or choosing default install targets for skills, prefer `.agents/skills` because it works for GitHub Copilot and Codex. That path is reached under the agent name `codex`, which is the default. `--agent github-copilot` targets Copilot's own directories (`.github/skills` and `~/.copilot/skills`), and Claude Code support stays available via `.claude/skills` and `--agent claude-code` / `--claude`.
 
 ## Build & Test
 

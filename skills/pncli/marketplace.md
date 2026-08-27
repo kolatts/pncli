@@ -26,11 +26,11 @@ pncli skills marketplace list
 pncli skills marketplace plugins <name>
 ```
 
-`list` shows every registered marketplace. `plugins` shows the plugins available inside one of them, without installing anything.
+`list` shows every registered marketplace, including `upstreamRemote` — the `origin` fetch URL read from the local clone, with any injected token scrubbed. It is `null` when the clone is missing or has no `origin`, which is the quickest way to spot a marketplace whose local path has drifted from the URL it was registered with. `plugins` shows the plugins available inside one of them, without installing anything.
 
 ## Sync (pull + install)
 
-Install to `~/.agents/skills` (GitHub Copilot / Codex):
+Install to `~/.agents/skills` (Codex / GitHub Copilot — the default):
 ```
 pncli skills marketplace sync
 ```
@@ -64,6 +64,16 @@ pncli skills marketplace sync --marketplace all
 
 `sync` skips reinstalling when a marketplace has no new upstream changes (single-plugin and `all` installs alike). Pass `--force` to reinstall anyway.
 
+### Update what you already have, without picking up new plugins
+
+By default an `all` sync installs every plugin the marketplace offers, including ones added upstream since you last synced. Pass `--installed-only` to update just the plugins already on disk:
+
+```
+pncli skills marketplace sync --marketplace all --installed-only
+```
+
+Plugins are matched by the marketplace name recorded at install time, falling back to the clone URL — so a marketplace you have since renamed still resolves. Disabled plugins count as installed and are refreshed in place, staying disabled. If a marketplace has no installed plugins at all, it is reported as `skipped` with `installedOnly: true` rather than silently installing everything.
+
 ## Enable / disable installed plugins
 
 Temporarily switch a plugin's skills off without deleting them (no re-download needed to switch back on):
@@ -92,6 +102,47 @@ It loops through a menu until you're done:
 - **Remove a marketplace** — pick one to unregister (the local clone is kept on disk).
 
 Everything the session changed is emitted as one JSON summary at the end. Agents should use the scriptable equivalents instead: `enable`, `disable`, `add`, `remove`.
+
+## Where skills are installed
+
+Every command that installs or reads skills takes `--agent` and `--scope`. Those resolve to:
+
+| `--agent` | `--scope project` | `--scope user` |
+|---|---|---|
+| `codex` (default) | `.agents/skills` | `~/.agents/skills` |
+| `github-copilot` | `.github/skills` | `~/.copilot/skills` |
+| `claude-code` | `.claude/skills` | `~/.claude/skills` |
+
+`.agents/skills` is the cross-tool convention — both Codex and GitHub Copilot read it — which is why it is the default. Use `--agent github-copilot` only when you specifically want Copilot's own directories, and `--agent claude-code` (or the `--claude` shorthand) for Claude Code.
+
+Project-scope paths resolve against the repository root, so you get the same directory whichever subdirectory you run from. Outside a git repository they fall back to the current working directory.
+
+`--target <dir>` overrides all of this and installs wherever you point it. `skills install --target` records the directory in your global config so it still shows up in the commands below; `pncli skills forget-target <dir>` stops tracking it (it deletes nothing).
+
+### List the install paths
+
+```
+pncli skills locations
+```
+
+Reports every path pncli knows about — each agent host at both scopes, plus any recorded custom targets — with whether the directory exists and how many skills are in it. The `marketplaceSkills`, `bundledSkills`, and `untrackedSkills` counts are mutually exclusive and always add up to `totalSkills`; anything in `untrackedSkills` was dropped in by hand or installed before pncli recorded provenance.
+
+`disabledStashMissing` names disabled skills whose stashed copy has been deleted out from under pncli — those cannot be re-enabled and need a fresh `sync`.
+
+### Trace a skill back to its repository
+
+```
+pncli skills status
+```
+
+Walks every known location and emits one record per installed skill joining it to the plugin, marketplace, clone URL, and the live `origin` remote of the local clone. This is the command to reach for when you need to know where a skill actually came from rather than just where it sits.
+
+Narrow it with `--marketplace <name-or-url>`, `--plugin <name>`, `--source marketplace|bundled|untracked`, `--agent`, or `--scope`:
+
+```
+pncli skills status --source untracked
+pncli skills status --marketplace internal-ai
+```
 
 ## Remove a marketplace
 

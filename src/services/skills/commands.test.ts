@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin, DISABLED_SUBDIR, disablePluginSkills, enablePluginSkills, listPluginStates } from './commands.js';
+import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin, DISABLED_SUBDIR, disablePluginSkills, enablePluginSkills, listPluginStates, getInstalledPluginsForMarketplace, AGENT_PATHS, DEFAULT_AGENT, AGENT_CHOICES, summarizeLocation, listKnownLocations, collectSkillStatus, readCustomTargets, rememberCustomTarget, forgetCustomTarget } from './commands.js';
 import type { InstalledMeta, InstalledSkillRecord } from './commands.js';
 import type { GlobalConfig } from '../../types/config.js';
 
@@ -676,5 +676,388 @@ describe('plugin enable/disable helpers', () => {
       seed({ 'bundled-skill': { source: 'bundled', installedAt: '2026-08-01T00:00:00Z' } });
       expect(listPluginStates(targetDir)).toEqual([]);
     });
+  });
+});
+
+// ── getInstalledPluginsForMarketplace ──────────────────────────────────────────
+
+describe('getInstalledPluginsForMarketplace', () => {
+  it('returns active marketplace plugins matched by name', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: {
+        'skill-a': { source: 'marketplace', marketplace: 'my-market', plugin: 'sunny', installedFrom: 'https://ghe.imagile.dev/org/my-market.git', installedAt: '2026-08-01T00:00:00Z' },
+        'skill-b': { source: 'marketplace', marketplace: 'my-market', plugin: 'sunny', installedFrom: 'https://ghe.imagile.dev/org/my-market.git', installedAt: '2026-08-01T00:00:00Z' },
+        'skill-c': { source: 'marketplace', marketplace: 'other-market', plugin: 'other-plugin', installedFrom: 'https://ghe.imagile.dev/org/other.git', installedAt: '2026-08-01T00:00:00Z' },
+      },
+    }));
+
+    const plugins = getInstalledPluginsForMarketplace('/target', 'my-market');
+    expect(plugins).toEqual(['sunny']);
+  });
+
+  it('matches by installedFrom URL when marketplace name differs', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: {
+        'skill-a': { source: 'marketplace', marketplace: 'old-name', plugin: 'my-plugin', installedFrom: 'https://ghe.imagile.dev/org/my-market.git', installedAt: '2026-08-01T00:00:00Z' },
+      },
+    }));
+
+    const plugins = getInstalledPluginsForMarketplace('/target', 'new-name', 'https://ghe.imagile.dev/org/my-market.git');
+    expect(plugins).toEqual(['my-plugin']);
+  });
+
+  it('includes plugins from the disabled map', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: {
+        'skill-a': { source: 'marketplace', marketplace: 'my-market', plugin: 'active-plugin', installedFrom: 'https://ghe.imagile.dev/org/my-market.git', installedAt: '2026-08-01T00:00:00Z' },
+      },
+      disabled: {
+        'skill-b': { source: 'marketplace', marketplace: 'my-market', plugin: 'disabled-plugin', installedFrom: 'https://ghe.imagile.dev/org/my-market.git', installedAt: '2026-08-01T00:00:00Z' },
+      },
+    }));
+
+    const plugins = getInstalledPluginsForMarketplace('/target', 'my-market').sort();
+    expect(plugins).toEqual(['active-plugin', 'disabled-plugin']);
+  });
+
+  it('returns empty array when no matching plugins are installed', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+
+    const plugins = getInstalledPluginsForMarketplace('/target', 'nonexistent-market');
+    expect(plugins).toEqual([]);
+  });
+
+  it('deduplicates when multiple skills share the same plugin', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: {
+        'skill-a': { source: 'marketplace', marketplace: 'my-market', plugin: 'shared-plugin', installedFrom: 'https://ghe.imagile.dev/org/my-market.git', installedAt: '2026-08-01T00:00:00Z' },
+        'skill-b': { source: 'marketplace', marketplace: 'my-market', plugin: 'shared-plugin', installedFrom: 'https://ghe.imagile.dev/org/my-market.git', installedAt: '2026-08-01T00:00:00Z' },
+      },
+    }));
+
+    const plugins = getInstalledPluginsForMarketplace('/target', 'my-market');
+    expect(plugins).toEqual(['shared-plugin']);
+  });
+
+  it('excludes bundled skills', () => {
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
+      version: 1,
+      skills: {
+        'bundled-skill': { source: 'bundled', installedAt: '2026-08-01T00:00:00Z' },
+      },
+    }));
+
+    const plugins = getInstalledPluginsForMarketplace('/target', 'my-market');
+    expect(plugins).toEqual([]);
+  });
+});
+
+// ── agent install paths ───────────────────────────────────────────────────────
+
+describe('AGENT_PATHS', () => {
+  it('defaults to codex at the cross-tool .agents directory', () => {
+    expect(DEFAULT_AGENT).toBe('codex');
+    expect(AGENT_PATHS.codex.project).toBe('.agents/skills');
+    expect(AGENT_PATHS.codex.user).toBe(path.join(os.homedir(), '.agents/skills'));
+  });
+
+  it('targets Copilot own directories for github-copilot', () => {
+    expect(AGENT_PATHS['github-copilot'].project).toBe('.github/skills');
+    expect(AGENT_PATHS['github-copilot'].user).toBe(path.join(os.homedir(), '.copilot/skills'));
+  });
+
+  it('keeps claude-code on .claude/skills', () => {
+    expect(AGENT_PATHS['claude-code'].project).toBe('.claude/skills');
+    expect(AGENT_PATHS['claude-code'].user).toBe(path.join(os.homedir(), '.claude/skills'));
+  });
+
+  it('advertises all three agent names in the help/error choice list', () => {
+    expect(AGENT_CHOICES).toBe('codex | github-copilot | claude-code');
+  });
+
+  it('gives every agent a distinct project and user path', () => {
+    const all = Object.values(AGENT_PATHS).flatMap(a => [a.project, a.user]);
+    expect(new Set(all).size).toBe(all.length);
+  });
+});
+
+// ── summarizeLocation ─────────────────────────────────────────────────────────
+
+describe('summarizeLocation', () => {
+  let targetDir: string;
+
+  const writeSkill = (name: string): void => {
+    fs.mkdirSync(path.join(targetDir, name), { recursive: true });
+    fs.writeFileSync(path.join(targetDir, name, 'SKILL.md'), '---\nname: ' + name + '\n---\n', 'utf8');
+  };
+
+  beforeEach(() => {
+    targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-locations-test-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(targetDir, { recursive: true, force: true });
+  });
+
+  it('reports a non-existent directory without counting anything', () => {
+    const missing = path.join(targetDir, 'nope');
+    const summary = summarizeLocation('codex', 'user', missing);
+    expect(summary.exists).toBe(false);
+    expect(summary.totalSkills).toBe(0);
+    expect(summary.disabledStashMissing).toEqual([]);
+  });
+
+  it('buckets marketplace, bundled, and untracked skills so they sum to the total', () => {
+    writeSkill('from-market');
+    writeSkill('from-bundle');
+    writeSkill('dropped-in-by-hand');
+    recordInstalledSkills(targetDir, ['from-market'], { source: 'marketplace', marketplace: 'internal-ai', plugin: 'sunny', installedFrom: 'https://ghe.imagile.dev/org/skills.git' });
+    recordInstalledSkills(targetDir, ['from-bundle'], { source: 'bundled' });
+
+    const summary = summarizeLocation('codex', 'user', targetDir);
+    expect(summary.totalSkills).toBe(3);
+    expect(summary.marketplaceSkills).toBe(1);
+    expect(summary.bundledSkills).toBe(1);
+    expect(summary.untrackedSkills).toBe(1);
+    expect(summary.marketplaceSkills + summary.bundledSkills + summary.untrackedSkills).toBe(summary.totalSkills);
+  });
+
+  it('ignores directories without a SKILL.md', () => {
+    writeSkill('real-skill');
+    fs.mkdirSync(path.join(targetDir, 'not-a-skill'), { recursive: true });
+    fs.writeFileSync(path.join(targetDir, 'not-a-skill', 'README.md'), 'nope', 'utf8');
+
+    expect(summarizeLocation('codex', 'user', targetDir).totalSkills).toBe(1);
+  });
+
+  it('flags disabled skills whose stashed copy has been deleted', () => {
+    writeSkill('active');
+    const meta: InstalledMeta = {
+      version: 1,
+      skills: {},
+      disabled: {
+        stashed: { source: 'bundled', installedAt: '2026-08-01T00:00:00Z' },
+        vanished: { source: 'bundled', installedAt: '2026-08-01T00:00:00Z' },
+      },
+    };
+    fs.writeFileSync(getInstalledMetaPath(targetDir), JSON.stringify(meta), 'utf8');
+    fs.mkdirSync(path.join(targetDir, DISABLED_SUBDIR, 'stashed'), { recursive: true });
+
+    const summary = summarizeLocation('codex', 'user', targetDir);
+    expect(summary.disabledSkills).toBe(2);
+    expect(summary.disabledStashMissing).toEqual(['vanished']);
+  });
+
+  it('does not count the disabled stash as a skill', () => {
+    writeSkill('active');
+    fs.mkdirSync(path.join(targetDir, DISABLED_SUBDIR, 'off'), { recursive: true });
+    fs.writeFileSync(path.join(targetDir, DISABLED_SUBDIR, 'off', 'SKILL.md'), '---\n---\n', 'utf8');
+
+    expect(summarizeLocation('codex', 'user', targetDir).totalSkills).toBe(1);
+  });
+});
+
+// ── custom target tracking ────────────────────────────────────────────────────
+
+describe('custom target tracking', () => {
+  let dir: string;
+  let configPath: string;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-targets-test-'));
+    configPath = path.join(dir, 'config.json');
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('returns an empty list when the key is absent', () => {
+    expect(readCustomTargets({})).toEqual([]);
+  });
+
+  it('ignores a hand-edited non-array value instead of throwing', () => {
+    expect(readCustomTargets({ skillsTargets: 'oops' } as unknown as GlobalConfig)).toEqual([]);
+  });
+
+  it('drops non-string and empty entries', () => {
+    expect(readCustomTargets({ skillsTargets: ['', 42, null] } as unknown as GlobalConfig)).toEqual([]);
+  });
+
+  it('records a custom target and preserves unrelated config keys', () => {
+    fs.writeFileSync(configPath, JSON.stringify({ jira: { token: 'secret' } }), 'utf8');
+    const custom = path.join(dir, 'my-skills');
+
+    expect(rememberCustomTarget(configPath, custom)).toBe(true);
+
+    const saved = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    expect(saved.skillsTargets).toEqual([path.resolve(custom)]);
+    expect(saved.jira.token).toBe('secret');
+  });
+
+  it('is idempotent for an already-tracked target', () => {
+    const custom = path.join(dir, 'my-skills');
+    expect(rememberCustomTarget(configPath, custom)).toBe(true);
+    expect(rememberCustomTarget(configPath, custom)).toBe(false);
+    expect(readCustomTargets(JSON.parse(fs.readFileSync(configPath, 'utf8')))).toEqual([path.resolve(custom)]);
+  });
+
+  it('does not record a built-in agent path as a custom target', () => {
+    expect(rememberCustomTarget(configPath, AGENT_PATHS['claude-code'].user)).toBe(false);
+    expect(fs.existsSync(configPath)).toBe(false);
+  });
+
+  it('forgets a tracked target and leaves other targets alone', () => {
+    const a = path.join(dir, 'a');
+    const b = path.join(dir, 'b');
+    rememberCustomTarget(configPath, a);
+    rememberCustomTarget(configPath, b);
+
+    expect(forgetCustomTarget(configPath, a)).toBe(true);
+    expect(readCustomTargets(JSON.parse(fs.readFileSync(configPath, 'utf8')))).toEqual([path.resolve(b)]);
+  });
+
+  it('reports false when forgetting an untracked target', () => {
+    expect(forgetCustomTarget(configPath, path.join(dir, 'never-seen'))).toBe(false);
+  });
+});
+
+// ── collectSkillStatus ────────────────────────────────────────────────────────
+
+describe('collectSkillStatus', () => {
+  let targetDir: string;
+
+  const writeSkill = (name: string): void => {
+    fs.mkdirSync(path.join(targetDir, name), { recursive: true });
+    fs.writeFileSync(path.join(targetDir, name, 'SKILL.md'), '---\nname: ' + name + '\n---\n', 'utf8');
+  };
+
+  beforeEach(() => {
+    targetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-status-test-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(targetDir, { recursive: true, force: true });
+  });
+
+  it('joins a skill to its registered marketplace by name', () => {
+    writeSkill('deploy-helper');
+    recordInstalledSkills(targetDir, ['deploy-helper'], {
+      source: 'marketplace', marketplace: 'internal-ai', plugin: 'sunny',
+      installedFrom: 'https://ghe.imagile.dev/org/skills.git', branch: 'main',
+    });
+    const config: GlobalConfig = {
+      marketplaces: [{ name: 'internal-ai', repoUrl: 'https://ghe.imagile.dev/org/skills.git', localPath: path.join(targetDir, 'clone') }],
+    };
+
+    const [record] = collectSkillStatus(config, [summarizeLocation('codex', 'user', targetDir)]);
+    expect(record.skill).toBe('deploy-helper');
+    expect(record.plugin).toBe('sunny');
+    expect(record.marketplace).toBe('internal-ai');
+    expect(record.repoUrl).toBe('https://ghe.imagile.dev/org/skills.git');
+    expect(record.branch).toBe('main');
+    expect(record.enabled).toBe(true);
+    expect(record.source).toBe('marketplace');
+  });
+
+  it('falls back to the clone URL when the marketplace has since been renamed', () => {
+    writeSkill('deploy-helper');
+    recordInstalledSkills(targetDir, ['deploy-helper'], {
+      source: 'marketplace', marketplace: 'old-name', plugin: 'sunny',
+      installedFrom: 'https://ghe.imagile.dev/org/skills.git',
+    });
+    const config: GlobalConfig = {
+      marketplaces: [{ name: 'new-name', repoUrl: 'https://ghe.imagile.dev/org/skills.git', localPath: path.join(targetDir, 'clone') }],
+    };
+
+    const [record] = collectSkillStatus(config, [summarizeLocation('codex', 'user', targetDir)]);
+    expect(record.repoUrl).toBe('https://ghe.imagile.dev/org/skills.git');
+    expect(record.localPath).toBe(path.join(targetDir, 'clone'));
+  });
+
+  it('marks hand-dropped skills as untracked with null provenance', () => {
+    writeSkill('mystery');
+
+    const [record] = collectSkillStatus({}, [summarizeLocation('codex', 'user', targetDir)]);
+    expect(record.source).toBe('untracked');
+    expect(record.plugin).toBeNull();
+    expect(record.marketplace).toBeNull();
+    expect(record.repoUrl).toBeNull();
+    expect(record.upstreamRemote).toBeNull();
+    expect(record.installedAt).toBeNull();
+  });
+
+  it('includes disabled skills, pointing at the stash path', () => {
+    const meta: InstalledMeta = {
+      version: 1,
+      skills: {},
+      disabled: {
+        'turned-off': { source: 'marketplace', marketplace: 'internal-ai', plugin: 'sunny', installedAt: '2026-08-01T00:00:00Z' },
+      },
+    };
+    fs.writeFileSync(getInstalledMetaPath(targetDir), JSON.stringify(meta), 'utf8');
+
+    const [record] = collectSkillStatus({}, [summarizeLocation('codex', 'user', targetDir)]);
+    expect(record.skill).toBe('turned-off');
+    expect(record.enabled).toBe(false);
+    expect(record.path).toBe(path.join(targetDir, DISABLED_SUBDIR, 'turned-off'));
+  });
+
+  it('skips locations that do not exist', () => {
+    const missing = summarizeLocation('codex', 'user', path.join(targetDir, 'nope'));
+    expect(collectSkillStatus({}, [missing])).toEqual([]);
+  });
+
+  it('reports a null upstream remote when the clone path is gone', () => {
+    writeSkill('deploy-helper');
+    recordInstalledSkills(targetDir, ['deploy-helper'], {
+      source: 'marketplace', marketplace: 'internal-ai', plugin: 'sunny',
+      installedFrom: 'https://ghe.imagile.dev/org/skills.git',
+    });
+    const config: GlobalConfig = {
+      marketplaces: [{ name: 'internal-ai', repoUrl: 'https://ghe.imagile.dev/org/skills.git', localPath: path.join(targetDir, 'deleted-clone') }],
+    };
+
+    const [record] = collectSkillStatus(config, [summarizeLocation('codex', 'user', targetDir)]);
+    expect(record.upstreamRemote).toBeNull();
+  });
+});
+
+// ── listKnownLocations ────────────────────────────────────────────────────────
+
+describe('listKnownLocations', () => {
+  it('covers every agent at both scopes', () => {
+    const locations = listKnownLocations({});
+    expect(locations).toHaveLength(Object.keys(AGENT_PATHS).length * 2);
+    for (const agent of Object.keys(AGENT_PATHS)) {
+      expect(locations.filter(l => l.agent === agent).map(l => l.scope).sort()).toEqual(['project', 'user']);
+    }
+  });
+
+  it('appends recorded custom targets', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-known-test-'));
+    try {
+      const locations = listKnownLocations({ skillsTargets: [dir] });
+      const custom = locations.filter(l => l.scope === 'custom');
+      expect(custom).toHaveLength(1);
+      expect(custom[0].path).toBe(path.resolve(dir));
+      expect(custom[0].agent).toBe('custom');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not list a custom target that duplicates a built-in agent path', () => {
+    const locations = listKnownLocations({ skillsTargets: [AGENT_PATHS['claude-code'].user] });
+    expect(locations.filter(l => l.scope === 'custom')).toEqual([]);
   });
 });

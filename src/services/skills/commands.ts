@@ -77,28 +77,85 @@ function assertInteractive(hint: string): void {
   }
 }
 
-const AGENT_PATHS: Record<string, { project: string; user: string }> = {
-  'github-copilot': { project: '.agents/skills',  user: path.join(os.homedir(), '.agents/skills') },
-  'claude-code':    { project: '.claude/skills',   user: path.join(os.homedir(), '.claude/skills') },
+/**
+ * Skills directories per supported agent host.
+ *
+ * These mirror the locations the agent hosts themselves read from:
+ * - `.agents/skills` is the cross-tool convention, honored by Codex and GitHub Copilot alike,
+ *   which is why it is pncli's default under the name `codex`.
+ * - GitHub Copilot additionally reads project skills from `.github/skills` and personal
+ *   skills from `~/.copilot/skills`.
+ * - Claude Code reads `.claude/skills`.
+ */
+export const AGENT_PATHS: Record<string, { project: string; user: string }> = {
+  'codex':          { project: '.agents/skills', user: path.join(os.homedir(), '.agents/skills') },
+  'github-copilot': { project: '.github/skills', user: path.join(os.homedir(), '.copilot/skills') },
+  'claude-code':    { project: '.claude/skills', user: path.join(os.homedir(), '.claude/skills') },
 };
 
+/** Default agent host when neither --agent nor a shorthand is given. */
+export const DEFAULT_AGENT = 'codex';
+
+/** Rendered into every --agent help string so the list stays in one place. */
+export const AGENT_CHOICES = Object.keys(AGENT_PATHS).join(' | ');
+
+/**
+ * Before v2.1, `github-copilot` was both the default agent name and the name attached to
+ * `.agents/skills`. It now points at Copilot's own directories, so anyone who passed the flag
+ * explicitly gets a one-time pointer at `--agent codex` for the previous behavior.
+ */
+let warnedRetargetedAgent = false;
+function warnIfRetargetedAgent(agentName: string): void {
+  if (agentName !== 'github-copilot' || warnedRetargetedAgent) return;
+  warnedRetargetedAgent = true;
+  warn(`--agent github-copilot now targets .github/skills (project) and ~/.copilot/skills (user). It previously meant .agents/skills — use --agent codex for that.`);
+}
+
 function resolveAgentName(opts: { agent?: string; claude?: boolean }): string {
-  return opts.claude ? 'claude-code' : (opts.agent ?? 'github-copilot');
+  return opts.claude ? 'claude-code' : (opts.agent ?? DEFAULT_AGENT);
 }
 
 function resolveAgentPaths(agentName: string): { project: string; user: string } {
   const agentConfig = AGENT_PATHS[agentName];
   if (!agentConfig) {
-    throw new Error(`Unknown agent: "${agentName}". Use: ${Object.keys(AGENT_PATHS).join(' | ')}`);
+    throw new Error(`Unknown agent: "${agentName}". Use: ${AGENT_CHOICES}`);
   }
+  warnIfRetargetedAgent(agentName);
   return agentConfig;
+}
+
+/**
+ * Locates the repository root so project-scope paths resolve consistently no matter which
+ * subdirectory the command was run from. Falls back to the current working directory when
+ * the caller is not inside a git repository.
+ */
+export function findGitRoot(from: string = process.cwd()): string | null {
+  try {
+    const root = execFileSync('git', ['-C', from, 'rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    return root ? path.resolve(root) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Resolves a project-scope relative skills path against the repository root. */
+export function resolveProjectPath(relativePath: string): string {
+  const root = findGitRoot();
+  return root ? path.resolve(root, relativePath) : path.resolve(relativePath);
+}
+
+/** Resolves the skills directory for an agent host at a given scope. */
+export function resolveScopedPath(agentPaths: { project: string; user: string }, scope: string): string {
+  return scope === 'project' ? resolveProjectPath(agentPaths.project) : path.resolve(agentPaths.user);
 }
 
 function resolveTargetDir(opts: { agent?: string; claude?: boolean; scope?: string; target?: string }): string {
   if (opts.target) return path.resolve(opts.target);
   const agentConfig = resolveAgentPaths(resolveAgentName(opts));
-  const scopePath = (opts.scope ?? 'user') === 'project' ? agentConfig.project : agentConfig.user;
-  return path.resolve(scopePath);
+  return resolveScopedPath(agentConfig, opts.scope ?? 'user');
 }
 
 // Resolve the bundled skills directory relative to this file (dist/cli.js → ../skills)
@@ -210,11 +267,20 @@ function resolveSkillRecord(meta: InstalledMeta, targetDir: string, skillName: s
   };
 }
 
+/**
+ * Lists the skill directories in a target dir. A directory counts as a skill only when it
+ * contains a SKILL.md — the same definition `skills list` uses — so stray directories are
+ * never reported as skills by one command and ignored by another.
+ */
 function listActiveSkillDirs(targetDir: string): string[] {
+  if (!fs.existsSync(targetDir)) return [];
   return fs.readdirSync(targetDir).filter(name => {
     if (name.startsWith('.')) return false;
-    const p = path.join(targetDir, name);
-    try { return fs.statSync(p).isDirectory(); } catch { return false; }
+    const dir = path.join(targetDir, name);
+    try {
+      if (!fs.statSync(dir).isDirectory()) return false;
+    } catch { return false; }
+    return fs.existsSync(path.join(dir, 'SKILL.md'));
   });
 }
 
@@ -372,6 +438,238 @@ export function detectRepoBranch(repoPath: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Reads the configured fetch URL for the `origin` remote of a git repository.
+ * Scrubs injected credentials before returning. Returns null when the path is
+ * not a git repo, has no `origin` remote, or git is unavailable.
+ */
+function getRepoRemoteUrl(repoPath: string): string | null {
+  try {
+    const raw = execFileSync('git', ['-C', repoPath, 'remote', 'get-url', 'origin'], {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    return raw ? scrubToken(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns the unique set of plugin names from a marketplace that are currently
+ * installed (active or disabled) in the given skills directory.
+ * Matches by marketplace name or, when repoUrl is supplied, by installedFrom URL.
+ */
+export function getInstalledPluginsForMarketplace(targetDir: string, marketplaceName: string, repoUrl?: string): string[] {
+  const meta = readInstalledMeta(targetDir);
+  const plugins = new Set<string>();
+  for (const records of [meta.skills, meta.disabled ?? {}]) {
+    for (const record of Object.values(records)) {
+      if (record.source === 'marketplace' && record.plugin) {
+        if (record.marketplace === marketplaceName || (repoUrl && record.installedFrom === repoUrl)) {
+          plugins.add(record.plugin);
+        }
+      }
+    }
+  }
+  return [...plugins];
+}
+
+export interface SkillLocation {
+  agent: string;
+  scope: 'project' | 'user' | 'custom';
+  path: string;
+  exists: boolean;
+  totalSkills: number;
+  marketplaceSkills: number;
+  bundledSkills: number;
+  untrackedSkills: number;
+  disabledSkills: number;
+  disabledStashMissing: string[];
+}
+
+/**
+ * Custom install directories previously targeted with `skills install --target`.
+ * Stored as absolute paths; unreadable or non-array values degrade to an empty list rather
+ * than throwing, since a hand-edited global config must never break a read command.
+ */
+export function readCustomTargets(globalConfig: GlobalConfig): string[] {
+  const raw = globalConfig.skillsTargets;
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(raw.filter((t): t is string => typeof t === 'string' && t.length > 0).map(t => path.resolve(t)))];
+}
+
+/**
+ * Appends a custom install directory to the global config so it can be listed back later.
+ * Reads and rewrites the whole config object so unrelated keys (credentials especially) survive
+ * the wholesale overwrite `writeGlobalConfig` performs. No-ops when the path is already known
+ * or matches a built-in agent path.
+ */
+export function rememberCustomTarget(configPath: string, targetDir: string): boolean {
+  const resolved = path.resolve(targetDir);
+  const builtIn = Object.values(AGENT_PATHS).flatMap(a => [path.resolve(a.user), resolveProjectPath(a.project)]);
+  if (builtIn.includes(resolved)) return false;
+  const existing: GlobalConfig = loadJsonFile<GlobalConfig>(configPath) ?? {};
+  const targets = readCustomTargets(existing);
+  if (targets.includes(resolved)) return false;
+  writeGlobalConfig({ ...existing, skillsTargets: [...targets, resolved] }, configPath);
+  return true;
+}
+
+/** Drops a custom install directory from the global config. Returns false when it was not tracked. */
+export function forgetCustomTarget(configPath: string, targetDir: string): boolean {
+  const resolved = path.resolve(targetDir);
+  const existing: GlobalConfig = loadJsonFile<GlobalConfig>(configPath) ?? {};
+  const targets = readCustomTargets(existing);
+  if (!targets.includes(resolved)) return false;
+  writeGlobalConfig({ ...existing, skillsTargets: targets.filter(t => t !== resolved) }, configPath);
+  return true;
+}
+
+/**
+ * Summarizes one skills directory. The three skill buckets are mutually exclusive and sum to
+ * `totalSkills`: every skill on disk is marketplace-installed, bundled, or untracked (dropped
+ * in by hand, or installed before pncli recorded provenance).
+ *
+ * `disabledSkills` counts entries in the metadata's disabled map; `disabledStashMissing` names
+ * the ones whose stashed copy has since been deleted, which `enable` cannot restore.
+ */
+export function summarizeLocation(agent: string, scope: SkillLocation['scope'], targetDir: string): SkillLocation {
+  const resolved = path.resolve(targetDir);
+  const base: SkillLocation = {
+    agent, scope, path: resolved, exists: fs.existsSync(resolved),
+    totalSkills: 0, marketplaceSkills: 0, bundledSkills: 0, untrackedSkills: 0,
+    disabledSkills: 0, disabledStashMissing: [],
+  };
+  if (!base.exists) return base;
+
+  const meta = readInstalledMeta(resolved);
+  for (const skillName of listActiveSkillDirs(resolved)) {
+    base.totalSkills++;
+    const record = resolveSkillRecord(meta, resolved, skillName);
+    if (record?.source === 'marketplace') base.marketplaceSkills++;
+    else if (record?.source === 'bundled') base.bundledSkills++;
+    else base.untrackedSkills++;
+  }
+
+  const disabledNames = Object.keys(meta.disabled ?? {});
+  base.disabledSkills = disabledNames.length;
+  const stashDir = path.join(resolved, DISABLED_SUBDIR);
+  base.disabledStashMissing = disabledNames.filter(name => !fs.existsSync(path.join(stashDir, name)));
+  return base;
+}
+
+/**
+ * Every skills directory pncli knows about: each built-in agent host at both scopes, plus any
+ * custom `--target` directories recorded in the global config. Custom entries that happen to
+ * duplicate a built-in path are dropped so a directory is never summarized twice.
+ */
+export function listKnownLocations(globalConfig: GlobalConfig): SkillLocation[] {
+  const builtIn = Object.entries(AGENT_PATHS).flatMap(([agent, paths]) =>
+    (['project', 'user'] as const).map(scope => summarizeLocation(agent, scope, resolveScopedPath(paths, scope)))
+  );
+  const seen = new Set(builtIn.map(l => l.path));
+  const custom = readCustomTargets(globalConfig)
+    .filter(dir => !seen.has(dir))
+    .map(dir => summarizeLocation('custom', 'custom', dir));
+  return [...builtIn, ...custom];
+}
+
+export interface SkillStatusRecord {
+  skill: string;
+  path: string;
+  agent: string;
+  scope: SkillLocation['scope'];
+  location: string;
+  enabled: boolean;
+  source: 'marketplace' | 'bundled' | 'untracked';
+  plugin: string | null;
+  marketplace: string | null;
+  repoUrl: string | null;
+  localPath: string | null;
+  upstreamRemote: string | null;
+  branch: string | null;
+  installedAt: string | null;
+}
+
+/**
+ * Indexes registered marketplaces by name and by clone URL so a skill can be matched on either.
+ */
+function buildMarketplaceIndex(marketplaces: MarketplaceConfig[]): {
+  byName: Map<string, MarketplaceConfig>;
+  byUrl: Map<string, MarketplaceConfig>;
+} {
+  const byName = new Map<string, MarketplaceConfig>();
+  const byUrl = new Map<string, MarketplaceConfig>();
+  for (const m of marketplaces) {
+    const name = marketplaceLabel(m);
+    if (name) byName.set(name, m);
+    if (m.repoUrl) byUrl.set(m.repoUrl, m);
+  }
+  return { byName, byUrl };
+}
+
+/**
+ * Walks every known location and emits one flat record per installed skill, joining on-disk
+ * provenance to the registered marketplace and its live `origin` remote. This is the view that
+ * answers "where did this skill come from, and what repo backs it?" in a single call.
+ *
+ * Matching prefers the marketplace name recorded at install time and falls back to the recorded
+ * clone URL, so a marketplace renamed since install still resolves. Fields are always present
+ * and null when unknown, giving consumers a stable record shape whatever the provenance.
+ *
+ * Remote lookups are memoized per clone path — shelling out to git once per skill would be
+ * needlessly slow on a directory holding dozens of them.
+ */
+export function collectSkillStatus(globalConfig: GlobalConfig, locations: SkillLocation[]): SkillStatusRecord[] {
+  const { byName, byUrl } = buildMarketplaceIndex(getAllMarketplaces(globalConfig));
+  const remoteCache = new Map<string, string | null>();
+  const remoteFor = (localPath?: string): string | null => {
+    if (!localPath || !fs.existsSync(localPath)) return null;
+    if (!remoteCache.has(localPath)) remoteCache.set(localPath, getRepoRemoteUrl(localPath));
+    return remoteCache.get(localPath) ?? null;
+  };
+
+  const records: SkillStatusRecord[] = [];
+  for (const location of locations) {
+    if (!location.exists) continue;
+    const meta = readInstalledMeta(location.path);
+
+    const push = (skillName: string, record: InstalledSkillRecord | null, enabled: boolean): void => {
+      const recordedName = record?.marketplace ?? null;
+      const registered = (recordedName ? byName.get(recordedName) : undefined)
+        ?? (record?.installedFrom ? byUrl.get(record.installedFrom) : undefined)
+        ?? null;
+      records.push({
+        skill: skillName,
+        path: enabled
+          ? path.join(location.path, skillName)
+          : path.join(location.path, DISABLED_SUBDIR, skillName),
+        agent: location.agent,
+        scope: location.scope,
+        location: location.path,
+        enabled,
+        source: record?.source ?? 'untracked',
+        plugin: record?.plugin ?? null,
+        marketplace: recordedName ?? (registered ? marketplaceLabel(registered) : null),
+        repoUrl: registered?.repoUrl ?? record?.installedFrom ?? null,
+        localPath: registered?.localPath ?? null,
+        upstreamRemote: remoteFor(registered?.localPath),
+        branch: record?.branch ?? null,
+        installedAt: record?.installedAt ?? null,
+      });
+    };
+
+    for (const skillName of listActiveSkillDirs(location.path)) {
+      push(skillName, resolveSkillRecord(meta, location.path, skillName), true);
+    }
+    for (const [skillName, record] of Object.entries(meta.disabled ?? {})) {
+      push(skillName, record, false);
+    }
+  }
+  return records;
 }
 
 /**
@@ -600,8 +898,10 @@ function installAllPlugins(resolvedPath: string, marketplaceName: string, url: s
  * Pulls and installs plugins for one marketplace, honoring an optional plugin name filter
  * ("all" installs every plugin). Used by the "sync every marketplace" flows. Never throws —
  * problems are reported back as a `skipped` result so one bad marketplace doesn't abort the rest.
+ * When `installedOnly` is true and `pluginFilter` is "all", only plugins already installed
+ * from this marketplace are synced instead of every plugin available in the repo.
  */
-function syncMarketplacePlugins(m: MarketplaceConfig, targetDir: string, force: boolean, pluginFilter: string): Record<string, unknown> {
+function syncMarketplacePlugins(m: MarketplaceConfig, targetDir: string, force: boolean, pluginFilter: string, installedOnly = false): Record<string, unknown> {
   const marketplaceName = marketplaceLabel(m);
   try {
     const marketplacePath = m.localPath;
@@ -623,7 +923,17 @@ function syncMarketplacePlugins(m: MarketplaceConfig, targetDir: string, force: 
 
     let pluginNames: string[];
     if (pluginFilter === 'all') {
-      pluginNames = pluginChoices.map(p => p.name);
+      if (installedOnly) {
+        const installed = getInstalledPluginsForMarketplace(targetDir, marketplaceName, m.repoUrl)
+          .filter(name => pluginChoices.some(p => p.name === name));
+        if (installed.length === 0) {
+          warn(`No installed plugins found for "${marketplaceName}" — skipping. Run marketplace sync without --installed-only to install plugins.`);
+          return { marketplace: marketplaceName, skipped: true, installedOnly: true, message: 'No installed plugins found — nothing to sync.' };
+        }
+        pluginNames = installed;
+      } else {
+        pluginNames = pluginChoices.map(p => p.name);
+      }
     } else if (pluginChoices.some(p => p.name === pluginFilter)) {
       pluginNames = [pluginFilter];
     } else {
@@ -732,7 +1042,7 @@ export function registerSkillsCommands(program: Command): void {
   skills
     .command('install')
     .description('Install pncli skills into the current repo')
-    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code', 'github-copilot')
+    .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES}`, DEFAULT_AGENT)
     .option('--scope <scope>', 'Installation scope: project | user', 'project')
     .option('--target <dir>', 'Override install directory (ignores --agent and --scope)')
 
@@ -744,8 +1054,7 @@ export function registerSkillsCommands(program: Command): void {
           targetDir = path.resolve(opts.target);
         } else {
           const agentConfig = resolveAgentPaths(opts.agent);
-          const scopePath = opts.scope === 'user' ? agentConfig.user : agentConfig.project;
-          targetDir = path.resolve(scopePath);
+          targetDir = resolveScopedPath(agentConfig, opts.scope === 'user' ? 'user' : 'project');
         }
 
         const resolvedTarget = path.resolve(targetDir);
@@ -806,6 +1115,17 @@ export function registerSkillsCommands(program: Command): void {
 
         recordInstalledSkills(targetDir, installed, { source: 'bundled' });
 
+        // Remember custom targets so `skills locations` / `skills status` can report installs
+        // that live outside the built-in agent paths. Failing to record must not fail the install.
+        let tracked = false;
+        if (opts.target && installed.length > 0) {
+          try {
+            tracked = rememberCustomTarget(getGlobalConfigPath(), targetDir);
+          } catch {
+            warn(`Installed to ${targetDir}, but could not record it in the global config; it will not appear in "skills locations".`);
+          }
+        }
+
         success({
           installed,
           failed,
@@ -814,6 +1134,7 @@ export function registerSkillsCommands(program: Command): void {
           agent: opts.target ? 'custom' : opts.agent,
           scope: opts.target ? 'custom' : opts.scope,
           source: 'bundled',
+          ...(opts.target ? { trackedAsCustomTarget: tracked } : {}),
         }, 'skills', 'install', start);
       } catch (err) {
         fail(err, 'skills', 'install', start);
@@ -823,7 +1144,7 @@ export function registerSkillsCommands(program: Command): void {
   skills
     .command('list')
     .description('List locally installed skills')
-    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code', 'github-copilot')
+    .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES}`, DEFAULT_AGENT)
     .option('--scope <scope>', 'Installation scope: project | user', 'project')
     .option('--target <dir>', 'Override skills directory to scan')
     .action((opts: { agent: string; scope: string; target?: string }) => {
@@ -834,8 +1155,7 @@ export function registerSkillsCommands(program: Command): void {
           targetDir = path.resolve(opts.target);
         } else {
           const agentConfig = resolveAgentPaths(opts.agent);
-          const scopePath = opts.scope === 'user' ? agentConfig.user : agentConfig.project;
-          targetDir = path.resolve(scopePath);
+          targetDir = resolveScopedPath(agentConfig, opts.scope === 'user' ? 'user' : 'project');
         }
 
         if (!fs.existsSync(targetDir)) {
@@ -894,7 +1214,7 @@ export function registerSkillsCommands(program: Command): void {
     .command('uninstall')
     .description('Uninstall a skill (defaults to user scope, matching the marketplace install target; pass --scope project for skills installed via `skills install`)')
     .argument('<name>', 'Skill name to uninstall (the directory name under your skills folder)')
-    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code', 'github-copilot')
+    .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES}`, DEFAULT_AGENT)
     .option('--scope <scope>', 'Installation scope to uninstall from: project | user', 'user')
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--target <dir>', 'Override skills directory')
@@ -906,8 +1226,7 @@ export function registerSkillsCommands(program: Command): void {
           targetDir = path.resolve(opts.target);
         } else {
           const agentConfig = resolveAgentPaths(resolveAgentName(opts));
-          const scopePath = opts.scope === 'project' ? agentConfig.project : agentConfig.user;
-          targetDir = path.resolve(scopePath);
+          targetDir = resolveScopedPath(agentConfig, opts.scope === 'project' ? 'project' : 'user');
         }
 
         const resolvedTarget = path.resolve(targetDir);
@@ -939,6 +1258,102 @@ export function registerSkillsCommands(program: Command): void {
       }
     });
 
+  skills
+    .command('locations')
+    .description('List every skills install path pncli knows about, with per-directory skill counts')
+    .action(() => {
+      const start = Date.now();
+      try {
+        const globalConfig: GlobalConfig = loadJsonFile<GlobalConfig>(getGlobalConfigPath()) ?? {};
+        const locations = listKnownLocations(globalConfig);
+        const gitRoot = findGitRoot();
+        success({
+          locations,
+          activeLocations: locations.filter(l => l.exists).length,
+          totalSkills: locations.reduce((sum, l) => sum + l.totalSkills, 0),
+          defaultAgent: DEFAULT_AGENT,
+          projectRoot: gitRoot,
+        }, 'skills', 'locations', start);
+      } catch (err) {
+        fail(err, 'skills', 'locations', start);
+      }
+    });
+
+  skills
+    .command('status')
+    .description('Show every installed skill with its plugin, marketplace, and upstream remote')
+    .option('--marketplace <name>', 'Only show skills installed from this marketplace (name or clone URL)')
+    .option('--plugin <name>', 'Only show skills belonging to this plugin')
+    .option('--source <source>', 'Filter by provenance: marketplace | bundled | untracked')
+    .option('--agent <agent>', `Only show locations for this agent host: ${AGENT_CHOICES}`)
+    .option('--scope <scope>', 'Only show this scope: project | user | custom')
+    .action((opts: { marketplace?: string; plugin?: string; source?: string; agent?: string; scope?: string }) => {
+      const start = Date.now();
+      try {
+        if (opts.agent && !AGENT_PATHS[opts.agent]) {
+          throw new Error(`Unknown agent: "${opts.agent}". Use: ${AGENT_CHOICES}`);
+        }
+        if (opts.source && !['marketplace', 'bundled', 'untracked'].includes(opts.source)) {
+          throw new Error(`Unknown source: "${opts.source}". Use: marketplace | bundled | untracked`);
+        }
+        if (opts.scope && !['project', 'user', 'custom'].includes(opts.scope)) {
+          throw new Error(`Unknown scope: "${opts.scope}". Use: project | user | custom`);
+        }
+
+        const globalConfig: GlobalConfig = loadJsonFile<GlobalConfig>(getGlobalConfigPath()) ?? {};
+        const locations = listKnownLocations(globalConfig)
+          .filter(l => !opts.agent || l.agent === opts.agent)
+          .filter(l => !opts.scope || l.scope === opts.scope);
+
+        const skillRecords = collectSkillStatus(globalConfig, locations)
+          .filter(r => !opts.plugin || r.plugin === opts.plugin)
+          .filter(r => !opts.source || r.source === opts.source)
+          .filter(r => !opts.marketplace || r.marketplace === opts.marketplace || r.repoUrl === opts.marketplace)
+          .sort((a, b) => a.location.localeCompare(b.location) || a.skill.localeCompare(b.skill));
+
+        const byMarketplace: Record<string, number> = {};
+        for (const record of skillRecords) {
+          const key = record.marketplace ?? '(none)';
+          byMarketplace[key] = (byMarketplace[key] ?? 0) + 1;
+        }
+
+        success({
+          skills: skillRecords,
+          total: skillRecords.length,
+          enabled: skillRecords.filter(r => r.enabled).length,
+          disabled: skillRecords.filter(r => !r.enabled).length,
+          untracked: skillRecords.filter(r => r.source === 'untracked').length,
+          byMarketplace,
+          locations,
+        }, 'skills', 'status', start);
+      } catch (err) {
+        fail(err, 'skills', 'status', start);
+      }
+    });
+
+  skills
+    .command('forget-target')
+    .description('Stop tracking a custom --target directory in skills locations / status (does not delete any files)')
+    .argument('<dir>', 'The custom install directory to forget')
+    .action((dir: string) => {
+      const start = Date.now();
+      try {
+        const configPath = getGlobalConfigPath();
+        const resolved = path.resolve(dir);
+        const forgotten = forgetCustomTarget(configPath, resolved);
+        if (!forgotten) {
+          warn(`${resolved} is not a tracked custom target — nothing to forget.`);
+        }
+        success({
+          target: resolved,
+          forgotten,
+          remaining: readCustomTargets(loadJsonFile<GlobalConfig>(configPath) ?? {}),
+        }, 'skills', 'forget-target', start);
+      } catch (err) {
+        fail(err, 'skills', 'forget-target', start);
+      }
+    });
+
   const marketplace = skills.command('marketplace').description('Manage git-hosted skills marketplaces');
 
   function withMarketplaceAddOptions(cmd: Command): Command {
@@ -948,7 +1363,7 @@ export function registerSkillsCommands(program: Command): void {
       .option('--name <name>', 'Human-readable name for this marketplace (default: derived from URL)')
       .option('--branch <branch>', 'Branch to clone (default: remote HEAD)')
       .option('--token <token>', 'HTTP access token for authenticated clone and pull (GitHub PAT or Bitbucket token)')
-      .option('--agent <agent>', 'Target agent host for plugin install: github-copilot | claude-code (default: github-copilot)')
+      .option('--agent <agent>', `Target agent host for plugin install: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
       .option('--claude', 'Shorthand for --agent claude-code');
   }
 
@@ -976,6 +1391,9 @@ export function registerSkillsCommands(program: Command): void {
             repoUrl: m.repoUrl,
             localPath: m.localPath,
             tokenConfigured: !!m.token,
+            upstreamRemote: m.localPath && fs.existsSync(m.localPath)
+              ? getRepoRemoteUrl(m.localPath)
+              : null,
           })),
           total: all.length,
         }, 'skills', 'marketplace-list', start);
@@ -1030,10 +1448,11 @@ export function registerSkillsCommands(program: Command): void {
     .description('Pull latest marketplace content and install plugin skills (interactive picker when no plugin is given)')
     .argument('[plugin]', 'Plugin name to install, or "all" to install every plugin (skips interactive selection)')
     .option('--marketplace <name>', 'Marketplace name to sync, or "all" to sync every registered marketplace (skips interactive selection)')
-    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
+    .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--force', 'Reinstall even if a marketplace has no new changes (applies to single-plugin and "all" installs alike)')
-    .action(async (plugin: string | undefined, opts: { marketplace?: string; agent?: string; claude?: boolean; force?: boolean }) => {
+    .option('--installed-only', 'Only sync plugins that are already installed — skip plugins newly added to the marketplace')
+    .action(async (plugin: string | undefined, opts: { marketplace?: string; agent?: string; claude?: boolean; force?: boolean; installedOnly?: boolean }) => {
       const start = Date.now();
       try {
         const configPath = getGlobalConfigPath();
@@ -1044,10 +1463,11 @@ export function registerSkillsCommands(program: Command): void {
 
         const targetDir = resolveAgentPaths(resolveAgentName(opts)).user;
         const force = opts.force ?? false;
+        const installedOnly = opts.installedOnly ?? false;
 
         // Non-interactive "sync everything" — explicit flag.
         if (opts.marketplace === 'all') {
-          const results = allMarketplaces.map(m => syncMarketplacePlugins(m, targetDir, force, plugin ?? 'all'));
+          const results = allMarketplaces.map(m => syncMarketplacePlugins(m, targetDir, force, plugin ?? 'all', installedOnly));
           success({ allMarketplaces: true, marketplaces: results, target: targetDir }, 'skills', 'marketplace-sync', start);
           return;
         }
@@ -1079,7 +1499,7 @@ export function registerSkillsCommands(program: Command): void {
               ],
             });
             if (chosen === ALL_MARKETPLACES) {
-              const results = allMarketplaces.map(m => syncMarketplacePlugins(m, targetDir, force, selectedPlugin ?? 'all'));
+              const results = allMarketplaces.map(m => syncMarketplacePlugins(m, targetDir, force, selectedPlugin ?? 'all', installedOnly));
               success({ allMarketplaces: true, marketplaces: results, target: targetDir }, 'skills', 'marketplace-sync', start);
               return;
             }
@@ -1132,11 +1552,31 @@ export function registerSkillsCommands(program: Command): void {
             return;
           }
 
-          const pluginNames = selectedPlugin === 'all' ? pluginChoices.map(p => p.name) : [selectedPlugin];
+          let pluginNames: string[];
+          if (selectedPlugin === 'all') {
+            if (installedOnly) {
+              const installed = getInstalledPluginsForMarketplace(targetDir, marketplaceName, selectedMarketplace.repoUrl)
+                .filter(name => pluginChoices.some(p => p.name === name));
+              if (installed.length === 0) {
+                success({
+                  marketplace: marketplaceName,
+                  skipped: true,
+                  installedOnly: true,
+                  message: `No installed plugins found for "${marketplaceName}" — run marketplace sync without --installed-only to install plugins.`,
+                }, 'skills', 'marketplace-sync', start);
+                return;
+              }
+              pluginNames = installed;
+            } else {
+              pluginNames = pluginChoices.map(p => p.name);
+            }
+          } else {
+            pluginNames = [selectedPlugin];
+          }
           const { results, totalInstalled } = installPluginsForMarketplace(marketplacePath, marketplaceName, selectedMarketplace.repoUrl, pluginNames, targetDir);
 
           if (selectedPlugin === 'all') {
-            success({ marketplace: marketplaceName, plugins: results, total: totalInstalled, target: targetDir, marketplaceUpdated: updated }, 'skills', 'marketplace-sync', start);
+            success({ marketplace: marketplaceName, plugins: results, total: totalInstalled, target: targetDir, marketplaceUpdated: updated, ...(installedOnly ? { installedOnly: true } : {}) }, 'skills', 'marketplace-sync', start);
           } else {
             const single = results[selectedPlugin] ?? { installed: [], failed: [] };
             success({
@@ -1161,7 +1601,7 @@ export function registerSkillsCommands(program: Command): void {
     .description('Remove all skills installed from a specific plugin (or all plugins in a marketplace)')
     .argument('<plugin>', 'Plugin name to purge, or "all" to remove every skill from the marketplace')
     .option('--marketplace <name>', 'Restrict purge to skills from this marketplace (by name or repo URL)')
-    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
+    .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--scope <scope>', 'Installation scope: project | user (default: user)')
     .option('--target <dir>', 'Override skills directory')
@@ -1173,8 +1613,7 @@ export function registerSkillsCommands(program: Command): void {
           targetDir = path.resolve(opts.target);
         } else {
           const agentConfig = resolveAgentPaths(resolveAgentName(opts));
-          const scopePath = (opts.scope ?? 'user') === 'project' ? agentConfig.project : agentConfig.user;
-          targetDir = path.resolve(scopePath);
+          targetDir = resolveScopedPath(agentConfig, opts.scope ?? 'user');
         }
         const resolvedTarget = path.resolve(targetDir);
 
@@ -1255,7 +1694,7 @@ export function registerSkillsCommands(program: Command): void {
     .description('Temporarily deactivate a plugin\'s skills without deleting them (re-enable with `marketplace enable`)')
     .argument('<plugin>', 'Plugin name to disable')
     .option('--marketplace <name>', 'Restrict to skills from this marketplace (by name or repo URL)')
-    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
+    .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--scope <scope>', 'Installation scope: project | user (default: user)')
     .option('--target <dir>', 'Override skills directory')
@@ -1289,7 +1728,7 @@ export function registerSkillsCommands(program: Command): void {
     .description('Re-activate a previously disabled plugin\'s skills')
     .argument('<plugin>', 'Plugin name to enable')
     .option('--marketplace <name>', 'Restrict to skills from this marketplace (by name or repo URL)')
-    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
+    .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--scope <scope>', 'Installation scope: project | user (default: user)')
     .option('--target <dir>', 'Override skills directory')
@@ -1328,7 +1767,7 @@ export function registerSkillsCommands(program: Command): void {
   marketplace
     .command('manage')
     .description('Manage marketplaces and plugins: toggle plugins on/off, add or remove marketplaces (interactive)')
-    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
+    .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--scope <scope>', 'Installation scope: project | user (default: user)')
     .option('--target <dir>', 'Override skills directory')
@@ -1456,7 +1895,7 @@ export function registerSkillsCommands(program: Command): void {
   skills
     .command('purge-user')
     .description('Remove all skills from the user-level skills folder for the target agent')
-    .option('--agent <agent>', 'Target agent host: github-copilot | claude-code (default: github-copilot)')
+    .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--force', 'Skip confirmation — remove all skills without prompting')
     .action((opts: { agent?: string; claude?: boolean; force?: boolean }) => {

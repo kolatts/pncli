@@ -123,7 +123,7 @@ Services:
   splitio      Split.IO (feature flags, Change Requests)
   figma        Figma (files, comments, version history)
   config       Manage pncli configuration
-  skills       Download and manage Claude Code skills
+  skills       Install and manage agent skills (Codex, GitHub Copilot, Claude Code)
   jwt          JWT token utilities (decode header and payload)
 `);
 
