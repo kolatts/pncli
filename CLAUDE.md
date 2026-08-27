@@ -209,6 +209,32 @@ Do not use `example.com`, `company.com`, `mycompany.com`, `your-company.com`, or
 
 Use Conventional Commits: `fix:` (patch), `feat:` (minor), `feat!:` (breaking/major).
 
+## Releasing
+
+`.github/workflows/release-please.yml` versions from Conventional Commits, tags,
+creates the GitHub release, and publishes to npm. Normal releases need no
+intervention.
+
+**When a release is tagged but never reaches npm**, the cause is almost always
+`NPM_TOKEN`. npm returns `E404 - '<pkg>@<version>' is not in this registry` for a
+scoped package when the credential cannot write to it, which reads like the
+package was deleted but means the token is expired or under-scoped. Granular npm
+tokens expire (90 days max), so this recurs — the `Verify npm credentials` step
+fails fast and names the token when it happens.
+
+To publish a tag that was missed, dispatch the workflow with the `ref` input:
+
+```bash
+gh workflow run release-please.yml --repo kolatts/pncli -f ref=v1.26.0
+```
+
+Publishing is idempotent — a version already on npm is skipped. The dist-tag is
+resolved at publish time: anything older than npm's current `latest` publishes
+under a major-line tag (`major-1`) rather than moving `latest` backwards. That
+tag deliberately is not named `v1` — npm refuses any dist-tag that parses as a
+semver range, and `v1` means `>=1.0.0 <2.0.0-0`. Backfill oldest-first so
+`latest` lands on the newest version.
+
 ## GitHub Pages Site
 
 The site lives in `site/` and is built with Astro 6 + Tailwind v4. The changelog, docs, and command reference are auto-generated from source files via prebuild scripts in `site/scripts/`.
