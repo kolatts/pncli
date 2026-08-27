@@ -45,6 +45,7 @@ export const integrations: Integration[] = [
   { slug: 'dynatrace',   name: 'Dynatrace',      description: 'Problems, entities, traces',     active: true, testing: 'basic'    },
   { slug: 'logscale',    name: 'LogScale',       description: 'Log queries, repositories',      active: true, testing: 'untested' },
   { slug: 'figma',       name: 'Figma',          description: 'Design files, comments, history', active: true, testing: 'untested' },
+  { slug: 'splitio',     name: 'Split.IO',       description: 'Feature flags, change requests', active: true, testing: 'untested' },
   { slug: 'deps',        name: 'Dependencies',   description: 'CVE detection, license audit',   active: true, testing: 'basic'    },
 ];
 

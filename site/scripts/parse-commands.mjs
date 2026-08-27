@@ -50,6 +50,7 @@ const SERVICES = [
   { name: 'OpenShift / Kubernetes',      file: 'src/services/openshift/commands.ts',      prefix: 'openshift' },
   { name: 'Dynatrace',                   file: 'src/services/dynatrace/commands.ts',      prefix: 'dynatrace' },
   { name: 'LogScale',                    file: 'src/services/logscale/commands.ts',       prefix: 'logscale' },
+  { name: 'Split.IO',                    file: 'src/services/splitio/commands.ts',        prefix: 'splitio' },
   { name: 'Figma',                       file: 'src/services/figma/commands.ts',          prefix: 'figma' },
   { name: 'Skills',                      file: 'src/services/skills/commands.ts',         prefix: 'skills' },
   { name: 'JWT',                         file: 'src/services/jwt/commands.ts',            prefix: 'jwt' },
@@ -74,11 +75,17 @@ function scrubDescription(text) {
   return text;
 }
 
-// Escape raw angle brackets in prose (e.g. a description that mentions a
-// placeholder like "<from>") so the MDX/JSX parser doesn't mistake them for
-// an unclosed tag and fail the whole site build.
-function escapeAngleBrackets(text) {
-  return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// Escape raw angle brackets and curly braces in prose so the MDX/JSX parser
+// doesn't mistake them for markup and fail the whole site build. A description
+// mentioning a placeholder like "<from>" reads as an unclosed tag, and one
+// mentioning a shape like "{treatment, size}" reads as a JSX expression that
+// blows up at render time with "treatment is not defined".
+function escapeMdxChars(text) {
+  return text
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\{/g, '&#123;')
+    .replace(/\}/g, '&#125;');
 }
 
 function codeifyFlags(text) {
@@ -86,7 +93,7 @@ function codeifyFlags(text) {
     .split(/(`[^`]*`)/)
     .map((part, i) => {
       if (i % 2 === 1) return part; // already an inline code span
-      return escapeAngleBrackets(part).replace(/(^|[\s(,"'/])(--?[a-zA-Z][\w-]*)/g, '$1`$2`');
+      return escapeMdxChars(part).replace(/(^|[\s(,"'/])(--?[a-zA-Z][\w-]*)/g, '$1`$2`');
     })
     .join('');
 }
