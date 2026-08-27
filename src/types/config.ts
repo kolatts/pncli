@@ -210,6 +210,12 @@ export interface GlobalConfig {
   figma?: FigmaConfig;
   marketplace?: MarketplaceConfig;
   marketplaces?: MarketplaceConfig[];
+  /**
+   * Custom skills install directories the user has targeted with `skills install --target`.
+   * Recorded so `skills locations` / `skills status` can report installs that live outside
+   * the built-in agent paths. Managed by `skills install` and `skills forget-target`.
+   */
+  skillsTargets?: string[];
   defaults?: Defaults;
 }
 

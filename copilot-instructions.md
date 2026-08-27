@@ -290,6 +290,15 @@ pncli bitbucket create-pr
   ~username for personal repos)
   --repo <slug>         Bitbucket repository slug (overrides parent --repo)
 
+pncli bitbucket create-prs
+  --from <branch>       Source branch
+  --to <branch>         Target branch
+  --repos <slugs>       Comma-separated repository slugs
+  --title <title>       PR title (defaults to "Promote <from> to <to>")
+  --description <desc>  PR description
+  --reviewers <users>   Comma-separated reviewer usernames
+  --project <key>       Bitbucket project key (overrides parent --project)
+
 pncli bitbucket update-pr
   --id <pr-id>          Pull request ID
   --title <title>       New title
@@ -416,6 +425,21 @@ pncli github merge-pr
   --commit-title <title>  Commit title for merge/squash
   --commit-message <msg>  Commit message for merge/squash
 
+pncli github enable-auto-merge
+  --number <n>               Pull request number
+  --method <method>          Merge method (choices: "merge", "squash", "rebase")
+  --match-head-commit <sha>  Only enable if the PR head matches this SHA
+  (prevents race conditions)
+
+pncli github disable-auto-merge
+  --number <n>  Pull request number
+
+pncli github enqueue-pr
+  --number <n>               Pull request number
+  --method <method>          Merge method (choices: "merge", "squash", "rebase")
+  --match-head-commit <sha>  Only enqueue if the PR head matches this SHA
+  (prevents race conditions)
+
 pncli github close-pr
   --number <n>  Pull request number
 
@@ -468,11 +492,56 @@ pncli github request-changes
 pncli github list-reviewers
   --number <n>  Pull request number
 
+pncli github list-review-threads
+  --number <n>  Pull request number
+
+pncli github resolve-thread
+  --thread-id <id>  GraphQL node ID of the review thread (e.g. PRT_kwDO...)
+
 pncli github get-status
   --ref <ref>  Git ref (branch, tag, or commit SHA)
 
 pncli github list-checks
   --ref <ref>  Git ref (branch, tag, or commit SHA)
+
+pncli github pr-status
+  --number <n>  Pull request number
+
+pncli github convert-to-draft
+  --number <n>  Pull request number
+
+pncli github ready-for-review
+  --number <n>  Pull request number
+
+pncli github reopen-pr
+  --number <n>  Pull request number
+
+pncli github add-labels
+  --number <n>     PR or issue number
+  --label <label>  Label to add (repeatable) (default: [])
+
+pncli github remove-label
+  --number <n>     PR or issue number
+  --label <label>  Label name to remove
+
+pncli github add-reviewers
+  --number <n>            Pull request number
+  --reviewer <login>      User reviewer login (repeatable) (default: [])
+  --team-reviewer <slug>  Team slug to request (repeatable) (default: [])
+
+pncli github remove-reviewers
+  --number <n>            Pull request number
+  --reviewer <login>      User reviewer login to remove (repeatable) (default:
+  [])
+  --team-reviewer <slug>  Team slug to remove (repeatable) (default: [])
+
+pncli github add-assignees
+  --number <n>        PR or issue number
+  --assignee <login>  Assignee login (repeatable) (default: [])
+
+pncli github remove-assignees
+  --number <n>        PR or issue number
+  --assignee <login>  Assignee login to remove (repeatable) (default: [])
 ```
 
 ### Confluence
@@ -1032,6 +1101,19 @@ pncli jenkins pipeline get-run
 pncli jenkins pipeline logs
   --name <job>  Job name (use folder/job for folder-scoped jobs)
   --number <n>  Build number
+
+pncli jenkins instance list
+
+pncli jenkins instance add
+  --name <name>        Instance name used with --instance
+  --base-url <url>     Jenkins base URL (e.g. jenkins.imagile.dev)
+  --username <user>    Jenkins username
+  --api-token <token>  Jenkins API token (prompted for when omitted on an
+  interactive terminal, keeping it out of shell history)
+  --force              Overwrite an instance that already uses this name
+
+pncli jenkins instance remove
+  --name <name>  Instance name to remove
 ```
 
 ### Artifactory
@@ -1167,24 +1249,37 @@ pncli sonatypeiq policies list
 
 ```
 pncli skills install
-  --agent <agent>  Target agent host: github-copilot | claude-code (default:
-  "github-copilot")
+  --agent <agent>  Target agent host: codex | github-copilot | claude-code
+  (default: "codex")
   --scope <scope>  Installation scope: project | user (default: "project")
   --target <dir>   Override install directory (ignores --agent and --scope)
 
 pncli skills list
-  --agent <agent>  Target agent host: github-copilot | claude-code (default:
-  "github-copilot")
+  --agent <agent>  Target agent host: codex | github-copilot | claude-code
+  (default: "codex")
   --scope <scope>  Installation scope: project | user (default: "project")
   --target <dir>   Override skills directory to scan
 
 pncli skills uninstall
-  --agent <agent>  Target agent host: github-copilot | claude-code (default:
-  "github-copilot")
+  --agent <agent>  Target agent host: codex | github-copilot | claude-code
+  (default: "codex")
   --scope <scope>  Installation scope to uninstall from: project | user
   (default: "user")
   --claude         Shorthand for --agent claude-code
   --target <dir>   Override skills directory
+
+pncli skills locations
+
+pncli skills status
+  --marketplace <name>  Only show skills installed from this marketplace (name
+  or clone URL)
+  --plugin <name>       Only show skills belonging to this plugin
+  --source <source>     Filter by provenance: marketplace | bundled | untracked
+  --agent <agent>       Only show locations for this agent host: codex |
+  github-copilot | claude-code
+  --scope <scope>       Only show this scope: project | user | custom
+
+pncli skills forget-target
 
 pncli skills marketplace add
   --name <name>      Human-readable name for this marketplace (default: derived
@@ -1192,8 +1287,8 @@ pncli skills marketplace add
   --branch <branch>  Branch to clone (default: remote HEAD)
   --token <token>    HTTP access token for authenticated clone and pull (GitHub
   PAT or Bitbucket token)
-  --agent <agent>    Target agent host for plugin install: github-copilot |
-  claude-code (default: github-copilot)
+  --agent <agent>    Target agent host for plugin install: codex |
+  github-copilot | claude-code (default: codex)
   --claude           Shorthand for --agent claude-code
 
 pncli skills marketplace setup
@@ -1202,8 +1297,8 @@ pncli skills marketplace setup
   --branch <branch>  Branch to clone (default: remote HEAD)
   --token <token>    HTTP access token for authenticated clone and pull (GitHub
   PAT or Bitbucket token)
-  --agent <agent>    Target agent host for plugin install: github-copilot |
-  claude-code (default: github-copilot)
+  --agent <agent>    Target agent host for plugin install: codex |
+  github-copilot | claude-code (default: codex)
   --claude           Shorthand for --agent claude-code
 
 pncli skills marketplace list
@@ -1215,17 +1310,19 @@ pncli skills marketplace remove
 pncli skills marketplace sync
   --marketplace <name>  Marketplace name to sync, or "all" to sync every
   registered marketplace (skips interactive selection)
-  --agent <agent>       Target agent host: github-copilot | claude-code
-  (default: github-copilot)
+  --agent <agent>       Target agent host: codex | github-copilot | claude-code
+  (default: codex)
   --claude              Shorthand for --agent claude-code
   --force               Reinstall even if a marketplace has no new changes
   (applies to single-plugin and "all" installs alike)
+  --installed-only      Only sync plugins that are already installed — skip
+  plugins newly added to the marketplace
 
 pncli skills marketplace purge-plugin
   --marketplace <name>  Restrict purge to skills from this marketplace (by name
   or repo URL)
-  --agent <agent>       Target agent host: github-copilot | claude-code
-  (default: github-copilot)
+  --agent <agent>       Target agent host: codex | github-copilot | claude-code
+  (default: codex)
   --claude              Shorthand for --agent claude-code
   --scope <scope>       Installation scope: project | user (default: user)
   --target <dir>        Override skills directory
@@ -1233,8 +1330,8 @@ pncli skills marketplace purge-plugin
 pncli skills marketplace disable
   --marketplace <name>  Restrict to skills from this marketplace (by name or
   repo URL)
-  --agent <agent>       Target agent host: github-copilot | claude-code
-  (default: github-copilot)
+  --agent <agent>       Target agent host: codex | github-copilot | claude-code
+  (default: codex)
   --claude              Shorthand for --agent claude-code
   --scope <scope>       Installation scope: project | user (default: user)
   --target <dir>        Override skills directory
@@ -1242,22 +1339,22 @@ pncli skills marketplace disable
 pncli skills marketplace enable
   --marketplace <name>  Restrict to skills from this marketplace (by name or
   repo URL)
-  --agent <agent>       Target agent host: github-copilot | claude-code
-  (default: github-copilot)
+  --agent <agent>       Target agent host: codex | github-copilot | claude-code
+  (default: codex)
   --claude              Shorthand for --agent claude-code
   --scope <scope>       Installation scope: project | user (default: user)
   --target <dir>        Override skills directory
 
 pncli skills marketplace manage
-  --agent <agent>  Target agent host: github-copilot | claude-code (default:
-  github-copilot)
+  --agent <agent>  Target agent host: codex | github-copilot | claude-code
+  (default: codex)
   --claude         Shorthand for --agent claude-code
   --scope <scope>  Installation scope: project | user (default: user)
   --target <dir>   Override skills directory
 
 pncli skills purge-user
-  --agent <agent>  Target agent host: github-copilot | claude-code (default:
-  github-copilot)
+  --agent <agent>  Target agent host: codex | github-copilot | claude-code
+  (default: codex)
   --claude         Shorthand for --agent claude-code
   --force          Skip confirmation — remove all skills without prompting
 ```
@@ -1274,6 +1371,10 @@ pncli jwt decode
 pncli openshift pods
   --namespace <ns>             Kubernetes namespace
   --label-selector <selector>  Label selector (e.g. app=my-app)
+  --raw                        Return full Kubernetes pod objects without
+  summarization (includes env vars, images, node
+  name, annotations, resources, etc.) (default:
+  false)
 
 pncli openshift events
   --namespace <ns>             Kubernetes namespace
@@ -1292,6 +1393,12 @@ pncli openshift logs
 
 pncli openshift pod-metrics
   --namespace <ns>  Kubernetes namespace
+
+pncli openshift resource-usage
+  --namespace <ns>             Kubernetes namespace
+  --label-selector <selector>  Label selector (e.g. app=my-app)
+  --csv                        Output as CSV instead of JSON (suitable for
+  Excel) (default: false)
 ```
 
 ### Dynatrace
@@ -1329,6 +1436,167 @@ pncli dynatrace problems get
 
 pncli dynatrace trace
   --id <trace-id>  16- or 32-character hexadecimal trace ID
+```
+
+### Logscale
+
+```
+pncli logscale repositories list
+
+pncli logscale query
+  --repository <name>  Repository name to query
+  --query <lql>        LogScale Query Language expression (e.g. "error" or
+  "level=error | count()")
+  --start <time>       Start time (ISO 8601 or relative such as 1h or 24h)
+  (default: "1h")
+  --end <time>         End time (ISO 8601 or relative) (default: "now")
+  --limit <n>          Maximum number of events to return (default: "200")
+  --timeout-ms <ms>    Client-side HTTP timeout in milliseconds (default:
+  "30000")
+```
+
+### Splitio
+
+```
+pncli splitio workspaces list
+
+pncli splitio environments list
+  --workspace <id>  Workspace ID
+
+pncli splitio flags list
+  --workspace <id>   Workspace ID
+  --limit <n>        Maximum number of flags to return (default: "50")
+  --offset <n>       Pagination offset (default: "0")
+  --flag-set <name>  Filter by flag set name
+
+pncli splitio flags get
+  --workspace <id>    Workspace ID
+  --flag <name>       Feature flag name
+  --environment <id>  Environment ID — include targeting rules for this
+  environment
+
+pncli splitio flags update
+  --workspace <id>       Workspace ID
+  --flag <name>          Feature flag name
+  --environment <id>     Environment ID
+  --mnemonic <text>      Short Change Request title (mnemonic)
+  --description <text>   Change Request description
+  --change-number <CHG>  ServiceNow change request number (e.g. CHG0001234)
+  --approvers <ids>      Comma-separated Split user IDs required to approve this
+  CR
+  --input-file <path>    JSON file with the complete flag definition body (use -
+  for stdin)
+  --yes                  Skip interactive confirmation prompt
+
+pncli splitio flags set-rule
+  --workspace <id>       Workspace ID
+  --flag <name>          Feature flag name
+  --environment <id>     Environment ID
+  --rule-index <n>       Zero-based index of the targeting rule to update
+  --treatment <name>     Treatment to assign to the entire rule bucket
+  --weights <json>       JSON array of {treatment, size} objects for weighted
+  distribution
+  --mnemonic <text>      Short Change Request title (mnemonic)
+  --description <text>   Change Request description
+  --change-number <CHG>  ServiceNow change request number (e.g. CHG0001234)
+  --approvers <ids>      Comma-separated Split user IDs required to approve this
+  CR
+  --yes                  Skip interactive confirmation prompt
+
+pncli splitio flags set-default
+  --workspace <id>       Workspace ID
+  --flag <name>          Feature flag name
+  --environment <id>     Environment ID
+  --treatment <name>     Treatment to assign as the default
+  --mnemonic <text>      Short Change Request title (mnemonic)
+  --description <text>   Change Request description
+  --change-number <CHG>  ServiceNow change request number (e.g. CHG0001234)
+  --approvers <ids>      Comma-separated Split user IDs required to approve this
+  CR
+  --yes                  Skip interactive confirmation prompt
+
+pncli splitio flags toggle
+  --workspace <id>       Workspace ID
+  --flag <name>          Feature flag name
+  --environment <id>     Environment ID
+  --enabled <bool>       true to restore / false to kill the flag
+  --mnemonic <text>      Short Change Request title (mnemonic)
+  --description <text>   Change Request description
+  --change-number <CHG>  ServiceNow change request number (e.g. CHG0001234)
+  --approvers <ids>      Comma-separated Split user IDs required to approve this
+  CR
+  --yes                  Skip interactive confirmation prompt
+
+pncli splitio flags batch-toggle
+  --workspace <id>       Workspace ID
+  --environment <id>     Environment ID
+  --mnemonic <text>      Short Change Request title prefix (mnemonic)
+  --description <text>   Change Request description
+  --change-number <CHG>  ServiceNow change request number (e.g. CHG0001234)
+  --approvers <ids>      Comma-separated Split user IDs required to approve each
+  CR
+  --input-file <path>    JSON file: array of {flag, enabled} objects (use - for
+  stdin)
+  --yes                  Skip interactive confirmation prompt
+
+pncli splitio flags kill
+  --workspace <id>       Workspace ID
+  --flag <name>          Feature flag name
+  --environment <id>     Environment ID
+  --mnemonic <text>      Short Change Request title (mnemonic)
+  --description <text>   Change Request description
+  --change-number <CHG>  ServiceNow change request number (e.g. CHG0001234)
+  --approvers <ids>      Comma-separated Split user IDs required to approve this
+  CR
+  --yes                  Skip interactive confirmation prompt
+
+pncli splitio flags restore
+  --workspace <id>       Workspace ID
+  --flag <name>          Feature flag name
+  --environment <id>     Environment ID
+  --mnemonic <text>      Short Change Request title (mnemonic)
+  --description <text>   Change Request description
+  --change-number <CHG>  ServiceNow change request number (e.g. CHG0001234)
+  --approvers <ids>      Comma-separated Split user IDs required to approve this
+  CR
+  --yes                  Skip interactive confirmation prompt
+
+pncli splitio flags archive
+  --workspace <id>       Workspace ID
+  --flag <name>          Feature flag name
+  --mnemonic <text>      Short Change Request title (mnemonic)
+  --description <text>   Change Request description
+  --change-number <CHG>  ServiceNow change request number (e.g. CHG0001234)
+  --yes                  Skip interactive confirmation prompt
+
+pncli splitio change-requests list
+  --workspace <id>    Workspace ID
+  --environment <id>  Filter by environment ID
+  --status <status>   Filter by status (REQUESTED, APPROVED, REJECTED,
+  PUBLISHED)
+  --limit <n>         Maximum number of results (default: "25")
+  --offset <n>        Pagination offset (default: "0")
+
+pncli splitio change-requests get
+  --id <id>   Change Request ID
+```
+
+### Figma
+
+```
+pncli figma file
+  --document       Include the full document node tree (can be large; omitted by
+  default)
+
+pncli figma comments
+  --as-of <date>   ISO 8601 timestamp — return only comments created before this
+  time
+
+pncli figma versions
+
+pncli figma project-files
+
+pncli figma me
 ```
 
 <!-- COMMAND-REFERENCE:END -->
