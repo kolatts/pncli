@@ -786,26 +786,6 @@ export class HttpClient {
     };
   }
 
-  private udeployHeaders(): Record<string, string> {
-    const { pat, username, password } = this.config.udeploy;
-    let encoded: string;
-    if (username && password) {
-      encoded = Buffer.from(`${username}:${password}`).toString('base64');
-    } else if (username && pat) {
-      encoded = Buffer.from(`${username}:${pat}`).toString('base64');
-    } else if (pat) {
-      encoded = Buffer.from(`PasswordIsAuthToken:${JSON.stringify({ token: pat })}`).toString('base64');
-    } else {
-      throw new PncliError('UDeploy credentials not configured. Run: pncli config init');
-    }
-    return {
-      'Authorization': `Basic ${encoded}`,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Connection': 'close'
-    };
-  }
-
   async jenkins<T>(
     path: string,
     opts: HttpRequestOptions = {}
@@ -895,34 +875,6 @@ export class HttpClient {
       const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
       const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
         + (opts.body ? `Body: ${typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body, null, 2)}\n` : '');
-      fs.writeSync(process.stderr.fd, msg);
-      process.exitCode = ExitCode.SUCCESS;
-      throw new PncliError('dry-run', 0);
-    }
-
-    return request<T>(url, init, opts.timeoutMs ?? 30000);
-  }
-
-
-  async udeploy<T>(
-    path: string,
-    opts: HttpRequestOptions = {}
-  ): Promise<T> {
-    const baseUrl = this.config.udeploy.baseUrl;
-    if (!baseUrl) throw new PncliError('UDeploy baseUrl not configured. Run: pncli config init');
-
-    const url = buildUrl(baseUrl, path, opts.params);
-    const headers = this.udeployHeaders();
-    const init: RequestInit = {
-      method: opts.method ?? 'GET',
-      headers,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
-    };
-
-    if (this.dryRun) {
-      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
-      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
-        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
       fs.writeSync(process.stderr.fd, msg);
       process.exitCode = ExitCode.SUCCESS;
       throw new PncliError('dry-run', 0);

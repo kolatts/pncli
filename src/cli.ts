@@ -28,7 +28,6 @@ import { registerConfigCommands } from './services/config/commands.js';
 import { registerAdoCommands } from './services/ado/commands/index.js';
 import { registerJenkinsCommands } from './services/jenkins/commands.js';
 import { registerArtifactoryCommands } from './services/artifactory/commands.js';
-import { registerUdeployCommands } from './services/udeploy/commands.js';
 import { registerCheckmarxCommands } from './services/checkmarx/commands.js';
 import { registerServiceNowCommands } from './services/servicenow/commands.js';
 import { registerContrastCommands } from './services/contrast/commands.js';
@@ -88,7 +87,6 @@ registerConfigCommands(program);
 registerAdoCommands(program);
 registerJenkinsCommands(program);
 registerArtifactoryCommands(program);
-registerUdeployCommands(program);
 registerCheckmarxCommands(program);
 registerServiceNowCommands(program);
 registerContrastCommands(program);
@@ -113,7 +111,6 @@ Services:
   ado          Azure DevOps Server (work items, repos, PRs, pipelines)
   jenkins      Jenkins Data Center (jobs, builds, logs, named instances)
   artifactory  Artifactory (repos, artifact search, build info, properties)
-  udeploy      IBM UrbanCode Deploy (component versions, deployment processes)
   checkmarx    Checkmarx One (projects, scans, scan statistics)
   servicenow   ServiceNow (change requests)
   contrast     Contrast IAST (applications, vulnerability findings)

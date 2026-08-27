@@ -276,7 +276,7 @@ jobs:
                  a cloud IAM credential chain, or mTLS, go directly to step 4b (deny) and name the
                  specific mechanism as the blocker. If the tool supports a PAT alongside other
                  mechanisms, it is IN scope — implement only the PAT path. Do not treat the
-                 grandfathered Checkmarx or UCD auth as precedent for approving a non-PAT service.
+                 grandfathered Checkmarx auth as precedent for approving a non-PAT service.
                - Is it a plain HTTP API call returning structured data? pncli does not do local file
                  parsing, image/PDF analysis, OCR, rendering, screenshotting, or ML inference. If a
                  request mixes an API-shaped part with an unsupported part (e.g. "read a design from

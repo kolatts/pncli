@@ -111,7 +111,7 @@ export class ArtifactoryClient {
     }));
     const result: ArtifactoryBuildList = { builds, uri: raw.uri };
     if (builds.length === 0) {
-      result.hint = 'No builds are registered in Artifactory Build Integration. Build names may differ from ADO pipeline or uDeploy component names. Use "artifactory repos" to list repositories, then "artifactory search --repo <repo>" to locate artifacts directly.';
+      result.hint = 'No builds are registered in Artifactory Build Integration. Build names may differ from ADO pipeline names. Use "artifactory repos" to list repositories, then "artifactory search --repo <repo>" to locate artifacts directly.';
     }
     return result;
   }

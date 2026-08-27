@@ -104,13 +104,6 @@ export interface JenkinsDefaults {
   baseUrl?: string;
 }
 
-export interface UdeployConfig {
-  baseUrl?: string;
-  pat?: string;
-  username?: string;
-  password?: string;
-}
-
 export interface CheckmarxConfig {
   baseUrl?: string;
   tenantName?: string;
@@ -173,11 +166,6 @@ export interface MarketplaceConfig {
   token?: string;
 }
 
-export interface UdeployDefaults {
-  application?: string;
-  environment?: string;
-}
-
 export interface Defaults {
   jira?: JiraDefaults;
   bitbucket?: BitbucketDefaults;
@@ -185,7 +173,6 @@ export interface Defaults {
   sonar?: SonarDefaults;
   sde?: SdeDefaults;
   ado?: AdoDefaults;
-  udeploy?: UdeployDefaults;
   jenkins?: JenkinsDefaults;
 }
 
@@ -206,7 +193,6 @@ export interface GlobalConfig {
   ado?: AdoConfig;
   jenkins?: JenkinsConfig;
   jenkinsInstances?: JenkinsInstanceConfig[];
-  udeploy?: UdeployConfig;
   checkmarx?: CheckmarxConfig;
   servicenow?: ServiceNowConfig;
   contrast?: ContrastConfig;
@@ -271,12 +257,6 @@ export interface ResolvedConfig {
     apiToken: string | undefined;
   };
   jenkinsInstances: JenkinsInstanceConfig[];
-  udeploy: {
-    baseUrl: string | undefined;
-    pat: string | undefined;
-    username: string | undefined;
-    password: string | undefined;
-  };
   checkmarx: {
     baseUrl: string | undefined;
     tenantName: string | undefined;
@@ -327,7 +307,6 @@ export interface ResolvedConfig {
     sonar: SonarDefaults;
     sde: SdeDefaults;
     ado: AdoDefaults;
-    udeploy: UdeployDefaults;
     jenkins: JenkinsDefaults;
   };
 }

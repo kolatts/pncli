@@ -5,7 +5,7 @@
 
 > One command does what three meetings couldn't.
 
-pncli gives AI coding agents (and humans) structured CLI access to the enterprise tools your org actually runs — Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, IBM UrbanCode Deploy, Checkmarx, and more. No MCP servers required. No meetings to schedule. No forms to fill out.
+pncli gives AI coding agents (and humans) structured CLI access to the enterprise tools your org actually runs — Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, Checkmarx, and more. No MCP servers required. No meetings to schedule. No forms to fill out.
 
 The service list grows. Any enterprise tool that authenticates with a personal access token is a candidate — issue trackers and CI/CD, but equally design, docs, observability, and collaboration tools your agents need context from. [Request one](https://kolatts.github.io/pncli/feedback/).
 
@@ -66,10 +66,6 @@ pncli uses a three-layer config system (highest priority wins):
 | `PNCLI_ARTIFACTORY_REPO_NPM` | Artifactory virtual npm repository name |
 | `PNCLI_ARTIFACTORY_REPO_NUGET` | Artifactory virtual NuGet repository name |
 | `PNCLI_ARTIFACTORY_REPO_MAVEN` | Artifactory virtual Maven repository name |
-| `PNCLI_UDEPLOY_BASE_URL` | IBM UrbanCode Deploy base URL |
-| `PNCLI_UDEPLOY_PAT` | IBM UrbanCode Deploy personal access token |
-| `PNCLI_UDEPLOY_USERNAME` | IBM UrbanCode Deploy username (alternative to PAT) |
-| `PNCLI_UDEPLOY_PASSWORD` | IBM UrbanCode Deploy password (used with `PNCLI_UDEPLOY_USERNAME`) |
 | `PNCLI_CHECKMARX_BASE_URL` | Checkmarx One API base URL |
 | `PNCLI_CHECKMARX_TENANT_NAME` | Checkmarx One tenant name |
 | `PNCLI_CHECKMARX_API_KEY` | Checkmarx One API key |
@@ -115,14 +111,13 @@ This project uses Conventional Commits for automatic versioning:
 | Azure DevOps Server | ✅ Active | ADO Server 2020+ (REST API 7.1) | personal access token (PAT) |
 | Jenkins | ✅ Active | Jenkins 2.x LTS (Data Center) | username + API token |
 | JFrog Artifactory | ✅ Active | Artifactory 7.x | bearer token |
-| IBM UrbanCode Deploy | ✅ Active | UCD 7.x | PAT **or** username + password |
 | Checkmarx | ✅ Active | CxSAST 9.x (on-prem) | username + password (OAuth2 password grant — pncli handles token exchange) |
 
 ### Adding a service
 
 Requests for new integrations are welcome for **any enterprise tool**, not just the SDLC categories above — design, documentation, observability, ITSM, and collaboration tools all count.
 
-The one hard requirement is authentication: the tool must support a **personal access token** — a long-lived static credential you generate in its own UI and paste into an env var or config file. Vendor naming doesn't matter (API token, user token, PAT). Tools whose only auth is interactive OAuth, SSO/SAML, username+password, a registered OAuth app, a cloud IAM credential chain, or mTLS can't be supported. The UCD and Checkmarx rows above predate this rule and are grandfathered.
+The one hard requirement is authentication: the tool must support a **personal access token** — a long-lived static credential you generate in its own UI and paste into an env var or config file. Vendor naming doesn't matter (API token, user token, PAT). Tools whose only auth is interactive OAuth, SSO/SAML, username+password, a registered OAuth app, a cloud IAM credential chain, or mTLS can't be supported. The Checkmarx row above predates this rule and is grandfathered. IBM UrbanCode Deploy was removed in v2.0.0 for exactly this reason — UCD tokens are not usable as a standalone credential the way pncli requires, so its only workable auth was username + password.
 
 ## License
 

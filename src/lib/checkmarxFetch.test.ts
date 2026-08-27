@@ -15,7 +15,6 @@ function makeConfig(overrides: Partial<ResolvedConfig['checkmarx']> = {}): Resol
     ado: { baseUrl: undefined, pat: undefined, fieldAliases: {}, discoveredFields: [], discoveredTypes: [] },
     jenkins: { baseUrl: undefined, username: undefined, apiToken: undefined },
     jenkinsInstances: [],
-    udeploy: { baseUrl: undefined, pat: undefined, username: undefined, password: undefined },
     checkmarx: {
       baseUrl: 'https://ast.checkmarx.net',
       tenantName: 'imagile',
@@ -31,7 +30,7 @@ function makeConfig(overrides: Partial<ResolvedConfig['checkmarx']> = {}): Resol
     dynatrace: { baseUrl: undefined, apiToken: undefined, platformUrl: undefined, platformToken: undefined },
     logscale: { baseUrl: undefined, token: undefined },
     figma: { baseUrl: undefined, token: undefined },
-    defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, udeploy: {}, jenkins: {} }
+    defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, jenkins: {} }
   };
 }
 

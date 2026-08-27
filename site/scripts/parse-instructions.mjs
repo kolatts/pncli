@@ -20,7 +20,7 @@ const endIdx   = raw.indexOf(END_MARKER);
 // mentions are stripped from the rendered page only (their command reference is
 // already dropped via the COMMAND-REFERENCE markers + parse-commands SKIP list).
 // Remove a name here to bring a service back onto the site.
-const HIDDEN_SERVICES = ['IBM UrbanCode Deploy'];
+const HIDDEN_SERVICES = [];
 
 function hideHiddenServices(text) {
   for (const svc of HIDDEN_SERVICES) {

@@ -1,7 +1,7 @@
 ---
 import TestingMeter from './TestingMeter.astro';
 import Sparkles from './Sparkles.astro';
-import { integrations } from '../lib/integrations';
+import { integrations, removedIntegrations } from '../lib/integrations';
 ---
 
 <section class="relative w-full py-12 px-6 overflow-hidden bg-cream">
@@ -25,6 +25,7 @@ import { integrations } from '../lib/integrations';
       </h2>
       <p class="mt-4 text-ink/50 text-lg">Give GitHub Copilot, Claude Code, and Codex a unified API into the Data Center editions your org hasn't migrated yet.</p>
       <p class="mt-2 text-ink/35 text-sm font-mono">Testing maturity shown per integration — <code>untested</code> means shipped but not validated against a live instance.</p>
+      <p class="mt-1 text-ink/35 text-sm font-mono">Every integration pncli ships gets a panel here. New ones land as <code>untested</code> and move up once they've been run against a real server.</p>
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -56,5 +57,22 @@ import { integrations } from '../lib/integrations';
         </div>
       ))}
     </div>
+
+    {removedIntegrations.length > 0 && (
+      <div class="mt-8 rounded-xl border-2 border-dashed border-ink/15 bg-cream/60 px-5 py-4">
+        <p class="stamp text-ink/40 mb-2">Withdrawn</p>
+        <ul class="space-y-2">
+          {removedIntegrations.map(removed => (
+            <li>
+              <p class="font-display font-bold text-base text-ink/50">
+                {removed.name}
+                <span class="ml-2 text-xs font-mono font-normal text-ink/35">removed in {removed.removedIn}</span>
+              </p>
+              <p class="text-sm mt-0.5 text-ink/40">{removed.reason}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
   </div>
 </section>

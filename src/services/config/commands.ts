@@ -201,17 +201,6 @@ export function registerConfigCommands(program: Command): void {
           results.artifactory = { ok: null, message: 'not configured' };
         }
 
-        if (cfg.udeploy.baseUrl && (cfg.udeploy.pat || (cfg.udeploy.username && cfg.udeploy.password))) {
-          try {
-            await http.udeploy<unknown>('/cli/application');
-            results.udeploy = { ok: true, message: 'connected' };
-          } catch (err) {
-            results.udeploy = { ok: false, message: err instanceof Error ? err.message : String(err) };
-          }
-        } else {
-          results.udeploy = { ok: null, message: 'not configured' };
-        }
-
         if (cfg.checkmarx.baseUrl && cfg.checkmarx.tenantName && (cfg.checkmarx.apiKey || (cfg.checkmarx.clientId && cfg.checkmarx.clientSecret))) {
           try {
             await http.checkmarx<unknown>('projects', { params: { limit: 1 } });
@@ -475,20 +464,6 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
-        // UDeploy
-        if (!cfg.udeploy.pat && !(cfg.udeploy.username && cfg.udeploy.password)) {
-          results.udeploy = { status: 'blank', message: 'not configured' };
-        } else if (!cfg.udeploy.baseUrl) {
-          results.udeploy = { status: 'error', message: 'baseUrl not configured' };
-        } else {
-          try {
-            await http.udeploy<unknown>('/cli/application', { timeoutMs: 10_000 });
-            results.udeploy = { status: 'valid', message: 'ok' };
-          } catch (err) {
-            results.udeploy = categorize(err);
-          }
-        }
-
         // Artifactory — reuse existing helper
         const artResult = await checkArtifactoryConnectivity(cfg.artifactory);
         if (!artResult.configured) {
@@ -646,7 +621,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale', 'figma'] as const;
+          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale', 'figma'] as const;
           const labelWidth = 14;
           const statusWidth = 9;
           for (const svc of services) {
@@ -664,7 +639,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'udeploy', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale', 'figma'] as const;
+            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale', 'figma'] as const;
             const labelWidth = 14;
             const statusWidth = 9;
             for (const svc of services) {
@@ -977,74 +952,6 @@ async function initGlobalConfig(start: number): Promise<void> {
     jenkinsApiToken = await password({
       message: 'Jenkins API token:'
     });
-  }
-
-  process.stderr.write('\n── IBM UrbanCode Deploy ──────────────────────────\n');
-  const useUdeploy = await confirm({
-    message: 'Configure IBM UrbanCode Deploy for component imports and deployment processes?',
-    default: false
-  });
-
-  let udeployBaseUrl = '';
-  let udeployPat = '';
-  let udeployUsername = '';
-  let udeployPassword = '';
-  let udeployDefaultApp = '';
-  let udeployDefaultEnv = '';
-
-  if (useUdeploy) {
-    udeployBaseUrl = await input({
-      message: 'UDeploy base URL (e.g. ucd.imagile.dev:8443):',
-      default: ''
-    });
-
-    udeployUsername = await input({
-      message: 'UDeploy username (leave blank to use a PAT instead):',
-      default: ''
-    });
-
-    if (udeployUsername) {
-      udeployPassword = await password({
-        message: 'UDeploy password:',
-        validate: (v) => v.length > 0 || 'Password cannot be blank'
-      });
-    } else {
-      udeployPat = await password({
-        message: 'UDeploy personal access token:'
-      });
-    }
-
-    udeployDefaultApp = await input({
-      message: 'Default application name (optional):',
-      default: ''
-    });
-
-    udeployDefaultEnv = await input({
-      message: 'Default environment name (optional):',
-      default: ''
-    });
-
-    const hasCredentials = udeployBaseUrl && (udeployPat || (udeployUsername && udeployPassword));
-    if (hasCredentials) {
-      process.stderr.write('\n  Verifying connection...\n');
-      try {
-        const tempConfig = {
-          ...loadConfig(),
-          udeploy: {
-            baseUrl: normalizeBaseUrl(udeployBaseUrl),
-            pat: udeployPat || undefined,
-            username: udeployUsername || undefined,
-            password: udeployPassword || undefined
-          }
-        };
-        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
-        await tempHttp.udeploy<unknown>('/cli/application');
-        process.stderr.write('  Connected.\n');
-      } catch (err) {
-        warn(`Could not connect to UDeploy: ${err instanceof Error ? err.message : String(err)}`);
-        warn('Config will be saved anyway. Check your URL and credentials and re-run pncli config init or pncli config test.');
-      }
-    }
   }
 
   process.stderr.write('\n── Checkmarx ─────────────────────────────────────\n');
@@ -1551,14 +1458,6 @@ async function initGlobalConfig(start: number): Promise<void> {
         ...(jenkinsApiToken ? { apiToken: jenkinsApiToken } : {})
       }
     } : {}),
-    ...(useUdeploy && udeployBaseUrl ? {
-      udeploy: {
-        baseUrl: normalizeBaseUrl(udeployBaseUrl),
-        ...(udeployPat ? { pat: udeployPat } : {}),
-        ...(udeployUsername ? { username: udeployUsername } : {}),
-        ...(udeployPassword ? { password: udeployPassword } : {})
-      }
-    } : {}),
     ...(useCheckmarx && checkmarxBaseUrl ? {
       checkmarx: {
         baseUrl: normalizeBaseUrl(checkmarxBaseUrl),
@@ -1636,12 +1535,6 @@ async function initGlobalConfig(start: number): Promise<void> {
         ado: {
           collection: adoCollection || undefined,
           project: adoProject || undefined
-        }
-      } : {}),
-      ...(useUdeploy && (udeployDefaultApp || udeployDefaultEnv) ? {
-        udeploy: {
-          application: udeployDefaultApp || undefined,
-          environment: udeployDefaultEnv || undefined
         }
       } : {})
     }

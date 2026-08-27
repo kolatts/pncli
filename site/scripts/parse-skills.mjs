@@ -14,7 +14,7 @@ const sources = [
 // Services hidden from the public site. The distributed skill still documents
 // them (skills/pncli/SKILL.md is untouched); they just don't render on the
 // skill detail pages. Remove a name here to bring a service back onto the site.
-const HIDDEN_SERVICES = ['IBM UrbanCode Deploy'];
+const HIDDEN_SERVICES = [];
 
 function hideHiddenServices(text) {
   let lines = text.split('\n');
