@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.0.0](https://github.com/kolatts/pncli/compare/v1.26.0...v2.0.0) (2026-08-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* The `pncli udeploy` commands and all `PNCLI_UDEPLOY_*` config have been removed. IBM UrbanCode Deploy has no personal access token usable as a standalone credential, so its only workable auth was a username and password — which meant asking users to put a real account password in a config file. That fails pncli's authentication bar, which requires a long-lived static token the user generates in the target tool's own UI. There is no replacement; UCD is not coming back. A stale `udeploy` key left in ~/.pncli/config.json is ignored and can be deleted by hand, or will be dropped on the next `pncli config init`.
+
+### Features
+
+* **figma:** add Figma integration for design files, comments, and version history ([#377](https://github.com/kolatts/pncli/issues/377)) ([8059de8](https://github.com/kolatts/pncli/commit/8059de8426810c0803c00f9097ec4f4cbbe40a50))
+* **jenkins:** support multiple named instances via --instance flag ([#366](https://github.com/kolatts/pncli/issues/366)) ([8612dde](https://github.com/kolatts/pncli/commit/8612dded81da45656cf3270a3a167cb1d0160c89))
+* **openshift:** resource-usage command with CSV output ([#373](https://github.com/kolatts/pncli/issues/373)) ([67051d2](https://github.com/kolatts/pncli/commit/67051d25b3ab380981dce36d09729c9624b918f7))
+* panel per integration with testing state; remove IBM UrbanCode Deploy ([#380](https://github.com/kolatts/pncli/issues/380)) ([83a64c7](https://github.com/kolatts/pncli/commit/83a64c79c05cf8d32f63b084bf2739905809f789)), closes [#378](https://github.com/kolatts/pncli/issues/378) [#379](https://github.com/kolatts/pncli/issues/379)
+
+
+### Bug Fixes
+
+* issue [#370](https://github.com/kolatts/pncli/issues/370) (automated) ([#371](https://github.com/kolatts/pncli/issues/371)) ([70d8051](https://github.com/kolatts/pncli/commit/70d8051d5384193339d9267d7d99502bc10d7431))
+
 ## [1.26.0](https://github.com/kolatts/pncli/compare/v1.25.1...v1.26.0) (2026-08-24)
 
 
