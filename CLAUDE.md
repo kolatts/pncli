@@ -215,7 +215,9 @@ Use Conventional Commits: `fix:` (patch), `feat:` (minor), `feat!:` (breaking/ma
 
 ## GitHub Pages Site
 
-The site lives in `site/` and is built with Astro 6 + Tailwind v4. Skills, changelog, and docs are auto-generated from source files via prebuild scripts in `site/scripts/`.
+The site lives in `site/` and is built with Astro 6 + Tailwind v4. The changelog, docs, and command reference are auto-generated from source files via prebuild scripts in `site/scripts/`.
+
+The site does **not** document skills. There is no `/skills/` page — skill setup and the marketplace commands are covered in Docs (`/getting-started/`) and in the generated command reference. Do not re-add a skills gallery; `skills/` and `example-skills/` are the source of truth for skill content, and the distributed `skills/pncli/` skill is the onboarding contract.
 
 ### Screenshot Requirement
 
@@ -225,7 +227,7 @@ When `site/src/` files are edited:
 
 1. Start the dev server in `site/` with `--host 0.0.0.0` so the Docker-based browser tool can reach it:
    ```bash
-   node scripts/parse-changelog.mjs && node scripts/parse-instructions.mjs && node scripts/parse-skills.mjs && node scripts/parse-commands.mjs && node_modules/.bin/astro dev --port 4323 --host 0.0.0.0
+   node scripts/parse-changelog.mjs && node scripts/parse-instructions.mjs && node scripts/parse-commands.mjs && node_modules/.bin/astro dev --port 4323 --host 0.0.0.0
    ```
    The server will print a `Network` URL like `http://192.168.0.80:4323/pncli/`. Use that IP (not `localhost` or `172.17.0.1`) with `mcp__MCP_DOCKER__browser_navigate`.
 2. Take screenshots with `mcp__MCP_DOCKER__browser_take_screenshot`
@@ -235,6 +237,3 @@ When `site/src/` files are edited:
 This applies to changes in:
 - `site/src/pages/` or `site/src/components/` — screenshot the affected pages
 
-### Skill Ordering
-
-When adding new skills, update the `order` array for the relevant category in `site/src/lib/skill-categories.ts` so the new skill appears on the site.

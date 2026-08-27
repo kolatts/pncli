@@ -26,7 +26,7 @@ const labelClass = {
 const bars = [1, 2, 3, 4].map(i => i <= filledCount);
 ---
 
-<span class="flex items-center gap-1.5 shrink-0 mt-1.5">
+<span class="flex items-center gap-1.5 shrink-0">
   <span class="flex items-end gap-0.5">
     {bars.map(isFilled => (
       <span class={`w-1.5 h-3 rounded-sm ${isFilled ? filledClass : 'bg-ink/10'}`}></span>

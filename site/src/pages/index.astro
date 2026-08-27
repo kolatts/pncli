@@ -8,7 +8,6 @@ import ServiceGrid from '../components/ServiceGrid.astro';
 import Sparkles from '../components/Sparkles.astro';
 import mundane from '../assets/mundane-paperwork.png';
 import maverick from '../assets/maverick-badge.png';
-import robotParty from '../assets/robot-party.png';
 import chibiAlignSys from '../assets/chibi-align-sys.png';
 import chibiPatchwork from '../assets/chibi-patchwork-exe.png';
 import chibiOverseer from '../assets/chibi-overseer-yaml.png';
@@ -123,7 +122,6 @@ const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', y
     />
     <div class="relative max-w-5xl mx-auto">
       <div class="mb-7">
-        <p class="font-mono text-sm mb-3 tracking-[0.14em] uppercase text-[#d9b84f]">agent-first</p>
         <h2 class="font-display headline-shadow-dark text-4xl md:text-5xl font-black leading-[1.06] tracking-tight">
           Built for AI agents.
         </h2>
@@ -154,62 +152,6 @@ const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', y
           </p>
         </div>
       </div>
-    </div>
-  </section>
-
-  <!-- The bureaucracy celebrates — Context Overflow's compliance division -->
-  <section class="relative overflow-hidden w-full py-12 px-6 bg-[#1e1e20] text-[#f2ead9] [background-image:radial-gradient(rgb(242_234_217/0.028)_1px,transparent_1px)] [background-size:5px_5px]">
-    <Sparkles
-      speed={0.07}
-      max={22}
-      opacity={0.4}
-      sparks={[
-        { x: 10, y: 18, s: 0.7, r: -14, c: 'gold', td: 6.4, tl: -2, dd: 11, dl: -2.6 },
-        { x: 90, y: 30, s: 0.55, r: 16, c: 'straw', td: 7.4, tl: -3.2, dd: 12, dl: -4.4 },
-        { x: 76, y: 84, s: 0.6, r: -22, c: 'straw', td: 6, tl: -1.6, dd: 10, dl: -3 },
-        { x: 18, y: 70, dot: true, c: 'coral', td: 9, tl: -4.5 },
-      ]}
-    />
-    <div class="relative max-w-5xl mx-auto">
-      <div class="max-w-2xl">
-        <p class="stamp text-[#d9b84f] mb-4">Interoffice memo — mandatory fun</p>
-        <h2 class="font-display headline-shadow-dark text-4xl md:text-5xl font-black leading-[1.06] tracking-tight mb-5">
-          The bureaucracy is celebrating.
-        </h2>
-      </div>
-
-      <figure class="mb-2">
-        <Image
-          src={robotParty}
-          alt="Five chibi bureaucrat robots in crooked party hats gather around a beige sheet cake, balloons and a pennant banner overhead and an empty folding chair to the side: ALIGN.SYS holds a tablet, PATCHWORK.EXE hugs a taped parcel, OVERSEER.YAML raises four dashboard screens, ZEROTRUST-9 looms with its camera cluster, and CHECKBOX-3000 brings its file drawer and binder."
-          class="block w-full max-w-3xl mx-auto h-auto"
-          data-parallax="0.05"
-          data-parallax-view
-          data-parallax-max="16"
-        />
-        <figcaption class="max-w-xl mx-auto text-center mt-4">
-          <p class="text-[#b9b2a4] text-sm leading-relaxed italic">
-            &ldquo;Your paperwork has been automated. Attendance at this celebration is mandatory. Enthusiasm was not budgeted.&rdquo;
-          </p>
-        </figcaption>
-      </figure>
-
-      <!-- Personnel file — the full cast, transparent chibi cutouts on the band -->
-      <ul class="flex flex-wrap justify-center items-end gap-x-5 gap-y-6 mt-10 list-none p-0" aria-label="The Context Overflow cast">
-        {cast.map(bot => (
-          <li class="flex flex-col items-center w-24 md:w-28 text-center">
-            <Image
-              src={bot.src}
-              alt={bot.alt}
-              class="block w-full h-auto hover:-translate-y-1 transition-transform"
-              widths={[112, 224]}
-              sizes="(min-width: 768px) 112px, 96px"
-            />
-            <span class="font-mono text-[11px] text-[#b9b2a4] mt-2 tracking-wide">{bot.name}</span>
-            <span class="font-mono text-[9px] text-[#8a8f98] uppercase tracking-[0.14em]">{bot.role}</span>
-          </li>
-        ))}
-      </ul>
     </div>
   </section>
 
@@ -258,8 +200,8 @@ const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', y
           </h2>
           <p class="text-ink/60 leading-relaxed mb-5 max-w-xl">
             Context Overflow teaches agentic engineering — context, skills, and putting
-            robots to work — starring MAVERICK, MUNDANE, and the compliance division you
-            just met. MUNDANE has pre-filed your enrollment paperwork. MAVERICK is very
+            robots to work — starring MAVERICK, MUNDANE, and the compliance division
+            below. MUNDANE has pre-filed your enrollment paperwork. MAVERICK is very
             excited about everything.
           </p>
           <a
@@ -273,6 +215,27 @@ const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', y
           </a>
         </div>
       </div>
+
+      <!--
+        Personnel file — the full cast, transparent chibi cutouts. Lives under the
+        Context Overflow card because that is the only place on the page that
+        explains who these robots are.
+      -->
+      <ul class="flex flex-wrap justify-center items-end gap-x-5 gap-y-6 mt-10 list-none p-0" aria-label="The Context Overflow cast">
+        {cast.map(bot => (
+          <li class="flex flex-col items-center w-24 md:w-28 text-center">
+            <Image
+              src={bot.src}
+              alt={bot.alt}
+              class="block w-full h-auto hover:-translate-y-1 transition-transform"
+              widths={[112, 224]}
+              sizes="(min-width: 768px) 112px, 96px"
+            />
+            <span class="font-mono text-[11px] text-ink/60 mt-2 tracking-wide">{bot.name}</span>
+            <span class="font-mono text-[9px] text-ink/35 uppercase tracking-[0.14em]">{bot.role}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   </section>
 

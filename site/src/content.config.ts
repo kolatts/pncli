@@ -20,18 +20,4 @@ const docs = defineCollection({
   }),
 });
 
-const skills = defineCollection({
-  loader: glob({ pattern: '**/*.mdx', base: 'src/content/skills' }),
-  schema: z.object({
-    title:       z.string(),
-    description: z.string(),
-    providers:   z.enum(['both', 'bitbucket', 'ado', 'none', 'kubernetes']).optional(),
-    category:    z.enum(['setup', 'pr-workflow', 'security', 'planning', 'code-quality', 'other', 'infrastructure']).optional(),
-    services:      z.string().optional(),
-    userInvocable:  z.boolean().optional(),
-    distributable:  z.boolean().optional(),
-    generatedAt:    z.string().optional(),
-  }),
-});
-
-export const collections = { changelog, docs, skills };
+export const collections = { changelog, docs };
