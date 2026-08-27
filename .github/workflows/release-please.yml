@@ -36,7 +36,7 @@ jobs:
   publish:
     needs: [release-please]
     if: |
-      always() && (
+      !cancelled() && (
         needs.release-please.outputs.release_created == 'true' ||
         github.event_name == 'workflow_dispatch'
       )
@@ -64,7 +64,9 @@ jobs:
             exit 1
           fi
           if ! WHO=$(npm whoami 2>&1); then
-            echo "::error::npm rejected NPM_TOKEN ($WHO). npm granular tokens expire (90 days max) - mint a new one at https://www.npmjs.com/settings/kolatts/tokens with read+write access to @kolatts/pncli and update the NPM_TOKEN secret."
+            echo "npm whoami failed:"
+            echo "$WHO"
+            echo "::error::npm rejected NPM_TOKEN. Granular npm tokens expire (90 days max) - mint a new one at https://www.npmjs.com/settings/kolatts/tokens with read+write access to @kolatts/pncli, then update the NPM_TOKEN secret. See the step log for npm's full response."
             exit 1
           fi
           echo "Authenticated to npm as $WHO"
@@ -85,7 +87,8 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
           if npm view "@kolatts/pncli@$VERSION" version >/dev/null 2>&1; then
-            echo "@kolatts/pncli@$VERSION is already on npm; nothing to publish."
+            echo "::notice::@kolatts/pncli@$VERSION is already on npm; nothing to publish."
+            echo "Skipped: \`$VERSION\` is already published to npm." >> "$GITHUB_STEP_SUMMARY"
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -93,13 +96,16 @@ jobs:
 
           LATEST=$(npm view @kolatts/pncli version 2>/dev/null || echo '0.0.0')
           NEWEST=$( { echo "$VERSION"; echo "$LATEST"; } | sort -V | tail -1 )
-          if [[ "$VERSION" == "$LATEST" || "$NEWEST" == "$VERSION" ]]; then
+          if [[ "$NEWEST" == "$VERSION" ]]; then
             TAG=latest
           else
-            TAG="v${VERSION%%.*}"
+            # Must not be a valid semver range -- npm rejects those outright, and
+            # `v1` parses as ">=1.0.0 <2.0.0-0". `major-1` does not.
+            TAG="major-${VERSION%%.*}"
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Publishing $VERSION under dist-tag '$TAG' (npm latest is $LATEST)"
+          echo "::notice::Publishing $VERSION under dist-tag '$TAG' (npm latest is $LATEST)"
+          echo "Publishing \`$VERSION\` under dist-tag \`$TAG\` (npm latest was \`$LATEST\`)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish to npm
         if: steps.disttag.outputs.skip == 'false'
@@ -108,7 +114,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Notify Discord
-        if: needs.release-please.outputs.release_created == 'true'
+        if: success() && steps.disttag.outputs.skip == 'false'
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           REPO: ${{ github.repository }}

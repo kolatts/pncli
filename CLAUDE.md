@@ -230,8 +230,10 @@ gh workflow run release-please.yml --repo kolatts/pncli -f ref=v1.26.0
 
 Publishing is idempotent — a version already on npm is skipped. The dist-tag is
 resolved at publish time: anything older than npm's current `latest` publishes
-under its major-line tag (`v1`) rather than moving `latest` backwards. Backfill
-oldest-first so `latest` lands on the newest version.
+under a major-line tag (`major-1`) rather than moving `latest` backwards. That
+tag deliberately is not named `v1` — npm refuses any dist-tag that parses as a
+semver range, and `v1` means `>=1.0.0 <2.0.0-0`. Backfill oldest-first so
+`latest` lands on the newest version.
 
 ## GitHub Pages Site
 
