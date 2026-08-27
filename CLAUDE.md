@@ -149,7 +149,7 @@ Do **not** reject a proposed integration on any of these grounds:
 
 - "It isn't on the current list of services." The list grows; that is the point of this section.
 - "It isn't a developer tool / SDLC tool." The bar is *enterprise tool an engineer needs data out of*, not *tool that compiles code*.
-- "It's cloud/SaaS, not Data Center." The on-prem story is what pncli started with, not a limit on what it covers.
+- "It's cloud/SaaS, not self-hosted." The on-prem story is what pncli started with, not a limit on what it covers.
 
 ### The Authentication Bar
 

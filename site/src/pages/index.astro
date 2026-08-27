@@ -35,6 +35,12 @@ const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', y
 
 <Base>
   <Hero />
+
+  <!--
+    Inventory sits directly under the hero: "which of my tools does this cover?"
+    is the first question a visitor has, so it is answered before the pitch.
+  -->
+  <ServiceGrid />
   <CodeTabs />
 
   <!-- Why pncli — always-charcoal band so MUNDANE's flat background blends in -->
@@ -102,8 +108,6 @@ const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', y
       </div>
     </div>
   </section>
-
-  <ServiceGrid />
 
   <!-- For AI agents — always-charcoal band -->
   <section class="relative overflow-hidden w-full py-12 px-6 bg-[#1e1e20] text-[#f2ead9] [background-image:radial-gradient(rgb(242_234_217/0.028)_1px,transparent_1px)] [background-size:5px_5px]">

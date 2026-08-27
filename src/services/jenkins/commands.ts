@@ -67,7 +67,7 @@ async function pollBuildComplete(
 
 export function registerJenkinsCommands(program: Command): void {
   const jenkins = program.command('jenkins')
-    .description('Jenkins Data Center operations')
+    .description('Jenkins operations')
     .option('--instance <name>', 'Named Jenkins instance from global config (overrides default jenkins config)');
   const pipeline = jenkins.command('pipeline').description('Pipeline (job/build) operations');
 

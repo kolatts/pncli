@@ -1,4 +1,4 @@
-// TLS verification is disabled by default — most enterprise Data Center installs
+// TLS verification is disabled by default — most self-hosted enterprise installs
 // sit behind corporate SSL inspection proxies that break standard certificate chains.
 // To opt back in: set PNCLI_VERIFY_TLS=1
 if (!process.env.PNCLI_VERIFY_TLS) {
@@ -109,7 +109,7 @@ Services:
   sonar        SonarQube Server (quality gates, issues, metrics, hotspots)
   sde          SDElements (threat modeling, countermeasures, compliance)
   ado          Azure DevOps Server (work items, repos, PRs, pipelines)
-  jenkins      Jenkins Data Center (jobs, builds, logs, named instances)
+  jenkins      Jenkins (jobs, builds, logs, named instances)
   artifactory  Artifactory (repos, artifact search, build info, properties)
   checkmarx    Checkmarx One (projects, scans, scan statistics)
   servicenow   ServiceNow (change requests)

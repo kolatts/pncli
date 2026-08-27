@@ -109,7 +109,7 @@ This project uses Conventional Commits for automatic versioning:
 | SonarQube | ✅ Active | SonarQube Server 9.x / 10.x | user token |
 | SDElements | ✅ Active | SDElements cloud + on-prem (REST API v2) | connection string (`token@hostname`) |
 | Azure DevOps Server | ✅ Active | ADO Server 2020+ (REST API 7.1) | personal access token (PAT) |
-| Jenkins | ✅ Active | Jenkins 2.x LTS (Data Center) | username + API token |
+| Jenkins | ✅ Active | Jenkins 2.x LTS | username + API token |
 | JFrog Artifactory | ✅ Active | Artifactory 7.x | bearer token |
 | Checkmarx | ✅ Active | CxSAST 9.x (on-prem) | username + password (OAuth2 password grant — pncli handles token exchange) |
 

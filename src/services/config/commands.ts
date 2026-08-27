@@ -930,7 +930,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   process.stderr.write('\n── Jenkins ───────────────────────────────────────\n');
   const useJenkins = await confirm({
-    message: 'Configure Jenkins Data Center for pipeline operations?',
+    message: 'Configure Jenkins for pipeline operations?',
     default: false
   });
 
