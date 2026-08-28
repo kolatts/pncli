@@ -20,6 +20,7 @@ import { AdoWorkClient } from '../ado/client/work.js';
 import { discoverFields, discoverTypes, buildDefaultAliases } from '../ado/discovery.js';
 import { checkArtifactoryConnectivity } from '../deps/clients/artifactory.js';
 import { success, fail, warn } from '../../lib/output.js';
+import { hasInstalledPncliSkill } from '../skills/commands.js';
 import { ExitCode } from '../../lib/exitCodes.js';
 import chalk from 'chalk';
 import fs from 'fs';
@@ -1781,6 +1782,9 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   const configPath = getGlobalConfigPath();
   warn(`Config written to ${configPath}`);
+  if (!hasInstalledPncliSkill()) {
+    warn('Next: hand this setup to your agent — run: pncli skills install');
+  }
   success({ written: configPath }, 'config', 'init', start);
 }
 

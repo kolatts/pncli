@@ -2,6 +2,13 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  parseIntegrations,
+  parseRemovedIntegrations,
+  renderServicesBlock,
+  SERVICES_START_MARKER,
+  SERVICES_END_MARKER,
+} from './readme-sync.js';
 
 /**
  * The homepage service grid (site/src/lib/integrations.ts) is the public
@@ -87,6 +94,39 @@ describe('site service grid covers every integration', () => {
     // Rendering the raw array again would silently restore declaration order
     expect(grid).toContain('integrationsByMaturity()');
     expect(grid).not.toMatch(/\{\s*integrations\.map/);
+  });
+});
+
+describe('README services table stays in sync with the site grid', () => {
+  const readme = () => fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf8');
+  const integrationsSource = () =>
+    fs.readFileSync(path.join(repoRoot, 'site/src/lib/integrations.ts'), 'utf8');
+
+  it('keeps the generated-table markers in place', () => {
+    expect(readme()).toContain(SERVICES_START_MARKER);
+    expect(readme()).toContain(SERVICES_END_MARKER);
+  });
+
+  it('matches a fresh render from site/src/lib/integrations.ts', () => {
+    const content = readme();
+    const start = content.indexOf(SERVICES_START_MARKER) + SERVICES_START_MARKER.length;
+    const end = content.indexOf(SERVICES_END_MARKER);
+    const committed = content.slice(start, end).trim();
+    const source = integrationsSource();
+    const expected = renderServicesBlock(
+      parseIntegrations(source),
+      parseRemovedIntegrations(source)
+    ).trim();
+    expect(
+      committed,
+      'README.md services table is out of date — run `npm run sync-readme` and commit the result'
+    ).toEqual(expected);
+  });
+
+  it('parses every grid entry (regex kept in step with the integrations array shape)', () => {
+    expect(parseIntegrations(integrationsSource()).map((e) => e.slug)).toEqual(
+      gridEntries().map((e) => e.slug)
+    );
   });
 });
 

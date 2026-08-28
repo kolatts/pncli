@@ -1,7 +1,7 @@
 {
   "name": "@kolatts/pncli",
   "version": "3.0.0",
-  "description": "The Paperwork Nightmare CLI — One command does what three meetings couldn't.",
+  "description": "The Paperwork Nightmare CLI — structured JSON access to Jira, Bitbucket, GitHub, Confluence, Azure DevOps, SonarQube, Jenkins, and more, built for AI coding agents. One command does what three meetings couldn't.",
   "type": "module",
   "bin": {
     "pncli": "./dist/cli.js"
@@ -15,7 +15,8 @@
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sync-readme": "tsx scripts/sync-readme.ts"
   },
   "dependencies": {
     "@inquirer/checkbox": "^5.2.1",
@@ -43,8 +44,37 @@
     "developer-tools",
     "code-review",
     "agent",
-    "automation"
+    "automation",
+    "ai-agent",
+    "agent-skills",
+    "skills",
+    "claude",
+    "claude-code",
+    "github-copilot",
+    "codex",
+    "github",
+    "confluence",
+    "azure-devops",
+    "sonarqube",
+    "jenkins",
+    "artifactory",
+    "checkmarx",
+    "servicenow",
+    "sdelements",
+    "sonatype",
+    "contrast-security",
+    "openshift",
+    "kubernetes",
+    "dynatrace",
+    "logscale",
+    "figma",
+    "enterprise",
+    "json-cli"
   ],
+  "homepage": "https://kolatts.github.io/pncli/",
+  "bugs": {
+    "url": "https://github.com/kolatts/pncli/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/kolatts/pncli"
