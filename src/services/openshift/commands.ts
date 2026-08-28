@@ -133,8 +133,17 @@ function resolveCluster(config: ReturnType<typeof loadConfig>, env?: string, ins
     return { baseUrl: instCfg.baseUrl, token: instCfg.token };
   }
 
-  if (effectiveEnv || effectiveInstance) {
-    throw new PncliError('Both --env and --instance are required to target a named cluster.');
+  if (effectiveEnv && !effectiveInstance) {
+    throw new PncliError(
+      `OpenShift environment "${effectiveEnv}" requires a cluster instance. ` +
+      `Pass --instance <name> or run: pncli config set openshift.defaultInstance <name>`
+    );
+  }
+  if (!effectiveEnv && effectiveInstance) {
+    throw new PncliError(
+      `OpenShift instance "${effectiveInstance}" requires an environment. ` +
+      `Pass --env <name> or run: pncli config set openshift.defaultEnvironment <name>`
+    );
   }
 
   // Legacy flat config fallback

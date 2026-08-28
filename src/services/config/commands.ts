@@ -695,7 +695,7 @@ export function registerConfigCommands(program: Command): void {
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const labelWidth = Math.max(14, ...clusterKeys.map(k => k.length)) + 2;
+          const labelWidth = clusterKeys.length > 0 ? Math.max(14, ...clusterKeys.map(k => k.length)) + 2 : 14;
           const statusWidth = 9;
           for (const svc of allServices) {
             const r = results[svc];
@@ -712,7 +712,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const labelWidth = Math.max(14, ...clusterKeys.map(k => k.length)) + 2;
+            const labelWidth = clusterKeys.length > 0 ? Math.max(14, ...clusterKeys.map(k => k.length)) + 2 : 14;
             const statusWidth = 9;
             for (const svc of allServices) {
               const r = results[svc];
@@ -1499,13 +1499,15 @@ async function initGlobalConfig(start: number): Promise<void> {
     return;
   }
 
-  // init rewrites the whole file and never prompts for named Jenkins instances.
-  // Carry over whatever is already on disk so re-running init to change an unrelated
-  // token does not silently delete instance credentials the user cannot recover.
+  // init rewrites the whole file and never prompts for named Jenkins instances or
+  // named OpenShift environments. Carry over whatever is already on disk so re-running
+  // init to change an unrelated token does not silently delete credentials the user
+  // cannot recover.
   const existingGlobal = loadJsonFile<GlobalConfig>(getGlobalConfigPath());
   const existingInstances = Array.isArray(existingGlobal?.jenkinsInstances)
     ? existingGlobal.jenkinsInstances
     : [];
+  const existingOpenshift = existingGlobal?.openshift;
 
   writeGlobalConfig({
     jenkinsInstances: existingInstances,
@@ -1605,9 +1607,12 @@ async function initGlobalConfig(start: number): Promise<void> {
     ...(useOpenShift && openShiftBaseUrl ? {
       openshift: {
         baseUrl: normalizeBaseUrl(openShiftBaseUrl),
-        token: openShiftToken || undefined
+        token: openShiftToken || undefined,
+        ...(existingOpenshift?.defaultEnvironment ? { defaultEnvironment: existingOpenshift.defaultEnvironment } : {}),
+        ...(existingOpenshift?.defaultInstance   ? { defaultInstance:   existingOpenshift.defaultInstance   } : {}),
+        ...(existingOpenshift?.environments      ? { environments:      existingOpenshift.environments      } : {}),
       }
-    } : {}),
+    } : existingOpenshift ? { openshift: { ...existingOpenshift } } : {}),
     ...(useDynatrace && dynatraceBaseUrl ? {
       dynatrace: {
         baseUrl: normalizeBaseUrl(dynatraceBaseUrl),
