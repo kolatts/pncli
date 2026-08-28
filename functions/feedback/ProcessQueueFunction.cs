@@ -61,7 +61,8 @@ public class ProcessSubmissionsFunction(
                 ? submission.Title
                 : $"Re: v{submission.Version} — {submission.Title}";
 
-            var body = submission.Body
+            var body = "A user on the website submitted:\n\n"
+                + submission.Body
                 + (string.IsNullOrEmpty(submission.Service) ? "" : $"\n\n**Service:** {submission.Service}")
                 + "\n\n---\n*Submitted via [kolatts.github.io/pncli](https://kolatts.github.io/pncli)*";
 

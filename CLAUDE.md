@@ -42,6 +42,15 @@ on any open same-repo PR by implementing the requested changes and **pushing
 directly to the PR's source branch**. This applies to human-authored branches, not
 just automation-authored ones.
 
+Automated reviews come from `claude-review.yml`, which submits formal reviews as
+`github-actions[bot]` using the workflow's own `GITHUB_TOKEN`. Because default-token
+events never trigger other workflows, that workflow explicitly dispatches
+`claude-pr-feedback.yml` (with `pr_number` and `review_commit`) after submitting a
+`CHANGES_REQUESTED` review — the `pull_request_review` event path only fires for
+reviews from humans and GitHub App identities. `APPROVE` from the workflow token
+additionally requires the repo setting "Allow GitHub Actions to create and approve
+pull requests" to stay enabled.
+
 Two labels control it:
 
 - **`no-auto-fix`** — the opt-out. The workflow leaves the branch alone entirely.
