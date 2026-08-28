@@ -3,7 +3,9 @@
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
-    "GITHUB_TOKEN": "<fine-grained-pat-with-issues:write-on-kolatts/pncli>",
+    "GITHUB_APP_ID": "<imagile-bot-github-app-id>",
+    "GITHUB_APP_PRIVATE_KEY": "<imagile-bot-app-private-key-pem — or leave both unset and use GITHUB_TOKEN below>",
+    "GITHUB_TOKEN": "<local-dev fallback: fine-grained-pat-with-issues:write-on-kolatts/pncli>",
     "GITHUB_REPO": "kolatts/pncli",
     "GITHUB_ISSUE_LABEL": "from-website",
     "ALLOWED_ORIGIN": "http://localhost:4321",

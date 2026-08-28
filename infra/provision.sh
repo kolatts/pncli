@@ -50,6 +50,10 @@ az functionapp identity assign \
   --only-show-errors >/dev/null
 
 echo "→ App settings (non-secret + Key Vault refs)" >&2
+# GITHUB_APP_ID is the Imagile Bot GitHub App id (not a secret). CI passes it
+# through from the IMAGILE_BOT_APP_ID repo variable; set it in the environment
+# for local runs. Failing fast beats provisioning a function that can't auth.
+: "${GITHUB_APP_ID:?GITHUB_APP_ID env var required (Imagile Bot app id)}"
 az functionapp config appsettings set \
   -n "$FUNCAPP" -g "$RG" \
   --settings \
@@ -59,7 +63,8 @@ az functionapp config appsettings set \
     DAILY_SUBMISSION_LIMIT="${DAILY_SUBMISSION_LIMIT:-10}" \
     IP_DAILY_LIMIT="${IP_DAILY_LIMIT:-10}" \
     EMAIL_FROM_ADDRESS="${EMAIL_FROM_ADDRESS:-no-reply@imagile.dev}" \
-    GITHUB_TOKEN="@Microsoft.KeyVault(VaultName=$KV;SecretName=GITHUB-TOKEN)" \
+    GITHUB_APP_ID="$GITHUB_APP_ID" \
+    GITHUB_APP_PRIVATE_KEY="@Microsoft.KeyVault(VaultName=$KV;SecretName=GITHUB-APP-PRIVATE-KEY)" \
     ACS_CONNECTION_STRING="@Microsoft.KeyVault(VaultName=$KV;SecretName=ACS-CONNECTION-STRING)" \
     WEBHOOK_API_KEY="@Microsoft.KeyVault(VaultName=$KV;SecretName=WEBHOOK-API-KEY)" \
     TURNSTILE_SECRET="@Microsoft.KeyVault(VaultName=$KV;SecretName=TURNSTILE-SECRET)" \

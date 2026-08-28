@@ -15,16 +15,26 @@ name: Claude PR Feedback
 on:
   pull_request_review:
     types: [submitted]
-  # Manual path, for re-running a round that died on a transient failure and for
-  # addressing a review that landed before this workflow existed. Not an opt-in
-  # gate: the automatic path already covers every same-repo PR, human-authored
-  # ones included. Opting *out* is the `no-auto-fix` label (see "Resolve target
-  # PR"), which the dispatch path honours too.
+  # The dispatch path carries two kinds of traffic. It is the PRIMARY route for
+  # claude-review.yml's own reviews: those are submitted with the default
+  # GITHUB_TOKEN (as github-actions[bot]), whose events never fire triggers, so
+  # that workflow dispatches this one explicitly after submitting
+  # CHANGES_REQUESTED — passing `review_commit` so the stale-review gate below
+  # still applies. It is also the manual path, for re-running a round that died
+  # on a transient failure; a human dispatch omits `review_commit`, which makes
+  # it an explicit "do it anyway". The `pull_request_review` event path above
+  # remains for reviews from humans and app identities. Opting *out* is the
+  # `no-auto-fix` label (see "Resolve target PR"), which the dispatch path
+  # honours too.
   workflow_dispatch:
     inputs:
       pr_number:
         description: 'Pull request number to address feedback on'
         required: true
+        type: string
+      review_commit:
+        description: 'Head SHA the review was submitted against (set by claude-review; leave empty for a manual "do it anyway" run)'
+        required: false
         type: string
 
 # `shell: bash` is NOT redundant. A `run:` step with no `shell:` gets `bash -e {0}`
@@ -89,9 +99,11 @@ jobs:
     # longer a statement about trust. But claude[bot]'s reviews report exactly
     # CONTRIBUTOR (verified against this repo's own PRs), so the bots that drive
     # the loop are allowlisted by login instead. Gate on association only and the
-    # primary path — responding to claude-review.yml — never fires at all.
-    # github-actions[bot] covers claude-review's workflow-token fallback, used when
-    # that workflow is itself under review.
+    # primary path — responding to automated reviews — never fires at all.
+    # github-actions[bot] is claude-review.yml's identity. Its reviews arrive via
+    # the workflow_dispatch path (default-token events fire no triggers), but the
+    # login must stay allowlisted here and in the feedback-collection filter below
+    # or its CHANGES_REQUESTED bodies would be dropped on collection.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.review.state == 'changes_requested' &&
@@ -182,7 +194,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
-          REVIEW_COMMIT: ${{ github.event.review.commit_id }}
+          REVIEW_COMMIT: ${{ github.event.review.commit_id || inputs.review_commit }}
         run: |
           source "${RUNNER_TEMP}/gh-retry.sh"
           if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
@@ -235,8 +247,10 @@ jobs:
 
           # A review submitted against an older commit has usually already been
           # answered by whatever produced the newer one; acting on it would redo
-          # the work and push a second round of the same fixes. Only enforced on
-          # the event path — a manual dispatch is an explicit "do it anyway".
+          # the work and push a second round of the same fixes. Enforced on the
+          # event path and on claude-review's dispatches (which pass
+          # `review_commit`); a manual dispatch without it is an explicit
+          # "do it anyway".
           if [ -n "$REVIEW_COMMIT" ] && [ "$REVIEW_COMMIT" != "$HEAD_OID" ]; then
             skip "review targets ${REVIEW_COMMIT}, PR head has moved to ${HEAD_OID}"
           fi
@@ -269,8 +283,9 @@ jobs:
       # claude-review.yml's prompt dismisses its own previous formal review on every
       # run, and a dismissed review's `state` becomes DISMISSED — so the count would
       # reset to 1 on every round and the limit would never be reached. The marker
-      # is posted by imagile-bot, which claude-review's comment cleanup (scoped to
-      # claude[bot]) does not touch.
+      # is posted by imagile-bot, which claude-review's comment cleanup does not
+      # touch (it is scoped to claude[bot]/github-actions[bot] and additionally
+      # told to spare anything containing "claude-pr-feedback-round").
       #
       # Counting pushes rather than reviews is also the right unit: a round where
       # the agent declines everything pushes nothing, fires no `synchronize`, and
