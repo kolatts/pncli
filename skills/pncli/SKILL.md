@@ -92,7 +92,9 @@ Each service has its own file in this skill with the config keys and example val
 
 ## Installing skills
 
-The skills bundled with pncli install into a repo with `pncli skills install` (default target `.agents/skills/`, which GitHub Copilot and Codex both read; add `--agent claude-code` for `.claude/skills`). Add `--scope user` to install them globally instead.
+The skills bundled with pncli install into a repo with `pncli skills install` (default target `.agents/skills/`, which GitHub Copilot and Codex both read; add `--agent claude-code` for `.claude/skills`, or `--all-agents` to cover every agent host in one run). Add `--scope user` to install them globally instead.
+
+Installed skills are a copy — after upgrading pncli, re-run `pncli skills install` to refresh them. `skills list` and `skills status` warn when the installed copy came from a different pncli version.
 
 Org-internal skills come from a git-hosted marketplace: `pncli skills marketplace setup <git-clone-url>` registers one, and `pncli skills marketplace sync` keeps everything installed from it current. `pncli skills status` and `pncli skills locations` show what is installed and where. The full workflow is in the `marketplace.md` file that ships inside the installed skill.
 
@@ -137,3 +139,11 @@ Review results. If any service shows `ok: false`, help troubleshoot the URL or c
 ```
 pncli config show
 ```
+
+**Troubleshooting** — when any command fails unexpectedly, run:
+
+```
+pncli doctor
+```
+
+It reports config-file health, credential validity per service, and skill install state (including stale skills) in one JSON envelope, with a `problems` array listing suggested fixes. Add `--offline` to skip the network checks.

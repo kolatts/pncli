@@ -12,7 +12,6 @@ import { configureProxy } from './lib/proxyFetch.js';
 // honour HTTP_PROXY / HTTPS_PROXY / NO_PROXY; this installs an
 // EnvHttpProxyAgent dispatcher that reads them itself (Node ≥ 22.4).
 await configureProxy();
-import { createRequire } from 'module';
 import { setGlobalOptions, setGlobalUser } from './lib/output.js';
 import { ExitCode } from './lib/exitCodes.js';
 import { loadConfig } from './lib/config.js';
@@ -25,6 +24,8 @@ import { registerSonarCommands } from './services/sonar/commands.js';
 import { registerSdeCommands } from './services/sde/commands.js';
 import { registerDepsCommands } from './services/deps/commands.js';
 import { registerConfigCommands } from './services/config/commands.js';
+import { registerDoctorCommands } from './services/doctor/commands.js';
+import { getPncliVersion } from './lib/version.js';
 import { registerAdoCommands } from './services/ado/commands/index.js';
 import { registerJenkinsCommands } from './services/jenkins/commands.js';
 import { registerArtifactoryCommands } from './services/artifactory/commands.js';
@@ -40,10 +41,6 @@ import { registerLogscaleCommands } from './services/logscale/commands.js';
 import { registerSplitioCommands } from './services/splitio/commands.js';
 import { registerFigmaCommands } from './services/figma/commands.js';
 
-const require = createRequire(import.meta.url);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const pkg = require('../package.json') as any;
-
 const TAGLINE = 'One command does what three meetings couldn\'t.';
 
 const program = new Command();
@@ -51,7 +48,7 @@ const program = new Command();
 program
   .name('pncli')
   .description(`The Paperwork Nightmare CLI — ${TAGLINE}`)
-  .version(`${pkg.version as string} — ${TAGLINE}`, '-v, --version')
+  .version(`${getPncliVersion()} — ${TAGLINE}`, '-v, --version')
   .option('--pretty', 'Human-readable formatted output', false)
   .option('--verbose', 'Include full response metadata', false)
   .option('--debug', 'Print diagnostic traces (method, URL, status) for all API calls — does not log credentials', false)
@@ -85,6 +82,7 @@ registerSonarCommands(program);
 registerSdeCommands(program);
 registerDepsCommands(program);
 registerConfigCommands(program);
+registerDoctorCommands(program);
 registerAdoCommands(program);
 registerJenkinsCommands(program);
 registerArtifactoryCommands(program);
@@ -123,6 +121,7 @@ Services:
   splitio      Split.IO (feature flags, Change Requests)
   figma        Figma (files, comments, version history)
   config       Manage pncli configuration
+  doctor       Diagnose pncli setup (config files, credentials, agent skills)
   skills       Install and manage agent skills (Codex, GitHub Copilot, Claude Code)
   jwt          JWT token utilities (decode header and payload)
 `);

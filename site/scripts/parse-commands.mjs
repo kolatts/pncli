@@ -36,6 +36,7 @@ const SERVICES = [
   { name: 'SDElements',                   file: 'src/services/sde/commands.ts',            prefix: 'sde' },
   { name: 'Dependencies',                 file: 'src/services/deps/commands.ts',           prefix: 'deps' },
   { name: 'Config',                       file: 'src/services/config/commands.ts',         prefix: 'config' },
+  { name: 'Doctor',                       file: 'src/services/doctor/commands.ts',         prefix: 'doctor' },
   { name: 'Azure DevOps — Work Items',    file: 'src/services/ado/commands/work.ts',       prefix: 'ado work' },
   { name: 'Azure DevOps — Repos & PRs',  file: 'src/services/ado/commands/repo.ts',       prefix: 'ado repo' },
   { name: 'Azure DevOps — Pipelines',    file: 'src/services/ado/commands/pipeline.ts',   prefix: 'ado pipeline' },
@@ -147,8 +148,11 @@ function extractCommands(filePath, prefix) {
       options.push({ flag: m[2], description: scrubDescription(m[3]), required: m[1] === 'requiredOption' });
     }
 
+    // A top-level command (e.g. `pncli doctor`) registers itself as its own
+    // leaf, so the prefix and command name coincide — render it once.
+    const fullName = cmdName === prefix ? `pncli ${prefix}` : `pncli ${prefix} ${cmdName}`;
     commands.push({
-      name: `pncli ${prefix} ${cmdName}`.replace(/\s+/g, ' ').trim(),
+      name: fullName.replace(/\s+/g, ' ').trim(),
       description,
       options,
     });

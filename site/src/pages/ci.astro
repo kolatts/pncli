@@ -1,0 +1,182 @@
+---
+import Base from '../layouts/Base.astro';
+import HeadingAnchors from '../components/HeadingAnchors.astro';
+
+/**
+ * CI recipes — hand-written page (not generated). The configuration
+ * precedence system was designed for CI (env vars always win), and this page
+ * is the end-to-end demonstration: real workflow snippets for GitHub Actions,
+ * Jenkins, and Azure Pipelines, plus envelope-parsing patterns.
+ *
+ * Hostnames follow the repo's placeholder rules (`<service>.imagile.dev`) —
+ * never put a real host in an example.
+ */
+---
+
+<Base
+  title="CI Recipes — pncli"
+  description="Using pncli in CI/CD pipelines: env-var config, zero-setup credential fallbacks, and JSON envelope parsing for GitHub Actions, Jenkins, and Azure Pipelines."
+>
+  <div class="max-w-3xl mx-auto px-6 py-10">
+    <header class="mb-8">
+      <p class="font-mono text-xs uppercase tracking-[0.14em] text-gold mb-2">Docs</p>
+      <h1 class="font-display headline-shadow text-4xl font-black text-ink tracking-tight mb-3">CI Recipes</h1>
+      <p class="text-ink/60">
+        pncli's configuration precedence was built for pipelines: environment variables always win,
+        so CI can inject credentials at runtime without any config file on the runner. These recipes
+        show the whole loop — install, authenticate, run, parse.
+      </p>
+    </header>
+
+    <div class="prose prose-neutral max-w-none
+      prose-headings:font-display prose-headings:text-ink prose-headings:font-black
+      prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4
+      prose-h3:text-lg prose-h3:mt-8 prose-h3:mb-3
+      prose-p:text-ink/70
+      prose-li:text-ink/70 prose-li:text-sm prose-li:leading-relaxed
+      prose-strong:text-ink
+      prose-a:text-gold prose-a:font-semibold prose-a:no-underline hover:prose-a:underline
+      prose-code:font-mono prose-code:text-sm prose-code:text-ink prose-code:bg-ink/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
+      prose-pre:bg-[#1e1e20] prose-pre:text-[#f2ead9] prose-pre:rounded-xl">
+
+      <h2 id="how-config-works-in-ci">How config works in CI</h2>
+      <p>
+        Every config value resolves in the same order, highest priority first:
+      </p>
+      <ol>
+        <li><code>PNCLI_*</code> environment variable</li>
+        <li>Well-known CI fallback variable, where one exists (table below)</li>
+        <li>Repo config (<code>.pncli.json</code>, checked into git)</li>
+        <li>Global user config (<code>~/.pncli/config.json</code>)</li>
+      </ol>
+      <p>
+        In practice: check <code>.pncli.json</code> into the repo for team defaults (project keys,
+        target branches), store credentials as CI secrets, and export them as
+        <code>PNCLI_&lt;SERVICE&gt;_&lt;KEY&gt;</code> variables in the job. No <code>config init</code>,
+        no files written on the runner.
+      </p>
+
+      <h2 id="zero-config-credentials">Zero-config credentials</h2>
+      <p>
+        Where a CI platform or a service's own tooling already has a canonical variable, pncli reads
+        it automatically — directly below the <code>PNCLI_*</code> override and above any config file:
+      </p>
+      <table>
+        <thead>
+          <tr><th>Variable</th><th>Provided by</th><th>Feeds</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>GITHUB_TOKEN</code></td><td>GitHub Actions (built-in)</td><td><code>github.token</code></td></tr>
+          <tr><td><code>GITHUB_API_URL</code></td><td>GitHub Actions (built-in)</td><td><code>github.baseUrl</code></td></tr>
+          <tr><td><code>SONAR_TOKEN</code></td><td>SonarScanner convention</td><td><code>sonar.token</code></td></tr>
+          <tr><td><code>SYSTEM_ACCESSTOKEN</code></td><td>Azure Pipelines (<code>$(System.AccessToken)</code>)</td><td><code>ado.pat</code></td></tr>
+        </tbody>
+      </table>
+      <p>
+        Inside GitHub Actions this means <code>pncli github</code> commands work with <strong>zero
+        pncli-specific setup</strong> — expose the workflow token and go.
+      </p>
+
+      <h2 id="github-actions">GitHub Actions</h2>
+      <p>Comment on a Jira issue when a deploy finishes — credentials come entirely from secrets:</p>
+      <pre is:raw><code>jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g @kolatts/pncli
+      - name: Comment on the Jira issue
+        env:
+          PNCLI_JIRA_BASE_URL: https://jira.imagile.dev
+          PNCLI_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          PNCLI_JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          ISSUE_KEY: PROJ-123
+        run: |
+          pncli jira add-comment --key "$ISSUE_KEY" \
+            --body "Deployed to staging in run $GITHUB_RUN_ID"</code></pre>
+      <p>
+        For GitHub itself, the built-in token is enough — this posts a PR comment with no secrets
+        block at all (grant the job <code>pull-requests: write</code> permission):
+      </p>
+      <pre is:raw><code>      - name: Comment on the PR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          pncli github --owner "${{ github.repository_owner }}" \
+            --repo "${{ github.event.repository.name }}" \
+            add-comment --number "${{ github.event.pull_request.number }}" \
+            --body "Smoke tests passed ✅"</code></pre>
+
+      <h2 id="jenkins">Jenkins</h2>
+      <p>
+        Use <code>withCredentials</code> to map stored secrets onto <code>PNCLI_*</code> variables
+        for exactly the duration of the step:
+      </p>
+      <pre is:raw><code>pipeline {
+  agent any
+  stages {
+    stage('Quality gate') {
+      steps {
+        withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+          sh '''
+            npm install -g @kolatts/pncli
+            export PNCLI_SONAR_BASE_URL=https://sonar.imagile.dev
+            pncli sonar issues --project my-project --output-file sonar.json
+          '''
+        }
+      }
+    }
+  }
+}</code></pre>
+      <p>
+        <code>SONAR_TOKEN</code> needs no <code>PNCLI_</code> prefix — it's the SonarScanner
+        convention pncli already honors as a fallback.
+      </p>
+
+      <h2 id="azure-pipelines">Azure Pipelines</h2>
+      <p>
+        The predefined <code>System.AccessToken</code> maps straight onto <code>ado.pat</code>.
+        Expose it explicitly — it is not in the environment by default:
+      </p>
+      <pre is:raw><code>steps:
+  - script: npm install -g @kolatts/pncli
+    displayName: Install pncli
+  - script: |
+      export PNCLI_ADO_BASE_URL="$(System.CollectionUri)"
+      pncli ado work create --type Task --title "Follow-up from build $(Build.BuildNumber)"
+    displayName: Create follow-up work item
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)</code></pre>
+
+      <h2 id="parsing-the-envelope">Parsing the envelope</h2>
+      <p>
+        Every command prints one JSON envelope to stdout — success and failure alike — so pipeline
+        logic is a <code>jq</code> expression, not log scraping:
+      </p>
+      <pre is:raw><code># Gate a stage on the result
+result=$(pncli jira get-issue --key PROJ-123)
+if [ "$(echo "$result" | jq -r '.ok')" != "true" ]; then
+  echo "Jira lookup failed: $(echo "$result" | jq -r '.error.message')"
+  exit 1
+fi
+status=$(echo "$result" | jq -r '.data.fields.status.name')</code></pre>
+      <ul>
+        <li><strong>Exit codes:</strong> non-zero on failure, and the error is still JSON — check <code>.error.status</code> and <code>.error.message</code> rather than parsing stderr.</li>
+        <li><strong>Large payloads:</strong> add <code>--output-file results.json</code> to keep search results or logs out of the build log (and out of an agent's context).</li>
+        <li><strong>Previewing:</strong> <code>--dry-run</code> prints the API request without executing — useful while wiring up a new pipeline.</li>
+        <li><strong>Debugging:</strong> <code>--debug</code> traces every call on stderr and never logs credentials; stdout stays pure JSON.</li>
+      </ul>
+
+      <h2 id="secrets-hygiene">Secrets hygiene</h2>
+      <ul>
+        <li>Store tokens only in the CI platform's secret store; export them as env vars in the narrowest scope (step-level beats job-level).</li>
+        <li>Never write credentials into <code>.pncli.json</code> — it's checked into git and meant for team defaults only.</li>
+        <li>Environment variables always beat config files, so a leaked or stale <code>~/.pncli/config.json</code> on a shared runner can't override the pipeline's injected credentials.</li>
+      </ul>
+    </div>
+
+    <HeadingAnchors levels="h2, h3" />
+  </div>
+</Base>

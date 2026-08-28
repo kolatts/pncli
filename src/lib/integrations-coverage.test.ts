@@ -23,7 +23,7 @@ import {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 /** Commands that are pncli's own tooling, not an integration with an external service. */
-const NOT_AN_INTEGRATION = new Set(['config', 'skills', 'jwt']);
+const NOT_AN_INTEGRATION = new Set(['config', 'doctor', 'skills', 'jwt']);
 
 function cliServiceSlugs(): string[] {
   const cli = fs.readFileSync(path.join(repoRoot, 'src/cli.ts'), 'utf8');
