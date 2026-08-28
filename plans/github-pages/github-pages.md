@@ -106,7 +106,7 @@ pncli/
 - **`CodeTabs.astro`** — three-tab widget for `npm i -g @kolatts/pncli` / `pnpm add -g @kolatts/pncli` / `yarn global add @kolatts/pncli`. Tabs use `aria-selected` + `role="tab"`, inline script ~20 lines.
 - **"Why pncli" three-card row** — uses `3-meetings.png` on the headline card; body text summarizes the mission statement at `README.md:7–11`.
 - **`ServiceGrid.astro`** — tiles for Git, Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps (from `README.md:81–91`), plus "coming soon" badges for Artifactory and Jenkins. `tools.png` as the section background flourish.
-- **"For AI agents" section** — quotes the four bullets verbatim from `README.md:55–62` (structured JSON, `ok` field, `--dry-run`, `copilot-instructions.md`).
+- **"For AI agents" section** — quotes the four bullets verbatim from `README.md:55–62` (structured JSON, `ok` field, `--dry-run`, and the agent instructions file). *(Historical: that file was `copilot-instructions.md`, retired in #388 in favour of `skills/pncli/`.)*
 - **Latest-3 changelog teaser** — stub in Phase 2 with hardcoded content, wired up in Phase 3.
 - **`Footer.astro`** — links to GitHub repo, npm page, `/changelog`, `/feedback`. `monster.png` as a decorative mascot.
 - **`404.astro`** — `404.png` art, links to `/` and latest release. Astro emits `404.html`; confirm GH Pages serves it correctly under `base: /pncli/`.

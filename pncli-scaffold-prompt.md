@@ -1,3 +1,9 @@
+> **Historical document.** This is the original one-shot prompt used to scaffold
+> pncli. It is kept as a record and is not maintained. Several things it describes
+> have since changed — notably `copilot-instructions.md`, which was retired in #388;
+> agent instructions now live in `skills/pncli/` and on the
+> [documentation site](https://kolatts.github.io/pncli/getting-started/).
+
 # pncli — The Paperwork Nightmare CLI
 
 > One command does what three meetings couldn't.
