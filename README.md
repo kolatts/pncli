@@ -19,6 +19,23 @@ Your org blocked MCP. Your agents still need to review PRs, create issues, and m
 npm install -g @kolatts/pncli
 ```
 
+## Give it to your agent
+
+pncli ships a skill — setup, conventions, and a reference file per service — that teaches any coding agent how to use it. Install it into your repo:
+
+```bash
+# Codex & GitHub Copilot via the cross-tool .agents/skills convention (default)
+pncli skills install
+
+# GitHub Copilot's own directories (.github/skills)
+pncli skills install --agent github-copilot
+
+# Claude Code (.claude/skills)
+pncli skills install --agent claude-code
+```
+
+Add `--scope user` to install for every repo on the machine instead. Org-internal skills distribute the same way from a git-hosted marketplace: `pncli skills marketplace setup <git-clone-url>` registers one, `pncli skills marketplace sync` keeps it current, and `pncli skills status` shows what's installed where.
+
 ## Quick Start
 
 ```bash
@@ -29,7 +46,7 @@ pncli config init
 pncli config init --repo
 ```
 
-For setup, conventions, and agent integration, see the [Getting Started page](https://kolatts.github.io/pncli/getting-started/) and the [full command reference](https://kolatts.github.io/pncli/commands/). To hand the same guidance to your agent, run `pncli skills install` — it drops [`skills/pncli/`](./skills/pncli/) into your repo, with a setup file per service.
+For setup, conventions, and agent integration, see the [Getting Started page](https://kolatts.github.io/pncli/getting-started/) and the [full command reference](https://kolatts.github.io/pncli/commands/). The same guidance ships to your agent via [`pncli skills install`](#give-it-to-your-agent).
 
 ## Configuration
 
@@ -43,35 +60,15 @@ pncli uses a three-layer config system (highest priority wins):
 
 ### Environment Variables
 
+Every config value can be supplied as a `PNCLI_<SERVICE>_<KEY>` environment variable, and env vars always win over config files. The cross-service ones:
+
 | Variable | Description |
 |----------|-------------|
 | `PNCLI_EMAIL` | Your email address (used across Jira, Bitbucket, etc.) |
 | `PNCLI_USERID` | Your user ID or username |
-| `PNCLI_JIRA_BASE_URL` | Jira base URL |
-| `PNCLI_JIRA_API_TOKEN` | Jira API token |
-| `PNCLI_BITBUCKET_BASE_URL` | Bitbucket Server base URL |
-| `PNCLI_BITBUCKET_PAT` | Bitbucket personal access token |
-| `PNCLI_CONFLUENCE_BASE_URL` | Confluence base URL |
-| `PNCLI_CONFLUENCE_API_TOKEN` | Confluence API token (falls back to Jira token if unset) |
-| `PNCLI_SONAR_BASE_URL` | SonarQube Server base URL |
-| `PNCLI_SONAR_TOKEN` | SonarQube personal access token |
-| `PNCLI_SDE_CONNECTION` | SDElements connection string (`api-token@hostname`, e.g. `mytoken@myorg.sdelements.com`) |
-| `PNCLI_ADO_BASE_URL` | Azure DevOps Server base URL |
-| `PNCLI_ADO_PAT` | Azure DevOps Server personal access token |
-| `PNCLI_JENKINS_BASE_URL` | Jenkins base URL |
-| `PNCLI_JENKINS_USERNAME` | Jenkins username |
-| `PNCLI_JENKINS_API_TOKEN` | Jenkins API token |
-| `PNCLI_ARTIFACTORY_BASE_URL` | JFrog Artifactory base URL |
-| `PNCLI_ARTIFACTORY_TOKEN` | Artifactory access token |
-| `PNCLI_ARTIFACTORY_REPO_NPM` | Artifactory virtual npm repository name |
-| `PNCLI_ARTIFACTORY_REPO_NUGET` | Artifactory virtual NuGet repository name |
-| `PNCLI_ARTIFACTORY_REPO_MAVEN` | Artifactory virtual Maven repository name |
-| `PNCLI_CHECKMARX_BASE_URL` | Checkmarx One API base URL |
-| `PNCLI_CHECKMARX_TENANT_NAME` | Checkmarx One tenant name |
-| `PNCLI_CHECKMARX_API_KEY` | Checkmarx One API key |
-| `PNCLI_CHECKMARX_CLIENT_ID` | Checkmarx One OAuth client ID (API key alternative) |
-| `PNCLI_CHECKMARX_CLIENT_SECRET` | Checkmarx One OAuth client secret (API key alternative) |
 | `PNCLI_CONFIG_PATH` | Override global config file path |
+
+Per-service variables (base URLs, tokens) are documented in each service's file under [`skills/pncli/`](./skills/pncli/) — the same files `pncli skills install` hands to your agent — and on the [command reference](https://kolatts.github.io/pncli/commands/).
 
 ## For AI Agents
 
@@ -100,24 +97,42 @@ This project uses Conventional Commits for automatic versioning:
 
 ## Services
 
-| Service | Status | Designed for | Auth methods |
-|---------|--------|--------------|--------------|
-| Git (local) | ✅ Active | Any git version | — (local git commands) |
-| Jira | ✅ Active | Jira Data Center 9.x / 10.x | email + API token |
-| Bitbucket | ✅ Active | Bitbucket Server / Data Center 8.x–9.x | HTTP access token (PAT) |
-| Confluence | ✅ Active | Confluence Data Center 8.x / 9.x | email + API token |
-| SonarQube | ✅ Active | SonarQube Server 9.x / 10.x | user token |
-| SDElements | ✅ Active | SDElements cloud + on-prem (REST API v2) | connection string (`token@hostname`) |
-| Azure DevOps Server | ✅ Active | ADO Server 2020+ (REST API 7.1) | personal access token (PAT) |
-| Jenkins | ✅ Active | Jenkins 2.x LTS | username + API token |
-| JFrog Artifactory | ✅ Active | Artifactory 7.x | bearer token |
-| Checkmarx | ✅ Active | CxSAST 9.x (on-prem) | username + password (OAuth2 password grant — pncli handles token exchange) |
+<!-- services-table:start (generated from site/src/lib/integrations.ts — run `npm run sync-readme`; do not edit by hand) -->
+| Service | Status | Description |
+|---------|--------|-------------|
+| Git | 🟢 Live | Local repository operations |
+| Jira | 🔵 Beta | Issues, sprints, projects |
+| Confluence | 🔵 Beta | Pages, spaces, content |
+| Azure DevOps | 🔵 Beta | Work items, pipelines |
+| Bitbucket | 🟡 Basic | Pull requests, repositories |
+| GitHub | 🟡 Basic | Pull requests, reviews, issues |
+| SonarQube | 🟡 Basic | Code quality & security |
+| SDElements | 🟡 Basic | Security requirements |
+| Artifactory | 🟡 Basic | Artifact repository |
+| Jenkins | 🟡 Basic | CI/CD pipelines |
+| Dynatrace | 🟡 Basic | Problems, entities, traces |
+| Dependencies | 🟡 Basic | CVE detection, license audit |
+| Checkmarx | ⚪ Untested | Vulnerability scanning (SAST) |
+| Contrast IAST | ⚪ Untested | Runtime application security |
+| ServiceNow | ⚪ Untested | IT service management |
+| Sonatype IQ | ⚪ Untested | Dependency policy enforcement |
+| OpenShift | ⚪ Untested | Pods, events, logs, metrics |
+| LogScale | ⚪ Untested | Log queries, repositories |
+| Figma | ⚪ Untested | Design files, comments, history |
+| Split.IO | ⚪ Untested | Feature flags, change requests |
+
+Status reflects validation against a **real instance**, not code maturity: **Live** — used routinely day-to-day · **Beta** — exercised across several commands and instances · **Basic** — smoke-tested against one instance · **Untested** — shipped, not yet run against a live server. The [homepage](https://kolatts.github.io/pncli/) shows the same grid.
+
+Removed integrations: IBM UrbanCode Deploy (v2.0.0) — see the [changelog](https://kolatts.github.io/pncli/changelog/) for why.
+<!-- services-table:end -->
+
+Auth specifics and supported server versions for each service live in its [`skills/pncli/<service>.md`](./skills/pncli/) file.
 
 ### Adding a service
 
 Requests for new integrations are welcome for **any enterprise tool**, not just the SDLC categories above — design, documentation, observability, ITSM, and collaboration tools all count.
 
-The one hard requirement is authentication: the tool must support a **personal access token** — a long-lived static credential you generate in its own UI and paste into an env var or config file. Vendor naming doesn't matter (API token, user token, PAT). Tools whose only auth is interactive OAuth, SSO/SAML, username+password, a registered OAuth app, a cloud IAM credential chain, or mTLS can't be supported. The Checkmarx row above predates this rule and is grandfathered. IBM UrbanCode Deploy was removed in v2.0.0 for exactly this reason — UCD tokens are not usable as a standalone credential the way pncli requires, so its only workable auth was username + password.
+The one hard requirement is authentication: the tool must support a **personal access token** — a long-lived static credential you generate in its own UI and paste into an env var or config file. Vendor naming doesn't matter (API token, user token, PAT). Tools whose only auth is interactive OAuth, SSO/SAML, username+password, a registered OAuth app, a cloud IAM credential chain, or mTLS can't be supported. Checkmarx (username + password via an OAuth2 password grant that pncli handles natively) predates this rule and is grandfathered. IBM UrbanCode Deploy was removed in v2.0.0 for exactly this reason — UCD tokens are not usable as a standalone credential the way pncli requires, so its only workable auth was username + password.
 
 ## License
 

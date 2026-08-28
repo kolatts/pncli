@@ -1,6 +1,6 @@
 ---
 name: pncli
-description: Use when asked to set up pncli, configure a service, initialize a repo, or run pncli commands. Walks through identity, work item tracking, source control, and optional services. For any specific service, read the included <service>.md file.
+description: Use when working with enterprise tools through pncli — querying or updating Jira issues, Bitbucket/GitHub/Azure DevOps pull requests, Confluence pages, SonarQube findings, Jenkins builds, ServiceNow records, and more — or when asked to set up pncli, configure a service, or initialize a repo. Walks through identity, work item tracking, source control, and optional services. For any specific service, read the included <service>.md file.
 compatibility: Designed for Claude Code. Requires pncli installed and accessible in PATH.
 user-invocable: true
 metadata:

@@ -176,3 +176,34 @@ const mdx = [
 mkdirSync(outDir, { recursive: true });
 writeFileSync(outFile, mdx);
 console.log('parse-instructions: wrote getting-started.mdx from skills/pncli/SKILL.md');
+
+// llms.txt — the same skill content as plain markdown for agents browsing the
+// site (https://llmstxt.org/). Unlike the MDX page it keeps the `File` column
+// (it names the per-service file an agent gets after `pncli skills install`)
+// and needs no MDX escaping. Hidden services stay hidden.
+const llmsBody = hideHiddenServices(stripFrontmatter(raw)).trim();
+const llms = [
+  '# pncli — The Paperwork Nightmare CLI',
+  '',
+  '> pncli gives AI coding agents and humans structured JSON CLI access to enterprise tools — Jira, Bitbucket, GitHub, Confluence, Azure DevOps, SonarQube, Jenkins, and more — authenticated with nothing but personal access tokens. Every command prints a JSON envelope; check `ok` before reading `data`.',
+  '',
+  'Install: `npm install -g @kolatts/pncli` · Hand it to your agent: `pncli skills install`',
+  '',
+  '## Docs',
+  '',
+  '- [Getting Started](https://kolatts.github.io/pncli/getting-started/): setup, conventions, and agent integration',
+  '- [Command reference](https://kolatts.github.io/pncli/commands/): every command and flag, per service',
+  '- [Changelog](https://kolatts.github.io/pncli/changelog/)',
+  '- [npm package](https://www.npmjs.com/package/@kolatts/pncli)',
+  '- [GitHub repository](https://github.com/kolatts/pncli)',
+  '',
+  '## Agent instructions (from the shipped skill)',
+  '',
+  llmsBody,
+  '',
+].join('\n');
+
+const publicDir = join(__dirname, '../public');
+mkdirSync(publicDir, { recursive: true });
+writeFileSync(join(publicDir, 'llms.txt'), llms);
+console.log('parse-instructions: wrote public/llms.txt from skills/pncli/SKILL.md');

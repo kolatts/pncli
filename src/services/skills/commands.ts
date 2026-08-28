@@ -152,6 +152,24 @@ export function resolveScopedPath(agentPaths: { project: string; user: string },
   return scope === 'project' ? resolveProjectPath(agentPaths.project) : path.resolve(agentPaths.user);
 }
 
+/**
+ * True when the bundled pncli skill is installed in any known agent skills
+ * location (either scope, any agent). Used by `config init` to decide whether
+ * to suggest `pncli skills install` — it is a hint, so it must never throw.
+ */
+export function hasInstalledPncliSkill(): boolean {
+  try {
+    for (const agentPaths of Object.values(AGENT_PATHS)) {
+      for (const scope of ['project', 'user'] as const) {
+        if (fs.existsSync(path.join(resolveScopedPath(agentPaths, scope), 'pncli', 'SKILL.md'))) {
+          return true;
+        }
+      }
+    }
+  } catch { /* hint only — never block the caller */ }
+  return false;
+}
+
 function resolveTargetDir(opts: { agent?: string; claude?: boolean; scope?: string; target?: string }): string {
   if (opts.target) return path.resolve(opts.target);
   const agentConfig = resolveAgentPaths(resolveAgentName(opts));
@@ -1037,23 +1055,25 @@ async function marketplaceAddAction(url: string, localPath: string | undefined, 
 }
 
 export function registerSkillsCommands(program: Command): void {
-  const skills = program.command('skills').description('Manage pncli Claude Code skills');
+  const skills = program.command('skills').description(`Manage agent skills (${AGENT_CHOICES})`);
 
   skills
     .command('install')
     .description('Install pncli skills into the current repo')
     .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES}`, DEFAULT_AGENT)
     .option('--scope <scope>', 'Installation scope: project | user', 'project')
+    .option('--claude', 'Shorthand for --agent claude-code')
     .option('--target <dir>', 'Override install directory (ignores --agent and --scope)')
 
-    .action((opts: { agent: string; scope: string; target?: string }) => {
+    .action((opts: { agent: string; scope: string; claude?: boolean; target?: string }) => {
       const start = Date.now();
       try {
+        const agentName = resolveAgentName(opts);
         let targetDir: string;
         if (opts.target) {
           targetDir = path.resolve(opts.target);
         } else {
-          const agentConfig = resolveAgentPaths(opts.agent);
+          const agentConfig = resolveAgentPaths(agentName);
           targetDir = resolveScopedPath(agentConfig, opts.scope === 'user' ? 'user' : 'project');
         }
 
@@ -1131,7 +1151,7 @@ export function registerSkillsCommands(program: Command): void {
           failed,
           target: targetDir,
           total: installed.length,
-          agent: opts.target ? 'custom' : opts.agent,
+          agent: opts.target ? 'custom' : agentName,
           scope: opts.target ? 'custom' : opts.scope,
           source: 'bundled',
           ...(opts.target ? { trackedAsCustomTarget: tracked } : {}),
@@ -1146,15 +1166,16 @@ export function registerSkillsCommands(program: Command): void {
     .description('List locally installed skills')
     .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES}`, DEFAULT_AGENT)
     .option('--scope <scope>', 'Installation scope: project | user', 'project')
+    .option('--claude', 'Shorthand for --agent claude-code')
     .option('--target <dir>', 'Override skills directory to scan')
-    .action((opts: { agent: string; scope: string; target?: string }) => {
+    .action((opts: { agent: string; scope: string; claude?: boolean; target?: string }) => {
       const start = Date.now();
       try {
         let targetDir: string;
         if (opts.target) {
           targetDir = path.resolve(opts.target);
         } else {
-          const agentConfig = resolveAgentPaths(opts.agent);
+          const agentConfig = resolveAgentPaths(resolveAgentName(opts));
           targetDir = resolveScopedPath(agentConfig, opts.scope === 'user' ? 'user' : 'project');
         }
 
