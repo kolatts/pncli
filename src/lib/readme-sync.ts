@@ -50,11 +50,20 @@ export function parseIntegrations(source: string): ReadmeIntegration[] {
 
 export function parseRemovedIntegrations(source: string): ReadmeRemovedIntegration[] {
   const list = source.match(/export const removedIntegrations: RemovedIntegration\[\] = \[([\s\S]*?)\n\];/);
-  if (!list) return [];
-  return Array.from(list[1].matchAll(/name:\s*'([^']+)',\s*\n\s*removedIn:\s*'([^']+)'/g)).map((m) => ({
-    name: m[1],
-    removedIn: m[2],
-  }));
+  if (!list) throw new Error('Could not find the removedIntegrations array in site/src/lib/integrations.ts');
+  const parsed = Array.from(
+    list[1].matchAll(/name:\s*'([^']+)',\s*removedIn:\s*'([^']+)'/gs)
+  ).map((m) => ({ name: m[1], removedIn: m[2] }));
+  // Guard against the entry regex silently dropping a reformatted entry — the
+  // removed-integrations line exists so users on old versions learn why
+  // commands vanished, and it must not disappear from the README unnoticed.
+  const expected = (list[1].match(/removedIn:/g) ?? []).length;
+  if (parsed.length !== expected) {
+    throw new Error(
+      `parseRemovedIntegrations matched ${parsed.length} of ${expected} entries — update the regex in src/lib/readme-sync.ts for the new array shape`
+    );
+  }
+  return parsed;
 }
 
 /** The markdown between the two markers (markers excluded). */
@@ -65,11 +74,12 @@ export function renderServicesBlock(
   const sorted = [...integrations].sort(
     (a, b) => (TESTING_RANK[a.testing] ?? 99) - (TESTING_RANK[b.testing] ?? 99)
   );
+  const cell = (text: string): string => text.replace(/\|/g, '\\|');
   const lines: string[] = [];
   lines.push('| Service | Status | Description |');
   lines.push('|---------|--------|-------------|');
   for (const entry of sorted) {
-    lines.push(`| ${entry.name} | ${TESTING_LABEL[entry.testing] ?? entry.testing} | ${entry.description} |`);
+    lines.push(`| ${cell(entry.name)} | ${TESTING_LABEL[entry.testing] ?? entry.testing} | ${cell(entry.description)} |`);
   }
   lines.push('');
   lines.push(

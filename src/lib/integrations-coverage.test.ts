@@ -128,6 +128,12 @@ describe('README services table stays in sync with the site grid', () => {
       gridEntries().map((e) => e.slug)
     );
   });
+
+  it('parses the removed integrations (the removal notice must not vanish silently)', () => {
+    // parseRemovedIntegrations throws when its entry regex drops an entry, so
+    // this only needs to prove the known removals actually parse.
+    expect(parseRemovedIntegrations(integrationsSource()).length).toBeGreaterThan(0);
+  });
 });
 
 describe('site command reference covers every service', () => {
