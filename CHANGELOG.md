@@ -1,5 +1,27 @@
 # Changelog
 
+## [3.0.0](https://github.com/kolatts/pncli/compare/v2.0.0...v3.0.0) (2026-08-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* **docs:** `copilot-instructions.md` is deleted and no longer shipped in the npm tarball -- it has been dropped from `package.json` `files`. Anything fetching it from a pinned path in the package or the repo will 404. The content moved to two places that are still published: run `pncli skills install` for `skills/pncli/` (still in the tarball), which carries the setup guidance plus a per-service file, or read https://kolatts.github.io/pncli/getting-started/ and https://kolatts.github.io/pncli/commands/ for the same material online.
+* **skills:** `--agent github-copilot` now resolves to `.github/skills` (project) and `~/.copilot/skills` (user), the directories GitHub documents for Copilot. It previously meant `.agents/skills` at both scopes. The default install directory is unchanged — `.agents/skills` — but it is now reached under the agent name `codex` rather than `github-copilot`, so callers relying on the default are unaffected. Anyone passing `--agent github-copilot` explicitly and wanting the previous behavior should switch to `--agent codex`; the flag emits a one-time warning naming both paths. Skills already installed under `.agents/skills` stay where they are and are still found by the default agent.
+
+### Features
+
+* **automation:** imagile-bot identity for website issues; formal reviews via workflow token ([#398](https://github.com/kolatts/pncli/issues/398)) ([f0b352d](https://github.com/kolatts/pncli/commit/f0b352dbb2f9cb9f9d374722b417cfe3f0952a8b))
+* **docs:** retire copilot-instructions.md in favour of skills/pncli/ ([#396](https://github.com/kolatts/pncli/issues/396)) ([c7cf682](https://github.com/kolatts/pncli/commit/c7cf6820acb369986e7db20ece6661ef3ff550c7))
+* **dynatrace:** support multiple named environments with --env flag ([#392](https://github.com/kolatts/pncli/issues/392)) ([185a601](https://github.com/kolatts/pncli/commit/185a601bc17878adfab57d2b42b8679744dbee9e))
+* **openshift:** support multiple environments and cluster instances ([#395](https://github.com/kolatts/pncli/issues/395)) ([d258b65](https://github.com/kolatts/pncli/commit/d258b65cbc9d2b5773e8700fa565cd8ba30508e9))
+* **site:** add OpenShift to feedback form and sort services A-Z ([#394](https://github.com/kolatts/pncli/issues/394)) ([c21fd42](https://github.com/kolatts/pncli/commit/c21fd422d8e8fc59a6f3f67c8cfa6396c2938487)), closes [#393](https://github.com/kolatts/pncli/issues/393)
+* **skills:** .github install target, codex default, and full install visibility ([#385](https://github.com/kolatts/pncli/issues/385)) ([06b6e45](https://github.com/kolatts/pncli/commit/06b6e45fd60459587f36e44d13c39c1f08f4148e))
+
+
+### Bug Fixes
+
+* **ci:** restore npm publishing and backfill the three missed releases ([#382](https://github.com/kolatts/pncli/issues/382)) ([a0aeb11](https://github.com/kolatts/pncli/commit/a0aeb11efd25ed526fdfe7759b820d6e77253860))
+
 ## [2.0.0](https://github.com/kolatts/pncli/compare/v1.26.0...v2.0.0) (2026-08-27)
 
 
