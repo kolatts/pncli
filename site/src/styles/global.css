@@ -34,6 +34,31 @@
   color-scheme: dark;
 }
 
+/*
+ * Typography plugin palette for the dark theme. The docs pages use
+ * `prose prose-neutral` with per-element `prose-*:text-ink/*` overrides, but
+ * anything not explicitly overridden (table cells, list markers, blockquotes,
+ * hr, captions) falls back to prose-neutral's light-theme grays — nearly
+ * invisible on charcoal. Redefining the plugin's CSS variables here fixes
+ * every prose element at the source instead of chasing them per page.
+ */
+.prose {
+  --tw-prose-body: rgb(242 234 217 / 0.72);
+  --tw-prose-headings: var(--color-ink);
+  --tw-prose-lead: rgb(242 234 217 / 0.72);
+  --tw-prose-links: var(--color-gold);
+  --tw-prose-bold: var(--color-ink);
+  --tw-prose-counters: rgb(242 234 217 / 0.55);
+  --tw-prose-bullets: rgb(242 234 217 / 0.4);
+  --tw-prose-hr: rgb(242 234 217 / 0.15);
+  --tw-prose-quotes: rgb(242 234 217 / 0.85);
+  --tw-prose-quote-borders: rgb(217 184 79 / 0.5);
+  --tw-prose-captions: rgb(242 234 217 / 0.55);
+  --tw-prose-code: var(--color-ink);
+  --tw-prose-th-borders: rgb(242 234 217 / 0.3);
+  --tw-prose-td-borders: rgb(242 234 217 / 0.12);
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--color-cream);

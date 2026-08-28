@@ -32,9 +32,12 @@ pncli skills install --agent github-copilot
 
 # Claude Code (.claude/skills)
 pncli skills install --agent claude-code
+
+# All three agent hosts at once
+pncli skills install --all-agents
 ```
 
-Add `--scope user` to install for every repo on the machine instead. Org-internal skills distribute the same way from a git-hosted marketplace: `pncli skills marketplace setup <git-clone-url>` registers one, `pncli skills marketplace sync` keeps it current, and `pncli skills status` shows what's installed where.
+Add `--scope user` to install for every repo on the machine instead. Installed skills are a copy — after upgrading pncli, re-run `pncli skills install`; `skills list`, `skills status`, and `pncli doctor` warn when the installed copy is stale. Org-internal skills distribute the same way from a git-hosted marketplace: `pncli skills marketplace setup <git-clone-url>` registers one, `pncli skills marketplace sync` keeps it current, and `pncli skills status` shows what's installed where.
 
 ## Quick Start
 
@@ -44,6 +47,9 @@ pncli config init
 
 # Add repo-level defaults (check this into git)
 pncli config init --repo
+
+# When something isn't working: config, credentials, and skills in one report
+pncli doctor
 ```
 
 For setup, conventions, and agent integration, see the [Getting Started page](https://kolatts.github.io/pncli/getting-started/) and the [full command reference](https://kolatts.github.io/pncli/commands/). The same guidance ships to your agent via [`pncli skills install`](#give-it-to-your-agent).

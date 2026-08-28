@@ -9,6 +9,7 @@ import select from '@inquirer/select';
 import checkbox, { Separator } from '@inquirer/checkbox';
 import input from '@inquirer/input';
 import { writeGlobalConfig, getGlobalConfigPath, loadJsonFile } from '../../lib/config.js';
+import { getPncliVersion } from '../../lib/version.js';
 import type { GlobalConfig, MarketplaceConfig } from '../../types/config.js';
 
 const BACK = '__back__';
@@ -200,6 +201,8 @@ export interface InstalledSkillRecord {
   installedFrom?: string;
   branch?: string;
   installedAt: string;
+  /** pncli version that performed the install. Absent on records written before v3.1. */
+  pncliVersion?: string;
 }
 
 /**
@@ -214,6 +217,8 @@ export interface SkillOrigin {
   installedFrom?: string;
   branch?: string;
   installedAt: string;
+  /** pncli version that performed the install. Absent on records written before v3.1. */
+  pncliVersion?: string;
 }
 
 const SKILL_ORIGIN_FILENAME = 'pncli-origin.json';
@@ -282,6 +287,7 @@ function resolveSkillRecord(meta: InstalledMeta, targetDir: string, skillName: s
     installedFrom: perSkill.installedFrom,
     branch: perSkill.branch,
     installedAt: perSkill.installedAt,
+    pncliVersion: perSkill.pncliVersion,
   };
 }
 
@@ -610,6 +616,10 @@ export interface SkillStatusRecord {
   upstreamRemote: string | null;
   branch: string | null;
   installedAt: string | null;
+  /** pncli version that installed the skill; null when unrecorded (pre-v3.1 installs). */
+  pncliVersion: string | null;
+  /** True for bundled skills whose install-time pncli version differs from the running CLI's. */
+  stale: boolean;
 }
 
 /**
@@ -677,6 +687,8 @@ export function collectSkillStatus(globalConfig: GlobalConfig, locations: SkillL
         upstreamRemote: remoteFor(registered?.localPath),
         branch: record?.branch ?? null,
         installedAt: record?.installedAt ?? null,
+        pncliVersion: record?.pncliVersion ?? null,
+        stale: record?.source === 'bundled' && (record.pncliVersion ?? null) !== getPncliVersion(),
       });
     };
 
@@ -701,7 +713,8 @@ export function recordInstalledSkills(targetDir: string, skillNames: string[], r
   const meta = readInstalledMeta(targetDir);
   const now = new Date().toISOString();
   for (const skillName of skillNames) {
-    const fullRecord: InstalledSkillRecord = { ...record, installedAt: now };
+    // Stamp the installing pncli's version so staleness is detectable after upgrades.
+    const fullRecord: InstalledSkillRecord = { pncliVersion: getPncliVersion(), ...record, installedAt: now };
     meta.skills[skillName] = fullRecord;
 
     // Write per-skill origin file for self-contained provenance
@@ -714,6 +727,37 @@ export function recordInstalledSkills(targetDir: string, skillNames: string[], r
     }
   }
   fs.writeFileSync(getInstalledMetaPath(targetDir), JSON.stringify(meta, null, 2), 'utf8');
+}
+
+export interface StaleSkill {
+  skill: string;
+  /** Version stamped at install time; null for installs made before stamping existed. */
+  installedVersion: string | null;
+  currentVersion: string;
+}
+
+/**
+ * Bundled skills in targetDir whose install-time pncli version differs from the
+ * running CLI's. Installed skills are a copy, so every pncli upgrade silently
+ * strands them until `skills install` is re-run — this is how commands detect
+ * that and say so. Records with no version stamp (pre-v3.1 installs) are
+ * treated as stale: their true vintage is unknown and re-installing is free.
+ * Marketplace-sourced skills are never reported — their freshness is governed
+ * by `marketplace sync`, not the pncli version.
+ */
+export function findStaleBundledSkills(targetDir: string): StaleSkill[] {
+  const currentVersion = getPncliVersion();
+  const meta = readInstalledMeta(targetDir);
+  const stale: StaleSkill[] = [];
+  for (const skillName of listActiveSkillDirs(targetDir)) {
+    const record = resolveSkillRecord(meta, targetDir, skillName);
+    if (record?.source !== 'bundled') continue;
+    const installedVersion = record.pncliVersion ?? null;
+    if (installedVersion !== currentVersion) {
+      stale.push({ skill: skillName, installedVersion, currentVersion });
+    }
+  }
+  return stale;
 }
 
 /**
@@ -1054,6 +1098,78 @@ async function marketplaceAddAction(url: string, localPath: string | undefined, 
   }
 }
 
+/**
+ * Names of the bundled skill directories shipped inside the npm package.
+ * Throws when none are found — a broken or partial install.
+ */
+export function listBundledSkillDirs(): string[] {
+  const bundledDir = getBundledSkillsDir();
+  let skillDirs: string[] = [];
+  if (bundledDir !== '') {
+    try {
+      skillDirs = fs.readdirSync(bundledDir).filter(name =>
+        fs.existsSync(path.join(bundledDir, name, 'SKILL.md'))
+      );
+    } catch { /* bundledDir not readable */ }
+  }
+  if (skillDirs.length === 0) {
+    throw new Error('No bundled skills found. Reinstall pncli to get the latest version: npm install -g @kolatts/pncli');
+  }
+  return skillDirs;
+}
+
+/**
+ * Copies the bundled skills into targetDir — replacing existing pncli-managed
+ * copies, never user-created directories — and records install provenance.
+ * Shared by the single-target and --all-agents install paths.
+ */
+function installBundledSkillsTo(targetDir: string, skillDirs: string[]): { installed: string[]; failed: string[] } {
+  const resolvedTarget = path.resolve(targetDir);
+  const bundledDir = getBundledSkillsDir();
+  const installed: string[] = [];
+  const failed: string[] = [];
+
+  // Remove only pncli-managed skills (not user-created ones)
+  for (const skillName of skillDirs) {
+    const existingDir = path.resolve(targetDir, skillName);
+    if (!existingDir.startsWith(resolvedTarget + path.sep)) continue;
+    if (fs.existsSync(existingDir)) {
+      fs.rmSync(existingDir, { recursive: true, force: true });
+    }
+  }
+
+  warn(`Installing ${skillDirs.length} bundled skill(s) to ${targetDir}...`);
+
+  for (const skillName of skillDirs) {
+    const skillDir = path.resolve(targetDir, skillName);
+    if (!skillDir.startsWith(resolvedTarget + path.sep)) {
+      failed.push(skillName);
+      continue;
+    }
+
+    try {
+      const mdFiles = fs.readdirSync(path.join(bundledDir, skillName))
+        .filter(f => f.endsWith('.md'));
+      fs.mkdirSync(skillDir, { recursive: true });
+      for (const mdFile of mdFiles) {
+        const content = fs.readFileSync(path.join(bundledDir, skillName, mdFile), 'utf8');
+        fs.writeFileSync(path.join(skillDir, mdFile), content, 'utf8');
+      }
+      installed.push(skillName);
+    } catch {
+      failed.push(skillName);
+    }
+  }
+
+  warn(`Installed ${installed.length} skill(s) to ${targetDir}`);
+  if (failed.length > 0) {
+    warn(`Failed to install: ${failed.join(', ')}`);
+  }
+
+  recordInstalledSkills(targetDir, installed, { source: 'bundled' });
+  return { installed, failed };
+}
+
 export function registerSkillsCommands(program: Command): void {
   const skills = program.command('skills').description(`Manage agent skills (${AGENT_CHOICES})`);
 
@@ -1063,77 +1179,42 @@ export function registerSkillsCommands(program: Command): void {
     .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES}`, DEFAULT_AGENT)
     .option('--scope <scope>', 'Installation scope: project | user', 'project')
     .option('--claude', 'Shorthand for --agent claude-code')
+    .option('--all-agents', 'Install to every supported agent host in one run')
     .option('--target <dir>', 'Override install directory (ignores --agent and --scope)')
 
-    .action((opts: { agent: string; scope: string; claude?: boolean; target?: string }) => {
+    .action((opts: { agent: string; scope: string; claude?: boolean; allAgents?: boolean; target?: string }) => {
       const start = Date.now();
       try {
+        if (opts.allAgents && (opts.target || opts.claude)) {
+          throw new Error('--all-agents cannot be combined with --target or --claude');
+        }
+        const scope = opts.scope === 'user' ? 'user' : 'project';
+        const skillDirs = listBundledSkillDirs();
+
+        if (opts.allAgents) {
+          // AGENT_PATHS is used directly (not resolveAgentPaths) so the
+          // github-copilot retarget warning doesn't fire on an install the
+          // user never aimed at that agent specifically.
+          const targets = Object.entries(AGENT_PATHS).map(([agent, agentPaths]) => {
+            const targetDir = resolveScopedPath(agentPaths, scope);
+            const { installed, failed } = installBundledSkillsTo(targetDir, skillDirs);
+            return { agent, target: targetDir, installed, failed, total: installed.length };
+          });
+          success({
+            targets,
+            scope,
+            source: 'bundled',
+            total: targets.reduce((sum, t) => sum + t.total, 0),
+          }, 'skills', 'install', start);
+          return;
+        }
+
         const agentName = resolveAgentName(opts);
-        let targetDir: string;
-        if (opts.target) {
-          targetDir = path.resolve(opts.target);
-        } else {
-          const agentConfig = resolveAgentPaths(agentName);
-          targetDir = resolveScopedPath(agentConfig, opts.scope === 'user' ? 'user' : 'project');
-        }
+        const targetDir = opts.target
+          ? path.resolve(opts.target)
+          : resolveScopedPath(resolveAgentPaths(agentName), scope);
 
-        const resolvedTarget = path.resolve(targetDir);
-        const bundledDir = getBundledSkillsDir();
-        let skillDirs: string[] = [];
-
-        if (bundledDir !== '') {
-          try {
-            skillDirs = fs.readdirSync(bundledDir).filter(name =>
-              fs.existsSync(path.join(bundledDir, name, 'SKILL.md'))
-            );
-          } catch { /* bundledDir not readable */ }
-        }
-
-        if (skillDirs.length === 0) {
-          throw new Error('No bundled skills found. Reinstall pncli to get the latest version: npm install -g @kolatts/pncli');
-        }
-
-        const installed: string[] = [];
-        const failed: string[] = [];
-
-        // Remove only pncli-managed skills (not user-created ones)
-        for (const skillName of skillDirs) {
-          const existingDir = path.resolve(targetDir, skillName);
-          if (!existingDir.startsWith(resolvedTarget + path.sep)) continue;
-          if (fs.existsSync(existingDir)) {
-            fs.rmSync(existingDir, { recursive: true, force: true });
-          }
-        }
-
-        warn(`Installing ${skillDirs.length} bundled skill(s) to ${targetDir}...`);
-
-        for (const skillName of skillDirs) {
-          const skillDir = path.resolve(targetDir, skillName);
-          if (!skillDir.startsWith(resolvedTarget + path.sep)) {
-            failed.push(skillName);
-            continue;
-          }
-
-          try {
-            const mdFiles = fs.readdirSync(path.join(bundledDir, skillName))
-              .filter(f => f.endsWith('.md'));
-            fs.mkdirSync(skillDir, { recursive: true });
-            for (const mdFile of mdFiles) {
-              const content = fs.readFileSync(path.join(bundledDir, skillName, mdFile), 'utf8');
-              fs.writeFileSync(path.join(skillDir, mdFile), content, 'utf8');
-            }
-            installed.push(skillName);
-          } catch {
-            failed.push(skillName);
-          }
-        }
-
-        warn(`Installed ${installed.length} skill(s) to ${targetDir}`);
-        if (failed.length > 0) {
-          warn(`Failed to install: ${failed.join(', ')}`);
-        }
-
-        recordInstalledSkills(targetDir, installed, { source: 'bundled' });
+        const { installed, failed } = installBundledSkillsTo(targetDir, skillDirs);
 
         // Remember custom targets so `skills locations` / `skills status` can report installs
         // that live outside the built-in agent paths. Failing to record must not fail the install.
@@ -1225,7 +1306,17 @@ export function registerSkillsCommands(program: Command): void {
           };
         });
 
-        success({ skills: skillsList, total: skillsList.length }, 'skills', 'list', start);
+        const staleSkills = findStaleBundledSkills(targetDir);
+        if (staleSkills.length > 0) {
+          warn(`${staleSkills.length} skill(s) here were installed by a different pncli version (${staleSkills[0].installedVersion ?? 'unknown'} vs ${staleSkills[0].currentVersion}) — refresh with: pncli skills install`);
+        }
+
+        success({
+          skills: skillsList,
+          total: skillsList.length,
+          pncliVersion: getPncliVersion(),
+          staleSkills,
+        }, 'skills', 'list', start);
       } catch (err) {
         fail(err, 'skills', 'list', start);
       }
@@ -1338,12 +1429,19 @@ export function registerSkillsCommands(program: Command): void {
           byMarketplace[key] = (byMarketplace[key] ?? 0) + 1;
         }
 
+        const staleCount = skillRecords.filter(r => r.stale).length;
+        if (staleCount > 0) {
+          warn(`${staleCount} bundled skill(s) were installed by a different pncli version — refresh with: pncli skills install`);
+        }
+
         success({
           skills: skillRecords,
           total: skillRecords.length,
           enabled: skillRecords.filter(r => r.enabled).length,
           disabled: skillRecords.filter(r => !r.enabled).length,
           untracked: skillRecords.filter(r => r.source === 'untracked').length,
+          stale: staleCount,
+          pncliVersion: getPncliVersion(),
           byMarketplace,
           locations,
         }, 'skills', 'status', start);
