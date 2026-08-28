@@ -28,6 +28,8 @@ jobs:
       - name: Provision Azure resources
         # provision.sh echoes FUNCAPP=... and RG=... to stdout;
         # appending to $GITHUB_ENV makes them available in later steps.
+        env:
+          GITHUB_APP_ID: ${{ vars.IMAGILE_BOT_APP_ID }}
         run: bash infra/provision.sh >> "$GITHUB_ENV"
 
       - uses: actions/setup-dotnet@v4

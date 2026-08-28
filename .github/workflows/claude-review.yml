@@ -1,5 +1,24 @@
 name: Claude Review
 
+# Reviews are submitted with the workflow's own GITHUB_TOKEN, so they are
+# authored by github-actions[bot]. Two consequences shape this file:
+#
+# 1. github-actions[bot] is never the PR author (triage PRs belong to
+#    imagile-bot[bot], human PRs to their humans), so formal APPROVE /
+#    REQUEST_CHANGES reviews are possible on every PR. The Claude app token
+#    used previously could not submit formal reviews at all — reviews fell
+#    back to plain comments (see PR #392).
+#
+# 2. Events raised by the default GITHUB_TOKEN do not trigger other workflows,
+#    so a CHANGES_REQUESTED review from this job will NOT fire
+#    claude-pr-feedback.yml's `pull_request_review` trigger. The "Trigger
+#    feedback loop" step below closes that gap by dispatching the feedback
+#    workflow explicitly. Remove that step and the review loop goes dead.
+#
+# APPROVE additionally requires the repo setting "Allow GitHub Actions to
+# create and approve pull requests" (Settings → Actions → General → Workflow
+# permissions). REQUEST_CHANGES is not gated by it.
+
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -24,37 +43,33 @@ jobs:
       )
     runs-on: ubuntu-latest
     permissions:
-      actions: read
+      # `actions: write` is for the feedback-loop dispatch step, not the agent:
+      # the agent's allowedTools contain no `gh workflow` commands, so the wider
+      # scope on its token is not reachable through the tool allowlist.
+      actions: write
       contents: read
+      # `issues: write` covers deleting previous rounds' tracking comments
+      # (PR conversation comments live on the issues API).
+      issues: write
       pull-requests: write
-      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Detect review workflow changes
-        id: review-workflow
-        shell: bash
-        run: |
-          if git diff --quiet \
-            '${{ github.event.pull_request.base.sha }}' \
-            '${{ github.event.pull_request.head.sha }}' \
-            -- .github/workflows/claude-review.yml; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Claude Code Review
         uses: anthropics/claude-code-action@v1.0.93
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # Claude's app token gives ordinary PRs a distinct reviewer identity.
-          # A workflow-token fallback is required when this workflow itself changes,
-          # because the Claude app validates it against the default-branch version.
-          github_token: ${{ steps.review-workflow.outputs.changed == 'true' && github.token || '' }}
+          # The workflow token, always: it can submit formal reviews on every PR
+          # (see header). This also removes the old workflow-changed fallback —
+          # nothing here is validated against the default branch anymore.
+          github_token: ${{ github.token }}
+          # github-actions[bot]'s global account id; comments and reviews from
+          # the workflow token are authored by this identity.
+          bot_id: 41898282
+          bot_name: github-actions[bot]
           allowed_bots: 'imagile-bot'
           track_progress: true
           classify_inline_comments: 'true'
@@ -67,17 +82,20 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
             PR AUTHOR: ${{ github.event.pull_request.user.login }}
-            REVIEW ACTOR: ${{ steps.review-workflow.outputs.changed == 'true' && 'github-actions[bot]' || 'claude[bot]' }}
+            REVIEW ACTOR: github-actions[bot]
 
             **Before doing anything else, read and clean up stale Claude feedback:**
-            1. Fetch all previous Claude comments on this PR and read them to retain context:
-               gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments --jq '.[] | select(.user.login == "claude[bot]") | {id: .id, body: .body}'
+            1. Fetch all previous review comments on this PR and read them to retain context:
+               gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments --jq '.[] | select(.user.login == "claude[bot]" or .user.login == "github-actions[bot]") | {id: .id, body: .body}'
             2. Note any issues or concerns raised in those previous comments — you will carry this context into your review.
-            3. Delete each previous Claude comment by ID:
+            3. Delete each previous comment by ID:
                gh api repos/${{ github.repository }}/issues/comments/<id> -X DELETE
                (repeat for every ID returned in step 1)
-            4. Dismiss any previous Claude formal review on this PR.
-            5. Resolve any outdated inline review comment threads from previous Claude reviews.
+               EXCEPTIONS — never delete:
+               - the tracking comment for THIS run (the one you update via update_claude_comment)
+               - any comment containing "claude-pr-feedback-round" (round-limit markers used by the feedback workflow)
+            4. Dismiss any previous formal review from github-actions[bot] on this PR.
+            5. Resolve any outdated inline review comment threads from previous reviews.
 
             **Now review the pull request:**
 
@@ -96,6 +114,58 @@ jobs:
             - `gh pr review ${{ github.event.pull_request.number }} --approve --body "..."` — if no substantive issues found
             - `gh pr review ${{ github.event.pull_request.number }} --request-changes --body "..."` — if there are blocking problems
 
-            Do not leave a human-authored PR without a formal APPROVE or REQUEST_CHANGES state.
+            Do not leave a PR without a formal APPROVE or REQUEST_CHANGES state.
           claude_args: |
             --model sonnet --allowedTools "mcp__github__pull_request_review_write,mcp__github__add_comment_to_pending_review,mcp__github__add_issue_comment,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh api repos/*/issues/*/comments:*),Bash(gh api repos/*/issues/comments/*:*),Bash(gh api repos/*/pulls/*/reviews:*),Bash(gh api repos/*/pulls/*/comments:*)"
+
+      # Reviews from the default GITHUB_TOKEN raise no workflow events, so the
+      # feedback loop must be kicked explicitly (see header). Deterministic step
+      # rather than a prompt instruction: the agent's token stays unable to
+      # dispatch workflows via the tool allowlist, and a forgotten instruction
+      # cannot silently kill the loop.
+      - name: Trigger feedback loop on CHANGES_REQUESTED
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # Scoped to reviews on THIS run's head commit: after the feedback
+          # workflow pushes, earlier CHANGES_REQUESTED reviews keep their old
+          # commit_id, so stale rounds can never re-trigger the loop. State is
+          # matched exactly — a dismissed review reads DISMISSED, not
+          # CHANGES_REQUESTED.
+          #
+          # Fetched to a file first (a failed fetch fails the step instead of
+          # silently reading as "no reviews"), then filtered with jq proper so
+          # HEAD_SHA binds via --arg. Ids + `grep -c`, not `[...] | length`:
+          # --paginate emits one JSON document per page, so a single `length`
+          # would print one count per page on review-heavy PRs.
+          gh api --paginate \
+            "repos/${{ github.repository }}/pulls/${PR_NUMBER}/reviews" \
+            > /tmp/reviews-raw.json
+          # shellcheck disable=SC2016
+          jq -r --arg sha "${HEAD_SHA}" \
+            '.[] | select(.user.login == "github-actions[bot]"
+                          and .commit_id == $sha
+                          and .state == "CHANGES_REQUESTED") | .id' \
+            /tmp/reviews-raw.json > /tmp/cr-reviews.txt
+          COUNT=$(grep -c . /tmp/cr-reviews.txt || true)
+          if [ "${COUNT}" -gt 0 ]; then
+            echo "CHANGES_REQUESTED review found on ${HEAD_SHA} — dispatching claude-pr-feedback"
+            # `gh workflow run` dispatches the DEFAULT-BRANCH version of the
+            # target workflow. Until the review_commit input has merged to main,
+            # passing it returns HTTP 422 — so fall back to pr_number alone
+            # rather than letting a green review read as a red run. The fallback
+            # loses only the stale-review gate for that round.
+            gh workflow run claude-pr-feedback.yml \
+              --repo "${{ github.repository }}" \
+              -f pr_number="${PR_NUMBER}" \
+              -f review_commit="${HEAD_SHA}" || {
+              echo "::warning::Dispatch with review_commit failed (input not on default branch yet?); retrying without it"
+              gh workflow run claude-pr-feedback.yml \
+                --repo "${{ github.repository }}" \
+                -f pr_number="${PR_NUMBER}"
+            }
+          else
+            echo "No CHANGES_REQUESTED review on ${HEAD_SHA}; nothing to dispatch"
+          fi
