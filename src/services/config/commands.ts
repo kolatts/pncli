@@ -286,8 +286,10 @@ export function registerConfigCommands(program: Command): void {
           } catch (err) {
             results.dynatrace = { ok: false, message: err instanceof Error ? err.message : String(err) };
           }
-        } else {
+        } else if (Object.keys(cfg.dynatrace.environments).length === 0) {
           results.dynatrace = { ok: null, message: 'not configured' };
+        } else {
+          results.dynatrace = { ok: null, message: 'flat config not set — see named environments below' };
         }
 
         if (cfg.dynatrace.platformUrl && cfg.dynatrace.platformToken) {
@@ -308,6 +310,49 @@ export function registerConfigCommands(program: Command): void {
           results.dynatrace_platform = { ok: false, message: 'platformUrl and platformToken must both be configured' };
         } else {
           results.dynatrace_platform = { ok: null, message: 'not configured' };
+        }
+
+        // Test named Dynatrace environments
+        for (const [envName, envConfig] of Object.entries(cfg.dynatrace.environments)) {
+          const envHttp = createHttpClient({
+            ...cfg,
+            dynatrace: {
+              ...cfg.dynatrace,
+              baseUrl: envConfig.baseUrl,
+              apiToken: envConfig.apiToken,
+              platformUrl: envConfig.platformUrl,
+              platformToken: envConfig.platformToken
+            }
+          });
+          const key = `dynatrace.${envName}`;
+          if (envConfig.baseUrl && envConfig.apiToken) {
+            try {
+              await envHttp.dynatrace<unknown>('/api/v2/entities', {
+                params: { entitySelector: 'type("SERVICE")', pageSize: 1 }
+              });
+              results[key] = { ok: true, message: 'connected' };
+            } catch (err) {
+              results[key] = { ok: false, message: err instanceof Error ? err.message : String(err) };
+            }
+          } else {
+            results[key] = { ok: null, message: 'baseUrl or apiToken not configured' };
+          }
+
+          const platformKey = `dynatrace.${envName}_platform`;
+          if (envConfig.platformUrl && envConfig.platformToken) {
+            try {
+              await envHttp.dynatracePlatform<unknown>('/platform/storage/query/v1/query:execute', {
+                method: 'POST',
+                body: { query: 'fetch spans | limit 1', requestTimeoutMilliseconds: 5000 },
+                timeoutMs: 10_000
+              });
+              results[platformKey] = { ok: true, message: 'connected' };
+            } catch (err) {
+              results[platformKey] = { ok: false, message: err instanceof Error ? err.message : String(err) };
+            }
+          } else if (envConfig.platformUrl || envConfig.platformToken) {
+            results[platformKey] = { ok: false, message: 'platformUrl and platformToken must both be configured' };
+          }
         }
 
         if (cfg.logscale.baseUrl && cfg.logscale.token) {
@@ -602,7 +647,11 @@ export function registerConfigCommands(program: Command): void {
         }
 
         if (!cfg.dynatrace.apiToken) {
-          results.dynatrace = { status: 'blank', message: 'not configured' };
+          if (Object.keys(cfg.dynatrace.environments).length === 0) {
+            results.dynatrace = { status: 'blank', message: 'not configured' };
+          } else {
+            results.dynatrace = { status: 'blank', message: 'flat config not set — see named environments below' };
+          }
         } else if (!cfg.dynatrace.baseUrl) {
           results.dynatrace = { status: 'error', message: 'baseUrl not configured' };
         } else {
@@ -637,6 +686,55 @@ export function registerConfigCommands(program: Command): void {
             results.dynatrace_platform = { status: 'valid', message: 'ok' };
           } catch (err) {
             results.dynatrace_platform = categorize(err);
+          }
+        }
+
+        // Named Dynatrace environments
+        for (const [envName, envConfig] of Object.entries(cfg.dynatrace.environments)) {
+          const envHttp = createHttpClient({
+            ...cfg,
+            dynatrace: {
+              ...cfg.dynatrace,
+              baseUrl: envConfig.baseUrl,
+              apiToken: envConfig.apiToken,
+              platformUrl: envConfig.platformUrl,
+              platformToken: envConfig.platformToken
+            }
+          }, false);
+          const key = `dynatrace.${envName}`;
+          if (!envConfig.apiToken) {
+            results[key] = { status: 'blank', message: 'apiToken not configured' };
+          } else if (!envConfig.baseUrl) {
+            results[key] = { status: 'error', message: 'baseUrl not configured' };
+          } else {
+            try {
+              await envHttp.dynatrace<unknown>('/api/v2/entities', {
+                params: { entitySelector: 'type("SERVICE")', pageSize: 1 },
+                timeoutMs: 10_000
+              });
+              results[key] = { status: 'valid', message: 'ok' };
+            } catch (err) {
+              results[key] = categorize(err);
+            }
+          }
+
+          const platformKey = `dynatrace.${envName}_platform`;
+          if (envConfig.platformUrl && envConfig.platformToken) {
+            try {
+              await envHttp.dynatracePlatform<unknown>('/platform/storage/query/v1/query:execute', {
+                method: 'POST',
+                body: { query: 'fetch spans | limit 1', requestTimeoutMilliseconds: 5000 },
+                timeoutMs: 10_000
+              });
+              results[platformKey] = { status: 'valid', message: 'ok' };
+            } catch (err) {
+              results[platformKey] = categorize(err);
+            }
+          } else if (envConfig.platformUrl || envConfig.platformToken) {
+            results[platformKey] = {
+              status: 'error',
+              message: 'platformUrl and platformToken must both be configured'
+            };
           }
         }
 
@@ -687,15 +785,23 @@ export function registerConfigCommands(program: Command): void {
         if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
         else if (statuses.includes('error')) process.exitCode = ExitCode.NETWORK_ERROR;
 
-        // Build a dynamic service list that includes per-cluster openshift entries
+        // Build a dynamic service list that includes per-cluster openshift and
+        // per-environment dynatrace entries
         const clusterKeys = Object.keys(results).filter(k => k.startsWith('openshift:')).sort();
-        const baseServices = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift'];
-        const trailingServices = ['dynatrace', 'dynatrace_platform', 'logscale', 'splitio', 'figma'];
-        const allServices = [...baseServices, ...clusterKeys, ...trailingServices];
+        const dynamicEnvKeys = Object.keys(cfg.dynatrace.environments).flatMap(envName => {
+          const keys = [`dynatrace.${envName}`];
+          if (cfg.dynatrace.environments[envName]?.platformUrl) keys.push(`dynatrace.${envName}_platform`);
+          return keys;
+        });
+        const allServices = [
+          'jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins',
+          'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift',
+          ...clusterKeys, 'dynatrace', 'dynatrace_platform', ...dynamicEnvKeys, 'logscale', 'splitio', 'figma'
+        ];
 
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const labelWidth = clusterKeys.length > 0 ? Math.max(14, ...clusterKeys.map(k => k.length)) + 2 : 14;
+          const labelWidth = Math.max(14, ...allServices.map(s => s.length + 2));
           const statusWidth = 9;
           for (const svc of allServices) {
             const r = results[svc];
@@ -712,7 +818,7 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const labelWidth = clusterKeys.length > 0 ? Math.max(14, ...clusterKeys.map(k => k.length)) + 2 : 14;
+            const labelWidth = Math.max(14, ...allServices.map(s => s.length + 2));
             const statusWidth = 9;
             for (const svc of allServices) {
               const r = results[svc];
@@ -1500,13 +1606,16 @@ async function initGlobalConfig(start: number): Promise<void> {
   }
 
   // init rewrites the whole file and never prompts for named Jenkins instances or
-  // named OpenShift environments. Carry over whatever is already on disk so re-running
+  // Dynatrace named environments or named OpenShift environments. Carry over
+  // whatever is already on disk so re-running
   // init to change an unrelated token does not silently delete credentials the user
   // cannot recover.
   const existingGlobal = loadJsonFile<GlobalConfig>(getGlobalConfigPath());
   const existingInstances = Array.isArray(existingGlobal?.jenkinsInstances)
     ? existingGlobal.jenkinsInstances
     : [];
+  const existingDynatraceEnvs = existingGlobal?.dynatrace?.environments;
+  const existingDynatraceDefault = existingGlobal?.dynatrace?.defaultEnvironment;
   const existingOpenshift = existingGlobal?.openshift;
 
   writeGlobalConfig({
@@ -1618,7 +1727,15 @@ async function initGlobalConfig(start: number): Promise<void> {
         baseUrl: normalizeBaseUrl(dynatraceBaseUrl),
         apiToken: dynatraceApiToken || undefined,
         platformUrl: normalizeBaseUrl(dynatracePlatformUrl) || undefined,
-        platformToken: dynatracePlatformToken || undefined
+        platformToken: dynatracePlatformToken || undefined,
+        ...(existingDynatraceDefault ? { defaultEnvironment: existingDynatraceDefault } : {}),
+        ...(existingDynatraceEnvs && Object.keys(existingDynatraceEnvs).length
+          ? { environments: existingDynatraceEnvs } : {})
+      }
+    } : existingDynatraceEnvs && Object.keys(existingDynatraceEnvs).length ? {
+      dynatrace: {
+        ...(existingDynatraceDefault ? { defaultEnvironment: existingDynatraceDefault } : {}),
+        environments: existingDynatraceEnvs
       }
     } : {}),
     ...(useLogscale && logscaleBaseUrl ? {
