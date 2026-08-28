@@ -49,7 +49,14 @@ az keyvault secret set \
 
 Provisioning also needs the app id in the `GITHUB_APP_ID` env var (CI passes `vars.IMAGILE_BOT_APP_ID`; export it yourself for local `provision.sh` runs). The id is not a secret.
 
-Once the function is confirmed creating issues as `imagile-bot[bot]`, the old `GITHUB-TOKEN` Key Vault secret can be deleted and the fine-grained PAT revoked. (`GITHUB_TOKEN` remains supported as a local-dev fallback when no app id/key is configured.)
+Once the function is confirmed creating issues as `imagile-bot[bot]`, clean up the old PAT path — delete the Key Vault secret, revoke the fine-grained PAT, and remove the now-dangling app setting so a broken Key Vault reference doesn't linger in the portal:
+
+```bash
+az keyvault secret delete --vault-name imagile-keyvault --name GITHUB-TOKEN
+az functionapp config appsettings delete -n pncli-prod-feedback -g rg-pncli-site --setting-names GITHUB_TOKEN
+```
+
+(`GITHUB_TOKEN` remains supported as a local-dev fallback when no app id/key is configured. `GITHUB_APP_INSTALLATION_ID` can optionally be set to skip the per-repo installation lookup; normally leave it unset.)
 
 ## 4. Azure Communication Services (ACS-CONNECTION-STRING in Key Vault)
 

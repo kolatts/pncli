@@ -21,20 +21,22 @@ public class GitHubAppTokenProvider(
     private static readonly TimeSpan RefreshMargin = TimeSpan.FromMinutes(5);
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
-    private string? _token;
-    private DateTimeOffset _expiresAt;
+    // Single reference so the lock-free fast path reads token + expiry atomically.
+    private volatile CachedToken? _cache;
     private long? _installationId;
 
     public async Task<string> GetInstallationTokenAsync()
     {
-        if (_token is not null && DateTimeOffset.UtcNow < _expiresAt - RefreshMargin)
-            return _token;
+        var cached = _cache;
+        if (cached is not null && DateTimeOffset.UtcNow < cached.ExpiresAt - RefreshMargin)
+            return cached.Token;
 
         await _refreshLock.WaitAsync();
         try
         {
-            if (_token is not null && DateTimeOffset.UtcNow < _expiresAt - RefreshMargin)
-                return _token;
+            cached = _cache;
+            if (cached is not null && DateTimeOffset.UtcNow < cached.ExpiresAt - RefreshMargin)
+                return cached.Token;
 
             var jwt = CreateAppJwt();
             using var http = httpClientFactory.CreateClient(nameof(GitHubAppTokenProvider));
@@ -59,12 +61,11 @@ public class GitHubAppTokenProvider(
             var tokenResponse = JsonSerializer.Deserialize<InstallationTokenResponse>(body)
                 ?? throw new InvalidOperationException("Empty installation token response");
 
-            _token = tokenResponse.Token;
-            _expiresAt = tokenResponse.ExpiresAt;
+            _cache = new CachedToken(tokenResponse.Token, tokenResponse.ExpiresAt);
             logger.LogInformation(
                 "Minted GitHub App installation token for installation {InstallationId}, expires {ExpiresAt}",
-                installationId, _expiresAt);
-            return _token;
+                installationId, tokenResponse.ExpiresAt);
+            return tokenResponse.Token;
         }
         finally
         {
@@ -124,6 +125,8 @@ public class GitHubAppTokenProvider(
 
     private static string Base64Url(byte[] bytes) =>
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    private sealed record CachedToken(string Token, DateTimeOffset ExpiresAt);
 
     private sealed class InstallationTokenResponse
     {

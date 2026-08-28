@@ -134,17 +134,38 @@ jobs:
           # commit_id, so stale rounds can never re-trigger the loop. State is
           # matched exactly — a dismissed review reads DISMISSED, not
           # CHANGES_REQUESTED.
-          COUNT=$(gh api --paginate \
+          #
+          # Fetched to a file first (a failed fetch fails the step instead of
+          # silently reading as "no reviews"), then filtered with jq proper so
+          # HEAD_SHA binds via --arg. Ids + `grep -c`, not `[...] | length`:
+          # --paginate emits one JSON document per page, so a single `length`
+          # would print one count per page on review-heavy PRs.
+          gh api --paginate \
             "repos/${{ github.repository }}/pulls/${PR_NUMBER}/reviews" \
-            --jq "[.[] | select(.user.login == \"github-actions[bot]\"
-                               and .commit_id == \"${HEAD_SHA}\"
-                               and .state == \"CHANGES_REQUESTED\")] | length")
+            > /tmp/reviews-raw.json
+          # shellcheck disable=SC2016
+          jq -r --arg sha "${HEAD_SHA}" \
+            '.[] | select(.user.login == "github-actions[bot]"
+                          and .commit_id == $sha
+                          and .state == "CHANGES_REQUESTED") | .id' \
+            /tmp/reviews-raw.json > /tmp/cr-reviews.txt
+          COUNT=$(grep -c . /tmp/cr-reviews.txt || true)
           if [ "${COUNT}" -gt 0 ]; then
             echo "CHANGES_REQUESTED review found on ${HEAD_SHA} — dispatching claude-pr-feedback"
+            # `gh workflow run` dispatches the DEFAULT-BRANCH version of the
+            # target workflow. Until the review_commit input has merged to main,
+            # passing it returns HTTP 422 — so fall back to pr_number alone
+            # rather than letting a green review read as a red run. The fallback
+            # loses only the stale-review gate for that round.
             gh workflow run claude-pr-feedback.yml \
               --repo "${{ github.repository }}" \
               -f pr_number="${PR_NUMBER}" \
-              -f review_commit="${HEAD_SHA}"
+              -f review_commit="${HEAD_SHA}" || {
+              echo "::warning::Dispatch with review_commit failed (input not on default branch yet?); retrying without it"
+              gh workflow run claude-pr-feedback.yml \
+                --repo "${{ github.repository }}" \
+                -f pr_number="${PR_NUMBER}"
+            }
           else
             echo "No CHANGES_REQUESTED review on ${HEAD_SHA}; nothing to dispatch"
           fi
