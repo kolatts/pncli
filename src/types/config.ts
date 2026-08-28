@@ -133,9 +133,21 @@ export interface SonatypeIqConfig {
   passcode?: string;
 }
 
+export interface OpenShiftInstanceConfig {
+  baseUrl?: string;
+  token?: string;
+}
+
+export interface OpenShiftEnvironmentConfig {
+  instances?: Record<string, OpenShiftInstanceConfig>;
+}
+
 export interface OpenShiftConfig {
   baseUrl?: string;
   token?: string;
+  defaultEnvironment?: string;
+  defaultInstance?: string;
+  environments?: Record<string, OpenShiftEnvironmentConfig>;
 }
 
 export interface DynatraceConfig {
@@ -298,6 +310,9 @@ export interface ResolvedConfig {
   openshift: {
     baseUrl: string | undefined;
     token: string | undefined;
+    defaultEnvironment: string | undefined;
+    defaultInstance: string | undefined;
+    environments: Record<string, OpenShiftEnvironmentConfig>;
   };
   dynatrace: {
     baseUrl: string | undefined;

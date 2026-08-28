@@ -257,6 +257,26 @@ export function registerConfigCommands(program: Command): void {
           results.openshift = { ok: null, message: 'not configured' };
         }
 
+        for (const [envName, envCfg] of Object.entries(cfg.openshift.environments)) {
+          for (const [instName, instCfg] of Object.entries(envCfg.instances ?? {})) {
+            const key = `openshift:${envName}/${instName}`;
+            if (instCfg.baseUrl && instCfg.token) {
+              const clusterHttp = createHttpClient(
+                { ...cfg, openshift: { ...cfg.openshift, baseUrl: instCfg.baseUrl, token: instCfg.token } },
+                false
+              );
+              try {
+                await clusterHttp.openshift<unknown>('/api/v1');
+                results[key] = { ok: true, message: 'connected' };
+              } catch (err) {
+                results[key] = { ok: false, message: err instanceof Error ? err.message : String(err) };
+              }
+            } else {
+              results[key] = { ok: null, message: 'not configured' };
+            }
+          }
+        }
+
         if (cfg.dynatrace.baseUrl && cfg.dynatrace.apiToken) {
           try {
             await http.dynatrace<unknown>('/api/v2/entities', {
@@ -544,7 +564,7 @@ export function registerConfigCommands(program: Command): void {
           }
         }
 
-        // OpenShift / Kubernetes
+        // OpenShift / Kubernetes (flat legacy config)
         if (!cfg.openshift.token) {
           results.openshift = { status: 'blank', message: 'not configured' };
         } else if (!cfg.openshift.baseUrl) {
@@ -555,6 +575,29 @@ export function registerConfigCommands(program: Command): void {
             results.openshift = { status: 'valid', message: 'ok' };
           } catch (err) {
             results.openshift = categorize(err);
+          }
+        }
+
+        // OpenShift named environments/instances
+        for (const [envName, envCfg] of Object.entries(cfg.openshift.environments)) {
+          for (const [instName, instCfg] of Object.entries(envCfg.instances ?? {})) {
+            const key = `openshift:${envName}/${instName}`;
+            if (!instCfg.token) {
+              results[key] = { status: 'blank', message: 'token not configured' };
+            } else if (!instCfg.baseUrl) {
+              results[key] = { status: 'error', message: 'baseUrl not configured' };
+            } else {
+              const clusterHttp = createHttpClient(
+                { ...cfg, openshift: { ...cfg.openshift, baseUrl: instCfg.baseUrl, token: instCfg.token } },
+                false
+              );
+              try {
+                await clusterHttp.openshift<unknown>('/api/v1', { timeoutMs: 10_000 });
+                results[key] = { status: 'valid', message: 'ok' };
+              } catch (err) {
+                results[key] = categorize(err);
+              }
+            }
           }
         }
 
@@ -644,12 +687,17 @@ export function registerConfigCommands(program: Command): void {
         if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
         else if (statuses.includes('error')) process.exitCode = ExitCode.NETWORK_ERROR;
 
+        // Build a dynamic service list that includes per-cluster openshift entries
+        const clusterKeys = Object.keys(results).filter(k => k.startsWith('openshift:')).sort();
+        const baseServices = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift'];
+        const trailingServices = ['dynatrace', 'dynatrace_platform', 'logscale', 'splitio', 'figma'];
+        const allServices = [...baseServices, ...clusterKeys, ...trailingServices];
+
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale', 'splitio', 'figma'] as const;
-          const labelWidth = 14;
+          const labelWidth = clusterKeys.length > 0 ? Math.max(14, ...clusterKeys.map(k => k.length)) + 2 : 14;
           const statusWidth = 9;
-          for (const svc of services) {
+          for (const svc of allServices) {
             const r = results[svc];
             if (!r) continue;
             const label = svc.padEnd(labelWidth);
@@ -664,10 +712,9 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale', 'splitio', 'figma'] as const;
-            const labelWidth = 14;
+            const labelWidth = clusterKeys.length > 0 ? Math.max(14, ...clusterKeys.map(k => k.length)) + 2 : 14;
             const statusWidth = 9;
-            for (const svc of services) {
+            for (const svc of allServices) {
               const r = results[svc];
               if (!r) continue;
               const label = svc.padEnd(labelWidth);
@@ -1452,13 +1499,15 @@ async function initGlobalConfig(start: number): Promise<void> {
     return;
   }
 
-  // init rewrites the whole file and never prompts for named Jenkins instances.
-  // Carry over whatever is already on disk so re-running init to change an unrelated
-  // token does not silently delete instance credentials the user cannot recover.
+  // init rewrites the whole file and never prompts for named Jenkins instances or
+  // named OpenShift environments. Carry over whatever is already on disk so re-running
+  // init to change an unrelated token does not silently delete credentials the user
+  // cannot recover.
   const existingGlobal = loadJsonFile<GlobalConfig>(getGlobalConfigPath());
   const existingInstances = Array.isArray(existingGlobal?.jenkinsInstances)
     ? existingGlobal.jenkinsInstances
     : [];
+  const existingOpenshift = existingGlobal?.openshift;
 
   writeGlobalConfig({
     jenkinsInstances: existingInstances,
@@ -1558,9 +1607,12 @@ async function initGlobalConfig(start: number): Promise<void> {
     ...(useOpenShift && openShiftBaseUrl ? {
       openshift: {
         baseUrl: normalizeBaseUrl(openShiftBaseUrl),
-        token: openShiftToken || undefined
+        token: openShiftToken || undefined,
+        ...(existingOpenshift?.defaultEnvironment ? { defaultEnvironment: existingOpenshift.defaultEnvironment } : {}),
+        ...(existingOpenshift?.defaultInstance   ? { defaultInstance:   existingOpenshift.defaultInstance   } : {}),
+        ...(existingOpenshift?.environments      ? { environments:      existingOpenshift.environments      } : {}),
       }
-    } : {}),
+    } : existingOpenshift ? { openshift: { ...existingOpenshift } } : {}),
     ...(useDynatrace && dynatraceBaseUrl ? {
       dynatrace: {
         baseUrl: normalizeBaseUrl(dynatraceBaseUrl),
