@@ -29,7 +29,7 @@ pncli config init
 pncli config init --repo
 ```
 
-For workflow patterns, command examples, and agent integration, see the [Getting Started page](https://kolatts.github.io/pncli/getting-started/) or the raw [`copilot-instructions.md`](./copilot-instructions.md).
+For setup, conventions, and agent integration, see the [Getting Started page](https://kolatts.github.io/pncli/getting-started/) and the [full command reference](https://kolatts.github.io/pncli/commands/). To hand the same guidance to your agent, run `pncli skills install` — it drops [`skills/pncli/`](./skills/pncli/) into your repo, with a setup file per service.
 
 ## Configuration
 
@@ -79,7 +79,7 @@ pncli is designed agent-first:
 - Every command returns structured JSON to stdout
 - Errors are JSON too — always check `"ok"`
 - `--dry-run` lets agents preview before executing
-- See `copilot-instructions.md` for workflow patterns
+- Run `pncli skills install` to give your agent the [`skills/pncli/`](./skills/pncli/) reference — setup, conventions, and a file per service
 
 ## Global Flags
 

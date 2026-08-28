@@ -13,6 +13,34 @@ pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, B
 
 Every service authenticates the same way: a personal access token you generate in that tool's own UI and put in an env var or the config file. If a tool you need is missing from the table below, it is not out of scope by default — pncli covers enterprise tooling broadly, and the only hard requirement is personal-access-token auth.
 
+## Output and errors
+
+All commands return JSON to stdout — parse it rather than scraping text.
+
+- Success: `{ "ok": true, "data": { ... }, "meta": { "service": "...", "action": "...", "timestamp": "...", "duration_ms": N } }`
+- Error: `{ "ok": false, "error": { "status": N, "message": "..." }, "meta": { ... } }`
+
+Always check `ok` before reading `data`. Errors are JSON too, so a non-zero exit still gives you a structured reason.
+
+Run commands from the repository root. Project and repo are auto-detected from git remotes, so you rarely need `--project` or `--repo`.
+
+## Provider detection
+
+Before running provider-specific commands, establish which tools the repo actually uses:
+
+1. **Work item tracking** — Jira or Azure DevOps? Determines `pncli jira ...` vs `pncli ado work ...`.
+2. **Source control** — GitHub, Bitbucket, or Azure DevOps? Determines `pncli github ...`, `pncli bitbucket ...`, or `pncli ado repo ...`.
+
+Ask the user and cache the answers for the session. If they don't know, run `git remote -v`: a URL containing `/_git/` is Azure DevOps, `/scm/` is Bitbucket, `github.com` (or a GitHub Enterprise host) is GitHub.
+
+## Useful flags
+
+- `--dry-run` — print the API request without executing it
+- `--verbose` — include full response metadata for debugging
+- `--pretty` — human-readable output when running by hand
+- `--output-file <path>` — write JSON to a file instead of stdout; use it for large payloads (search, logs, `--all` pagination) so they don't flood agent context
+- Defaults from `.pncli.json` are applied automatically — you rarely need `--project`, `--type`, or `--priority`
+
 ## Two config levels
 
 **Env vars** — ephemeral, per-session, override the config file. Set before running pncli:
@@ -60,6 +88,12 @@ For detailed setup of any service, read the included file for that service.
 | Split.IO | `splitio.md` | Feature flag discovery, targeting updates, Change Requests |
 | Figma | `figma.md` | Design files, comments, version history |
 | Skills Marketplace | `marketplace.md` | Install org-internal skills |
+
+## Installing skills
+
+The skills bundled with pncli install into a repo with `pncli skills install` (default target `.agents/skills/`, which GitHub Copilot and Codex both read; add `--agent claude-code` for `.claude/skills`). Add `--scope user` to install them globally instead.
+
+Org-internal skills come from a git-hosted marketplace: `pncli skills marketplace setup <git-clone-url>` registers one, and `pncli skills marketplace sync` keeps everything installed from it current. `pncli skills status` and `pncli skills locations` show what is installed and where. See `marketplace.md` for the full workflow.
 
 ## Setup walkthrough
 
