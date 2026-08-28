@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import fs from 'fs';
 import path from 'path';
 import { success, fail } from '../../lib/output.js';
+import { ExitCode } from '../../lib/exitCodes.js';
 import { loadConfig, getGlobalConfigPath, loadJsonFile } from '../../lib/config.js';
 import { createHttpClient } from '../../lib/http.js';
 import { getPncliVersion } from '../../lib/version.js';
@@ -150,7 +151,7 @@ export function registerDoctorCommands(program: Command): void {
           }
         }
 
-        const globalConfig: GlobalConfig = loadJsonFile<GlobalConfig>(getGlobalConfigPath()) ?? {};
+        const globalConfig: GlobalConfig = loadJsonFile<GlobalConfig>(opts.config ?? getGlobalConfigPath()) ?? {};
         const skillLocations: SkillLocationReport[] = listKnownLocations(globalConfig).map(l => ({
           agent: l.agent,
           scope: l.scope,
@@ -161,6 +162,15 @@ export function registerDoctorCommands(program: Command): void {
         }));
 
         const problems = buildProblems(globalFile, repoFile, credentials, skillLocations);
+
+        // Mirror `config check` exit semantics so CI can gate on doctor directly:
+        // invalid credentials → AUTH_ERROR, other credential failures → NETWORK_ERROR.
+        // Config/skills advisories stay exit 0 — they are guidance, not failures.
+        if (credentials) {
+          const statuses = Object.values(credentials).map(r => r.status);
+          if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
+          else if (statuses.includes('error')) process.exitCode = ExitCode.NETWORK_ERROR;
+        }
 
         success({
           healthy: problems.length === 0,

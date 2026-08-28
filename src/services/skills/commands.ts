@@ -688,7 +688,9 @@ export function collectSkillStatus(globalConfig: GlobalConfig, locations: SkillL
         branch: record?.branch ?? null,
         installedAt: record?.installedAt ?? null,
         pncliVersion: record?.pncliVersion ?? null,
-        stale: record?.source === 'bundled' && (record.pncliVersion ?? null) !== getPncliVersion(),
+        stale: getPncliVersion() !== 'unknown'
+          && record?.source === 'bundled'
+          && (record.pncliVersion ?? null) !== getPncliVersion(),
       });
     };
 
@@ -747,6 +749,9 @@ export interface StaleSkill {
  */
 export function findStaleBundledSkills(targetDir: string): StaleSkill[] {
   const currentVersion = getPncliVersion();
+  // Without a trustworthy own-version there is no comparison to make — better
+  // to report nothing than to mark every bundled skill stale.
+  if (currentVersion === 'unknown') return [];
   const meta = readInstalledMeta(targetDir);
   const stale: StaleSkill[] = [];
   for (const skillName of listActiveSkillDirs(targetDir)) {
@@ -1182,11 +1187,13 @@ export function registerSkillsCommands(program: Command): void {
     .option('--all-agents', 'Install to every supported agent host in one run')
     .option('--target <dir>', 'Override install directory (ignores --agent and --scope)')
 
-    .action((opts: { agent: string; scope: string; claude?: boolean; allAgents?: boolean; target?: string }) => {
+    .action((opts: { agent: string; scope: string; claude?: boolean; allAgents?: boolean; target?: string }, cmd: Command) => {
       const start = Date.now();
       try {
-        if (opts.allAgents && (opts.target || opts.claude)) {
-          throw new Error('--all-agents cannot be combined with --target or --claude');
+        // --agent always has a default, so an explicit flag is only visible via its value source
+        const agentExplicit = cmd.getOptionValueSource('agent') === 'cli';
+        if (opts.allAgents && (opts.target || opts.claude || agentExplicit)) {
+          throw new Error('--all-agents cannot be combined with --target, --claude, or --agent');
         }
         const scope = opts.scope === 'user' ? 'user' : 'project';
         const skillDirs = listBundledSkillDirs();
@@ -1261,7 +1268,13 @@ export function registerSkillsCommands(program: Command): void {
         }
 
         if (!fs.existsSync(targetDir)) {
-          success({ skills: [], message: `No skills directory found at ${targetDir}. Run: pncli skills install` }, 'skills', 'list', start);
+          success({
+            skills: [],
+            total: 0,
+            pncliVersion: getPncliVersion(),
+            staleSkills: [],
+            message: `No skills directory found at ${targetDir}. Run: pncli skills install`,
+          }, 'skills', 'list', start);
           return;
         }
 
