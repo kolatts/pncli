@@ -54,21 +54,26 @@ function getHttp(program: Command, envName?: string): HttpClient {
   const defaultEnv = cfg.dynatrace.defaultEnvironment;
   if (defaultEnv) {
     const envConfig = cfg.dynatrace.environments[defaultEnv];
-    if (envConfig) {
-      return createHttpClient(
-        {
-          ...cfg,
-          dynatrace: {
-            ...cfg.dynatrace,
-            baseUrl: envConfig.baseUrl ?? cfg.dynatrace.baseUrl,
-            apiToken: envConfig.apiToken ?? cfg.dynatrace.apiToken,
-            platformUrl: envConfig.platformUrl ?? cfg.dynatrace.platformUrl,
-            platformToken: envConfig.platformToken ?? cfg.dynatrace.platformToken
-          }
-        },
-        Boolean(opts.dryRun)
+    if (!envConfig) {
+      throw new PncliError(
+        `Dynatrace defaultEnvironment "${defaultEnv}" is not configured. ` +
+        `Run: pncli config set dynatrace.environments.${defaultEnv}.baseUrl <url> ` +
+        `or pncli config set dynatrace.defaultEnvironment <name>`
       );
     }
+    return createHttpClient(
+      {
+        ...cfg,
+        dynatrace: {
+          ...cfg.dynatrace,
+          baseUrl: envConfig.baseUrl ?? cfg.dynatrace.baseUrl,
+          apiToken: envConfig.apiToken ?? cfg.dynatrace.apiToken,
+          platformUrl: envConfig.platformUrl ?? cfg.dynatrace.platformUrl,
+          platformToken: envConfig.platformToken ?? cfg.dynatrace.platformToken
+        }
+      },
+      Boolean(opts.dryRun)
+    );
   }
 
   return createHttpClient(cfg, Boolean(opts.dryRun));

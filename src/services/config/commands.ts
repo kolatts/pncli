@@ -268,6 +268,8 @@ export function registerConfigCommands(program: Command): void {
           }
         } else if (Object.keys(cfg.dynatrace.environments).length === 0) {
           results.dynatrace = { ok: null, message: 'not configured' };
+        } else {
+          results.dynatrace = { ok: null, message: 'flat config not set — see named environments below' };
         }
 
         if (cfg.dynatrace.platformUrl && cfg.dynatrace.platformToken) {
@@ -316,8 +318,8 @@ export function registerConfigCommands(program: Command): void {
             results[key] = { ok: null, message: 'baseUrl or apiToken not configured' };
           }
 
+          const platformKey = `dynatrace.${envName}_platform`;
           if (envConfig.platformUrl && envConfig.platformToken) {
-            const platformKey = `dynatrace.${envName}_platform`;
             try {
               await envHttp.dynatracePlatform<unknown>('/platform/storage/query/v1/query:execute', {
                 method: 'POST',
@@ -328,6 +330,8 @@ export function registerConfigCommands(program: Command): void {
             } catch (err) {
               results[platformKey] = { ok: false, message: err instanceof Error ? err.message : String(err) };
             }
+          } else if (envConfig.platformUrl || envConfig.platformToken) {
+            results[platformKey] = { ok: false, message: 'platformUrl and platformToken must both be configured' };
           }
         }
 
@@ -602,6 +606,8 @@ export function registerConfigCommands(program: Command): void {
         if (!cfg.dynatrace.apiToken) {
           if (Object.keys(cfg.dynatrace.environments).length === 0) {
             results.dynatrace = { status: 'blank', message: 'not configured' };
+          } else {
+            results.dynatrace = { status: 'blank', message: 'flat config not set — see named environments below' };
           }
         } else if (!cfg.dynatrace.baseUrl) {
           results.dynatrace = { status: 'error', message: 'baseUrl not configured' };
@@ -669,8 +675,8 @@ export function registerConfigCommands(program: Command): void {
             }
           }
 
+          const platformKey = `dynatrace.${envName}_platform`;
           if (envConfig.platformUrl && envConfig.platformToken) {
-            const platformKey = `dynatrace.${envName}_platform`;
             try {
               await envHttp.dynatracePlatform<unknown>('/platform/storage/query/v1/query:execute', {
                 method: 'POST',
@@ -681,6 +687,11 @@ export function registerConfigCommands(program: Command): void {
             } catch (err) {
               results[platformKey] = categorize(err);
             }
+          } else if (envConfig.platformUrl || envConfig.platformToken) {
+            results[platformKey] = {
+              status: 'error',
+              message: 'platformUrl and platformToken must both be configured'
+            };
           }
         }
 
@@ -1548,13 +1559,16 @@ async function initGlobalConfig(start: number): Promise<void> {
     return;
   }
 
-  // init rewrites the whole file and never prompts for named Jenkins instances.
-  // Carry over whatever is already on disk so re-running init to change an unrelated
-  // token does not silently delete instance credentials the user cannot recover.
+  // init rewrites the whole file and never prompts for named Jenkins instances or
+  // Dynatrace named environments. Carry over whatever is already on disk so re-running
+  // init to change an unrelated token does not silently delete credentials the user
+  // cannot recover.
   const existingGlobal = loadJsonFile<GlobalConfig>(getGlobalConfigPath());
   const existingInstances = Array.isArray(existingGlobal?.jenkinsInstances)
     ? existingGlobal.jenkinsInstances
     : [];
+  const existingDynatraceEnvs = existingGlobal?.dynatrace?.environments;
+  const existingDynatraceDefault = existingGlobal?.dynatrace?.defaultEnvironment;
 
   writeGlobalConfig({
     jenkinsInstances: existingInstances,
@@ -1662,7 +1676,15 @@ async function initGlobalConfig(start: number): Promise<void> {
         baseUrl: normalizeBaseUrl(dynatraceBaseUrl),
         apiToken: dynatraceApiToken || undefined,
         platformUrl: normalizeBaseUrl(dynatracePlatformUrl) || undefined,
-        platformToken: dynatracePlatformToken || undefined
+        platformToken: dynatracePlatformToken || undefined,
+        ...(existingDynatraceDefault ? { defaultEnvironment: existingDynatraceDefault } : {}),
+        ...(existingDynatraceEnvs && Object.keys(existingDynatraceEnvs).length
+          ? { environments: existingDynatraceEnvs } : {})
+      }
+    } : existingDynatraceEnvs && Object.keys(existingDynatraceEnvs).length ? {
+      dynatrace: {
+        ...(existingDynatraceDefault ? { defaultEnvironment: existingDynatraceDefault } : {}),
+        environments: existingDynatraceEnvs
       }
     } : {}),
     ...(useLogscale && logscaleBaseUrl ? {
