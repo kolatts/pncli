@@ -245,9 +245,9 @@ The site does **not** document skills. There is no `/skills/` page — skill set
 
 ### Screenshot Requirement
 
-**Only required when `site/src/` files are directly edited.** Screenshots are NOT required for changes to `skills/`, `.claude/skills/`, or `CHANGELOG.md` alone — those files feed auto-generation scripts, but no visual review is needed unless the site templates themselves changed.
+**Required when `site/src/` files or `skills/pncli/SKILL.md` are edited.** `SKILL.md` is the source of the public Getting Started page, so a change to it changes rendered public content — screenshot `/getting-started/`. Screenshots are NOT required for the per-service `skills/pncli/<service>.md` files, `.claude/skills/`, or `CHANGELOG.md` alone — those feed auto-generation scripts that no site template renders directly.
 
-When `site/src/` files are edited:
+When those files are edited:
 
 1. Start the dev server in `site/` with `--host 0.0.0.0` so the Docker-based browser tool can reach it:
    ```bash
@@ -255,9 +255,11 @@ When `site/src/` files are edited:
    ```
    The server will print a `Network` URL like `http://192.168.0.80:4323/pncli/`. Use that IP (not `localhost` or `172.17.0.1`) with `mcp__MCP_DOCKER__browser_navigate`.
 2. Take screenshots with `mcp__MCP_DOCKER__browser_take_screenshot`
-3. Toggle dark mode via `mcp__MCP_DOCKER__browser_evaluate`: `() => document.documentElement.setAttribute('data-theme', 'dark')`
-4. Include the screenshots in the PR description so reviewers can see the visual impact
+3. Include the screenshots in the PR description so reviewers can see the visual impact
+
+The site has a single dark theme — `site/src/styles/global.css` sets `color-scheme: dark` and there is no light palette or `data-theme` handling. There is no light mode to capture; setting `data-theme` on the root element does nothing.
 
 This applies to changes in:
 - `site/src/pages/` or `site/src/components/` — screenshot the affected pages
+- `skills/pncli/SKILL.md` — screenshot `/getting-started/`
 

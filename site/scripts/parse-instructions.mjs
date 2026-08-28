@@ -30,13 +30,21 @@ const HIDDEN_SERVICES = [];
 
 function hideHiddenServices(text) {
   for (const svc of HIDDEN_SERVICES) {
-    // Drop the service's row from the "Available services" table
+    // Drop the service's row from the "Available services" table. This runs
+    // before dropServiceFileColumn, so split('|')[1] is still the Service cell.
     text = text
       .split('\n')
       .filter((line) => !(line.startsWith('|') && line.split('|')[1]?.trim() === svc))
       .join('\n');
-    // Drop mentions from comma-separated prose lists
-    text = text.replaceAll(`${svc}, `, '').replaceAll(`, ${svc}`, '');
+    // Drop mentions from comma-separated prose lists. The ", and X" form has to
+    // go first: the intro sentence ends "..., LogScale, Split.IO, and Figma.",
+    // so matching only ", X" would leave a dangling "and" — or the service name
+    // itself, which is the leak this list exists to prevent.
+    text = text
+      .replaceAll(`, and ${svc}`, '')
+      .replaceAll(`and ${svc}`, '')
+      .replaceAll(`${svc}, `, '')
+      .replaceAll(`, ${svc}`, '');
   }
   return text;
 }
@@ -52,11 +60,25 @@ function stripFrontmatter(text) {
 // The "Available services" table has a `File` column naming the per-service
 // markdown file inside the installed skill. On the site those filenames point
 // at nothing, so drop that column and keep Service + Commands unlocked.
+const SERVICES_HEADING = '## Available services';
+
 function dropServiceFileColumn(text) {
+  let inServicesSection = false;
+
   return text
     .split('\n')
     .map((line) => {
-      if (!line.startsWith('|')) return line;
+      // Only transform the table under "## Available services". Scoping this by
+      // section matters: the separator-row pattern below matches ANY 3-column
+      // table, and rewriting a 3-column header to 2 columns while leaving its
+      // separator at 3 stops GFM rendering it as a table at all. Unscoped, the
+      // next 3-column table added to SKILL.md would silently break.
+      if (line.startsWith('## ')) {
+        inServicesSection = line.trim() === SERVICES_HEADING;
+        return line;
+      }
+      if (!inServicesSection || !line.startsWith('|')) return line;
+
       const cells = line.split('|');
       // ['', service, file, commands, ''] — only rewrite rows of that exact shape
       if (cells.length !== 5) return line;

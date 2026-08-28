@@ -9,7 +9,7 @@ metadata:
   services: config
 ---
 
-pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, Checkmarx, ServiceNow, Contrast Security IAST, Sonatype IQ Server, OpenShift / Kubernetes, Dynatrace, LogScale, and Figma.
+pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, GitHub, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, Checkmarx, ServiceNow, Contrast Security IAST, Sonatype IQ Server, OpenShift / Kubernetes, Dynatrace, LogScale, Split.IO, and Figma.
 
 Every service authenticates the same way: a personal access token you generate in that tool's own UI and put in an env var or the config file. If a tool you need is missing from the table below, it is not out of scope by default — pncli covers enterprise tooling broadly, and the only hard requirement is personal-access-token auth.
 
@@ -18,11 +18,11 @@ Every service authenticates the same way: a personal access token you generate i
 All commands return JSON to stdout — parse it rather than scraping text.
 
 - Success: `{ "ok": true, "data": { ... }, "meta": { "service": "...", "action": "...", "timestamp": "...", "duration_ms": N } }`
-- Error: `{ "ok": false, "error": { "status": N, "message": "..." }, "meta": { ... } }`
+- Error: `{ "ok": false, "error": { "status": N, "message": "...", "url": "..." }, "meta": { ... } }` (`url` is null when the failure was not an HTTP call)
 
 Always check `ok` before reading `data`. Errors are JSON too, so a non-zero exit still gives you a structured reason.
 
-Run commands from the repository root. Project and repo are auto-detected from git remotes, so you rarely need `--project` or `--repo`.
+Run commands from the repository root — project and repo are auto-detected from git remotes.
 
 ## Provider detection
 
@@ -36,10 +36,11 @@ Ask the user and cache the answers for the session. If they don't know, run `git
 ## Useful flags
 
 - `--dry-run` — print the API request without executing it
-- `--verbose` — include full response metadata for debugging
+- `--verbose` — extra progress detail on stderr (stdout stays pure JSON)
+- `--debug` — trace every API call (method, URL, status) on stderr; never logs credentials
 - `--pretty` — human-readable output when running by hand
 - `--output-file <path>` — write JSON to a file instead of stdout; use it for large payloads (search, logs, `--all` pagination) so they don't flood agent context
-- Defaults from `.pncli.json` are applied automatically — you rarely need `--project`, `--type`, or `--priority`
+- Defaults from `.pncli.json` are applied automatically — you rarely need `--project`, `--repo`, `--type`, or `--priority`
 
 ## Two config levels
 
@@ -64,7 +65,7 @@ For commands with long rich-text fields (Jira `create-issue`/`update-issue`, ADO
 
 ## Available services
 
-For detailed setup of any service, read the included file for that service.
+Each service has its own file in this skill with the config keys and example values for it.
 
 | Service | File | Commands unlocked |
 |---------|------|-------------------|
@@ -93,7 +94,7 @@ For detailed setup of any service, read the included file for that service.
 
 The skills bundled with pncli install into a repo with `pncli skills install` (default target `.agents/skills/`, which GitHub Copilot and Codex both read; add `--agent claude-code` for `.claude/skills`). Add `--scope user` to install them globally instead.
 
-Org-internal skills come from a git-hosted marketplace: `pncli skills marketplace setup <git-clone-url>` registers one, and `pncli skills marketplace sync` keeps everything installed from it current. `pncli skills status` and `pncli skills locations` show what is installed and where. See `marketplace.md` for the full workflow.
+Org-internal skills come from a git-hosted marketplace: `pncli skills marketplace setup <git-clone-url>` registers one, and `pncli skills marketplace sync` keeps everything installed from it current. `pncli skills status` and `pncli skills locations` show what is installed and where. The full workflow is in the `marketplace.md` file that ships inside the installed skill.
 
 ## Setup walkthrough
 

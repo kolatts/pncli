@@ -15,8 +15,7 @@
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "prepare": "husky"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@inquirer/checkbox": "^5.2.1",
@@ -32,7 +31,6 @@
     "@typescript-eslint/eslint-plugin": "^8.31.0",
     "@typescript-eslint/parser": "^8.31.0",
     "eslint": "^9.25.1",
-    "husky": "^9.1.7",
     "tsup": "^8.4.0",
     "tsx": "^4.19.3",
     "typescript": "^5.8.3",
