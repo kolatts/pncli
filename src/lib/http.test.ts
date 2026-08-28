@@ -20,7 +20,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
-    openshift: { baseUrl: undefined, token: undefined },
+    openshift: { baseUrl: undefined, token: undefined, defaultEnvironment: undefined, defaultInstance: undefined, environments: {} },
     dynatrace: { baseUrl: undefined, apiToken: undefined, platformUrl: undefined, platformToken: undefined },
     logscale: { baseUrl: undefined, token: undefined },
     splitio: { baseUrl: undefined, adminApiKey: undefined },
@@ -766,7 +766,7 @@ describe('HttpClient — openshiftText Accept header', () => {
       return new Response('log line 1\nlog line 2\n', { status: 200 });
     });
     try {
-      const config = baseConfig({ openshift: { baseUrl: 'https://api.cluster.imagile.dev:6443', token: 'oc-tok' } });
+      const config = baseConfig({ openshift: { baseUrl: 'https://api.cluster.imagile.dev:6443', token: 'oc-tok', defaultEnvironment: undefined, defaultInstance: undefined, environments: {} } });
       const client = new HttpClient(config);
       await client.openshiftText('/api/v1/namespaces/default/pods/my-pod/log', { lines: 10 });
     } finally {
