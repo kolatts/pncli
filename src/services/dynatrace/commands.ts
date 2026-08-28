@@ -23,12 +23,55 @@ interface QueryResponse {
   error?: { message?: string };
 }
 
-function getHttp(program: Command): HttpClient {
+function getHttp(program: Command, envName?: string): HttpClient {
   const opts = program.optsWithGlobals();
-  return createHttpClient(
-    loadConfig({ configPath: opts.config as string | undefined }),
-    Boolean(opts.dryRun)
-  );
+  const cfg = loadConfig({ configPath: opts.config as string | undefined });
+
+  if (envName) {
+    const envConfig = cfg.dynatrace.environments[envName];
+    if (!envConfig) {
+      throw new PncliError(
+        `Dynatrace environment "${envName}" not configured. ` +
+        `Run: pncli config set dynatrace.environments.${envName}.baseUrl <url>`
+      );
+    }
+    return createHttpClient(
+      {
+        ...cfg,
+        dynatrace: {
+          ...cfg.dynatrace,
+          baseUrl: envConfig.baseUrl ?? cfg.dynatrace.baseUrl,
+          apiToken: envConfig.apiToken ?? cfg.dynatrace.apiToken,
+          platformUrl: envConfig.platformUrl ?? cfg.dynatrace.platformUrl,
+          platformToken: envConfig.platformToken ?? cfg.dynatrace.platformToken
+        }
+      },
+      Boolean(opts.dryRun)
+    );
+  }
+
+  // If no --env flag, check for defaultEnvironment
+  const defaultEnv = cfg.dynatrace.defaultEnvironment;
+  if (defaultEnv) {
+    const envConfig = cfg.dynatrace.environments[defaultEnv];
+    if (envConfig) {
+      return createHttpClient(
+        {
+          ...cfg,
+          dynatrace: {
+            ...cfg.dynatrace,
+            baseUrl: envConfig.baseUrl ?? cfg.dynatrace.baseUrl,
+            apiToken: envConfig.apiToken ?? cfg.dynatrace.apiToken,
+            platformUrl: envConfig.platformUrl ?? cfg.dynatrace.platformUrl,
+            platformToken: envConfig.platformToken ?? cfg.dynatrace.platformToken
+          }
+        },
+        Boolean(opts.dryRun)
+      );
+    }
+  }
+
+  return createHttpClient(cfg, Boolean(opts.dryRun));
 }
 
 async function allPages<T>(
@@ -114,7 +157,10 @@ async function runTraceQuery(http: HttpClient, traceId: string): Promise<unknown
 }
 
 export function registerDynatraceCommands(program: Command): void {
-  const dynatrace = program.command('dynatrace').description('Dynatrace observability operations');
+  const dynatrace = program
+    .command('dynatrace')
+    .description('Dynatrace observability operations')
+    .option('--env <name>', 'Named Dynatrace environment to use (from dynatrace.environments.<name>)');
 
   const entities = dynatrace.command('entities').description('Monitored entity operations');
   entities
@@ -127,7 +173,8 @@ export function registerDynatraceCommands(program: Command): void {
     .action(async (opts: { selector: string; from?: string; to?: string; fields?: string }) => {
       const start = Date.now();
       try {
-        const data = await listEntities(getHttp(program), opts.selector, opts);
+        const envName = dynatrace.opts().env as string | undefined;
+        const data = await listEntities(getHttp(program, envName), opts.selector, opts);
         success({ totalCount: data.totalCount, entities: data.items }, 'dynatrace', 'entities list', start);
       } catch (err) { fail(err, 'dynatrace', 'entities list', start); }
     });
@@ -142,7 +189,8 @@ export function registerDynatraceCommands(program: Command): void {
     .action(async (opts: { id: string; from?: string; to?: string; fields?: string }) => {
       const start = Date.now();
       try {
-        const data = await getHttp(program).dynatrace<unknown>(
+        const envName = dynatrace.opts().env as string | undefined;
+        const data = await getHttp(program, envName).dynatrace<unknown>(
           `/api/v2/entities/${encodeURIComponent(opts.id)}`,
           { params: { from: opts.from, to: opts.to, fields: opts.fields } }
         );
@@ -158,7 +206,8 @@ export function registerDynatraceCommands(program: Command): void {
     .action(async (opts: { from?: string; to?: string }) => {
       const start = Date.now();
       try {
-        const data = await listEntities(getHttp(program), 'type("SERVICE")', opts);
+        const envName = dynatrace.opts().env as string | undefined;
+        const data = await listEntities(getHttp(program, envName), 'type("SERVICE")', opts);
         success({ totalCount: data.totalCount, services: data.items }, 'dynatrace', 'services', start);
       } catch (err) { fail(err, 'dynatrace', 'services', start); }
     });
@@ -171,8 +220,9 @@ export function registerDynatraceCommands(program: Command): void {
     .action(async (opts: { from?: string; to?: string }) => {
       const start = Date.now();
       try {
+        const envName = dynatrace.opts().env as string | undefined;
         const selector = 'type("CLOUD_APPLICATION")';
-        const data = await listEntities(getHttp(program), selector, opts);
+        const data = await listEntities(getHttp(program, envName), selector, opts);
         success({ totalCount: data.totalCount, workloads: data.items }, 'dynatrace', 'workloads', start);
       } catch (err) { fail(err, 'dynatrace', 'workloads', start); }
     });
@@ -193,8 +243,9 @@ export function registerDynatraceCommands(program: Command): void {
     }) => {
       const start = Date.now();
       try {
+        const envName = dynatrace.opts().env as string | undefined;
         const data = await allPages(async (nextPageKey) => {
-          const page = await getHttp(program).dynatrace<ProblemList>('/api/v2/problems', {
+          const page = await getHttp(program, envName).dynatrace<ProblemList>('/api/v2/problems', {
             params: nextPageKey
               ? { nextPageKey }
               : {
@@ -219,7 +270,8 @@ export function registerDynatraceCommands(program: Command): void {
     .action(async (opts: { id: string; fields?: string }) => {
       const start = Date.now();
       try {
-        const data = await getHttp(program).dynatrace<unknown>(
+        const envName = dynatrace.opts().env as string | undefined;
+        const data = await getHttp(program, envName).dynatrace<unknown>(
           `/api/v2/problems/${encodeURIComponent(opts.id)}`,
           { params: { fields: opts.fields } }
         );
@@ -234,7 +286,8 @@ export function registerDynatraceCommands(program: Command): void {
     .action(async (opts: { id: string }) => {
       const start = Date.now();
       try {
-        const result = await runTraceQuery(getHttp(program), opts.id);
+        const envName = dynatrace.opts().env as string | undefined;
+        const result = await runTraceQuery(getHttp(program, envName), opts.id);
         success(result, 'dynatrace', 'trace', start);
       } catch (err) { fail(err, 'dynatrace', 'trace', start); }
     });

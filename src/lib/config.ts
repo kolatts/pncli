@@ -231,6 +231,8 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       apiToken: process.env[ENV_KEYS.DYNATRACE_API_TOKEN] ?? globalConfig.dynatrace?.apiToken,
       platformUrl: process.env[ENV_KEYS.DYNATRACE_PLATFORM_URL] ?? globalConfig.dynatrace?.platformUrl,
       platformToken: process.env[ENV_KEYS.DYNATRACE_PLATFORM_TOKEN] ?? globalConfig.dynatrace?.platformToken,
+      defaultEnvironment: globalConfig.dynatrace?.defaultEnvironment,
+      environments: globalConfig.dynatrace?.environments ?? {},
     },
     logscale: {
       baseUrl: process.env[ENV_KEYS.LOGSCALE_BASE_URL] ?? globalConfig.logscale?.baseUrl,
@@ -391,7 +393,17 @@ export function maskConfig(config: ResolvedConfig): unknown {
     dynatrace: {
       ...config.dynatrace,
       apiToken: config.dynatrace.apiToken ? '***' : undefined,
-      platformToken: config.dynatrace.platformToken ? '***' : undefined
+      platformToken: config.dynatrace.platformToken ? '***' : undefined,
+      environments: Object.fromEntries(
+        Object.entries(config.dynatrace.environments).map(([name, env]) => [
+          name,
+          {
+            ...env,
+            apiToken: env.apiToken ? '***' : undefined,
+            platformToken: env.platformToken ? '***' : undefined
+          }
+        ])
+      )
     },
     logscale: {
       ...config.logscale,

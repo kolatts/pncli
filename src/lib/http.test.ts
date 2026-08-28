@@ -21,7 +21,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
     openshift: { baseUrl: undefined, token: undefined },
-    dynatrace: { baseUrl: undefined, apiToken: undefined, platformUrl: undefined, platformToken: undefined },
+    dynatrace: { baseUrl: undefined, apiToken: undefined, platformUrl: undefined, platformToken: undefined, defaultEnvironment: undefined, environments: {} },
     logscale: { baseUrl: undefined, token: undefined },
     splitio: { baseUrl: undefined, adminApiKey: undefined },
     figma: { baseUrl: undefined, token: undefined },
@@ -790,7 +790,9 @@ describe('HttpClient — Dynatrace authentication', () => {
         baseUrl: 'https://abc.live.dynatrace.com',
         apiToken: 'environment-token',
         platformUrl: undefined,
-        platformToken: undefined
+        platformToken: undefined,
+        defaultEnvironment: undefined,
+        environments: {}
       }
     }));
     await client.dynatrace('/api/v2/entities');
@@ -808,7 +810,9 @@ describe('HttpClient — Dynatrace authentication', () => {
         baseUrl: undefined,
         apiToken: undefined,
         platformUrl: 'https://abc.apps.dynatrace.com',
-        platformToken: 'platform-token'
+        platformToken: 'platform-token',
+        defaultEnvironment: undefined,
+        environments: {}
       }
     }));
     await client.dynatracePlatform('/platform/storage/query/v1/query:execute');
@@ -826,7 +830,9 @@ describe('HttpClient — Dynatrace authentication', () => {
         baseUrl: 'https://dynatrace.imagile.dev/e/abc12345-0000-0000-0000-000000000000',
         apiToken: 'tok',
         platformUrl: undefined,
-        platformToken: undefined
+        platformToken: undefined,
+        defaultEnvironment: undefined,
+        environments: {}
       }
     }));
     await client.dynatrace('/api/v2/entities');

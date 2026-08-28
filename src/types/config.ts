@@ -138,6 +138,16 @@ export interface OpenShiftConfig {
   token?: string;
 }
 
+export interface DynatraceEnvironmentConfig {
+  name: string;
+  /** Classic environment URL, for example https://abc12345.live.dynatrace.com */
+  baseUrl?: string;
+  apiToken?: string;
+  /** Latest Dynatrace platform URL, for example https://abc12345.apps.dynatrace.com */
+  platformUrl?: string;
+  platformToken?: string;
+}
+
 export interface DynatraceConfig {
   /** Classic environment URL, for example https://abc12345.live.dynatrace.com */
   baseUrl?: string;
@@ -145,6 +155,10 @@ export interface DynatraceConfig {
   /** Latest Dynatrace platform URL, for example https://abc12345.apps.dynatrace.com */
   platformUrl?: string;
   platformToken?: string;
+  /** Name of the default named environment to use when --env is not specified */
+  defaultEnvironment?: string;
+  /** Named Dynatrace environment profiles, keyed by environment name */
+  environments?: Record<string, Omit<DynatraceEnvironmentConfig, 'name'>>;
 }
 
 export interface LogscaleConfig {
@@ -304,6 +318,8 @@ export interface ResolvedConfig {
     apiToken: string | undefined;
     platformUrl: string | undefined;
     platformToken: string | undefined;
+    defaultEnvironment: string | undefined;
+    environments: Record<string, Omit<DynatraceEnvironmentConfig, 'name'>>;
   };
   logscale: {
     baseUrl: string | undefined;

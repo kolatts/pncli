@@ -25,7 +25,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
     openshift: { baseUrl: undefined, token: undefined },
-    dynatrace: { baseUrl: undefined, apiToken: undefined, platformUrl: undefined, platformToken: undefined },
+    dynatrace: { baseUrl: undefined, apiToken: undefined, platformUrl: undefined, platformToken: undefined, defaultEnvironment: undefined, environments: {} },
     logscale: { baseUrl: undefined, token: undefined },
     splitio: { baseUrl: undefined, adminApiKey: undefined },
     figma: { baseUrl: undefined, token: undefined },
@@ -144,12 +144,35 @@ describe('maskConfig', () => {
         baseUrl: 'https://abc.live.dynatrace.com',
         apiToken: 'environment-token',
         platformUrl: 'https://abc.apps.dynatrace.com',
-        platformToken: 'platform-token'
+        platformToken: 'platform-token',
+        defaultEnvironment: undefined,
+        environments: {}
       }
     });
     const masked = maskConfig(config) as ResolvedConfig;
     expect(masked.dynatrace.apiToken).toBe('***');
     expect(masked.dynatrace.platformToken).toBe('***');
+  });
+
+  it('masks tokens in named Dynatrace environments', () => {
+    const config = baseConfig({
+      dynatrace: {
+        baseUrl: undefined,
+        apiToken: undefined,
+        platformUrl: undefined,
+        platformToken: undefined,
+        defaultEnvironment: 'prod',
+        environments: {
+          qa: { baseUrl: 'https://abc11111.live.dynatrace.com', apiToken: 'qa-token', platformUrl: undefined, platformToken: undefined },
+          prod: { baseUrl: 'https://abc22222.live.dynatrace.com', apiToken: 'prod-token', platformUrl: 'https://abc22222.apps.dynatrace.com', platformToken: 'prod-platform-token' }
+        }
+      }
+    });
+    const masked = maskConfig(config) as ResolvedConfig;
+    expect(masked.dynatrace.environments['qa']?.apiToken).toBe('***');
+    expect(masked.dynatrace.environments['prod']?.apiToken).toBe('***');
+    expect(masked.dynatrace.environments['prod']?.platformToken).toBe('***');
+    expect(masked.dynatrace.environments['qa']?.baseUrl).toBe('https://abc11111.live.dynatrace.com');
   });
 });
 

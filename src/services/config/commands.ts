@@ -266,7 +266,7 @@ export function registerConfigCommands(program: Command): void {
           } catch (err) {
             results.dynatrace = { ok: false, message: err instanceof Error ? err.message : String(err) };
           }
-        } else {
+        } else if (Object.keys(cfg.dynatrace.environments).length === 0) {
           results.dynatrace = { ok: null, message: 'not configured' };
         }
 
@@ -288,6 +288,47 @@ export function registerConfigCommands(program: Command): void {
           results.dynatrace_platform = { ok: false, message: 'platformUrl and platformToken must both be configured' };
         } else {
           results.dynatrace_platform = { ok: null, message: 'not configured' };
+        }
+
+        // Test named Dynatrace environments
+        for (const [envName, envConfig] of Object.entries(cfg.dynatrace.environments)) {
+          const envHttp = createHttpClient({
+            ...cfg,
+            dynatrace: {
+              ...cfg.dynatrace,
+              baseUrl: envConfig.baseUrl,
+              apiToken: envConfig.apiToken,
+              platformUrl: envConfig.platformUrl,
+              platformToken: envConfig.platformToken
+            }
+          });
+          const key = `dynatrace.${envName}`;
+          if (envConfig.baseUrl && envConfig.apiToken) {
+            try {
+              await envHttp.dynatrace<unknown>('/api/v2/entities', {
+                params: { entitySelector: 'type("SERVICE")', pageSize: 1 }
+              });
+              results[key] = { ok: true, message: 'connected' };
+            } catch (err) {
+              results[key] = { ok: false, message: err instanceof Error ? err.message : String(err) };
+            }
+          } else {
+            results[key] = { ok: null, message: 'baseUrl or apiToken not configured' };
+          }
+
+          if (envConfig.platformUrl && envConfig.platformToken) {
+            const platformKey = `dynatrace.${envName}_platform`;
+            try {
+              await envHttp.dynatracePlatform<unknown>('/platform/storage/query/v1/query:execute', {
+                method: 'POST',
+                body: { query: 'fetch spans | limit 1', requestTimeoutMilliseconds: 5000 },
+                timeoutMs: 10_000
+              });
+              results[platformKey] = { ok: true, message: 'connected' };
+            } catch (err) {
+              results[platformKey] = { ok: false, message: err instanceof Error ? err.message : String(err) };
+            }
+          }
         }
 
         if (cfg.logscale.baseUrl && cfg.logscale.token) {
@@ -559,7 +600,9 @@ export function registerConfigCommands(program: Command): void {
         }
 
         if (!cfg.dynatrace.apiToken) {
-          results.dynatrace = { status: 'blank', message: 'not configured' };
+          if (Object.keys(cfg.dynatrace.environments).length === 0) {
+            results.dynatrace = { status: 'blank', message: 'not configured' };
+          }
         } else if (!cfg.dynatrace.baseUrl) {
           results.dynatrace = { status: 'error', message: 'baseUrl not configured' };
         } else {
@@ -594,6 +637,50 @@ export function registerConfigCommands(program: Command): void {
             results.dynatrace_platform = { status: 'valid', message: 'ok' };
           } catch (err) {
             results.dynatrace_platform = categorize(err);
+          }
+        }
+
+        // Named Dynatrace environments
+        for (const [envName, envConfig] of Object.entries(cfg.dynatrace.environments)) {
+          const envHttp = createHttpClient({
+            ...cfg,
+            dynatrace: {
+              ...cfg.dynatrace,
+              baseUrl: envConfig.baseUrl,
+              apiToken: envConfig.apiToken,
+              platformUrl: envConfig.platformUrl,
+              platformToken: envConfig.platformToken
+            }
+          }, false);
+          const key = `dynatrace.${envName}`;
+          if (!envConfig.apiToken) {
+            results[key] = { status: 'blank', message: 'apiToken not configured' };
+          } else if (!envConfig.baseUrl) {
+            results[key] = { status: 'error', message: 'baseUrl not configured' };
+          } else {
+            try {
+              await envHttp.dynatrace<unknown>('/api/v2/entities', {
+                params: { entitySelector: 'type("SERVICE")', pageSize: 1 },
+                timeoutMs: 10_000
+              });
+              results[key] = { status: 'valid', message: 'ok' };
+            } catch (err) {
+              results[key] = categorize(err);
+            }
+          }
+
+          if (envConfig.platformUrl && envConfig.platformToken) {
+            const platformKey = `dynatrace.${envName}_platform`;
+            try {
+              await envHttp.dynatracePlatform<unknown>('/platform/storage/query/v1/query:execute', {
+                method: 'POST',
+                body: { query: 'fetch spans | limit 1', requestTimeoutMilliseconds: 5000 },
+                timeoutMs: 10_000
+              });
+              results[platformKey] = { status: 'valid', message: 'ok' };
+            } catch (err) {
+              results[platformKey] = categorize(err);
+            }
           }
         }
 
@@ -644,12 +731,22 @@ export function registerConfigCommands(program: Command): void {
         if (statuses.includes('invalid')) process.exitCode = ExitCode.AUTH_ERROR;
         else if (statuses.includes('error')) process.exitCode = ExitCode.NETWORK_ERROR;
 
+        const dynamicEnvKeys = Object.keys(cfg.dynatrace.environments).flatMap(envName => {
+          const keys = [`dynatrace.${envName}`];
+          if (cfg.dynatrace.environments[envName]?.platformUrl) keys.push(`dynatrace.${envName}_platform`);
+          return keys;
+        });
+        const allServices = [
+          'jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins',
+          'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift',
+          'dynatrace', 'dynatrace_platform', ...dynamicEnvKeys, 'logscale', 'splitio', 'figma'
+        ];
+
         if (cmdOpts.output === 'table') {
           // Human-readable table to stdout
-          const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale', 'splitio', 'figma'] as const;
-          const labelWidth = 14;
+          const labelWidth = Math.max(14, ...allServices.map(s => s.length + 2));
           const statusWidth = 9;
-          for (const svc of services) {
+          for (const svc of allServices) {
             const r = results[svc];
             if (!r) continue;
             const label = svc.padEnd(labelWidth);
@@ -664,10 +761,9 @@ export function registerConfigCommands(program: Command): void {
         } else {
           // Pretty table on stderr when --pretty is set (stdout stays JSON)
           if (opts.pretty) {
-            const services = ['jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins', 'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift', 'dynatrace', 'dynatrace_platform', 'logscale', 'splitio', 'figma'] as const;
-            const labelWidth = 14;
+            const labelWidth = Math.max(14, ...allServices.map(s => s.length + 2));
             const statusWidth = 9;
-            for (const svc of services) {
+            for (const svc of allServices) {
               const r = results[svc];
               if (!r) continue;
               const label = svc.padEnd(labelWidth);
