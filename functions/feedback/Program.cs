@@ -17,10 +17,25 @@ var host = new HostBuilder()
         services.AddSingleton(_ => new TableStorageRateLimiter(connectionString));
         services.AddSingleton(_ => new PendingSubmissionStore(connectionString));
         services.AddSingleton(_ => new IssueEmailStore(connectionString));
-        services.AddSingleton(_ => new GitHubClient(new ProductHeaderValue("pncli-site"))
+        // Prefer the Imagile Bot GitHub App identity; fall back to a PAT
+        // (GITHUB_TOKEN) for local development when no app key is configured.
+        var appId = Environment.GetEnvironmentVariable("GITHUB_APP_ID");
+        var appKey = Environment.GetEnvironmentVariable("GITHUB_APP_PRIVATE_KEY");
+        if (!string.IsNullOrEmpty(appId) && !string.IsNullOrEmpty(appKey))
         {
-            Credentials = new Credentials(Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? ""),
-        });
+            services.AddHttpClient(nameof(GitHubAppTokenProvider));
+            services.AddSingleton<GitHubAppTokenProvider>();
+            services.AddSingleton(sp => new GitHubClient(
+                new ProductHeaderValue("pncli-site"),
+                new GitHubAppCredentialStore(sp.GetRequiredService<GitHubAppTokenProvider>())));
+        }
+        else
+        {
+            services.AddSingleton(_ => new GitHubClient(new ProductHeaderValue("pncli-site"))
+            {
+                Credentials = new Credentials(Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? ""),
+            });
+        }
 
         var acsConnectionString = Environment.GetEnvironmentVariable("ACS_CONNECTION_STRING") ?? "";
         if (!string.IsNullOrEmpty(acsConnectionString))

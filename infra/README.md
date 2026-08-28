@@ -29,18 +29,34 @@ az role assignment create \
   --scope "$(az keyvault show -n imagile-keyvault -g imagile-organization --query id -o tsv)"
 ```
 
-## 3. GitHub PAT (GITHUB-TOKEN in Key Vault)
+## 3. Imagile Bot GitHub App key (GITHUB-APP-PRIVATE-KEY in Key Vault)
 
-Create a **fine-grained personal access token** scoped to `kolatts/pncli` with **Issues: Read and Write** permission.
+The function creates issues as the **Imagile Bot GitHub App** (the same app CI uses via `vars.IMAGILE_BOT_APP_ID` / `secrets.IMAGILE_BOT_PRIVATE_KEY`), not a personal access token. It mints installation tokens itself from the app id and private key — no PAT to rotate, and issues show up authored by `imagile-bot[bot]`.
 
-Store it in Key Vault — never set it directly on the function app:
+Prerequisites on the app (github.com → Settings → Developer settings → GitHub Apps → Imagile Bot):
+
+1. The app must be **installed on `kolatts/pncli`** with **Issues: Read and write** permission (triage already requires this, so it should be true).
+2. Download (or reuse) the app's **private key** `.pem`.
+
+Store the PEM in Key Vault — never set it directly on the function app:
 
 ```bash
 az keyvault secret set \
   --vault-name imagile-keyvault \
-  --name GITHUB-TOKEN \
-  --value "<your-pat>"
+  --name GITHUB-APP-PRIVATE-KEY \
+  --file imagile-bot.private-key.pem
 ```
+
+Provisioning also needs the app id in the `GITHUB_APP_ID` env var (CI passes `vars.IMAGILE_BOT_APP_ID`; export it yourself for local `provision.sh` runs). The id is not a secret.
+
+Once the function is confirmed creating issues as `imagile-bot[bot]`, clean up the old PAT path — delete the Key Vault secret, revoke the fine-grained PAT, and remove the now-dangling app setting so a broken Key Vault reference doesn't linger in the portal:
+
+```bash
+az keyvault secret delete --vault-name imagile-keyvault --name GITHUB-TOKEN
+az functionapp config appsettings delete -n pncli-prod-feedback -g rg-pncli-site --setting-names GITHUB_TOKEN
+```
+
+(`GITHUB_TOKEN` remains supported as a local-dev fallback when no app id/key is configured. `GITHUB_APP_INSTALLATION_ID` can optionally be set to skip the per-repo installation lookup; normally leave it unset.)
 
 ## 4. Azure Communication Services (ACS-CONNECTION-STRING in Key Vault)
 
@@ -113,7 +129,7 @@ CI uses OIDC (no long-lived secrets). Steps:
 # Confirm Key Vault references are resolving (should show reference metadata, not the raw @Microsoft.KeyVault string)
 az functionapp config appsettings list \
   -n pncli-prod-feedback -g rg-pncli-site \
-  --query "[?name=='GITHUB_TOKEN' || name=='WEBHOOK_API_KEY'].{name:name, keyVaultRef:keyVaultReference}" -o table
+  --query "[?name=='GITHUB_APP_PRIVATE_KEY' || name=='WEBHOOK_API_KEY'].{name:name, keyVaultRef:keyVaultReference}" -o table
 
 # Should create a real GitHub issue on kolatts/pncli
 curl -X POST "https://pncli-prod-feedback.azurewebsites.net/api/submit" \
