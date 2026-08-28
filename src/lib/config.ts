@@ -225,6 +225,11 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
     openshift: {
       baseUrl: process.env[ENV_KEYS.OPENSHIFT_BASE_URL] ?? globalConfig.openshift?.baseUrl,
       token: process.env[ENV_KEYS.OPENSHIFT_TOKEN] ?? globalConfig.openshift?.token,
+      defaultEnvironment: globalConfig.openshift?.defaultEnvironment,
+      defaultInstance: globalConfig.openshift?.defaultInstance,
+      environments: (typeof globalConfig.openshift?.environments === 'object' && globalConfig.openshift.environments !== null)
+        ? globalConfig.openshift.environments
+        : {},
     },
     dynatrace: {
       baseUrl: process.env[ENV_KEYS.DYNATRACE_BASE_URL] ?? globalConfig.dynatrace?.baseUrl,
@@ -388,7 +393,20 @@ export function maskConfig(config: ResolvedConfig): unknown {
     },
     openshift: {
       ...config.openshift,
-      token: config.openshift.token ? '***' : undefined
+      token: config.openshift.token ? '***' : undefined,
+      environments: Object.fromEntries(
+        Object.entries(config.openshift.environments).map(([envName, envCfg]) => [
+          envName,
+          {
+            instances: Object.fromEntries(
+              Object.entries(envCfg.instances ?? {}).map(([instName, instCfg]) => [
+                instName,
+                { ...instCfg, token: instCfg.token ? '***' : undefined }
+              ])
+            )
+          }
+        ])
+      )
     },
     dynatrace: {
       ...config.dynatrace,

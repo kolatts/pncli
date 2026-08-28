@@ -3,12 +3,53 @@
 pncli connects to the OpenShift / Kubernetes REST API using a service account bearer token.
 No `kubectl` or `oc` CLI is required.
 
-## Required config keys
+## Configuration
+
+pncli supports two configuration models for OpenShift clusters, which can be used together:
+
+### Legacy flat config (single cluster)
 
 | Key | Env var | Description |
 |-----|---------|-------------|
 | `openshift.baseUrl` | `PNCLI_OPENSHIFT_BASE_URL` | API server URL, e.g. `https://api.cluster.imagile.dev:6443` |
 | `openshift.token` | `PNCLI_OPENSHIFT_TOKEN` | Service account bearer token |
+
+### Named two-level config (multiple environments and instances)
+
+| Key | Description |
+|-----|-------------|
+| `openshift.environments.<env>.instances.<instance>.baseUrl` | API server URL for this cluster |
+| `openshift.environments.<env>.instances.<instance>.token` | Bearer token for this cluster |
+| `openshift.defaultEnvironment` | Default environment name (used when `--env` is omitted) |
+| `openshift.defaultInstance` | Default instance name (used when `--instance` is omitted) |
+
+Example:
+
+```bash
+pncli config set openshift.environments.non-prod.instances.us-east.baseUrl https://api.np-us-east.imagile.dev:6443
+pncli config set openshift.environments.non-prod.instances.us-east.token eyJhbGciOiJSUzI1NiI...
+pncli config set openshift.environments.non-prod.instances.eu-west.baseUrl https://api.np-eu-west.imagile.dev:6443
+pncli config set openshift.environments.non-prod.instances.eu-west.token eyJhbGciOiJSUzI1NiI...
+pncli config set openshift.environments.prod-us.instances.primary.baseUrl https://api.prod-us.imagile.dev:6443
+pncli config set openshift.environments.prod-us.instances.primary.token eyJhbGciOiJSUzI1NiI...
+
+# Set defaults so --env / --instance can be omitted
+pncli config set openshift.defaultEnvironment non-prod
+pncli config set openshift.defaultInstance us-east
+```
+
+## Selecting a target cluster
+
+All `pncli openshift` subcommands accept `--env` and `--instance` to choose a named cluster:
+
+```bash
+pncli openshift --env non-prod --instance us-east pods --namespace my-namespace
+pncli openshift --env prod-us --instance primary events --namespace my-namespace
+```
+
+If `--env`/`--instance` are omitted, pncli resolves the cluster in this order:
+1. `openshift.defaultEnvironment` + `openshift.defaultInstance`
+2. Legacy flat `openshift.baseUrl` / `openshift.token`
 
 ## Getting your service account token
 
@@ -46,11 +87,21 @@ pncli config init
 
 ## Commands
 
+### List configured clusters
+
+```bash
+pncli openshift cluster list
+```
+
+Returns all configured environments/instances and the flat legacy cluster (if set), plus the
+configured defaults.
+
 ### List pod health summary
 
 ```bash
 pncli openshift pods --namespace my-namespace
 pncli openshift pods --namespace my-namespace --label-selector app=my-app
+pncli openshift --env non-prod --instance us-east pods --namespace my-namespace
 ```
 
 Returns a pre-processed summary with phase counts (running/pending/failed), restart counts,
@@ -62,6 +113,7 @@ CrashLoopBackOff/OOMKilled/ImagePullBackOff indicators, and per-pod container st
 pncli openshift events --namespace my-namespace
 pncli openshift events --namespace my-namespace --field-selector involvedObject.name=my-pod
 pncli openshift events --namespace my-namespace --all   # include Normal events
+pncli openshift --env prod-us --instance primary events --namespace my-namespace
 ```
 
 Returns Warning events sorted by count (highest-frequency first), filtered to surface problems.
@@ -109,8 +161,11 @@ Requires the metrics-server (`GET /apis/metrics.k8s.io/v1beta1/...`) — same as
 ## Test connectivity
 
 ```bash
-pncli config test
+pncli config test    # tests flat config + all named clusters
+pncli config check   # structured status per cluster
 ```
+
+Named clusters appear in `config check` output with keys like `openshift:non-prod/us-east`.
 
 ## Minimum RBAC permissions
 

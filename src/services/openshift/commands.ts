@@ -103,13 +103,69 @@ function containerState(s?: K8sContainerState): string {
   return 'unknown';
 }
 
-function getHttp(program: Command) {
-  const opts = program.optsWithGlobals();
-  const config = loadConfig({ configPath: opts.config as string | undefined });
+/**
+ * Resolve baseUrl + token for the target cluster.
+ *
+ * Resolution order:
+ * 1. --env + --instance flags → look up openshift.environments[env].instances[instance]
+ * 2. openshift.defaultEnvironment + openshift.defaultInstance → same lookup
+ * 3. Legacy flat openshift.baseUrl / openshift.token
+ */
+function resolveCluster(config: ReturnType<typeof loadConfig>, env?: string, instance?: string) {
+  const effectiveEnv = env ?? config.openshift.defaultEnvironment;
+  const effectiveInstance = instance ?? config.openshift.defaultInstance;
+
+  if (effectiveEnv && effectiveInstance) {
+    const envCfg = config.openshift.environments[effectiveEnv];
+    const instCfg = envCfg?.instances?.[effectiveInstance];
+    if (!instCfg?.baseUrl) {
+      throw new PncliError(
+        `OpenShift cluster "${effectiveEnv}/${effectiveInstance}" is not configured or missing baseUrl. ` +
+        `Run: pncli config set openshift.environments.${effectiveEnv}.instances.${effectiveInstance}.baseUrl <url>`
+      );
+    }
+    if (!instCfg.token) {
+      throw new PncliError(
+        `OpenShift cluster "${effectiveEnv}/${effectiveInstance}" is missing a token. ` +
+        `Run: pncli config set openshift.environments.${effectiveEnv}.instances.${effectiveInstance}.token <token>`
+      );
+    }
+    return { baseUrl: instCfg.baseUrl, token: instCfg.token };
+  }
+
+  if (effectiveEnv && !effectiveInstance) {
+    throw new PncliError(
+      `OpenShift environment "${effectiveEnv}" requires a cluster instance. ` +
+      `Pass --instance <name> or run: pncli config set openshift.defaultInstance <name>`
+    );
+  }
+  if (!effectiveEnv && effectiveInstance) {
+    throw new PncliError(
+      `OpenShift instance "${effectiveInstance}" requires an environment. ` +
+      `Pass --env <name> or run: pncli config set openshift.defaultEnvironment <name>`
+    );
+  }
+
+  // Legacy flat config fallback
   if (!config.openshift.baseUrl) {
     throw new PncliError('OpenShift not configured. Run: pncli config init');
   }
-  return createHttpClient(config, Boolean(opts.dryRun));
+  return { baseUrl: config.openshift.baseUrl, token: config.openshift.token };
+}
+
+/**
+ * Build an HTTP client for the resolved OpenShift cluster.
+ * Pass `oc` (the `openshift` sub-command) so that optsWithGlobals() picks up
+ * the --env / --instance flags defined on that level.
+ */
+function getHttp(oc: Command) {
+  const opts = oc.optsWithGlobals();
+  const config = loadConfig({ configPath: opts.config as string | undefined });
+  const cluster = resolveCluster(config, opts.env as string | undefined, opts.instance as string | undefined);
+  return createHttpClient(
+    { ...config, openshift: { ...config.openshift, ...cluster } },
+    Boolean(opts.dryRun)
+  );
 }
 
 function podAge(creationTimestamp?: string): string {
@@ -162,7 +218,48 @@ function parseMemMiB(mem: string | undefined): number | null {
 // ── Commands ──────────────────────────────────────────────────────────────────
 
 export function registerOpenShiftCommands(program: Command): void {
-  const oc = program.command('openshift').description('OpenShift / Kubernetes operations');
+  const oc = program.command('openshift')
+    .description('OpenShift / Kubernetes operations')
+    .option('--env <name>', 'Named environment (openshift.environments.<name>) to target')
+    .option('--instance <name>', 'Named cluster instance within the environment to target');
+
+  // ── Cluster management ────────────────────────────────────────────────────────
+
+  const cluster = oc.command('cluster').description('Manage named OpenShift cluster configurations');
+
+  cluster
+    .command('list')
+    .description('List all configured OpenShift environments and cluster instances')
+    .action(() => {
+      const start = Date.now();
+      try {
+        const opts = oc.optsWithGlobals();
+        const config = loadConfig({ configPath: opts.config as string | undefined });
+
+        const clusters: Array<{ environment: string; instance: string; baseUrl: string | undefined }> = [];
+        for (const [envName, envCfg] of Object.entries(config.openshift.environments)) {
+          for (const [instName, instCfg] of Object.entries(envCfg.instances ?? {})) {
+            clusters.push({ environment: envName, instance: instName, baseUrl: instCfg.baseUrl });
+          }
+        }
+
+        const legacy = config.openshift.baseUrl
+          ? [{ environment: '(default)', instance: '(default)', baseUrl: config.openshift.baseUrl }]
+          : [];
+
+        success(
+          {
+            count: clusters.length + legacy.length,
+            clusters: [...legacy, ...clusters],
+            defaultEnvironment: config.openshift.defaultEnvironment,
+            defaultInstance: config.openshift.defaultInstance,
+          },
+          'openshift', 'cluster-list', start
+        );
+      } catch (err) { fail(err, 'openshift', 'cluster-list', start); }
+    });
+
+  // ── Workload commands ─────────────────────────────────────────────────────────
 
   oc
     .command('pods')
@@ -173,7 +270,7 @@ export function registerOpenShiftCommands(program: Command): void {
     .action(async (opts: { namespace: string; labelSelector?: string; raw?: boolean }) => {
       const start = Date.now();
       try {
-        const http = getHttp(program);
+        const http = getHttp(oc);
         const params: Record<string, string> = {};
         if (opts.labelSelector) params['labelSelector'] = opts.labelSelector;
 
@@ -295,7 +392,7 @@ export function registerOpenShiftCommands(program: Command): void {
     .action(async (opts: { namespace: string; fieldSelector?: string; all?: boolean }) => {
       const start = Date.now();
       try {
-        const http = getHttp(program);
+        const http = getHttp(oc);
         const params: Record<string, string> = {};
 
         // Build field selector: default to Warning-only unless --all
@@ -343,7 +440,7 @@ export function registerOpenShiftCommands(program: Command): void {
     .action(async (opts: { namespace: string; pod: string; container?: string; lines?: string; previous?: boolean }) => {
       const start = Date.now();
       try {
-        const http = getHttp(program);
+        const http = getHttp(oc);
         const lines = opts.lines ? parseInt(opts.lines, 10) : 100;
 
         const logText = await http.openshiftText(
@@ -378,7 +475,7 @@ export function registerOpenShiftCommands(program: Command): void {
     .action(async (opts: { namespace: string }) => {
       const start = Date.now();
       try {
-        const http = getHttp(program);
+        const http = getHttp(oc);
         const metricsList = await http.openshift<K8sPodMetricsList>(
           `/apis/metrics.k8s.io/v1beta1/namespaces/${encodeURIComponent(opts.namespace)}/pods`
         );
@@ -405,7 +502,7 @@ export function registerOpenShiftCommands(program: Command): void {
     .action(async (opts: { namespace: string; labelSelector?: string; csv?: boolean }) => {
       const start = Date.now();
       try {
-        const http = getHttp(program);
+        const http = getHttp(oc);
         const nsEncoded = encodeURIComponent(opts.namespace);
         const podParams: Record<string, string> = {};
         if (opts.labelSelector) podParams['labelSelector'] = opts.labelSelector;
