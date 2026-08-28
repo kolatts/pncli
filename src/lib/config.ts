@@ -237,7 +237,9 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       platformUrl: process.env[ENV_KEYS.DYNATRACE_PLATFORM_URL] ?? globalConfig.dynatrace?.platformUrl,
       platformToken: process.env[ENV_KEYS.DYNATRACE_PLATFORM_TOKEN] ?? globalConfig.dynatrace?.platformToken,
       defaultEnvironment: globalConfig.dynatrace?.defaultEnvironment,
-      environments: globalConfig.dynatrace?.environments ?? {},
+      environments: (typeof globalConfig.dynatrace?.environments === 'object' && globalConfig.dynatrace.environments !== null)
+        ? globalConfig.dynatrace.environments
+        : {},
     },
     logscale: {
       baseUrl: process.env[ENV_KEYS.LOGSCALE_BASE_URL] ?? globalConfig.logscale?.baseUrl,
