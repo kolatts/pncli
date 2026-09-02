@@ -367,7 +367,7 @@ export function registerJiraCommands(program: Command): void {
   jira.command('assign')
     .description('Assign a Jira issue to a user')
     .requiredOption('--key <issue-key>', 'Issue key')
-    .requiredOption('--assignee <accountId>', 'Assignee account ID')
+    .requiredOption('--assignee <username>', 'Assignee username (Jira Datacenter REST API v2 name field)')
     .action(async (opts: { key: string; assignee: string }) => {
       const start = Date.now();
       try {
