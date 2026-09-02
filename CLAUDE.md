@@ -64,6 +64,19 @@ from `claude[bot]` / `imagile-bot[bot]` / `github-actions[bot]`. Anyone can subm
 a review on a public repo, so this allowlist is the authorization boundary — do not
 widen it without thinking about what a drive-by reviewer could make the agent do.
 
+`claude-code-action` enforces a **second, independent** actor guard that no workflow
+`if` can satisfy: when the triggering actor is a Bot, the action aborts in under a
+second unless that bot's login (minus the `[bot]` suffix) appears in the step's
+`allowed_bots`. The failure is easy to miss — a near-instant job with no agent output
+— so any workflow here that a bot can trigger needs the input. `claude-triage.yml`
+fires on `from-website` issues authored by `imagile-bot[bot]`; `claude-review.yml`
+and `claude-pr-feedback.yml` react to reviews from the workflow token. Triage shipped
+without it and silently no-op'd on every website issue from #404 to #409.
+
+Name the bots explicitly rather than using `*`. These jobs feed untrusted issue and
+PR text to the agent, and on a public repo `*` lets any external App invoke the
+action with a prompt it controls.
+
 ## GitHub Issues
 
 Every new branch that represents a work request must have a corresponding GitHub issue. Create the issue before or immediately after creating the branch. Always include the issue number in the branch name (`kolatts/<issue#>-<description>`).
