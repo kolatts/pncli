@@ -328,6 +328,58 @@ describe('JiraClient — setSprint', () => {
   });
 });
 
+describe('JiraClient — assignIssue', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('sends PUT with accountId by default (Jira Cloud)', async () => {
+    const capturedBodies: unknown[] = [];
+    const capturedUrls: string[] = [];
+    const capturedMethods: string[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      capturedUrls.push(url);
+      capturedMethods.push(init.method ?? 'GET');
+      capturedBodies.push(JSON.parse(init.body as string));
+      return new Response(null, { status: 204 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    await client.assignIssue('PROJ-1', 'abc123def456');
+
+    expect(capturedUrls[0]).toContain('/rest/api/2/issue/PROJ-1/assignee');
+    expect(capturedMethods[0]).toBe('PUT');
+    expect(capturedBodies[0]).toEqual({ accountId: 'abc123def456' });
+  });
+
+  it('sends PUT with name when field is "name" (Jira Server/Data Center)', async () => {
+    const capturedBodies: unknown[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedBodies.push(JSON.parse(init.body as string));
+      return new Response(null, { status: 204 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    await client.assignIssue('PROJ-2', 'jsmith', 'name');
+
+    expect(capturedBodies[0]).toEqual({ name: 'jsmith' });
+  });
+
+  it('sends PUT with accountId when field is explicitly "accountId"', async () => {
+    const capturedBodies: unknown[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedBodies.push(JSON.parse(init.body as string));
+      return new Response(null, { status: 204 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    await client.assignIssue('PROJ-3', 'user-cloud-id', 'accountId');
+
+    expect(capturedBodies[0]).toEqual({ accountId: 'user-cloud-id' });
+  });
+});
+
 describe('JiraClient — downloadAttachment', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 

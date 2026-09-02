@@ -367,12 +367,16 @@ export function registerJiraCommands(program: Command): void {
   jira.command('assign')
     .description('Assign a Jira issue to a user')
     .requiredOption('--key <issue-key>', 'Issue key')
-    .requiredOption('--assignee <accountId>', 'Assignee account ID')
-    .action(async (opts: { key: string; assignee: string }) => {
+    .requiredOption('--assignee <value>', 'Assignee identifier (accountId for Jira Cloud, username for Jira Server/Data Center)')
+    .option('--assignee-field <field>', 'Field name to use in the assignee payload: "accountId" (default, Jira Cloud) or "name" (Jira Server/Data Center)', 'accountId')
+    .action(async (opts: { key: string; assignee: string; assigneeField: string }) => {
       const start = Date.now();
       try {
+        if (opts.assigneeField !== 'accountId' && opts.assigneeField !== 'name') {
+          throw new PncliError('--assignee-field must be "accountId" or "name"', 1);
+        }
         const client = getClient(program);
-        await client.assignIssue(opts.key, opts.assignee);
+        await client.assignIssue(opts.key, opts.assignee, opts.assigneeField as 'accountId' | 'name');
         success({ assigned: opts.key, assignee: opts.assignee }, 'jira', 'assign', start);
       } catch (err) { fail(err, 'jira', 'assign', start); }
     });
