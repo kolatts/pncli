@@ -168,12 +168,25 @@ jobs:
         run: npm ci
 
       - name: Claude Issue Triage
-        uses: anthropics/claude-code-action@v1.0.93
+        uses: anthropics/claude-code-action@v1.0.213
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.imagile-token.outputs.token }}
           bot_id: ${{ steps.imagile-bot.outputs.id }}
           bot_name: ${{ steps.imagile-bot.outputs.login }}
+          # Same guard claude-review.yml and claude-pr-feedback.yml already work
+          # around, missed here. The feedback function creates website issues as
+          # `imagile-bot[bot]`, so the `issues: labeled` actor is a Bot and the action
+          # aborts in ~490ms before any triage logic — which is why #404–#409 were all
+          # left with `from-website` and no `triaged` until a manual `workflow_dispatch`
+          # re-triage picked them up. Named rather than `*`: on a public
+          # repo `*` lets any external App invoke this action with a prompt it
+          # controls, and this job feeds untrusted issue bodies to the agent.
+          #
+          # This widens *who* may trigger triage, not *what* it acts on — the job's
+          # `if` still gates on `from-website` / `claude-triage`, and only the feedback
+          # function or a maintainer can apply `from-website`.
+          allowed_bots: 'imagile-bot'
           # Gated on the event, not hardcoded true: the action rejects
           # `track_progress` outright on `workflow_dispatch` ("only supported for
           # events: pull_request, issues, ..."), which made the manual re-triage
