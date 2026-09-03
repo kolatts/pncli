@@ -123,7 +123,42 @@ CI uses OIDC (no long-lived secrets). Steps:
    - `AZURE_TENANT_ID` — Directory (tenant) ID
    - `AZURE_SUBSCRIPTION_ID` — Your subscription ID
 
-## 8. Verify
+## 8. Alert routing (ALERT_EMAIL)
+
+`provision.sh` creates an action group (`pncli-prod-alerts`) and two scheduled-query
+alerts over the feedback function's Application Insights. Provisioning **fails fast**
+without `ALERT_EMAIL`, deliberately: an unwatched function is the failure these
+alerts exist to prevent (#418).
+
+Set the `ALERT_EMAIL` repo variable so CI can pass it, and export it for local runs:
+
+```bash
+gh variable set ALERT_EMAIL --repo kolatts/pncli --body you@example.com
+export ALERT_EMAIL=you@example.com
+```
+
+The first alert an address receives asks it to confirm the subscription — do that,
+or nothing is delivered.
+
+| Alert | Fires when | Sev |
+|---|---|---|
+| `pncli-prod-processsubmissions-exceptions` | Any exception in `ProcessSubmissions` over 15 min | 1 |
+| `pncli-prod-processsubmissions-heartbeat` | No completed run in 15 min (timer stopped firing) | 2 |
+
+Both are needed. `ProcessQueueFunction.cs` catches per submission, so the function
+*invocation* still succeeds when every submission fails — invocation-failure
+monitoring stays green through a total outage. The exception rule covers that; the
+heartbeat rule covers a timer that never fires and so throws nothing.
+
+Note `--condition "count '<X>' > 0"` aggregates the **rows the query returns**, so
+the queries must not pre-aggregate. Adding a `summarize` would emit one row
+unconditionally and the rule would fire forever.
+
+The pre-existing `Failure Anomalies - pncli-prod-ai` smart detector did not surface
+this outage. Confirm where it routes and either point it at this action group or
+delete it, rather than leaving two half-configured paths.
+
+## 9. Verify
 
 ```bash
 # Confirm Key Vault references are resolving (should show reference metadata, not the raw @Microsoft.KeyVault string)
@@ -149,3 +184,31 @@ curl -X POST "https://pncli-prod-feedback.azurewebsites.net/api/submit" \
   -H "Origin: https://evil.example" \
   -d '{"kind":"bug","title":"test","body":"...","hp":""}'
 ```
+
+Confirm the alert rules exist and are enabled:
+
+```bash
+az monitor scheduled-query list -g rg-pncli-site \
+  --query "[].{name:name, enabled:enabled, severity:severity}" -o table
+az monitor action-group show -n pncli-prod-alerts -g rg-pncli-site \
+  --query "emailReceivers[].{name:name, status:status}" -o table
+```
+
+`status` must read `Enabled` — a receiver stuck at `Disabled` has not confirmed the
+subscription email and will silently drop every alert.
+
+Then break the path once and confirm delivery, per #418's acceptance criteria:
+
+```bash
+# Point the private key at a secret that does not exist; ProcessSubmissions will
+# throw on every tick. The exceptions alert should arrive within ~5 minutes.
+az functionapp config appsettings set -n pncli-prod-feedback -g rg-pncli-site \
+  --settings GITHUB_APP_PRIVATE_KEY="@Microsoft.KeyVault(VaultName=imagile-keyvault;SecretName=DOES-NOT-EXIST)"
+
+# Restore immediately afterwards.
+az functionapp config appsettings set -n pncli-prod-feedback -g rg-pncli-site \
+  --settings GITHUB_APP_PRIVATE_KEY="@Microsoft.KeyVault(VaultName=imagile-keyvault;SecretName=GITHUB-APP-PRIVATE-KEY)"
+```
+
+Submissions that fail during the window stay pending and are retried on the next
+tick, so nothing is lost.
