@@ -102,6 +102,44 @@ describe('JiraClient — removeLabels', () => {
   });
 });
 
+describe('JiraClient — assignIssue', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('sends PUT to the assignee endpoint with name field', async () => {
+    const capturedUrls: string[] = [];
+    const capturedBodies: unknown[] = [];
+    const capturedMethods: string[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      capturedUrls.push(url);
+      capturedMethods.push(init.method ?? 'GET');
+      capturedBodies.push(JSON.parse(init.body as string));
+      return new Response(null, { status: 204 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    await client.assignIssue('PROJ-1', 'jsmith');
+
+    expect(capturedUrls[0]).toContain('/rest/api/2/issue/PROJ-1/assignee');
+    expect(capturedMethods[0]).toBe('PUT');
+    expect(capturedBodies[0]).toEqual({ name: 'jsmith' });
+  });
+
+  it('does not send accountId field', async () => {
+    const capturedBodies: unknown[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedBodies.push(JSON.parse(init.body as string));
+      return new Response(null, { status: 204 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    await client.assignIssue('PROJ-2', 'alice');
+
+    expect(capturedBodies[0]).not.toHaveProperty('accountId');
+  });
+});
+
 describe('JiraClient — listAttachments', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
