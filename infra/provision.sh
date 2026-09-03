@@ -61,9 +61,19 @@ APPINSIGHTS_ID="$(az monitor app-insights component show \
 # 404) until the next successful deploy refills the new share. That is how a
 # provisioning run that failed *after* this call took the feedback function
 # down (#424). Only create the app when it does not exist yet.
-if [ -n "$(az functionapp show -n "$FUNCAPP" -g "$RG" --query name -o tsv --only-show-errors 2>/dev/null || true)" ]; then
+# Distinguish "app doesn't exist" from any other failure of this call
+# (throttling, a flaky response). Falling through to `create` on an
+# unrelated error would re-trigger the exact WEBSITE_CONTENTSHARE-rotation
+# failure this guard exists to prevent, just one call earlier — so an
+# ambiguous result aborts instead of assuming "not found".
+set +e
+FUNCAPP_SHOW_OUTPUT="$(az functionapp show -n "$FUNCAPP" -g "$RG" --query name -o tsv --only-show-errors 2>&1)"
+FUNCAPP_SHOW_RC=$?
+set -e
+
+if [ "$FUNCAPP_SHOW_RC" -eq 0 ] && [ -n "$FUNCAPP_SHOW_OUTPUT" ]; then
   echo "→ Function App: $FUNCAPP (exists, skipping create)" >&2
-else
+elif [ "$FUNCAPP_SHOW_RC" -ne 0 ] && printf '%s' "$FUNCAPP_SHOW_OUTPUT" | grep -qi "not found\|could not be found\|resourcenotfound"; then
   echo "→ Function App: $FUNCAPP (dotnet-isolated, .NET 9)" >&2
   az functionapp create \
     -n "$FUNCAPP" -g "$RG" \
@@ -73,6 +83,10 @@ else
     --storage-account "$STORAGE" \
     --app-insights "$APPINSIGHTS" \
     --only-show-errors >/dev/null
+else
+  echo "az functionapp show failed unexpectedly (not a 'not found' error) — aborting rather than risk re-creating an existing app:" >&2
+  echo "$FUNCAPP_SHOW_OUTPUT" >&2
+  exit 1
 fi
 
 echo "→ Managed identity for $FUNCAPP" >&2
