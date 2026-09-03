@@ -20,6 +20,13 @@ public class ProcessSubmissionsFunction(
 {
     private const int DefaultDailyLimit = 10;
 
+    /// <summary>
+    /// Label for issues created by the smoke-test path. Deliberately not
+    /// <c>from-website</c>: that label is what fires <c>claude-triage.yml</c>,
+    /// and a smoke test must never spend an agent run.
+    /// </summary>
+    private const string SmokeTestLabel = "smoke-test";
+
     /// <summary>How long a submission may stay unconverted before it counts as stuck.</summary>
     private const int DefaultStaleMinutes = 15;
 
@@ -66,14 +73,24 @@ public class ProcessSubmissionsFunction(
                 ? submission.Title
                 : $"Re: v{submission.Version} — {submission.Title}";
 
-            var body = "A user on the website submitted:\n\n"
+            var body = (submission.SmokeTest
+                    ? "Automated end-to-end smoke test of the feedback pipeline "
+                      + "(`.claude/skills/feedback-smoke/`). Closed automatically — nothing to do.\n\n"
+                    : "A user on the website submitted:\n\n")
                 + submission.Body
                 + (string.IsNullOrEmpty(submission.Service) ? "" : $"\n\n**Service:** {submission.Service}")
                 + "\n\n---\n*Submitted via [kolatts.github.io/pncli](https://kolatts.github.io/pncli)*";
 
             var newIssue = new NewIssue(title) { Body = body };
-            newIssue.Labels.Add(label);
-            newIssue.Labels.Add(submission.Kind == "bug" ? "bug" : "enhancement");
+            if (submission.SmokeTest)
+            {
+                newIssue.Labels.Add(SmokeTestLabel);
+            }
+            else
+            {
+                newIssue.Labels.Add(label);
+                newIssue.Labels.Add(submission.Kind == "bug" ? "bug" : "enhancement");
+            }
 
             try
             {
@@ -82,7 +99,14 @@ public class ProcessSubmissionsFunction(
 
                 await pendingSubmissions.MarkProcessedAsync(submission, created.Number);
 
-                if (!string.IsNullOrEmpty(submission.Email))
+                if (submission.SmokeTest)
+                {
+                    // Marked processed first so a failed close cannot re-create the
+                    // issue on the next tick. No confirmation email and no
+                    // IssueEmailStore row, so the close webhook sends nothing either.
+                    await CloseSmokeTestIssueAsync(parts[0], parts[1], created.Number);
+                }
+                else if (!string.IsNullOrEmpty(submission.Email))
                 {
                     await issueEmailStore.SaveAsync(created.Number, submission.Email, submission.Title);
 
@@ -108,6 +132,25 @@ public class ProcessSubmissionsFunction(
         logger.LogInformation("Processed {Count} submission(s) this run", processedCount);
 
         ReportBacklog(attempted);
+    }
+
+    private async Task CloseSmokeTestIssueAsync(string owner, string repo, int number)
+    {
+        try
+        {
+            await github.Issue.Update(owner, repo, number, new IssueUpdate
+            {
+                State       = ItemState.Closed,
+                StateReason = ItemStateReason.NotPlanned,
+            });
+            logger.LogInformation("Closed smoke-test issue #{Number} as not planned", number);
+        }
+        catch (Exception ex)
+        {
+            // The smoke test itself reports the issue as still open; that is the
+            // signal. Do not let this bubble into the per-submission retry path.
+            logger.LogWarning(ex, "Created smoke-test issue #{Number} but could not close it", number);
+        }
     }
 
     /// <summary>

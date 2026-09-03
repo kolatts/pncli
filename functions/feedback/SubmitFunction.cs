@@ -1,4 +1,6 @@
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Feedback.Models;
 using Microsoft.Azure.Functions.Worker;
@@ -13,6 +15,12 @@ public class SubmitFunction(
     TableStorageRateLimiter rateLimiter,
     PendingSubmissionStore pendingSubmissions)
 {
+    /// <summary>
+    /// Header carrying the maintainer smoke-test key. A matching key skips the
+    /// Turnstile call and nothing else — see <see cref="IsSmokeTest"/>.
+    /// </summary>
+    public const string SmokeTestHeader = "X-Smoke-Test-Key";
+
     [Function("Submit")]
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "submit")] HttpRequestData req)
@@ -57,8 +65,16 @@ public class SubmitFunction(
             ? fwd.First().Split(',')[0].Trim()
             : "unknown";
 
-        // ── CAPTCHA ──────────────────────────────────────────────────────────
-        if (!await turnstile.VerifyAsync(feedback.TurnstileToken, ip))
+        // ── CAPTCHA (or maintainer smoke-test key) ───────────────────────────
+        // The smoke path replaces only this step. Origin, validation and the
+        // per-IP limit below still apply, so a leaked key buys a CAPTCHA bypass
+        // at ten submissions a day, not a spam channel.
+        var isSmokeTest = IsSmokeTest(req);
+        if (isSmokeTest)
+        {
+            logger.LogInformation("Smoke-test key accepted — skipping Turnstile for {IP}", ip);
+        }
+        else if (!await turnstile.VerifyAsync(feedback.TurnstileToken, ip))
         {
             logger.LogWarning("Turnstile verification failed for {IP}", ip);
             return await ErrorAsync(req, HttpStatusCode.BadRequest,
@@ -87,6 +103,7 @@ public class SubmitFunction(
             Email        = feedback.Email,
             Service      = feedback.Service,
             Version      = feedback.Version,
+            SmokeTest    = isSmokeTest,
             SubmittedAt  = DateTimeOffset.UtcNow,
         };
 
@@ -102,6 +119,26 @@ public class SubmitFunction(
         }));
 
         return response;
+    }
+
+    /// <summary>
+    /// True when the request carries <see cref="SmokeTestHeader"/> matching the
+    /// <c>SMOKE_TEST_KEY</c> app setting (a Key Vault reference in production).
+    /// Unset setting means the path is disabled — no header can match.
+    /// Comparison is fixed-time so the key cannot be recovered byte by byte.
+    /// </summary>
+    private static bool IsSmokeTest(HttpRequestData req)
+    {
+        var expected = Environment.GetEnvironmentVariable("SMOKE_TEST_KEY");
+        if (string.IsNullOrEmpty(expected))
+            return false;
+        if (!req.Headers.TryGetValues(SmokeTestHeader, out var values))
+            return false;
+
+        var provided = values.FirstOrDefault() ?? "";
+        return CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(provided),
+            Encoding.UTF8.GetBytes(expected));
     }
 
     private static bool IsValidEmail(string email)

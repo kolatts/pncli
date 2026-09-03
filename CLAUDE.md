@@ -11,7 +11,7 @@ pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI codin
 - `src/` — TypeScript source (CLI entry: `src/cli.ts`, services in `src/services/`)
 - `site/` — Astro static site for GitHub Pages documentation
 - `skills/pncli/` — The one distributed skill. `SKILL.md` is a lightweight index; individual `<service>.md` files hold per-service setup docs. Installed via `pncli skills install`.
-- `.claude/skills/` — Skills active in this repo only: `ship/` and `conventions/` are repo-internal, and `pncli` is a pointer into `skills/pncli/`.
+- `.claude/skills/` — Skills active in this repo only: `ship/`, `conventions/`, and `feedback-smoke/` are repo-internal, and `pncli` is a pointer into `skills/pncli/`.
 
 `skills/pncli/` is the **only** skill this repo ships — it is the command reference for every service. There is no `example-skills/` directory and no workflow-skill collection; both were removed deliberately. Do not re-add one. A new skill either belongs to `skills/pncli/` as a service reference, or it is repo-internal under `.claude/skills/`.
 
@@ -29,6 +29,16 @@ npm run build          # Build CLI with tsup
 ## Opening Pull Requests
 
 Use `.claude/skills/ship/` — repo-internal, GitHub only. It runs `gh`, the hardcoded `npm run` gate, and the `site/src/` audit, and wires up `Closes #<issue>` automatically.
+
+## Verifying the Feedback Function
+
+After any change under `functions/` or `infra/` reaches `main`, or whenever the
+website feedback page is reported broken, run the `feedback-smoke` skill
+(`.claude/skills/feedback-smoke/`). It proves the whole pipeline in about ninety
+seconds — HTTP function loaded, keyed submission accepted without Turnstile, timer
+converted it to a GitHub issue, issue auto-closed — and names the failing stage
+when it does not. Do not verify by submitting the live form and cleaning up by
+hand; that is what the skill replaces.
 
 ## Branch Naming
 

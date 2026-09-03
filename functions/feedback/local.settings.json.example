@@ -15,6 +15,7 @@
     "IP_DAILY_LIMIT": "10",
     "ACS_CONNECTION_STRING": "<your-acs-connection-string>",
     "EMAIL_FROM_ADDRESS": "no-reply@imagile.dev",
-    "WEBHOOK_API_KEY": "<any-random-string-for-local-testing>"
+    "WEBHOOK_API_KEY": "<any-random-string-for-local-testing>",
+    "SMOKE_TEST_KEY": "<any random string; an X-Smoke-Test-Key header matching it skips Turnstile. Leave unset to disable>"
   }
 }

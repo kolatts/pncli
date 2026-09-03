@@ -18,6 +18,12 @@ public class PendingSubmissionEntity : ITableEntity
     public string? Service { get; set; }
     public string? Version { get; set; }
 
+    /// <summary>
+    /// Submitted with the maintainer smoke-test key. Becomes a <c>smoke-test</c>
+    /// issue that is closed immediately and never triaged or emailed.
+    /// </summary>
+    public bool SmokeTest          { get; set; } = false;
+
     public bool Processed          { get; set; } = false;
     public DateTimeOffset SubmittedAt { get; set; } = DateTimeOffset.UtcNow;
     public int? IssueNumber        { get; set; }

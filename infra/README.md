@@ -8,7 +8,7 @@ Install the [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure
 
 ```bash
 az login
-export GITHUB_APP_ID=... ALERT_EMAIL=...   # both checked before anything is touched (§3, §8)
+export GITHUB_APP_ID=... ALERT_EMAIL=...   # both checked before anything is touched (§3, §9)
 bash infra/provision.sh   # run twice to confirm idempotent
 ```
 
@@ -114,7 +114,29 @@ az keyvault secret set \
   --value "<your-turnstile-secret-key>"
 ```
 
-## 7. OIDC federated credential for GitHub Actions
+## 7. Smoke-test key (SMOKE-TEST-KEY in Key Vault)
+
+`Submit` accepts an `X-Smoke-Test-Key` header. When it matches the `SMOKE_TEST_KEY`
+app setting (fixed-time comparison) the Turnstile call is skipped — nothing else is.
+Origin check, validation and the per-IP daily limit still apply, so a leaked key is a
+CAPTCHA bypass capped at `IP_DAILY_LIMIT` submissions a day, not a spam channel.
+Rows submitted this way become `smoke-test` issues (never `from-website`, so triage
+does not fire), get no confirmation email, and are closed as not planned immediately.
+They do count against `DAILY_SUBMISSION_LIMIT`.
+
+```bash
+az keyvault secret set \
+  --vault-name imagile-keyvault \
+  --name SMOKE-TEST-KEY \
+  --value "$(openssl rand -hex 32)"
+```
+
+`provision.sh` wires the Key Vault reference. Leave the setting unset to disable the
+path entirely — no header can match an empty key. The key never goes into a repo
+variable or Actions secret; the `feedback-smoke` skill reads it from Key Vault at
+run time with the caller's own `az` login.
+
+## 8. OIDC federated credential for GitHub Actions
 
 CI uses OIDC (no long-lived secrets). Steps:
 
@@ -129,7 +151,7 @@ CI uses OIDC (no long-lived secrets). Steps:
    - `AZURE_TENANT_ID` — Directory (tenant) ID
    - `AZURE_SUBSCRIPTION_ID` — Your subscription ID
 
-## 8. Alert routing (ALERT_EMAIL)
+## 9. Alert routing (ALERT_EMAIL)
 
 `provision.sh` creates an action group (`pncli-prod-alerts`) and three scheduled-query
 alerts over the feedback function's Application Insights. Provisioning **fails fast**
@@ -191,7 +213,17 @@ The pre-existing `Failure Anomalies - pncli-prod-ai` smart detector did not surf
 this outage. Confirm where it routes and either point it at this action group or
 delete it, rather than leaving two half-configured paths.
 
-## 9. Verify
+## 10. Verify
+
+Fastest: run the repo-scoped skill, which exercises the whole pipeline in one command
+and cleans up after itself (§7):
+
+```bash
+bash .claude/skills/feedback-smoke/smoke.sh              # full end-to-end, ~90s
+bash .claude/skills/feedback-smoke/smoke.sh --probe-only # no key needed: is the function loaded?
+```
+
+The manual checks below are still useful for the individual guards:
 
 ```bash
 # Confirm Key Vault references are resolving (should show reference metadata, not the raw @Microsoft.KeyVault string)
