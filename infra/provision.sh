@@ -1,9 +1,25 @@
 #!/usr/bin/env bash
 # Idempotent provisioning for the pncli-site Azure Function.
-# Safe to re-run — each az command is a no-op if the resource already exists.
+# Safe to re-run — each az command is a no-op if the resource already exists,
+# except `az functionapp create`, which is guarded explicitly (see below).
 # Usage: bash infra/provision.sh
 # Outputs: FUNCAPP=<name> and RG=<name> on stdout (captured into $GITHUB_ENV by CI).
 set -euo pipefail
+
+# ── Required inputs ────────────────────────────────────────────────────────
+# Every required variable is checked here, before the first az call. A guard
+# that sits further down aborts the script *after* Azure has been mutated,
+# and a half-provisioned run is worse than one that never started (#424).
+#
+# GITHUB_APP_ID is the Imagile Bot GitHub App id (not a secret). CI passes it
+# through from the IMAGILE_BOT_APP_ID repo variable; set it in the environment
+# for local runs. Failing fast beats provisioning a function that can't auth.
+: "${GITHUB_APP_ID:?GITHUB_APP_ID env var required (Imagile Bot app id)}"
+#
+# ALERT_EMAIL is required for the same reason GITHUB_APP_ID is: provisioning a
+# function nobody is watching is the exact failure the alerting section exists
+# to stop. CI passes it through from the ALERT_EMAIL repo variable.
+: "${ALERT_EMAIL:?ALERT_EMAIL env var required (where feedback-function alerts are sent)}"
 
 RG="${RG:-rg-pncli-site}"
 LOC="${LOC:-eastus2}"
@@ -37,15 +53,41 @@ APPINSIGHTS_ID="$(az monitor app-insights component show \
   --app "$APPINSIGHTS" -g "$RG" \
   --query id -o tsv --only-show-errors)"
 
-echo "→ Function App: $FUNCAPP (dotnet-isolated, .NET 9)" >&2
-az functionapp create \
-  -n "$FUNCAPP" -g "$RG" \
-  --consumption-plan-location "$LOC" \
-  --runtime dotnet-isolated --runtime-version 9 \
-  --functions-version 4 --os-type Linux \
-  --storage-account "$STORAGE" \
-  --app-insights "$APPINSIGHTS" \
-  --only-show-errors >/dev/null
+# `az functionapp create` is the one call in this script that is NOT a no-op on
+# an existing resource. Re-running it against an existing Linux Consumption app
+# regenerates the WEBSITE_CONTENTSHARE app setting, pointing the host at a
+# fresh, empty Azure Files share. The previous share is orphaned and the app
+# serves nothing ("No directory present at /home/site/wwwroot", every route
+# 404) until the next successful deploy refills the new share. That is how a
+# provisioning run that failed *after* this call took the feedback function
+# down (#424). Only create the app when it does not exist yet.
+# Distinguish "app doesn't exist" from any other failure of this call
+# (throttling, a flaky response). Falling through to `create` on an
+# unrelated error would re-trigger the exact WEBSITE_CONTENTSHARE-rotation
+# failure this guard exists to prevent, just one call earlier — so an
+# ambiguous result aborts instead of assuming "not found".
+set +e
+FUNCAPP_SHOW_OUTPUT="$(az functionapp show -n "$FUNCAPP" -g "$RG" --query name -o tsv --only-show-errors 2>&1)"
+FUNCAPP_SHOW_RC=$?
+set -e
+
+if [ "$FUNCAPP_SHOW_RC" -eq 0 ] && [ -n "$FUNCAPP_SHOW_OUTPUT" ]; then
+  echo "→ Function App: $FUNCAPP (exists, skipping create)" >&2
+elif [ "$FUNCAPP_SHOW_RC" -ne 0 ] && printf '%s' "$FUNCAPP_SHOW_OUTPUT" | grep -qi "not found\|could not be found\|resourcenotfound"; then
+  echo "→ Function App: $FUNCAPP (dotnet-isolated, .NET 9)" >&2
+  az functionapp create \
+    -n "$FUNCAPP" -g "$RG" \
+    --consumption-plan-location "$LOC" \
+    --runtime dotnet-isolated --runtime-version 9 \
+    --functions-version 4 --os-type Linux \
+    --storage-account "$STORAGE" \
+    --app-insights "$APPINSIGHTS" \
+    --only-show-errors >/dev/null
+else
+  echo "az functionapp show failed unexpectedly (not a 'not found' error) — aborting rather than risk re-creating an existing app:" >&2
+  echo "$FUNCAPP_SHOW_OUTPUT" >&2
+  exit 1
+fi
 
 echo "→ Managed identity for $FUNCAPP" >&2
 az functionapp identity assign \
@@ -54,10 +96,7 @@ az functionapp identity assign \
   --only-show-errors >/dev/null
 
 echo "→ App settings (non-secret + Key Vault refs)" >&2
-# GITHUB_APP_ID is the Imagile Bot GitHub App id (not a secret). CI passes it
-# through from the IMAGILE_BOT_APP_ID repo variable; set it in the environment
-# for local runs. Failing fast beats provisioning a function that can't auth.
-: "${GITHUB_APP_ID:?GITHUB_APP_ID env var required (Imagile Bot app id)}"
+# GITHUB_APP_ID is validated at the top of the script (see "Required inputs").
 az functionapp config appsettings set \
   -n "$FUNCAPP" -g "$RG" \
   --settings \
@@ -90,10 +129,7 @@ az functionapp cors add \
 # outage — which is how 7,000+ exceptions went unnoticed for four days (#418).
 # These rules watch the telemetry instead.
 #
-# ALERT_EMAIL is required for the same reason GITHUB_APP_ID is: provisioning a
-# function nobody is watching is the exact failure this section exists to stop.
-# CI passes it through from the ALERT_EMAIL repo variable.
-: "${ALERT_EMAIL:?ALERT_EMAIL env var required (where feedback-function alerts are sent)}"
+# ALERT_EMAIL is validated at the top of the script (see "Required inputs").
 
 ACTIONGROUP="${PREFIX}-${ENV}-alerts"
 
