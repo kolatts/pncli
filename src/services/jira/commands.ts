@@ -377,7 +377,7 @@ export function registerJiraCommands(program: Command): void {
         }
         const client = getClient(program);
         await client.assignIssue(opts.key, opts.assignee, opts.assigneeField as 'accountId' | 'name');
-        success({ assigned: opts.key, assignee: opts.assignee }, 'jira', 'assign', start);
+        success({ assigned: opts.key, assignee: opts.assignee, assigneeField: opts.assigneeField }, 'jira', 'assign', start);
       } catch (err) { fail(err, 'jira', 'assign', start); }
     });
 
