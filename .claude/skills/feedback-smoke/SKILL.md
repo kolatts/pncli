@@ -28,6 +28,17 @@ up by hand — this script exists so that never has to happen again.
 Exit 0 prints `✓ PASS`. Any failure exits 1 with the stage name and the likely
 cause. Typical run is 60–120 seconds, dominated by waiting for the timer.
 
+## Wait two minutes after a deploy
+
+Do not run the full test in the first ~2 minutes after `function-deploy.yml`
+finishes. During the handover the previous host instance can still hold the
+singleton timer lease, so `Submit` runs on the new code while the next
+`ProcessSubmissions` tick runs on the old one. The old code does not know the
+`SmokeTest` flag: the row becomes an ordinary `from-website` issue, triage fires
+on it, and the script times out waiting for a `smoke-test` label. The first run
+after the skill itself shipped hit exactly this (#431). `--probe-only` is safe
+at any time.
+
 ## Prerequisites
 
 - `az login` as someone with **Key Vault Secrets User** on `imagile-keyvault`
