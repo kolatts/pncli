@@ -143,12 +143,18 @@ or nothing is delivered.
 | Alert | Fires when | Sev |
 |---|---|---|
 | `pncli-prod-processsubmissions-exceptions` | Any exception in `ProcessSubmissions` over 15 min | 1 |
-| `pncli-prod-processsubmissions-heartbeat` | No completed run in 15 min (timer stopped firing) | 2 |
+| `pncli-prod-processsubmissions-heartbeat` | No invocation in 15 min (timer stopped firing) | 2 |
 
 Both are needed. `ProcessQueueFunction.cs` catches per submission, so the function
 *invocation* still succeeds when every submission fails — invocation-failure
 monitoring stays green through a total outage. The exception rule covers that; the
 heartbeat rule covers a timer that never fires and so throws nothing.
+
+The heartbeat rule queries `requests` (logged unconditionally by the Functions
+runtime for every invocation), not `traces` on a message the code logs — the
+function has early-return paths (no pending submissions, daily cap reached)
+that never emit that trace, and a low-traffic feedback widget hits those paths
+in most 15-minute windows.
 
 Note `--condition "count '<X>' > 0"` aggregates the **rows the query returns**, so
 the queries must not pre-aggregate. Adding a `summarize` would emit one row

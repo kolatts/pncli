@@ -124,16 +124,20 @@ az monitor scheduled-query create \
   --only-show-errors >/dev/null
 
 # (2) The timer stopped firing altogether — a stall (1) cannot see, because a
-# timer that never runs throws nothing. ProcessSubmissions logs "Processed N
-# submission(s) this run" on every tick, so the absence of that trace is the
-# signal.
+# timer that never runs throws nothing. The function has two early-return
+# paths (no pending submissions, daily cap reached) that never log the
+# "Processed N submission(s)" trace, so keying on that message undercounts —
+# it would fire on any ordinary quiet 15-minute window, not just a dead timer.
+# The Functions runtime logs a `requests` row for every invocation
+# unconditionally, so query that instead to track "timer fired" independent
+# of whether there was work to do.
 echo "→ Alert: ProcessSubmissions heartbeat" >&2
 az monitor scheduled-query create \
   -n "${PREFIX}-${ENV}-processsubmissions-heartbeat" -g "$RG" \
   --scopes "$APPINSIGHTS_ID" \
-  --description "ProcessSubmissions has not completed a run in 15 minutes. The one-minute timer is not firing." \
+  --description "ProcessSubmissions has not been invoked in 15 minutes. The one-minute timer is not firing." \
   --condition "count 'Runs' < 1" \
-  --condition-query Runs="traces | where operation_Name == 'ProcessSubmissions' | where message startswith 'Processed'" \
+  --condition-query Runs="requests | where operation_Name == 'ProcessSubmissions'" \
   --evaluation-frequency 5m --window-size 15m \
   --severity 2 \
   --action-groups "$ACTIONGROUP_ID" \
