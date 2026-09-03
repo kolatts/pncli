@@ -100,12 +100,15 @@ async function requestRaw<T>(
     try {
       response = await fetchWithTimeout(url, init, timeoutMs, fetcher);
     } catch (err) {
-      debug(`  Error: ${err instanceof Error ? err.message : String(err)}`);
-      throw new PncliError(
-        `Request failed: ${err instanceof Error ? err.message : String(err)}`,
-        0,
-        url
-      );
+      const topMsg = err instanceof Error ? err.message : String(err);
+      // Node's built-in fetch wraps network errors: err.message is "fetch failed"
+      // and the real cause (ECONNREFUSED, TLS error, DNS failure, etc.) is in
+      // err.cause. Surface it so users can distinguish a proxy-routing problem
+      // from bad credentials without having to reproduce the request externally.
+      const causeMsg = err instanceof Error && err.cause instanceof Error ? err.cause.message : undefined;
+      const fullMsg = causeMsg ? `${topMsg}: ${causeMsg}` : topMsg;
+      debug(`  Error: ${fullMsg}`);
+      throw new PncliError(`Request failed: ${fullMsg}`, 0, url);
     }
 
     debug(`← ${response.status} ${response.statusText} (${Date.now() - reqStart}ms)`);

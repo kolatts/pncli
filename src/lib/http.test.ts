@@ -929,6 +929,49 @@ describe('HttpClient — Figma', () => {
   });
 });
 
+describe('HttpClient — fetch error cause surfacing', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('includes err.cause.message in the thrown PncliError when fetch rejects with a cause', async () => {
+    // Node's built-in fetch wraps network errors: err.message === "fetch failed"
+    // and the actionable detail (ECONNREFUSED, TLS error, DNS failure) is in err.cause.
+    const cause = new Error('connect ECONNREFUSED 127.0.0.1:8080');
+    const networkErr = Object.assign(new Error('fetch failed'), { cause });
+    vi.stubGlobal('fetch', async () => { throw networkErr; });
+
+    const client = new HttpClient(baseConfig());
+    await expect(client.jira('/rest/api/2/issue/TEST-1')).rejects.toMatchObject({
+      message: 'Request failed: fetch failed: connect ECONNREFUSED 127.0.0.1:8080'
+    });
+  });
+
+  it('uses only err.message when there is no cause', async () => {
+    vi.stubGlobal('fetch', async () => { throw new Error('fetch failed'); });
+
+    const client = new HttpClient(baseConfig());
+    await expect(client.jira('/rest/api/2/issue/TEST-1')).rejects.toMatchObject({
+      message: 'Request failed: fetch failed'
+    });
+  });
+
+  it('surfaces the cause in --debug stderr output', async () => {
+    setGlobalOptions({ pretty: false, verbose: false, debug: true });
+    const stderrLines: string[] = [];
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      stderrLines.push(String(chunk));
+      return true;
+    });
+    const cause = new Error('unable to verify the first certificate');
+    vi.stubGlobal('fetch', async () => { throw Object.assign(new Error('fetch failed'), { cause }); });
+
+    const client = new HttpClient(baseConfig());
+    await expect(client.jira('/rest/api/2/issue/TEST-1')).rejects.toMatchObject({ name: 'PncliError' });
+
+    setGlobalOptions({ pretty: false, verbose: false, debug: false });
+    expect(stderrLines.join('')).toContain('unable to verify the first certificate');
+  });
+});
+
 describe('HttpClient — --debug mode', () => {
   beforeEach(() => {
     setGlobalOptions({ pretty: false, verbose: false, debug: true });
