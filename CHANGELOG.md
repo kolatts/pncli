@@ -1,5 +1,28 @@
 # Changelog
 
+## [4.0.0](https://github.com/kolatts/pncli/compare/v3.0.0...v4.0.0) (2026-09-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* Jira Cloud is no longer supported. `pncli jira assign --assignee`, `--assignee` on create-issue/update-issue, and `user`-typed custom fields passed via `--field` now take a Data Center username and send it in the `name` field. Callers passing a Cloud accountId must switch to the username, or use Atlassian's MCP server for Jira Cloud.
+
+### Features
+
+* **contrast:** add libraries list/get commands for SCA data ([#416](https://github.com/kolatts/pncli/issues/416)) ([82b1ee1](https://github.com/kolatts/pncli/commit/82b1ee122169af342acfb612a39a21401b989ebd)), closes [#415](https://github.com/kolatts/pncli/issues/415)
+* **doctor:** pncli doctor, skill staleness detection, install --all-agents, CI recipes ([#403](https://github.com/kolatts/pncli/issues/403)) ([94b7d3f](https://github.com/kolatts/pncli/commit/94b7d3f0a8538938548eed242522a07df7d34000))
+* **infra:** alert on feedback-function failures instead of finding them by hand ([#423](https://github.com/kolatts/pncli/issues/423)) ([7b2d06a](https://github.com/kolatts/pncli/commit/7b2d06af848845246b984b84502eac9d29b2a4c9))
+* **skills:** improve discoverability — README sync, npm metadata, llms.txt, install hints ([#400](https://github.com/kolatts/pncli/issues/400)) ([72ad07a](https://github.com/kolatts/pncli/commit/72ad07abcd95e9236e2c37e640fb277e52c2d6ef))
+* target Jira Data Center user identifiers, drop Cloud accountId ([#421](https://github.com/kolatts/pncli/issues/421)) ([a9af454](https://github.com/kolatts/pncli/commit/a9af4546cae665a67add04c4d6d357359b216144))
+
+
+### Bug Fixes
+
+* **ci:** let imagile-bot trigger issue triage, bump claude-code-action ([#413](https://github.com/kolatts/pncli/issues/413)) ([9e698fc](https://github.com/kolatts/pncli/commit/9e698fcb461fd3589d428913aed2fde06e87091d))
+* **http:** surface err.cause in fetch error messages for easier diagnosis ([#414](https://github.com/kolatts/pncli/issues/414)) ([9c008a0](https://github.com/kolatts/pncli/commit/9c008a0253ce588a2565c68a13a89c6aacd6c943)), closes [#409](https://github.com/kolatts/pncli/issues/409)
+* **proxy:** depend on undici so HTTP_PROXY actually works in the built CLI ([#422](https://github.com/kolatts/pncli/issues/422)) ([3691abf](https://github.com/kolatts/pncli/commit/3691abf2ca3563d1a065562ab3110bdb587b646c))
+* **proxy:** stop esbuild rewriting node:undici to bare undici in bundled CLI ([#420](https://github.com/kolatts/pncli/issues/420)) ([3ba51ab](https://github.com/kolatts/pncli/commit/3ba51ab10357bbdf89dd6ea43f525deeaf74f4e8)), closes [#419](https://github.com/kolatts/pncli/issues/419)
+
 ## [3.0.0](https://github.com/kolatts/pncli/compare/v2.0.0...v3.0.0) (2026-08-28)
 
 
