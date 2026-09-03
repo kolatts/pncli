@@ -149,7 +149,7 @@ describe('JiraClient — listAttachments', () => {
       {
         id: '10001',
         filename: 'screenshot.png',
-        author: { accountId: 'user1', displayName: 'Alice' },
+        author: { name: 'user1', displayName: 'Alice' },
         created: '2024-01-01T00:00:00.000Z',
         size: 4096,
         mimeType: 'image/png',
