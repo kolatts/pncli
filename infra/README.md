@@ -8,8 +8,14 @@ Install the [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure
 
 ```bash
 az login
+export GITHUB_APP_ID=... ALERT_EMAIL=...   # both checked before anything is touched (§3, §8)
 bash infra/provision.sh   # run twice to confirm idempotent
 ```
+
+The second run should log `Function App: pncli-prod-feedback (exists, skipping create)`.
+`az functionapp create` is deliberately skipped for an existing app: re-running it
+against a Linux Consumption app rotates `WEBSITE_CONTENTSHARE` to a fresh, empty
+share, and the app serves 404s until the next deploy refills it (#424).
 
 ## 2. Key Vault RBAC for the function app
 
