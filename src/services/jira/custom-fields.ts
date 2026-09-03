@@ -79,7 +79,10 @@ export function formatFieldValue(value: string, type: CustomFieldType): unknown 
     case 'labels':
       return value.split(',').map(v => v.trim());
     case 'user':
-      return { accountId: value };
+      // Jira Data Center identifies users by username in the `name` field.
+      // Cloud's `accountId` is deliberately not supported — see CLAUDE.md,
+      // "Deployment Variant — Target Self-Hosted".
+      return { name: value };
     default:
       return value;
   }

@@ -262,10 +262,10 @@ export class JiraClient {
     return this.http.jiraBuffer(contentUrl);
   }
 
-  async assignIssue(key: string, accountId: string): Promise<void> {
+  async assignIssue(key: string, assignee: string): Promise<void> {
     await this.http.jira<void>(`${API}/issue/${key}/assignee`, {
       method: 'PUT',
-      body: { accountId }
+      body: { name: assignee }
     });
   }
 

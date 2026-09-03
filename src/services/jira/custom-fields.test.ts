@@ -48,7 +48,11 @@ describe('formatFieldValue', () => {
     expect(formatFieldValue('bug,backend', 'labels')).toEqual(['bug', 'backend']);
   });
 
-  it('formats user type as { accountId }', () => {
-    expect(formatFieldValue('abc123', 'user')).toEqual({ accountId: 'abc123' });
+  it('formats user type as { name } for Jira Data Center', () => {
+    expect(formatFieldValue('jsmith', 'user')).toEqual({ name: 'jsmith' });
+  });
+
+  it('does not emit the Jira Cloud accountId field for user type', () => {
+    expect(formatFieldValue('jsmith', 'user')).not.toHaveProperty('accountId');
   });
 });

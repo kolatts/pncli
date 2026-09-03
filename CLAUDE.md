@@ -154,10 +154,44 @@ Before finishing a change, work through what it does to users who are already se
 
 - **Config already on disk.** Does the change read a config shape that older versions never wrote? Handle the missing key and the *wrong-shaped* key — a hand-edited or partially-written value must produce a `PncliError` with a fix, never a raw `TypeError`. Anything that rewrites the global config file (`writeGlobalConfig` overwrites wholesale) must carry through keys it does not prompt for, or it silently deletes credentials the user cannot recover because `config check` masks them.
 - **New config keys.** Prefer a subcommand that appends over telling users to hand-write JSON into `config set`, which replaces the whole value. If an array or object key can grow, ship the add/list/remove commands with it.
-- **Flags and output.** Renaming or repurposing a flag, changing a default, or removing a field from the JSON envelope breaks callers' scripts. Add rather than repurpose; keep the old name working when you must rename.
+- **Flags and output.** Renaming or repurposing a flag, changing a default, or removing a field from the JSON envelope breaks callers' scripts. Add rather than repurpose; keep the old name working when you must rename. The one carve-out is a self-hosted/SaaS payload divergence — see **Deployment Variant** below.
 - **Precedence.** Re-read **Configuration Precedence** above. Lowering env-var priority for any field is a breaking change.
 
 Call out what you checked in the PR description. If a break is genuinely unavoidable, use `feat!:` per **Commit Conventions**, say so explicitly in the PR, and document the migration users need to perform.
+
+### Deployment Variant — Target Self-Hosted
+
+Several vendors ship the same product as both a self-hosted server and a SaaS
+tenant, with REST APIs that diverge in payload shape. **When the two disagree,
+pncli implements the self-hosted shape and does not carry the SaaS shape
+alongside it.**
+
+Jira is the case that set this rule. Data Center's `/rest/api/2` identifies users
+by `name` (the username); Cloud identifies them by `accountId`. pncli targets Data
+Center. Breaking Jira Cloud compatibility is an accepted cost here, not a
+regression to be avoided — Cloud users are served by Atlassian's own MCP server,
+and pncli is not trying to replace it.
+
+For a divergence of this kind:
+
+- Fix the payload to the self-hosted shape outright. Do **not** add a
+  `--*-field`, `--cloud`, or auto-detect escape hatch whose only job is to keep
+  the SaaS variant working. That is a second code path with no instance to test
+  it against, and **Integration Panels & Testing State** is explicit that a green
+  unit suite proves nothing about a live server.
+- The "add rather than repurpose" rule above still governs flag *names* and
+  output *keys*. It does not require preserving a SaaS payload shape: repointing
+  what a flag's value means — `--assignee` from an accountId to a username — is
+  in scope, and ships as `feat!:` with the migration spelled out per
+  **Commit Conventions**.
+- Fix the whole divergence, not the one endpoint in the bug report. The same
+  identifier shape usually appears in sibling calls and in help text; leaving
+  half of it Cloud-shaped is how the inconsistency got there in the first place.
+- Name the targeted variant in the PR, and say what breaks for the other one.
+
+This governs **which variant's API shape to implement for a service pncli already
+integrates**. It is not a reason to reject a SaaS-only service — see
+**Service Scope** below, which explicitly keeps cloud/SaaS tools in domain.
 
 ## Service Scope
 
@@ -167,7 +201,7 @@ Do **not** reject a proposed integration on any of these grounds:
 
 - "It isn't on the current list of services." The list grows; that is the point of this section.
 - "It isn't a developer tool / SDLC tool." The bar is *enterprise tool an engineer needs data out of*, not *tool that compiles code*.
-- "It's cloud/SaaS, not self-hosted." The on-prem story is what pncli started with, not a limit on what it covers.
+- "It's cloud/SaaS, not self-hosted." The on-prem story is what pncli started with, not a limit on what it covers. (Which *deployment variant* to target for a vendor that ships both is a separate question — see **Deployment Variant — Target Self-Hosted** above.)
 
 ### The Authentication Bar
 

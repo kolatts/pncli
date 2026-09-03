@@ -131,7 +131,7 @@ export function registerJiraCommands(program: Command): void {
     .option('--summary <text>', 'Issue summary (required, unless supplied via --input-file)')
     .option('--description <text>', 'Issue description')
     .option('--priority <name>', 'Priority name')
-    .option('--assignee <accountId>', 'Assignee account ID')
+    .option('--assignee <username>', 'Assignee username')
     .option('--labels <labels>', 'Comma-separated labels')
     .option('--parent <key>', 'Parent issue key — sets fields.parent in the create payload')
     .option('--field <Name=value>', 'Custom field value; use Name=@file.json to read value from file (repeatable)', (val: string, acc: string[]) => [...acc, val], [] as string[])
@@ -197,7 +197,7 @@ export function registerJiraCommands(program: Command): void {
     .option('--summary <text>', 'New summary')
     .option('--description <text>', 'New description')
     .option('--priority <name>', 'New priority')
-    .option('--assignee <accountId>', 'New assignee account ID')
+    .option('--assignee <username>', 'New assignee username')
     .option('--labels <labels>', 'Comma-separated labels')
     .option('--field <Name=value>', 'Custom field value; use Name=@file.json to read value from file (repeatable)', (val: string, acc: string[]) => [...acc, val], [] as string[])
     .option('--fields-file <path>', 'Path to a JSON file mapping field names/IDs to their Jira API values')
@@ -367,7 +367,7 @@ export function registerJiraCommands(program: Command): void {
   jira.command('assign')
     .description('Assign a Jira issue to a user')
     .requiredOption('--key <issue-key>', 'Issue key')
-    .requiredOption('--assignee <accountId>', 'Assignee account ID')
+    .requiredOption('--assignee <username>', 'Assignee username')
     .action(async (opts: { key: string; assignee: string }) => {
       const start = Date.now();
       try {

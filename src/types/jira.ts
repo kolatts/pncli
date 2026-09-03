@@ -27,6 +27,11 @@ export interface CustomFieldMap {
   byId: Map<string, CustomFieldDefinition>;
 }
 
+export interface JiraUser {
+  name: string;
+  displayName: string;
+}
+
 export interface JiraFieldInfo {
   id: string;
   name: string;
@@ -45,8 +50,8 @@ export interface JiraIssue {
     description?: unknown;
     status: { name: string };
     priority?: { name: string };
-    assignee?: { accountId: string; displayName: string } | null;
-    reporter?: { accountId: string; displayName: string };
+    assignee?: JiraUser | null;
+    reporter?: JiraUser;
     labels?: string[];
     issuetype: { name: string };
     project: { key: string; name: string };
@@ -64,7 +69,7 @@ export interface JiraTransition {
 
 export interface JiraComment {
   id: string;
-  author: { accountId: string; displayName: string };
+  author: JiraUser;
   body: unknown;
   created: string;
   updated: string;
@@ -80,7 +85,7 @@ export interface JiraSearchResult {
 export interface JiraAttachment {
   id: string;
   filename: string;
-  author: { accountId: string; displayName: string };
+  author: JiraUser;
   created: string;
   size: number;
   mimeType: string;

@@ -55,5 +55,9 @@ pncli jira create-issue --input-file issue.json --priority Low   # --priority wi
 
 ## Notes
 
-- Jira Cloud and Jira Data Center both work; token format differs (API token vs PAT)
+- Targets **Jira Data Center / Server** (`/rest/api/2`). Jira Cloud is not supported: pncli
+  identifies users by username in the `name` field, where Cloud requires `accountId`. Use
+  Atlassian's own MCP server for Cloud.
+- `--assignee` on `create-issue`, `update-issue`, and `assign` takes a **username**, as does
+  any `user`-typed custom field passed via `--field`
 - Custom fields discovered with `pncli jira fields --discover`
