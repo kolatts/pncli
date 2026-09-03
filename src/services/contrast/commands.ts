@@ -109,17 +109,30 @@ export function registerContrastCommands(program: Command): void {
 
   libraries
     .command('get')
-    .description('Get details for a specific library used by an application')
+    .description('Get details for a specific library used by an application, by hash')
     .requiredOption('--app <app-id>', 'Application ID (UUID)')
     .requiredOption('--hash <library-hash>', 'Library hash')
     .action(async (opts: { app: string; hash: string }) => {
       const start = Date.now();
       try {
         const { http, orgUuid } = getHttpAndOrg(program);
-        const data = await http.contrast<unknown>(
-          `/Contrast/api/ng/${orgUuid}/applications/${opts.app}/libraries/${opts.hash}`
-        );
-        success(data, 'contrast', 'libraries get', start);
+        const batchSize = 25;
+        let offset = 0;
+        let match: Record<string, unknown> | undefined;
+        for (;;) {
+          const page = await http.contrast<{ libraries?: Array<Record<string, unknown>> }>(
+            `/Contrast/api/ng/${orgUuid}/applications/${opts.app}/libraries`,
+            { params: { limit: batchSize, offset } }
+          );
+          const items = page.libraries ?? [];
+          match = items.find(item => item['hash'] === opts.hash);
+          if (match || items.length < batchSize) break;
+          offset += batchSize;
+        }
+        if (!match) {
+          throw new PncliError(`Library with hash "${opts.hash}" not found for application ${opts.app}`, 404);
+        }
+        success(match, 'contrast', 'libraries get', start);
       } catch (err) { fail(err, 'contrast', 'libraries get', start); }
     });
 }
