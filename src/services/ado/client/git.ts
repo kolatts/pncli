@@ -46,19 +46,34 @@ export class AdoGitClient {
     repo: string,
     opts: { status?: string; creatorAlias?: string; reviewerAlias?: string } = {}
   ): Promise<AdoPullRequest[]> {
-    return this.http.adoPaginate<AdoPullRequest>(async (token) => {
+    // The "Get Pull Requests" endpoint has no continuation-token support (unlike
+    // Builds/Definitions) — it paginates via $top/$skip instead, and silently caps
+    // at a server-side default (~100) if $top is omitted. Loop with $skip until a
+    // short page confirms we've reached the end.
+    const pageSize = 100;
+    const results: AdoPullRequest[] = [];
+    let skip = 0;
+
+    while (true) {
       const params: Record<string, string | number | boolean | undefined> = {
         'api-version': API,
         'searchCriteria.status': opts.status ?? 'active',
         ...(opts.creatorAlias ? { 'searchCriteria.creatorId': opts.creatorAlias } : {}),
         ...(opts.reviewerAlias ? { 'searchCriteria.reviewerId': opts.reviewerAlias } : {}),
-        ...(token ? { continuationToken: token } : {})
+        '$top': pageSize,
+        '$skip': skip
       };
-      return this.http.adoRaw(
+      const { data } = await this.http.adoRaw(
         `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repo)}/pullrequests`,
         { params }
-      ) as Promise<{ data: { value: AdoPullRequest[] }; headers: Headers }>;
-    });
+      ) as { data: { value: AdoPullRequest[] } };
+      const page = data.value ?? [];
+      results.push(...page);
+      if (page.length < pageSize) break;
+      skip += pageSize;
+    }
+
+    return results;
   }
 
   async getPR(collection: string, project: string, repo: string, prId: number): Promise<AdoPullRequest> {
