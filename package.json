@@ -7,7 +7,7 @@
     "pncli": "./dist/cli.js"
   },
   "engines": {
-    "node": ">=22.4"
+    "node": ">=22.19.0"
   },
   "scripts": {
     "build": "tsup",
@@ -25,7 +25,8 @@
     "@inquirer/password": "^5.0.13",
     "@inquirer/select": "^5.1.5",
     "chalk": "^5.4.1",
-    "commander": "^13.1.0"
+    "commander": "^13.1.0",
+    "undici": "^8.10.1"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",

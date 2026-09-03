@@ -59,6 +59,25 @@ Repo-level defaults (project key, target branch) are stored in `.pncli.json` in 
 pncli config set --repo defaults.<service>.<key> <value>
 ```
 
+## Corporate proxies and TLS
+
+pncli honours the standard proxy variables for every service. Set them before running:
+
+```
+export HTTPS_PROXY=http://proxy.imagile.dev:8080
+export HTTP_PROXY=http://proxy.imagile.dev:8080
+export NO_PROXY=.imagile.dev,localhost,127.0.0.1
+```
+
+`NO_PROXY` exclusions are respected, so self-hosted services on the internal
+network stay direct while SaaS ones route out through the proxy. If a proxy
+variable is set but the proxy cannot be configured, pncli warns on stderr rather
+than silently bypassing it.
+
+TLS verification is **off** by default, because most self-hosted enterprise
+installs sit behind SSL-inspecting proxies that break the certificate chain.
+Set `PNCLI_VERIFY_TLS=1` to turn it back on.
+
 ## Large text fields (descriptions, acceptance criteria)
 
 For commands with long rich-text fields (Jira `create-issue`/`update-issue`, ADO `work create`/`work update`), use `--input-file <path>` (`-` for stdin) instead of pasting a huge string inline — avoids hitting the shell's command-line length limit. The file is a JSON dictionary of field name/id → value; any string value may be `@path/to/file` to pull that field's content from a file instead. Run `pncli <service> schema` (e.g. `pncli jira schema`) to see the exact shape and a runnable example. Individual CLI flags still override matching keys from the file, and the override is reported. See `jira.md` / `ado.md` for details.
