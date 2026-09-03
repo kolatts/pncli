@@ -244,7 +244,8 @@ The unconverted-submissions rule is the one to confirm, since it is the direct
 signal. During that window, watch the trace it keys off:
 
 ```bash
-az monitor app-insights query --app pncli-prod-ai -g rg-pncli-site --analytics-query \n  "traces | where message startswith 'SubmissionBacklog' | project timestamp, customDimensions.StuckCount, customDimensions.OldestUnconvertedMinutes | order by timestamp desc | take 10"
+az monitor app-insights query --app pncli-prod-ai -g rg-pncli-site --analytics-query \
+  "traces | where message startswith 'SubmissionBacklog' | project timestamp, customDimensions.StuckCount, customDimensions.OldestUnconvertedMinutes | order by timestamp desc | take 10"
 ```
 
 `StuckCount` stays 0 until a submission has been failing for `STALE_SUBMISSION_MINUTES`,
