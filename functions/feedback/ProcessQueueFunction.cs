@@ -1,3 +1,4 @@
+using Feedback.Models;
 using Feedback.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,9 @@ public class ProcessSubmissionsFunction(
     EmailService? emailService = null)
 {
     private const int DefaultDailyLimit = 10;
+
+    /// <summary>How long a submission may stay unconverted before it counts as stuck.</summary>
+    private const int DefaultStaleMinutes = 15;
 
     [Function("ProcessSubmissions")]
     public async Task Run([TimerTrigger("0 * * * * *")] TimerInfo timer)
@@ -55,7 +59,8 @@ public class ProcessSubmissionsFunction(
         }
 
         var processedCount = 0;
-        foreach (var submission in pending.Take(slotsRemaining))
+        var attempted = pending.Take(slotsRemaining).ToList();
+        foreach (var submission in attempted)
         {
             var title = string.IsNullOrEmpty(submission.Version)
                 ? submission.Title
@@ -101,5 +106,42 @@ public class ProcessSubmissionsFunction(
         }
 
         logger.LogInformation("Processed {Count} submission(s) this run", processedCount);
+
+        ReportBacklog(attempted);
+    }
+
+    /// <summary>
+    /// Emits the one signal that deterministically means "a user's submission did
+    /// not become a GitHub issue".
+    ///
+    /// Scoped to the submissions this run actually attempted, which is what makes
+    /// it precise. Rows deferred by the daily cap are excluded by construction —
+    /// they are never in <paramref name="attempted"/> — so a legitimately
+    /// over-cap day cannot raise a false alarm. The age threshold keeps a single
+    /// transient GitHub or storage blip from alerting; only a submission that has
+    /// survived roughly <c>STALE_SUBMISSION_MINUTES</c> worth of one-minute
+    /// retries and is still unconverted counts as stuck.
+    ///
+    /// MarkProcessedAsync sets Processed on the in-memory entity, so this reads
+    /// post-loop state without a second table query.
+    /// </summary>
+    private void ReportBacklog(List<PendingSubmissionEntity> attempted)
+    {
+        var staleAfter = int.TryParse(
+            Environment.GetEnvironmentVariable("STALE_SUBMISSION_MINUTES"), out var sm)
+            ? sm : DefaultStaleMinutes;
+
+        var now = DateTimeOffset.UtcNow;
+        var stuck = attempted.Count(s => !s.Processed && (now - s.SubmittedAt).TotalMinutes > staleAfter);
+        var oldestUnconverted = attempted
+            .Where(s => !s.Processed)
+            .Select(s => (int)(now - s.SubmittedAt).TotalMinutes)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        logger.LogInformation(
+            "SubmissionBacklog StuckCount={StuckCount} AttemptedCount={AttemptedCount} "
+            + "OldestUnconvertedMinutes={OldestUnconvertedMinutes} StaleAfterMinutes={StaleAfterMinutes}",
+            stuck, attempted.Count, oldestUnconverted, staleAfter);
     }
 }

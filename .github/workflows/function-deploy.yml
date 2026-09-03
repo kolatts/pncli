@@ -30,6 +30,7 @@ jobs:
         # appending to $GITHUB_ENV makes them available in later steps.
         env:
           GITHUB_APP_ID: ${{ vars.IMAGILE_BOT_APP_ID }}
+          ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
         run: bash infra/provision.sh >> "$GITHUB_ENV"
 
       - uses: actions/setup-dotnet@v4
