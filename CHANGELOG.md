@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.1.1](https://github.com/kolatts/pncli/compare/v4.1.0...v4.1.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* **ado:** paginate list-prs with $skip instead of continuation tokens ([#437](https://github.com/kolatts/pncli/issues/437)) ([de9fb98](https://github.com/kolatts/pncli/commit/de9fb98d8ca1671736feb7277cefae86680c85c4))
+* **contrast:** page libraries list to look up by hash, 404 on no match ([#436](https://github.com/kolatts/pncli/issues/436)) ([e08e716](https://github.com/kolatts/pncli/commit/e08e7167cda705f18a08fc7c2866cfebd1ad202b))
+
 ## [4.1.0](https://github.com/kolatts/pncli/compare/v4.0.1...v4.1.0) (2026-09-03)
 
 
