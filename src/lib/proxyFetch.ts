@@ -20,8 +20,17 @@ export async function configureProxy(): Promise<void> {
     // that backs globalThis.fetch, so setGlobalDispatcher here correctly
     // routes all pncli fetch() calls through the proxy.
     // @types/node does not yet include node:undici types; cast through any.
+    // The specifier is read through a variable, not passed as a string
+    // literal, because esbuild (via tsup) recognizes the literal
+    // "node:undici" as a Node built-in and rewrites it to the bare
+    // specifier "undici" in the bundled CLI. That resolves to the npm
+    // package rather than the built-in — which pncli does not depend on —
+    // and silently breaks proxy support on every Node version, since the
+    // resulting ERR_MODULE_NOT_FOUND is swallowed below as if node:undici
+    // just weren't available.
+    const undiciSpecifier: string = 'node:undici';
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { setGlobalDispatcher, EnvHttpProxyAgent } = (await import('node:undici' as any)) as UndiciMod;
+    const { setGlobalDispatcher, EnvHttpProxyAgent } = (await import(undiciSpecifier as any)) as UndiciMod;
     setGlobalDispatcher(new EnvHttpProxyAgent());
   } catch (err: unknown) {
     // node:undici not available (Node < 22.4) — skip silently, nothing the
