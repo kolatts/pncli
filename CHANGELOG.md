@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.0](https://github.com/kolatts/pncli/compare/v4.0.1...v4.1.0) (2026-09-03)
+
+
+### Features
+
+* **functions:** smoke-test key and feedback-smoke skill for one-command end-to-end verification ([#429](https://github.com/kolatts/pncli/issues/429)) ([594286a](https://github.com/kolatts/pncli/commit/594286a01426cb6c7e147e3f43142d21a44ebb80)), closes [#428](https://github.com/kolatts/pncli/issues/428)
+
 ## [4.0.1](https://github.com/kolatts/pncli/compare/v4.0.0...v4.0.1) (2026-09-03)
 
 
