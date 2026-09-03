@@ -10,7 +10,8 @@ import { configureProxy } from './lib/proxyFetch.js';
 
 // Configure proxy before any fetch calls. Node's built-in fetch does not
 // honour HTTP_PROXY / HTTPS_PROXY / NO_PROXY; this installs an
-// EnvHttpProxyAgent dispatcher that reads them itself (Node ≥ 22.4).
+// EnvHttpProxyAgent dispatcher (from the undici dependency) that reads them
+// itself. Skipped entirely when no proxy variable is set.
 await configureProxy();
 import { setGlobalOptions, setGlobalUser } from './lib/output.js';
 import { ExitCode } from './lib/exitCodes.js';
