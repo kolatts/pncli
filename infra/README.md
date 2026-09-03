@@ -125,7 +125,7 @@ CI uses OIDC (no long-lived secrets). Steps:
 
 ## 8. Alert routing (ALERT_EMAIL)
 
-`provision.sh` creates an action group (`pncli-prod-alerts`) and two scheduled-query
+`provision.sh` creates an action group (`pncli-prod-alerts`) and three scheduled-query
 alerts over the feedback function's Application Insights. Provisioning **fails fast**
 without `ALERT_EMAIL`, deliberately: an unwatched function is the failure these
 alerts exist to prevent (#418).
@@ -142,13 +142,34 @@ or nothing is delivered.
 
 | Alert | Fires when | Sev |
 |---|---|---|
+| `pncli-prod-submissions-not-converted` | A submission is still not a GitHub issue after `STALE_SUBMISSION_MINUTES` | 1 |
 | `pncli-prod-processsubmissions-exceptions` | Any exception in `ProcessSubmissions` over 15 min | 1 |
 | `pncli-prod-processsubmissions-heartbeat` | No invocation in 15 min (timer stopped firing) | 2 |
 
-Both are needed. `ProcessQueueFunction.cs` catches per submission, so the function
-*invocation* still succeeds when every submission fails — invocation-failure
-monitoring stays green through a total outage. The exception rule covers that; the
-heartbeat rule covers a timer that never fires and so throws nothing.
+The first is the one that matters. The other two infer that something is wrong; it
+observes the actual invariant — *a user submitted something and it never became an
+issue*. `ProcessSubmissions` emits a `SubmissionBacklog` trace on every run carrying
+`StuckCount`, scoped to the submissions that run **attempted**. Rows deferred by the
+daily cap are excluded by construction, so a legitimately over-cap day cannot raise a
+false alarm, and the age threshold means a single transient GitHub or storage blip
+does not alert — only a submission that has survived ~15 one-minute retries and is
+still unconverted. `PendingSubmissionEntity.IssueNumber` already backlinks each row
+to the issue it became, so no schema change was needed to measure this. Tune with the
+`STALE_SUBMISSION_MINUTES` app setting (default 15).
+
+All three are needed, because each sees a failure the others cannot.
+`ProcessQueueFunction.cs` catches per submission, so the function *invocation* still
+succeeds when every submission fails — invocation-failure monitoring stays green
+through a total outage. The exception rule covers that. The heartbeat rule covers a
+timer that never fires and so throws nothing, which the stuck-submission rule cannot
+see either: if nothing is attempted, nothing is counted stuck.
+
+**Sampling is disabled** in `host.json`. Adaptive sampling would not engage at this
+volume anyway, but these rules read `traces` and `exceptions` rows directly and a
+sampled-away row is a missed alert — determinism is worth more than the ingestion
+saved on a function producing a few hundred rows a day. If volume ever grows enough
+for that to matter, move `StuckCount` to a pre-aggregated custom metric (never
+sampled) rather than re-enabling sampling underneath these rules.
 
 The heartbeat rule queries `requests` (logged unconditionally by the Functions
 runtime for every invocation), not `traces` on a message the code logs — the
@@ -218,3 +239,15 @@ az functionapp config appsettings set -n pncli-prod-feedback -g rg-pncli-site \
 
 Submissions that fail during the window stay pending and are retried on the next
 tick, so nothing is lost.
+
+The unconverted-submissions rule is the one to confirm, since it is the direct
+signal. During that window, watch the trace it keys off:
+
+```bash
+az monitor app-insights query --app pncli-prod-ai -g rg-pncli-site --analytics-query \n  "traces | where message startswith 'SubmissionBacklog' | project timestamp, customDimensions.StuckCount, customDimensions.OldestUnconvertedMinutes | order by timestamp desc | take 10"
+```
+
+`StuckCount` stays 0 until a submission has been failing for `STALE_SUBMISSION_MINUTES`,
+then goes positive and the alert fires on the next 5-minute evaluation. Submit a test
+item through the website first — with nothing pending, the function attempts nothing
+and correctly reports 0.

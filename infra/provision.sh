@@ -65,6 +65,7 @@ az functionapp config appsettings set \
     GITHUB_ISSUE_LABEL="from-website" \
     ALLOWED_ORIGIN="https://kolatts.github.io" \
     DAILY_SUBMISSION_LIMIT="${DAILY_SUBMISSION_LIMIT:-10}" \
+    STALE_SUBMISSION_MINUTES="${STALE_SUBMISSION_MINUTES:-15}" \
     IP_DAILY_LIMIT="${IP_DAILY_LIMIT:-10}" \
     EMAIL_FROM_ADDRESS="${EMAIL_FROM_ADDRESS:-no-reply@imagile.dev}" \
     GITHUB_APP_ID="$GITHUB_APP_ID" \
@@ -140,6 +141,24 @@ az monitor scheduled-query create \
   --condition-query Runs="requests | where operation_Name == 'ProcessSubmissions'" \
   --evaluation-frequency 5m --window-size 15m \
   --severity 2 \
+  --action-groups "$ACTIONGROUP_ID" \
+  --only-show-errors >/dev/null
+
+# (3) The deterministic one, and the reason the other two exist mostly as backstops:
+# a submission sitting in Table Storage that never became a GitHub issue. Everything
+# else here infers a problem; this observes it directly. ProcessSubmissions emits
+# SubmissionBacklog on every run, scoped to the submissions that run actually
+# attempted — rows deferred by the daily cap are excluded by construction, so an
+# over-cap day cannot raise a false alarm.
+echo "→ Alert: unconverted submissions" >&2
+az monitor scheduled-query create \
+  -n "${PREFIX}-${ENV}-submissions-not-converted" -g "$RG" \
+  --scopes "$APPINSIGHTS_ID" \
+  --description "A website submission has been retried for STALE_SUBMISSION_MINUTES and still has no GitHub issue. Check exceptions on ProcessSubmissions." \
+  --condition "count 'Stuck' > 0" \
+  --condition-query Stuck="traces | where operation_Name == 'ProcessSubmissions' | where message startswith 'SubmissionBacklog' | where toint(customDimensions.StuckCount) > 0" \
+  --evaluation-frequency 5m --window-size 15m \
+  --severity 1 \
   --action-groups "$ACTIONGROUP_ID" \
   --only-show-errors >/dev/null
 
