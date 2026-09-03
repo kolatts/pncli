@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.0.1](https://github.com/kolatts/pncli/compare/v4.0.0...v4.0.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* **infra:** validate required vars before mutating Azure; never re-create an existing function app ([#425](https://github.com/kolatts/pncli/issues/425)) ([a727a2a](https://github.com/kolatts/pncli/commit/a727a2aa2d646d358ce3f526777d5ddce1af54de))
+
 ## [4.0.0](https://github.com/kolatts/pncli/compare/v3.0.0...v4.0.0) (2026-09-03)
 
 
