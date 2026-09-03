@@ -112,6 +112,7 @@ az functionapp config appsettings set \
     ACS_CONNECTION_STRING="@Microsoft.KeyVault(VaultName=$KV;SecretName=ACS-CONNECTION-STRING)" \
     WEBHOOK_API_KEY="@Microsoft.KeyVault(VaultName=$KV;SecretName=WEBHOOK-API-KEY)" \
     TURNSTILE_SECRET="@Microsoft.KeyVault(VaultName=$KV;SecretName=TURNSTILE-SECRET)" \
+    SMOKE_TEST_KEY="@Microsoft.KeyVault(VaultName=$KV;SecretName=SMOKE-TEST-KEY)" \
   --only-show-errors >/dev/null
 
 # Secret VALUES are set manually in Key Vault — never via this script (see infra/README.md).
