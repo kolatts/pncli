@@ -113,7 +113,7 @@ Services:
   artifactory  Artifactory (repos, artifact search, build info, properties)
   checkmarx    Checkmarx One (projects, scans, scan statistics)
   servicenow   ServiceNow (change requests)
-  contrast     Contrast IAST (applications, vulnerability findings)
+  contrast     Contrast IAST (applications, vulnerability findings, libraries)
   sonatypeiq   Sonatype IQ Server (applications, organizations, policies)
   openshift    OpenShift / Kubernetes (pods, events, logs, metrics)
   dynatrace    Dynatrace (services, entities, problems, traces, Kubernetes workloads)

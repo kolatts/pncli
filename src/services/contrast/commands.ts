@@ -81,4 +81,45 @@ export function registerContrastCommands(program: Command): void {
         success(data, 'contrast', 'findings get', start);
       } catch (err) { fail(err, 'contrast', 'findings get', start); }
     });
+
+  const libraries = contrast.command('libraries').description('Software composition (library) operations');
+
+  libraries
+    .command('list')
+    .description('List libraries used by an application, as shown on the Libraries tab')
+    .requiredOption('--app <app-id>', 'Application ID (UUID)')
+    .option('--limit <n>', 'Maximum number of results', '25')
+    .option('--offset <n>', 'Pagination offset', '0')
+    .action(async (opts: { app: string; limit?: string; offset?: string }) => {
+      const start = Date.now();
+      try {
+        const { http, orgUuid } = getHttpAndOrg(program);
+        const data = await http.contrast<unknown>(
+          `/Contrast/api/ng/${orgUuid}/applications/${opts.app}/libraries`,
+          {
+            params: {
+              limit: opts.limit ? parseInt(opts.limit, 10) : 25,
+              offset: opts.offset ? parseInt(opts.offset, 10) : 0
+            }
+          }
+        );
+        success(data, 'contrast', 'libraries list', start);
+      } catch (err) { fail(err, 'contrast', 'libraries list', start); }
+    });
+
+  libraries
+    .command('get')
+    .description('Get details for a specific library used by an application')
+    .requiredOption('--app <app-id>', 'Application ID (UUID)')
+    .requiredOption('--hash <library-hash>', 'Library hash')
+    .action(async (opts: { app: string; hash: string }) => {
+      const start = Date.now();
+      try {
+        const { http, orgUuid } = getHttpAndOrg(program);
+        const data = await http.contrast<unknown>(
+          `/Contrast/api/ng/${orgUuid}/applications/${opts.app}/libraries/${opts.hash}`
+        );
+        success(data, 'contrast', 'libraries get', start);
+      } catch (err) { fail(err, 'contrast', 'libraries get', start); }
+    });
 }

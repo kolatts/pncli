@@ -1,6 +1,6 @@
 # Contrast Security IAST
 
-Enables: `pncli contrast apps`, `pncli contrast findings` — list applications and runtime vulnerability findings from Contrast Security.
+Enables: `pncli contrast apps`, `pncli contrast findings`, `pncli contrast libraries` — list applications, runtime vulnerability findings, and software composition (library) data from Contrast Security.
 
 ## Required config
 

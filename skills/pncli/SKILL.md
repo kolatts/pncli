@@ -81,7 +81,7 @@ Each service has its own file in this skill with the config keys and example val
 | Jenkins | `jenkins.md` | Builds, job status |
 | Artifactory | `artifactory.md` | Packages, repos |
 | ServiceNow | `servicenow.md` | Change requests, incidents |
-| Contrast IAST | `contrast.md` | Runtime vulnerability findings |
+| Contrast IAST | `contrast.md` | Runtime vulnerability findings, libraries |
 | Sonatype IQ | `sonatypeiq.md` | Dependency policy enforcement |
 | OpenShift / Kubernetes | `openshift.md` | Pod health, events, logs, metrics |
 | Dynatrace | `dynatrace.md` | Services, entities, problems, traces, Kubernetes workloads |
