@@ -1,5 +1,21 @@
 # Changelog
 
+## [5.0.0](https://github.com/kolatts/pncli/compare/v4.1.1...v5.0.0) (2026-09-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* `pncli servicenow` and all its subcommands are removed. The `servicenow.*` config keys and `PNCLI_SERVICENOW_*` environment variables no longer resolve, and `config check` / `config test` no longer report a `servicenow` entry. Scripts that read that key from the JSON envelope must drop it. ServiceNow PAT support is not widely enabled at enterprises, so the integration could not meet pncli's personal-access-token-only auth bar.
+
+### Features
+
+* remove ServiceNow integration ([#446](https://github.com/kolatts/pncli/issues/446)) ([1f49dd2](https://github.com/kolatts/pncli/commit/1f49dd229f58468efff85f0c31106c29425f7818))
+
+
+### Bug Fixes
+
+* **functions:** record smoke runs on one persistent issue instead of creating one per deploy ([#443](https://github.com/kolatts/pncli/issues/443)) ([6ef7bde](https://github.com/kolatts/pncli/commit/6ef7bdea227ce952cba4743862de9d771d2f94fe)), closes [#442](https://github.com/kolatts/pncli/issues/442)
+
 ## [4.1.1](https://github.com/kolatts/pncli/compare/v4.1.0...v4.1.1) (2026-09-03)
 
 
