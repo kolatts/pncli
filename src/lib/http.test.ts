@@ -17,7 +17,6 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     jenkins: { baseUrl: 'https://jenkins.imagile.dev', username: 'user', apiToken: 'tok' },
     jenkinsInstances: [],
     checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined },
-    servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
     openshift: { baseUrl: undefined, token: undefined, defaultEnvironment: undefined, defaultInstance: undefined, environments: {} },
@@ -452,80 +451,6 @@ describe('HttpClient — confluencePaginate', () => {
     expect(results).toHaveLength(7);
     expect(limits[0]).toBe(7); // first page: min(7, 25) = 7
     expect(limits[1]).toBe(2); // second page: min(7-5, 25) = 2
-  });
-});
-
-describe('HttpClient — ServiceNow', () => {
-  it('throws on missing baseUrl', async () => {
-    const config = baseConfig({ servicenow: { baseUrl: undefined, username: 'user', password: 'pass', apiToken: undefined } });
-    const client = new HttpClient(config);
-    await expect(client.servicenow('/api/now/table/change_request')).rejects.toMatchObject({ name: 'PncliError' });
-  });
-
-  it('throws on missing credentials', async () => {
-    const config = baseConfig({ servicenow: { baseUrl: 'https://sn.imagile.dev', username: undefined, password: undefined, apiToken: undefined } });
-    const client = new HttpClient(config);
-    await expect(client.servicenow('/api/now/table/change_request')).rejects.toMatchObject({ name: 'PncliError' });
-  });
-
-  it('sends Basic auth with username:password', async () => {
-    const capturedHeaders: Record<string, string>[] = [];
-    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
-      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
-      return new Response('{"result":[]}', { status: 200 });
-    });
-    try {
-      const config = baseConfig({ servicenow: { baseUrl: 'https://sn.imagile.dev', username: 'alice', password: 'secret', apiToken: undefined } });
-      const client = new HttpClient(config);
-      await client.servicenow('/api/now/table/change_request');
-    } finally {
-      vi.unstubAllGlobals();
-    }
-    const auth = capturedHeaders[0]?.['authorization'] ?? '';
-    const decoded = Buffer.from(auth.replace('Basic ', ''), 'base64').toString();
-    expect(decoded).toBe('alice:secret');
-  });
-
-  it('sends Basic auth with username:apiToken when token provided', async () => {
-    const capturedHeaders: Record<string, string>[] = [];
-    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
-      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
-      return new Response('{"result":[]}', { status: 200 });
-    });
-    try {
-      const config = baseConfig({ servicenow: { baseUrl: 'https://sn.imagile.dev', username: 'alice', password: undefined, apiToken: 'my-token' } });
-      const client = new HttpClient(config);
-      await client.servicenow('/api/now/table/change_request');
-    } finally {
-      vi.unstubAllGlobals();
-    }
-    const auth = capturedHeaders[0]?.['authorization'] ?? '';
-    const decoded = Buffer.from(auth.replace('Basic ', ''), 'base64').toString();
-    expect(decoded).toBe('alice:my-token');
-  });
-
-  it('prefers apiToken over password when both are set', async () => {
-    const capturedHeaders: Record<string, string>[] = [];
-    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
-      capturedHeaders.push(Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()));
-      return new Response('{"result":[]}', { status: 200 });
-    });
-    try {
-      const config = baseConfig({ servicenow: { baseUrl: 'https://sn.imagile.dev', username: 'alice', password: 'pw', apiToken: 'tok' } });
-      const client = new HttpClient(config);
-      await client.servicenow('/api/now/table/change_request');
-    } finally {
-      vi.unstubAllGlobals();
-    }
-    const auth = capturedHeaders[0]?.['authorization'] ?? '';
-    const decoded = Buffer.from(auth.replace('Basic ', ''), 'base64').toString();
-    expect(decoded).toBe('alice:tok');
-  });
-
-  it('throws PncliError with status 0 on dry-run', async () => {
-    const config = baseConfig({ servicenow: { baseUrl: 'https://sn.imagile.dev', username: 'u', password: 'p', apiToken: undefined } });
-    const client = new HttpClient(config, true);
-    await expect(client.servicenow('/api/now/table/change_request')).rejects.toMatchObject({ status: 0, message: 'dry-run' });
   });
 });
 

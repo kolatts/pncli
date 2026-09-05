@@ -41,10 +41,6 @@ const ENV_KEYS = {
   CHECKMARX_API_KEY: 'PNCLI_CHECKMARX_API_KEY',
   CHECKMARX_CLIENT_ID: 'PNCLI_CHECKMARX_CLIENT_ID',
   CHECKMARX_CLIENT_SECRET: 'PNCLI_CHECKMARX_CLIENT_SECRET',
-  SERVICENOW_BASE_URL: 'PNCLI_SERVICENOW_BASE_URL',
-  SERVICENOW_USERNAME: 'PNCLI_SERVICENOW_USERNAME',
-  SERVICENOW_PASSWORD: 'PNCLI_SERVICENOW_PASSWORD',
-  SERVICENOW_API_TOKEN: 'PNCLI_SERVICENOW_API_TOKEN',
   CONTRAST_BASE_URL: 'PNCLI_CONTRAST_BASE_URL',
   CONTRAST_ORG_UUID: 'PNCLI_CONTRAST_ORG_UUID',
   CONTRAST_API_KEY: 'PNCLI_CONTRAST_API_KEY',
@@ -203,12 +199,6 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       apiKey: process.env[ENV_KEYS.CHECKMARX_API_KEY] ?? globalConfig.checkmarx?.apiKey,
       clientId: process.env[ENV_KEYS.CHECKMARX_CLIENT_ID] ?? globalConfig.checkmarx?.clientId,
       clientSecret: process.env[ENV_KEYS.CHECKMARX_CLIENT_SECRET] ?? globalConfig.checkmarx?.clientSecret,
-    },
-    servicenow: {
-      baseUrl: process.env[ENV_KEYS.SERVICENOW_BASE_URL] ?? globalConfig.servicenow?.baseUrl,
-      username: process.env[ENV_KEYS.SERVICENOW_USERNAME] ?? globalConfig.servicenow?.username,
-      password: process.env[ENV_KEYS.SERVICENOW_PASSWORD] ?? globalConfig.servicenow?.password,
-      apiToken: process.env[ENV_KEYS.SERVICENOW_API_TOKEN] ?? globalConfig.servicenow?.apiToken,
     },
     contrast: {
       baseUrl: process.env[ENV_KEYS.CONTRAST_BASE_URL] ?? globalConfig.contrast?.baseUrl,
@@ -378,11 +368,6 @@ export function maskConfig(config: ResolvedConfig): unknown {
       ...config.checkmarx,
       apiKey: config.checkmarx.apiKey ? '***' : undefined,
       clientSecret: config.checkmarx.clientSecret ? '***' : undefined
-    },
-    servicenow: {
-      ...config.servicenow,
-      password: config.servicenow.password ? '***' : undefined,
-      apiToken: config.servicenow.apiToken ? '***' : undefined
     },
     contrast: {
       ...config.contrast,

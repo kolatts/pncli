@@ -1,6 +1,6 @@
 ---
 name: pncli
-description: Use when working with enterprise tools through pncli — querying or updating Jira issues, Bitbucket/GitHub/Azure DevOps pull requests, Confluence pages, SonarQube findings, Jenkins builds, ServiceNow records, and more — or when asked to set up pncli, configure a service, or initialize a repo. Walks through identity, work item tracking, source control, and optional services. For any specific service, read the included <service>.md file.
+description: Use when working with enterprise tools through pncli — querying or updating Jira issues, Bitbucket/GitHub/Azure DevOps pull requests, Confluence pages, SonarQube findings, Jenkins builds, and more — or when asked to set up pncli, configure a service, or initialize a repo. Walks through identity, work item tracking, source control, and optional services. For any specific service, read the included <service>.md file.
 compatibility: Designed for Claude Code. Requires pncli installed and accessible in PATH.
 user-invocable: true
 metadata:
@@ -9,7 +9,7 @@ metadata:
   services: config
 ---
 
-pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, GitHub, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, Checkmarx, ServiceNow, Contrast Security IAST, Sonatype IQ Server, OpenShift / Kubernetes, Dynatrace, LogScale, Split.IO, and Figma.
+pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, GitHub, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, Checkmarx, Contrast Security IAST, Sonatype IQ Server, OpenShift / Kubernetes, Dynatrace, LogScale, Split.IO, and Figma.
 
 Every service authenticates the same way: a personal access token you generate in that tool's own UI and put in an env var or the config file. If a tool you need is missing from the table below, it is not out of scope by default — pncli covers enterprise tooling broadly, and the only hard requirement is personal-access-token auth.
 
@@ -99,7 +99,6 @@ Each service has its own file in this skill with the config keys and example val
 | Checkmarx | `checkmarx.md` | SAST findings |
 | Jenkins | `jenkins.md` | Builds, job status |
 | Artifactory | `artifactory.md` | Packages, repos |
-| ServiceNow | `servicenow.md` | Change requests, incidents |
 | Contrast IAST | `contrast.md` | Runtime vulnerability findings, libraries |
 | Sonatype IQ | `sonatypeiq.md` | Dependency policy enforcement |
 | OpenShift / Kubernetes | `openshift.md` | Pod health, events, logs, metrics |

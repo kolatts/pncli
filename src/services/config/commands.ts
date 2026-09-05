@@ -213,18 +213,6 @@ export function registerConfigCommands(program: Command): void {
           results.checkmarx = { ok: null, message: 'not configured' };
         }
 
-        const snConfigured = cfg.servicenow.baseUrl && cfg.servicenow.username && (cfg.servicenow.password || cfg.servicenow.apiToken);
-        if (snConfigured) {
-          try {
-            await http.servicenow<unknown>('/api/now/table/change_request', { params: { sysparm_limit: 1 } });
-            results.servicenow = { ok: true, message: 'connected' };
-          } catch (err) {
-            results.servicenow = { ok: false, message: err instanceof Error ? err.message : String(err) };
-          }
-        } else {
-          results.servicenow = { ok: null, message: 'not configured' };
-        }
-
         if (cfg.contrast.apiKey && cfg.contrast.serviceKey && cfg.contrast.username && cfg.contrast.orgUuid) {
           try {
             await http.contrast<unknown>(`/Contrast/api/ng/${cfg.contrast.orgUuid}/applications`, { params: { limit: 1 } });
@@ -424,7 +412,7 @@ export function registerConfigCommands(program: Command): void {
         });
         const allServices = [
           'jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins',
-          'artifactory', 'checkmarx', 'servicenow', 'contrast', 'sonatypeiq', 'openshift',
+          'artifactory', 'checkmarx', 'contrast', 'sonatypeiq', 'openshift',
           ...clusterKeys, 'dynatrace', 'dynatrace_platform', ...dynamicEnvKeys, 'logscale', 'splitio', 'figma'
         ];
 
@@ -818,68 +806,6 @@ async function initGlobalConfig(start: number): Promise<void> {
         process.stderr.write('  Connected.\n');
       } catch (err) {
         warn(`Could not connect to Checkmarx: ${err instanceof Error ? err.message : String(err)}`);
-        warn('Config will be saved anyway. Check your URL and credentials and re-run pncli config init or pncli config test.');
-      }
-    }
-  }
-
-  process.stderr.write('\n── ServiceNow ────────────────────────────────────\n');
-  const useServiceNow = await confirm({
-    message: 'Configure ServiceNow for change management?',
-    default: false
-  });
-
-  let servicenowBaseUrl = '';
-  let servicenowUsername = '';
-  let servicenowPassword = '';
-  let servicenowApiToken = '';
-
-  if (useServiceNow) {
-    servicenowBaseUrl = await input({
-      message: 'ServiceNow instance URL (e.g. imagile.service-now.com):',
-      default: ''
-    });
-
-    servicenowUsername = await input({
-      message: 'ServiceNow username:',
-      default: ''
-    });
-
-    const snUseToken = await confirm({
-      message: 'Authenticate with an API token instead of a password?',
-      default: false
-    });
-
-    if (snUseToken) {
-      servicenowApiToken = await password({
-        message: 'ServiceNow API token:',
-        validate: (v) => v.length > 0 || 'Token cannot be blank'
-      });
-    } else {
-      servicenowPassword = await password({
-        message: 'ServiceNow password:',
-        validate: (v) => v.length > 0 || 'Password cannot be blank'
-      });
-    }
-
-    const snHasCreds = servicenowBaseUrl && servicenowUsername && (servicenowPassword || servicenowApiToken);
-    if (snHasCreds) {
-      process.stderr.write('\n  Verifying connection...\n');
-      try {
-        const tempConfig = {
-          ...loadConfig(),
-          servicenow: {
-            baseUrl: normalizeBaseUrl(servicenowBaseUrl),
-            username: servicenowUsername,
-            password: servicenowPassword || undefined,
-            apiToken: servicenowApiToken || undefined
-          }
-        };
-        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
-        await tempHttp.servicenow<unknown>('/api/now/table/change_request', { params: { sysparm_limit: 1 } });
-        process.stderr.write('  Connected.\n');
-      } catch (err) {
-        warn(`Could not connect to ServiceNow: ${err instanceof Error ? err.message : String(err)}`);
         warn('Config will be saved anyway. Check your URL and credentials and re-run pncli config init or pncli config test.');
       }
     }
@@ -1316,14 +1242,6 @@ async function initGlobalConfig(start: number): Promise<void> {
         apiKey: checkmarxApiKey || undefined,
         clientId: checkmarxClientId || undefined,
         clientSecret: checkmarxClientSecret || undefined
-      }
-    } : {}),
-    ...(useServiceNow && servicenowBaseUrl ? {
-      servicenow: {
-        baseUrl: normalizeBaseUrl(servicenowBaseUrl),
-        username: servicenowUsername || undefined,
-        ...(servicenowApiToken ? { apiToken: servicenowApiToken } : {}),
-        ...(servicenowPassword ? { password: servicenowPassword } : {})
       }
     } : {}),
     ...(useContrast && contrastOrgUuid ? {

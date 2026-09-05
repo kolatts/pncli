@@ -39,7 +39,6 @@ export const integrations: Integration[] = [
   { slug: 'artifactory', name: 'Artifactory',    description: 'Artifact repository',            active: true, testing: 'basic'    },
   { slug: 'jenkins',     name: 'Jenkins',        description: 'CI/CD pipelines',                active: true, testing: 'basic'    },
   { slug: 'contrast',    name: 'Contrast IAST',  description: 'Runtime application security',   active: true, testing: 'untested' },
-  { slug: 'servicenow',  name: 'ServiceNow',     description: 'IT service management',          active: true, testing: 'untested' },
   { slug: 'sonatypeiq',  name: 'Sonatype IQ',    description: 'Dependency policy enforcement',  active: true, testing: 'untested' },
   { slug: 'openshift',   name: 'OpenShift',      description: 'Pods, events, logs, metrics',    active: true, testing: 'untested' },
   { slug: 'dynatrace',   name: 'Dynatrace',      description: 'Problems, entities, traces',     active: true, testing: 'basic'    },
@@ -77,6 +76,14 @@ export interface RemovedIntegration {
  * older version know why the commands vanished rather than filing it as a bug.
  */
 export const removedIntegrations: RemovedIntegration[] = [
+  {
+    name: 'ServiceNow',
+    removedIn: 'v5.0.0',
+    reason:
+      'ServiceNow personal access tokens are an opt-in feature many enterprises never turn on, ' +
+      'so in practice the integration fell back to a username and password. That fails pncli’s ' +
+      'authentication bar, which requires a personal access token and nothing else.',
+  },
   {
     name: 'IBM UrbanCode Deploy',
     removedIn: 'v2.0.0',

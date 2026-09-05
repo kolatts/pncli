@@ -1093,51 +1093,6 @@ export class HttpClient {
     return this.checkmarxFetcher;
   }
 
-  private servicenowHeaders(): Record<string, string> {
-    const { username, password, apiToken } = this.config.servicenow;
-    let encoded: string;
-    if (username && apiToken) {
-      encoded = Buffer.from(`${username}:${apiToken}`).toString('base64');
-    } else if (username && password) {
-      encoded = Buffer.from(`${username}:${password}`).toString('base64');
-    } else {
-      throw new PncliError('ServiceNow credentials not configured. Run: pncli config init');
-    }
-    return {
-      'Authorization': `Basic ${encoded}`,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Connection': 'close'
-    };
-  }
-
-  async servicenow<T>(
-    path: string,
-    opts: HttpRequestOptions = {}
-  ): Promise<T> {
-    const baseUrl = this.config.servicenow.baseUrl;
-    if (!baseUrl) throw new PncliError('ServiceNow baseUrl not configured. Run: pncli config init');
-
-    const url = buildUrl(baseUrl, path, opts.params);
-    const headers = this.servicenowHeaders();
-    const init: RequestInit = {
-      method: opts.method ?? 'GET',
-      headers,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
-    };
-
-    if (this.dryRun) {
-      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
-      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
-        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
-      fs.writeSync(process.stderr.fd, msg);
-      process.exitCode = ExitCode.SUCCESS;
-      throw new PncliError('dry-run', 0);
-    }
-
-    return request<T>(url, init, opts.timeoutMs ?? 30000);
-  }
-
   private contrastHeaders(): Record<string, string> {
     const { apiKey, serviceKey, username } = this.config.contrast;
     if (!apiKey || !serviceKey || !username) {

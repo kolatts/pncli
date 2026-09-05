@@ -176,21 +176,6 @@ export async function runCredentialChecks(cfg: ResolvedConfig, http: HttpClient)
     }
   }
 
-  // ServiceNow
-  const snCreds = cfg.servicenow.username && (cfg.servicenow.password || cfg.servicenow.apiToken);
-  if (!snCreds) {
-    results.servicenow = { status: 'blank', message: 'not configured' };
-  } else if (!cfg.servicenow.baseUrl) {
-    results.servicenow = { status: 'error', message: 'baseUrl not configured' };
-  } else {
-    try {
-      await http.servicenow<unknown>('/api/now/table/change_request', { params: { sysparm_limit: 1 }, timeoutMs: 10_000 });
-      results.servicenow = { status: 'valid', message: 'ok' };
-    } catch (err) {
-      results.servicenow = categorize(err);
-    }
-  }
-
   // Contrast IAST
   if (!cfg.contrast.apiKey || !cfg.contrast.serviceKey || !cfg.contrast.username) {
     results.contrast = { status: 'blank', message: 'not configured' };

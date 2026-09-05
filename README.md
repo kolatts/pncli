@@ -120,7 +120,6 @@ This project uses Conventional Commits for automatic versioning:
 | Dependencies | 🟡 Basic | CVE detection, license audit |
 | Checkmarx | ⚪ Untested | Vulnerability scanning (SAST) |
 | Contrast IAST | ⚪ Untested | Runtime application security |
-| ServiceNow | ⚪ Untested | IT service management |
 | Sonatype IQ | ⚪ Untested | Dependency policy enforcement |
 | OpenShift | ⚪ Untested | Pods, events, logs, metrics |
 | LogScale | ⚪ Untested | Log queries, repositories |
@@ -129,7 +128,7 @@ This project uses Conventional Commits for automatic versioning:
 
 Status reflects validation against a **real instance**, not code maturity: **Live** — used routinely day-to-day · **Beta** — exercised across several commands and instances · **Basic** — smoke-tested against one instance · **Untested** — shipped, not yet run against a live server. The [homepage](https://kolatts.github.io/pncli/) shows the same grid.
 
-Removed integrations: IBM UrbanCode Deploy (v2.0.0) — see the [changelog](https://kolatts.github.io/pncli/changelog/) for why.
+Removed integrations: ServiceNow (v5.0.0), IBM UrbanCode Deploy (v2.0.0) — see the [changelog](https://kolatts.github.io/pncli/changelog/) for why.
 <!-- services-table:end -->
 
 Auth specifics and supported server versions for each service live in its [`skills/pncli/<service>.md`](./skills/pncli/) file.

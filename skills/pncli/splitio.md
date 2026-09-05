@@ -25,7 +25,7 @@ Every write command submits a **Change Request** (CR) rather than modifying flag
 |---|---|---|
 | `--mnemonic` | Yes | Short title for the CR (appears in the Split UI) |
 | `--description` | Yes | Longer description of the intent |
-| `--change-number` | Yes | ServiceNow change ticket (e.g. `CHG0001234`) |
+| `--change-number` | Yes | Change ticket number (e.g. `CHG0001234`) |
 | `--approvers` | Situational | Comma-separated Split user IDs for non-production approvals |
 | `--yes` | Optional | Skip interactive confirmation (for CI/CD pipelines) |
 

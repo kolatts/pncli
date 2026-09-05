@@ -31,7 +31,6 @@ import { registerAdoCommands } from './services/ado/commands/index.js';
 import { registerJenkinsCommands } from './services/jenkins/commands.js';
 import { registerArtifactoryCommands } from './services/artifactory/commands.js';
 import { registerCheckmarxCommands } from './services/checkmarx/commands.js';
-import { registerServiceNowCommands } from './services/servicenow/commands.js';
 import { registerContrastCommands } from './services/contrast/commands.js';
 import { registerSonatypeIqCommands } from './services/sonatypeiq/commands.js';
 import { registerSkillsCommands } from './services/skills/commands.js';
@@ -88,7 +87,6 @@ registerAdoCommands(program);
 registerJenkinsCommands(program);
 registerArtifactoryCommands(program);
 registerCheckmarxCommands(program);
-registerServiceNowCommands(program);
 registerContrastCommands(program);
 registerSonatypeIqCommands(program);
 registerSkillsCommands(program);
@@ -113,7 +111,6 @@ Services:
   jenkins      Jenkins (jobs, builds, logs, named instances)
   artifactory  Artifactory (repos, artifact search, build info, properties)
   checkmarx    Checkmarx One (projects, scans, scan statistics)
-  servicenow   ServiceNow (change requests)
   contrast     Contrast IAST (applications, vulnerability findings, libraries)
   sonatypeiq   Sonatype IQ Server (applications, organizations, policies)
   openshift    OpenShift / Kubernetes (pods, events, logs, metrics)

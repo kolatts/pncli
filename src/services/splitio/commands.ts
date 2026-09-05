@@ -214,7 +214,7 @@ export function registerSplitioCommands(program: Command): void {
     .requiredOption('--environment <id>', 'Environment ID')
     .requiredOption('--mnemonic <text>', 'Short Change Request title (mnemonic)')
     .requiredOption('--description <text>', 'Change Request description')
-    .requiredOption('--change-number <CHG>', 'ServiceNow change request number (e.g. CHG0001234)')
+    .requiredOption('--change-number <CHG>', 'Change request number (e.g. CHG0001234)')
     .option('--approvers <ids>', 'Comma-separated Split user IDs required to approve this CR')
     .option('--input-file <path>', 'JSON file with the complete flag definition body (use - for stdin)')
     .option('--yes', 'Skip interactive confirmation prompt')
@@ -257,7 +257,7 @@ export function registerSplitioCommands(program: Command): void {
     .option('--weights <json>', 'JSON array of {treatment, size} objects for weighted distribution')
     .requiredOption('--mnemonic <text>', 'Short Change Request title (mnemonic)')
     .requiredOption('--description <text>', 'Change Request description')
-    .requiredOption('--change-number <CHG>', 'ServiceNow change request number (e.g. CHG0001234)')
+    .requiredOption('--change-number <CHG>', 'Change request number (e.g. CHG0001234)')
     .option('--approvers <ids>', 'Comma-separated Split user IDs required to approve this CR')
     .option('--yes', 'Skip interactive confirmation prompt')
     .action(async (opts: CrSharedOpts & {
@@ -319,7 +319,7 @@ export function registerSplitioCommands(program: Command): void {
     .requiredOption('--treatment <name>', 'Treatment to assign as the default')
     .requiredOption('--mnemonic <text>', 'Short Change Request title (mnemonic)')
     .requiredOption('--description <text>', 'Change Request description')
-    .requiredOption('--change-number <CHG>', 'ServiceNow change request number (e.g. CHG0001234)')
+    .requiredOption('--change-number <CHG>', 'Change request number (e.g. CHG0001234)')
     .option('--approvers <ids>', 'Comma-separated Split user IDs required to approve this CR')
     .option('--yes', 'Skip interactive confirmation prompt')
     .action(async (opts: CrSharedOpts & {
@@ -367,7 +367,7 @@ export function registerSplitioCommands(program: Command): void {
     .requiredOption('--enabled <bool>', 'true to restore / false to kill the flag')
     .requiredOption('--mnemonic <text>', 'Short Change Request title (mnemonic)')
     .requiredOption('--description <text>', 'Change Request description')
-    .requiredOption('--change-number <CHG>', 'ServiceNow change request number (e.g. CHG0001234)')
+    .requiredOption('--change-number <CHG>', 'Change request number (e.g. CHG0001234)')
     .option('--approvers <ids>', 'Comma-separated Split user IDs required to approve this CR')
     .option('--yes', 'Skip interactive confirmation prompt')
     .action(async (opts: CrSharedOpts & {
@@ -401,7 +401,7 @@ export function registerSplitioCommands(program: Command): void {
     .requiredOption('--environment <id>', 'Environment ID')
     .requiredOption('--mnemonic <text>', 'Short Change Request title prefix (mnemonic)')
     .requiredOption('--description <text>', 'Change Request description')
-    .requiredOption('--change-number <CHG>', 'ServiceNow change request number (e.g. CHG0001234)')
+    .requiredOption('--change-number <CHG>', 'Change request number (e.g. CHG0001234)')
     .option('--approvers <ids>', 'Comma-separated Split user IDs required to approve each CR')
     .option('--input-file <path>', 'JSON file: array of {flag, enabled} objects (use - for stdin)')
     .option('--yes', 'Skip interactive confirmation prompt')
@@ -455,7 +455,7 @@ export function registerSplitioCommands(program: Command): void {
     .requiredOption('--environment <id>', 'Environment ID')
     .requiredOption('--mnemonic <text>', 'Short Change Request title (mnemonic)')
     .requiredOption('--description <text>', 'Change Request description')
-    .requiredOption('--change-number <CHG>', 'ServiceNow change request number (e.g. CHG0001234)')
+    .requiredOption('--change-number <CHG>', 'Change request number (e.g. CHG0001234)')
     .option('--approvers <ids>', 'Comma-separated Split user IDs required to approve this CR')
     .option('--yes', 'Skip interactive confirmation prompt')
     .action(async (opts: CrSharedOpts & { workspace: string; flag: string; environment: string }) => {
@@ -485,7 +485,7 @@ export function registerSplitioCommands(program: Command): void {
     .requiredOption('--environment <id>', 'Environment ID')
     .requiredOption('--mnemonic <text>', 'Short Change Request title (mnemonic)')
     .requiredOption('--description <text>', 'Change Request description')
-    .requiredOption('--change-number <CHG>', 'ServiceNow change request number (e.g. CHG0001234)')
+    .requiredOption('--change-number <CHG>', 'Change request number (e.g. CHG0001234)')
     .option('--approvers <ids>', 'Comma-separated Split user IDs required to approve this CR')
     .option('--yes', 'Skip interactive confirmation prompt')
     .action(async (opts: CrSharedOpts & { workspace: string; flag: string; environment: string }) => {
@@ -514,7 +514,7 @@ export function registerSplitioCommands(program: Command): void {
     .requiredOption('--flag <name>', 'Feature flag name')
     .requiredOption('--mnemonic <text>', 'Short Change Request title (mnemonic)')
     .requiredOption('--description <text>', 'Change Request description')
-    .requiredOption('--change-number <CHG>', 'ServiceNow change request number (e.g. CHG0001234)')
+    .requiredOption('--change-number <CHG>', 'Change request number (e.g. CHG0001234)')
     .option('--yes', 'Skip interactive confirmation prompt')
     .action(async (opts: CrSharedOpts & { workspace: string; flag: string }) => {
       const start = Date.now();
