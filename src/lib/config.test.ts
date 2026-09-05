@@ -510,3 +510,47 @@ describe('setRepoConfigValue — JSON parsing', () => {
     expect(stored.defaults.jira.project).toBe('ACME');
   });
 });
+
+describe('loadConfig — config files carrying keys for removed services', () => {
+  let tmpDir: string;
+  let globalConfigPath: string;
+
+  beforeEach(async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-test-'));
+    globalConfigPath = path.join(tmpDir, 'config.json');
+    const { execSync } = await import('child_process');
+    vi.mocked(execSync).mockReturnValue(tmpDir as unknown as ReturnType<typeof execSync>);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.clearAllMocks();
+  });
+
+  // ServiceNow was removed in v5.0.0, but existing installs still have a
+  // `servicenow` block on disk. It must be ignored, never rejected.
+  it('ignores a stale servicenow block and still resolves live services', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({
+      servicenow: { baseUrl: 'https://legacy.imagile.dev', username: 'u', password: 'p' },
+      jira: { baseUrl: 'https://jira.imagile.dev', apiToken: 'tok' }
+    }));
+
+    const config = loadConfig({ configPath: globalConfigPath });
+
+    expect(config.jira.baseUrl).toBe('https://jira.imagile.dev');
+    expect((config as unknown as Record<string, unknown>)['servicenow']).toBeUndefined();
+  });
+
+  it('leaves a stale servicenow block untouched when another key is written', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({
+      servicenow: { baseUrl: 'https://legacy.imagile.dev' },
+      jira: { baseUrl: 'https://jira.imagile.dev' }
+    }));
+
+    setConfigValue('jira.apiToken', 'tok', globalConfigPath);
+
+    const stored = JSON.parse(fs.readFileSync(globalConfigPath, 'utf8'));
+    expect(stored.jira.apiToken).toBe('tok');
+    expect(stored.servicenow.baseUrl).toBe('https://legacy.imagile.dev');
+  });
+});
