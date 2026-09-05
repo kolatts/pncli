@@ -1,3 +1,5 @@
+using System.Text;
+using System.Text.RegularExpressions;
 using Feedback.Models;
 using Feedback.Services;
 using Microsoft.Azure.Functions.Worker;
@@ -21,11 +23,26 @@ public class ProcessSubmissionsFunction(
     private const int DefaultDailyLimit = 10;
 
     /// <summary>
-    /// Label for issues created by the smoke-test path. Deliberately not
-    /// <c>from-website</c>: that label is what fires <c>claude-triage.yml</c>,
-    /// and a smoke test must never spend an agent run.
+    /// Label on the one persistent issue the smoke-test path writes to.
+    /// Deliberately not <c>from-website</c>: that label is what fires
+    /// <c>claude-triage.yml</c>, and a smoke test must never spend an agent run.
     /// </summary>
     private const string SmokeTestLabel = "smoke-test";
+
+    private const string SmokeTestIssueTitle = "Feedback pipeline smoke test";
+
+    /// <summary>Rows of run history kept in the smoke-test issue body.</summary>
+    private const int SmokeTestHistoryRows = 20;
+
+    /// <summary>
+    /// One history row as written by <see cref="BuildSmokeTestBody"/>. GitHub
+    /// returns issue bodies with CRLF, hence the optional <c>\r</c>.
+    /// </summary>
+    private static readonly Regex SmokeTestRow =
+        new(@"^\| [^|]+ \| `[^`]+` \|\r?$", RegexOptions.Multiline | RegexOptions.Compiled);
+
+    /// <summary>Cached across ticks; cleared if a recorded run fails.</summary>
+    private static int? _smokeTestIssueNumber;
 
     /// <summary>How long a submission may stay unconverted before it counts as stuck.</summary>
     private const int DefaultStaleMinutes = 15;
@@ -43,7 +60,8 @@ public class ProcessSubmissionsFunction(
         var dailyLimit       = int.TryParse(
             Environment.GetEnvironmentVariable("DAILY_SUBMISSION_LIMIT"), out var dl) ? dl : DefaultDailyLimit;
         var allToday         = await pendingSubmissions.GetAllTodayAsync();
-        var alreadyProcessed = allToday.Count(e => e.Processed);
+        // Smoke-test rows are not user submissions; they never consume a slot.
+        var alreadyProcessed = allToday.Count(e => e.Processed && !e.SmokeTest);
         var slotsRemaining   = dailyLimit - alreadyProcessed;
 
         if (slotsRemaining <= 0)
@@ -69,28 +87,35 @@ public class ProcessSubmissionsFunction(
         var attempted = pending.Take(slotsRemaining).ToList();
         foreach (var submission in attempted)
         {
+            if (submission.SmokeTest)
+            {
+                // A smoke run is recorded on one persistent issue, rewritten in
+                // place — no new issue per deploy, and body edits send nothing.
+                try
+                {
+                    var number = await RecordSmokeTestAsync(parts[0], parts[1], submission);
+                    await pendingSubmissions.MarkProcessedAsync(submission, number);
+                    processedCount++;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to record smoke test {RowKey} — will retry next run", submission.RowKey);
+                }
+                continue;
+            }
+
             var title = string.IsNullOrEmpty(submission.Version)
                 ? submission.Title
                 : $"Re: v{submission.Version} — {submission.Title}";
 
-            var body = (submission.SmokeTest
-                    ? "Automated end-to-end smoke test of the feedback pipeline "
-                      + "(`.claude/skills/feedback-smoke/`). Closed automatically — nothing to do.\n\n"
-                    : "A user on the website submitted:\n\n")
+            var body = "A user on the website submitted:\n\n"
                 + submission.Body
                 + (string.IsNullOrEmpty(submission.Service) ? "" : $"\n\n**Service:** {submission.Service}")
                 + "\n\n---\n*Submitted via [kolatts.github.io/pncli](https://kolatts.github.io/pncli)*";
 
             var newIssue = new NewIssue(title) { Body = body };
-            if (submission.SmokeTest)
-            {
-                newIssue.Labels.Add(SmokeTestLabel);
-            }
-            else
-            {
-                newIssue.Labels.Add(label);
-                newIssue.Labels.Add(submission.Kind == "bug" ? "bug" : "enhancement");
-            }
+            newIssue.Labels.Add(label);
+            newIssue.Labels.Add(submission.Kind == "bug" ? "bug" : "enhancement");
 
             try
             {
@@ -99,14 +124,7 @@ public class ProcessSubmissionsFunction(
 
                 await pendingSubmissions.MarkProcessedAsync(submission, created.Number);
 
-                if (submission.SmokeTest)
-                {
-                    // Marked processed first so a failed close cannot re-create the
-                    // issue on the next tick. No confirmation email and no
-                    // IssueEmailStore row, so the close webhook sends nothing either.
-                    await CloseSmokeTestIssueAsync(parts[0], parts[1], created.Number);
-                }
-                else if (!string.IsNullOrEmpty(submission.Email))
+                if (!string.IsNullOrEmpty(submission.Email))
                 {
                     await issueEmailStore.SaveAsync(created.Number, submission.Email, submission.Title);
 
@@ -134,23 +152,95 @@ public class ProcessSubmissionsFunction(
         ReportBacklog(attempted);
     }
 
-    private async Task CloseSmokeTestIssueAsync(string owner, string repo, int number)
+    /// <summary>
+    /// Rewrites the persistent smoke-test issue with this run at the top of its
+    /// history and returns the issue number. Creating vs updating an issue goes
+    /// through the same App identity and <c>issues:write</c> permission, so the
+    /// auth path the real submissions depend on is still exercised. No
+    /// IssueEmailStore row is written, so the close webhook stays silent.
+    /// </summary>
+    private async Task<int> RecordSmokeTestAsync(string owner, string repo, PendingSubmissionEntity submission)
     {
+        var number = _smokeTestIssueNumber ?? await FindOrCreateSmokeTestIssueAsync(owner, repo);
         try
         {
-            await github.Issue.Update(owner, repo, number, new IssueUpdate
+            var current = await github.Issue.Get(owner, repo, number);
+            var update  = new IssueUpdate
             {
-                State       = ItemState.Closed,
-                StateReason = ItemStateReason.NotPlanned,
-            });
-            logger.LogInformation("Closed smoke-test issue #{Number} as not planned", number);
+                Title = SmokeTestIssueTitle,
+                Body  = BuildSmokeTestBody(current.Body, submission),
+            };
+            if (current.State.Value == ItemState.Open)
+            {
+                update.State       = ItemState.Closed;
+                update.StateReason = ItemStateReason.NotPlanned;
+            }
+
+            await github.Issue.Update(owner, repo, number, update);
+            _smokeTestIssueNumber = number;
+            logger.LogInformation("Recorded smoke test '{Title}' on issue #{Number}", submission.Title, number);
+            return number;
         }
-        catch (Exception ex)
+        catch
         {
-            // The smoke test itself reports the issue as still open; that is the
-            // signal. Do not let this bubble into the per-submission retry path.
-            logger.LogWarning(ex, "Created smoke-test issue #{Number} but could not close it", number);
+            _smokeTestIssueNumber = null; // re-discover next tick (issue deleted, transferred…)
+            throw;
         }
+    }
+
+    /// <summary>
+    /// The lowest-numbered non-PR issue carrying the smoke-test label, created
+    /// (and closed as not planned) if there is none yet. Lowest-numbered so that
+    /// the function and the skill script, which discovers it the same way, agree.
+    /// </summary>
+    private async Task<int> FindOrCreateSmokeTestIssueAsync(string owner, string repo)
+    {
+        var request = new RepositoryIssueRequest
+        {
+            State         = ItemStateFilter.All,
+            SortProperty  = IssueSort.Created,
+            SortDirection = SortDirection.Ascending,
+        };
+        request.Labels.Add(SmokeTestLabel);
+
+        var existing = await github.Issue.GetAllForRepository(
+            owner, repo, request, new ApiOptions { PageSize = 10, PageCount = 1 });
+        var found = existing.FirstOrDefault(i => i.PullRequest is null);
+        if (found is not null)
+            return found.Number;
+
+        var newIssue = new NewIssue(SmokeTestIssueTitle) { Body = BuildSmokeTestBody(null, null) };
+        newIssue.Labels.Add(SmokeTestLabel);
+        var created = await github.Issue.Create(owner, repo, newIssue);
+        await github.Issue.Update(owner, repo, created.Number, new IssueUpdate
+        {
+            State       = ItemState.Closed,
+            StateReason = ItemStateReason.NotPlanned,
+        });
+        logger.LogInformation("Created persistent smoke-test issue #{Number}", created.Number);
+        return created.Number;
+    }
+
+    private static string BuildSmokeTestBody(string? existingBody, PendingSubmissionEntity? run)
+    {
+        var rows = new List<string>();
+        if (run is not null)
+            rows.Add($"| {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm:ss} | `{run.Title}` |");
+        if (!string.IsNullOrEmpty(existingBody))
+            rows.AddRange(SmokeTestRow.Matches(existingBody).Select(m => m.Value.TrimEnd('\r')));
+
+        var sb = new StringBuilder();
+        sb.AppendLine("Automated end-to-end smoke test of the feedback pipeline (`.claude/skills/feedback-smoke/`).");
+        sb.AppendLine("Every run rewrites this issue in place. It stays closed, never notifies, and is the only issue the smoke test touches — nothing to do here.");
+        sb.AppendLine();
+        sb.AppendLine("| Run (UTC) | Submission |");
+        sb.AppendLine("|---|---|");
+        foreach (var row in rows.Take(SmokeTestHistoryRows))
+            sb.AppendLine(row);
+        sb.AppendLine();
+        sb.AppendLine("---");
+        sb.Append("*Recorded by `ProcessSubmissions` — see `infra/README.md` §7.*");
+        return sb.ToString();
     }
 
     /// <summary>

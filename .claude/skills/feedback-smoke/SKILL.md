@@ -1,6 +1,6 @@
 ---
 name: feedback-smoke
-description: One-command end-to-end check of the website feedback pipeline (Submit function → Table Storage → ProcessSubmissions timer → GitHub issue → auto-close). Use after any deploy touching functions/ or infra/, when the feedback page is reported broken, or when asked to "smoke test feedback", "is the feedback function up", or "verify the feedback pipeline".
+description: One-command end-to-end check of the website feedback pipeline (Submit function → Table Storage → ProcessSubmissions timer → run recorded on one persistent smoke-test issue; no new issues). Use after any deploy touching functions/ or infra/, when the feedback page is reported broken, or when asked to "smoke test feedback", "is the feedback function up", or "verify the feedback pipeline".
 providers: none
 category: operations
 services: none
@@ -25,10 +25,12 @@ an incident.
 3. **Submit** — posts a `bug` with the `X-Smoke-Test-Key` header. The function
    skips only the Turnstile check for a matching key; origin, validation and the
    per-IP daily limit still apply.
-4. **Wait** — polls `gh issue list --label smoke-test` (up to 180s) until the
-   issue exists **and** is closed. `ProcessSubmissions` runs every minute, labels
-   smoke rows `smoke-test` only (never `from-website`, so triage does not fire),
-   sends no email, and closes the issue as not planned.
+4. **Wait** — finds the one persistent `smoke-test` issue (lowest-numbered
+   issue with that label) and polls its body (up to 180s) for this run's marker.
+   `ProcessSubmissions` runs every minute and records smoke rows by rewriting
+   that issue in place — title, body, last 20 runs — creating it once if it
+   does not exist. No new issue per run, no email, no notification (body edits
+   are silent), never `from-website`, so triage does not fire.
 
 Exit 0 prints `✓ PASS`. Any failure exits 1 with the stage name and the likely
 cause. Typical run is 60–120 seconds, dominated by waiting for the timer.
@@ -63,8 +65,8 @@ to know whether the function is loaded.
 | probe | 403 | `ALLOWED_ORIGIN` app setting vs `FEEDBACK_ORIGIN`. |
 | submit | CAPTCHA rejected | `SMOKE_TEST_KEY` app setting missing or its Key Vault reference unresolved (run `provision.sh`), or the vault value was rotated. |
 | submit | 429 | Per-IP limit hit from this network. |
-| pipeline | no issue appeared | `ProcessSubmissions` is failing: query `AppExceptions` in the Log Analytics workspace (GitHub App key, storage). The row stays pending and `pncli-prod-submissions-not-converted` will alert. |
-| pipeline | created but never auto-closed | GitHub App token cannot update issues. |
+| pipeline | no smoke-test issue exists / not updated | `ProcessSubmissions` is failing: query `AppExceptions` in the Log Analytics workspace (GitHub App key, storage). The row stays pending and `pncli-prod-submissions-not-converted` will alert. |
+| pipeline | carries from-website | The deployed build predates the smoke path; the row was converted as a user submission. |
 
 Logs, when you need them (App Insights is workspace-based; query the workspace):
 
