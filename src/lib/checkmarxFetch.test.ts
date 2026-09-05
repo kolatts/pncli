@@ -23,7 +23,6 @@ function makeConfig(overrides: Partial<ResolvedConfig['checkmarx']> = {}): Resol
       clientSecret: 'my-client-secret',
       ...overrides
     },
-    servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
     openshift: { baseUrl: undefined, token: undefined, defaultEnvironment: undefined, defaultInstance: undefined, environments: {} },

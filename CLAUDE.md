@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI coding agents and humans unified access to the enterprise tools their org runs — currently Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, Checkmarx, ServiceNow, Contrast Security IAST, Sonatype IQ Server, OpenShift/Kubernetes, Dynatrace, LogScale, and GitHub. Built with TypeScript, Commander.js, and published as `@kolatts/pncli`.
+pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI coding agents and humans unified access to the enterprise tools their org runs — currently Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, Checkmarx, Contrast Security IAST, Sonatype IQ Server, OpenShift/Kubernetes, Dynatrace, LogScale, and GitHub. Built with TypeScript, Commander.js, and published as `@kolatts/pncli`.
 
 **That list is a snapshot, not the boundary.** Any enterprise tool that meets the bar in **Service Scope** below is a candidate. See that section before rejecting a new-integration request.
 
@@ -233,6 +233,8 @@ If a tool's *only* supported auth is one of the above, deny the request and say 
 
 Checkmarx's OAuth2 password grant predates this rule and is grandfathered. Do not extend that pattern to anything new, and do not cite it as precedent for approving a non-PAT integration.
 
+ServiceNow was removed in v5.0.0 for failing this bar: ServiceNow personal access tokens are an opt-in feature many enterprises never enable, so in practice the integration fell back to a username and password. “The vendor documents a PAT somewhere” is not enough — the bar is a PAT the user can actually generate on the instance they have to work against. Do not re-add it.
+
 IBM UrbanCode Deploy was removed in v2.0.0 for failing this bar: UCD has no personal access token usable as a standalone credential, so its only workable auth was a username and password — which meant asking users to put a real account password in a config file. It is not coming back; do not re-add it, and do not cite it as precedent.
 
 ### Shape of the Integration
@@ -259,7 +261,7 @@ Never commit a real hostname, environment ID, tenant ID, or account identifier �
 
 `jira.imagile.dev`, `bitbucket.imagile.dev`, `confluence.imagile.dev`, `sonar.imagile.dev`, `jenkins.imagile.dev`, `artifactory.imagile.dev`, `dynatrace.imagile.dev`, `sde.imagile.dev`, `tfs.imagile.dev`, `ado.imagile.dev`, `iq.imagile.dev`, `ghe.imagile.dev`
 
-**Vendor-hosted SaaS** keeps the vendor domain, with `imagile` as the tenant: `imagile.service-now.com`, `imagile.sdelements.com`, `abc12345.live.dynatrace.com`, `eu.ast.checkmarx.net`.
+**Vendor-hosted SaaS** keeps the vendor domain, with `imagile` as the tenant: `imagile.sdelements.com`, `abc12345.live.dynatrace.com`, `eu.ast.checkmarx.net`.
 
 **Opaque IDs** (tenant, realm, environment, org): `imagile` where a name reads naturally, `abc12345` for short IDs, `abc12345-0000-0000-0000-000000000000` for UUID-shaped values.
 

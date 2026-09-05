@@ -112,13 +112,6 @@ export interface CheckmarxConfig {
   clientSecret?: string;
 }
 
-export interface ServiceNowConfig {
-  baseUrl?: string;
-  username?: string;
-  password?: string;
-  apiToken?: string;
-}
-
 export interface ContrastConfig {
   baseUrl?: string;
   orgUuid?: string;
@@ -226,7 +219,6 @@ export interface GlobalConfig {
   jenkins?: JenkinsConfig;
   jenkinsInstances?: JenkinsInstanceConfig[];
   checkmarx?: CheckmarxConfig;
-  servicenow?: ServiceNowConfig;
   contrast?: ContrastConfig;
   sonatypeiq?: SonatypeIqConfig;
   openshift?: OpenShiftConfig;
@@ -302,12 +294,6 @@ export interface ResolvedConfig {
     apiKey: string | undefined;
     clientId: string | undefined;
     clientSecret: string | undefined;
-  };
-  servicenow: {
-    baseUrl: string | undefined;
-    username: string | undefined;
-    password: string | undefined;
-    apiToken: string | undefined;
   };
   contrast: {
     baseUrl: string | undefined;

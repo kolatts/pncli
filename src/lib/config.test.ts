@@ -21,7 +21,6 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     jenkins: { baseUrl: 'https://jenkins.imagile.dev', username: 'user', apiToken: 'secret-jenkins' },
     jenkinsInstances: [],
     checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined },
-    servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined },
     contrast: { baseUrl: undefined, orgUuid: undefined, apiKey: undefined, serviceKey: undefined, username: undefined },
     sonatypeiq: { baseUrl: undefined, userCode: undefined, passcode: undefined },
     openshift: { baseUrl: undefined, token: undefined, defaultEnvironment: undefined, defaultInstance: undefined, environments: {} },
@@ -115,20 +114,6 @@ describe('maskConfig', () => {
     const config = baseConfig({ checkmarx: { baseUrl: undefined, tenantName: undefined, apiKey: undefined, clientId: undefined, clientSecret: undefined } });
     const masked = maskConfig(config) as ResolvedConfig;
     expect((masked.checkmarx as { clientSecret?: string }).clientSecret).toBeUndefined();
-  });
-
-  it('masks servicenow password and apiToken when present', () => {
-    const config = baseConfig({ servicenow: { baseUrl: 'https://sn.imagile.dev', username: 'user', password: 'secret', apiToken: 'tok' } });
-    const masked = maskConfig(config) as ResolvedConfig;
-    expect((masked.servicenow as { password?: string }).password).toBe('***');
-    expect((masked.servicenow as { apiToken?: string }).apiToken).toBe('***');
-  });
-
-  it('leaves servicenow credentials undefined when not set', () => {
-    const config = baseConfig({ servicenow: { baseUrl: undefined, username: undefined, password: undefined, apiToken: undefined } });
-    const masked = maskConfig(config) as ResolvedConfig;
-    expect((masked.servicenow as { password?: string }).password).toBeUndefined();
-    expect((masked.servicenow as { apiToken?: string }).apiToken).toBeUndefined();
   });
 
   it('masks contrast apiKey and serviceKey when present', () => {
@@ -523,5 +508,49 @@ describe('setRepoConfigValue — JSON parsing', () => {
     setRepoConfigValue('defaults.jira.project', 'ACME');
     const stored = JSON.parse(fs.readFileSync(path.join(tmpDir, '.pncli.json'), 'utf8'));
     expect(stored.defaults.jira.project).toBe('ACME');
+  });
+});
+
+describe('loadConfig — config files carrying keys for removed services', () => {
+  let tmpDir: string;
+  let globalConfigPath: string;
+
+  beforeEach(async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-test-'));
+    globalConfigPath = path.join(tmpDir, 'config.json');
+    const { execSync } = await import('child_process');
+    vi.mocked(execSync).mockReturnValue(tmpDir as unknown as ReturnType<typeof execSync>);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.clearAllMocks();
+  });
+
+  // ServiceNow was removed in v5.0.0, but existing installs still have a
+  // `servicenow` block on disk. It must be ignored, never rejected.
+  it('ignores a stale servicenow block and still resolves live services', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({
+      servicenow: { baseUrl: 'https://legacy.imagile.dev', username: 'u', password: 'p' },
+      jira: { baseUrl: 'https://jira.imagile.dev', apiToken: 'tok' }
+    }));
+
+    const config = loadConfig({ configPath: globalConfigPath });
+
+    expect(config.jira.baseUrl).toBe('https://jira.imagile.dev');
+    expect((config as unknown as Record<string, unknown>)['servicenow']).toBeUndefined();
+  });
+
+  it('leaves a stale servicenow block untouched when another key is written', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({
+      servicenow: { baseUrl: 'https://legacy.imagile.dev' },
+      jira: { baseUrl: 'https://jira.imagile.dev' }
+    }));
+
+    setConfigValue('jira.apiToken', 'tok', globalConfigPath);
+
+    const stored = JSON.parse(fs.readFileSync(globalConfigPath, 'utf8'));
+    expect(stored.jira.apiToken).toBe('tok');
+    expect(stored.servicenow.baseUrl).toBe('https://legacy.imagile.dev');
   });
 });

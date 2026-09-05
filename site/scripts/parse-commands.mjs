@@ -14,7 +14,7 @@
  * file's root group — its own name is assumed to be covered by the SERVICES
  * prefix, so its path is empty. Leaf names are then built as
  * `pncli <prefix> <subgroup path...> <leaf>`, which lets one file mix flat
- * commands and nested subgroups (dynatrace, checkmarx, servicenow, contrast).
+ * commands and nested subgroups (dynatrace, checkmarx, contrast).
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
@@ -45,7 +45,6 @@ const SERVICES = [
   { name: 'JFrog Artifactory',           file: 'src/services/artifactory/commands.ts',    prefix: 'artifactory' },
   { name: 'Checkmarx',                   file: 'src/services/checkmarx/commands.ts',      prefix: 'checkmarx' },
   { name: 'GitHub',                      file: 'src/services/github/commands.ts',         prefix: 'github' },
-  { name: 'ServiceNow',                  file: 'src/services/servicenow/commands.ts',     prefix: 'servicenow' },
   { name: 'Contrast IAST',               file: 'src/services/contrast/commands.ts',       prefix: 'contrast' },
   { name: 'Sonatype IQ',                 file: 'src/services/sonatypeiq/commands.ts',     prefix: 'sonatypeiq' },
   { name: 'OpenShift / Kubernetes',      file: 'src/services/openshift/commands.ts',      prefix: 'openshift' },

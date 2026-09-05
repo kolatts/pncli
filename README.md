@@ -120,7 +120,6 @@ This project uses Conventional Commits for automatic versioning:
 | Dependencies | 🟡 Basic | CVE detection, license audit |
 | Checkmarx | ⚪ Untested | Vulnerability scanning (SAST) |
 | Contrast IAST | ⚪ Untested | Runtime application security |
-| ServiceNow | ⚪ Untested | IT service management |
 | Sonatype IQ | ⚪ Untested | Dependency policy enforcement |
 | OpenShift | ⚪ Untested | Pods, events, logs, metrics |
 | LogScale | ⚪ Untested | Log queries, repositories |
@@ -129,7 +128,7 @@ This project uses Conventional Commits for automatic versioning:
 
 Status reflects validation against a **real instance**, not code maturity: **Live** — used routinely day-to-day · **Beta** — exercised across several commands and instances · **Basic** — smoke-tested against one instance · **Untested** — shipped, not yet run against a live server. The [homepage](https://kolatts.github.io/pncli/) shows the same grid.
 
-Removed integrations: IBM UrbanCode Deploy (v2.0.0) — see the [changelog](https://kolatts.github.io/pncli/changelog/) for why.
+Removed integrations: ServiceNow (v5.0.0), IBM UrbanCode Deploy (v2.0.0) — see the [changelog](https://kolatts.github.io/pncli/changelog/) for why.
 <!-- services-table:end -->
 
 Auth specifics and supported server versions for each service live in its [`skills/pncli/<service>.md`](./skills/pncli/) file.
@@ -138,7 +137,7 @@ Auth specifics and supported server versions for each service live in its [`skil
 
 Requests for new integrations are welcome for **any enterprise tool**, not just the SDLC categories above — design, documentation, observability, ITSM, and collaboration tools all count.
 
-The one hard requirement is authentication: the tool must support a **personal access token** — a long-lived static credential you generate in its own UI and paste into an env var or config file. Vendor naming doesn't matter (API token, user token, PAT). Tools whose only auth is interactive OAuth, SSO/SAML, username+password, a registered OAuth app, a cloud IAM credential chain, or mTLS can't be supported. Checkmarx (username + password via an OAuth2 password grant that pncli handles natively) predates this rule and is grandfathered. IBM UrbanCode Deploy was removed in v2.0.0 for exactly this reason — UCD tokens are not usable as a standalone credential the way pncli requires, so its only workable auth was username + password.
+The one hard requirement is authentication: the tool must support a **personal access token** — a long-lived static credential you generate in its own UI and paste into an env var or config file. Vendor naming doesn't matter (API token, user token, PAT). Tools whose only auth is interactive OAuth, SSO/SAML, username+password, a registered OAuth app, a cloud IAM credential chain, or mTLS can't be supported. Checkmarx (username + password via an OAuth2 password grant that pncli handles natively) predates this rule and is grandfathered. Two integrations have been removed for exactly this reason. ServiceNow went in v5.0.0: its personal access tokens are an opt-in instance feature many enterprises never enable, so in practice the integration authenticated with a username + password. IBM UrbanCode Deploy went in v2.0.0: UCD tokens are not usable as a standalone credential the way pncli requires, so its only workable auth was username + password.
 
 ## License
 
