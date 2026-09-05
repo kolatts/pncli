@@ -35,8 +35,8 @@ Use `.claude/skills/ship/` — repo-internal, GitHub only. It runs `gh`, the har
 `function-deploy.yml` ends by running the `feedback-smoke` skill
 (`.claude/skills/feedback-smoke/`), so every deploy of `functions/` or `infra/` is
 verified end to end — HTTP function loaded, keyed submission accepted without
-Turnstile, timer converted it to a GitHub issue, issue auto-closed — and a broken
-deploy fails the run. Run the skill by hand whenever the website feedback page is
+Turnstile, timer recorded it on the one persistent `smoke-test` issue — and a broken
+deploy fails the run. The smoke test never creates issues per run. Run the skill by hand whenever the website feedback page is
 reported broken; it names the failing stage. Do not verify by submitting the live
 form and cleaning up by hand; that is what the skill replaces.
 

@@ -120,9 +120,12 @@ az keyvault secret set \
 app setting (fixed-time comparison) the Turnstile call is skipped — nothing else is.
 Origin check, validation and the per-IP daily limit still apply, so a leaked key is a
 CAPTCHA bypass capped at `IP_DAILY_LIMIT` submissions a day, not a spam channel.
-Rows submitted this way become `smoke-test` issues (never `from-website`, so triage
-does not fire), get no confirmation email, and are closed as not planned immediately.
-They do count against `DAILY_SUBMISSION_LIMIT`.
+Rows submitted this way are recorded on **one persistent issue** carrying the
+`smoke-test` label — the lowest-numbered such issue, created once (closed, not
+planned) if none exists — by rewriting its title and body with the run and the last
+20 runs before it. Nothing new is created per run, body edits send no notifications,
+no confirmation email is sent, and the label is never `from-website`, so triage does
+not fire. Smoke rows do not count against `DAILY_SUBMISSION_LIMIT`.
 
 ```bash
 az keyvault secret set \

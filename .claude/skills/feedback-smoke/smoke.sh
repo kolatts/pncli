@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # End-to-end smoke test for the website feedback pipeline:
-#   Submit (HTTP) → Table Storage → ProcessSubmissions (timer) → GitHub issue → auto-close
+#   Submit (HTTP) → Table Storage → ProcessSubmissions (timer) → run recorded on the
+#   one persistent `smoke-test` GitHub issue (rewritten in place; no new issues)
 #
 # Usage:
 #   bash .claude/skills/feedback-smoke/smoke.sh              # full run (needs az login + gh auth)
@@ -83,25 +84,38 @@ case "$code" in
 esac
 ok "accepted (HTTP 202) — stored as a pending smoke-test row"
 
-# ── 4. Wait for ProcessSubmissions to create AND close the issue ─────────────
-step "Waiting up to ${TIMEOUT}s for the smoke-test issue (timer runs every minute)"
+# ── 4. Wait for ProcessSubmissions to record the run on the persistent issue ──
+# The function writes every run to ONE issue carrying the smoke-test label —
+# the lowest-numbered one, created once if missing — by rewriting its body.
+# Discover it the same way and poll the body for this run's marker.
+step "Waiting up to ${TIMEOUT}s for the run to be recorded on the smoke-test issue (timer runs every minute)"
 deadline=$(( $(date +%s) + TIMEOUT ))
-issue=""
+number=""; state=""; recorded=0
 while (( $(date +%s) < deadline )); do
-  issue=$(gh issue list --repo "$REPO" --label smoke-test --state all --limit 20 \
-            --json number,title,state,stateReason,url,labels \
-            --jq ".[] | select(.title | contains(\"$marker\")) | \"\(.number)\t\(.state)\t\(.stateReason // \"\")\t\(.url)\t\([.labels[].name] | join(\",\"))\"" 2>/dev/null || true)
-  if [[ -n "$issue" ]]; then
-    IFS=$'\t' read -r number state reason url labels <<< "$issue"
-    if [[ "$state" == "CLOSED" ]]; then break; fi
-    printf '  issue #%s created, waiting for auto-close…\n' "$number"
+  if [[ -z "$number" ]]; then
+    number=$(gh issue list --repo "$REPO" --label smoke-test --state all --limit 20 \
+               --json number --jq 'map(.number) | min // empty' 2>/dev/null || true)
+  fi
+  if [[ -n "$number" ]]; then
+    view=$(gh issue view "$number" --repo "$REPO" --json state,body,labels \
+             --jq '"\(.state)\t\([.labels[].name] | join(","))\n\(.body)"' 2>/dev/null || true)
+    if [[ "$view" == *"$marker"* ]]; then
+      recorded=1
+      IFS=$'\t' read -r state labels <<< "${view%%$'\n'*}"
+      break
+    fi
   fi
   sleep 10
 done
-[[ -n "$issue" ]] || fail pipeline "no smoke-test issue appeared within ${TIMEOUT}s. ProcessSubmissions is not converting rows: check AppExceptions in the Log Analytics workspace (GitHub App key? storage?). The row stays pending and will alert via pncli-prod-submissions-not-converted."
-[[ "$state" == "CLOSED" ]] || fail pipeline "issue #$number was created but never auto-closed ($url). The GitHub App token may lack issues:write for updates."
-[[ "$reason" == "NOT_PLANNED" ]] || printf '  warn: closed with reason %s (expected NOT_PLANNED)\n' "${reason:-none}"
+url="https://github.com/$REPO/issues/$number"
+if (( ! recorded )); then
+  if [[ -z "$number" ]]; then
+    fail pipeline "no smoke-test issue exists and none was created within ${TIMEOUT}s. ProcessSubmissions is not converting rows: check AppExceptions in the Log Analytics workspace (GitHub App key? storage?). The row stays pending and will alert via pncli-prod-submissions-not-converted."
+  fi
+  fail pipeline "issue #$number was not updated with this run within ${TIMEOUT}s ($url). ProcessSubmissions is not converting rows, or the GitHub App token cannot update issues: check AppExceptions in the Log Analytics workspace. The row stays pending and will alert via pncli-prod-submissions-not-converted."
+fi
+[[ "$state" == "CLOSED" ]] || printf '  warn: smoke-test issue #%s is %s (expected CLOSED)\n' "$number" "$state"
 [[ "$labels" != *from-website* ]] || fail pipeline "issue #$number carries from-website — triage will fire on a smoke test ($url)"
-ok "issue #$number created, labelled '$labels', closed as ${reason:-?}: $url"
+ok "run recorded on smoke-test issue #$number ($state): $url"
 
 printf '\n✓ PASS in %ss — feedback pipeline is healthy end to end\n' "$(( $(date +%s) - started ))"
