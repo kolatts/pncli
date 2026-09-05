@@ -7,6 +7,8 @@
 #   bash .claude/skills/feedback-smoke/smoke.sh --probe-only # no key, no issue: is the function loaded?
 #
 # Exit 0 on PASS, 1 on FAIL. Every failure names the stage and the likely cause.
+# function-deploy.yml runs this as its last step with SMOKE_SETTLE_SECONDS set,
+# so every deploy is verified; run it by hand when the page is reported broken.
 set -euo pipefail
 
 ENDPOINT="${FEEDBACK_ENDPOINT:-https://pncli-prod-feedback.azurewebsites.net/api/submit}"
@@ -15,6 +17,11 @@ REPO="${FEEDBACK_REPO:-kolatts/pncli}"
 VAULT="${FEEDBACK_VAULT:-imagile-keyvault}"
 SECRET_NAME="${FEEDBACK_SMOKE_SECRET:-SMOKE-TEST-KEY}"
 TIMEOUT="${SMOKE_TIMEOUT_SECONDS:-180}"
+# Seconds to wait before the keyed submission. Right after a deploy the previous
+# host instance can still hold the ProcessSubmissions singleton lease and would
+# convert the row with the build that was just replaced (#431). CI sets this;
+# locally, set it when running within a couple of minutes of a deploy.
+SETTLE="${SMOKE_SETTLE_SECONDS:-0}"
 
 PROBE_ONLY=0
 [[ "${1:-}" == "--probe-only" ]] && PROBE_ONLY=1
@@ -56,6 +63,10 @@ key=$(az keyvault secret show --vault-name "$VAULT" --name "$SECRET_NAME" --quer
 ok "key read (${#key} chars)"
 
 # ── 3. Keyed submission ──────────────────────────────────────────────────────
+if (( SETTLE > 0 )); then
+  step "Settling ${SETTLE}s so the timer lease moves to the newly deployed instance"
+  sleep "$SETTLE"
+fi
 marker="smoke-$(date -u +%Y%m%dT%H%M%SZ)-$RANDOM"
 title="Smoke test $marker"
 step "Submitting '$title' with $SECRET_NAME"

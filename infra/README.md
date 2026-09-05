@@ -136,6 +136,21 @@ path entirely — no header can match an empty key. The key never goes into a re
 variable or Actions secret; the `feedback-smoke` skill reads it from Key Vault at
 run time with the caller's own `az` login.
 
+`function-deploy.yml` runs the skill as its last step, so the CI principal needs to
+read this one secret. Like §2 this is a one-time manual grant, scoped to the secret
+rather than the vault:
+
+```bash
+CI_OID=$(az ad sp show --id "$(gh variable get AZURE_CLIENT_ID --repo kolatts/pncli)" --query id -o tsv)
+az role assignment create \
+  --assignee-object-id "$CI_OID" --assignee-principal-type ServicePrincipal \
+  --role "Key Vault Secrets User" \
+  --scope "$(az keyvault show -n imagile-keyvault -g imagile-organization --query id -o tsv)/secrets/SMOKE-TEST-KEY"
+```
+
+Run that from PowerShell on Windows — Git Bash rewrites the `/subscriptions/...`
+scope into a filesystem path and Azure answers `MissingSubscription`.
+
 ## 8. OIDC federated credential for GitHub Actions
 
 CI uses OIDC (no long-lived secrets). Steps:
