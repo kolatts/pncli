@@ -10,6 +10,11 @@ Run `bash .claude/skills/feedback-smoke/smoke.sh` and report the result. Do not
 verify the feedback function by submitting the live form in a browser and cleaning
 up by hand — this script exists so that never has to happen again.
 
+`function-deploy.yml` runs this script as its final step, so every deploy of
+`functions/` or `infra/` is already verified and a broken deploy fails the run.
+Run it by hand when the feedback page is reported broken, or to re-check after
+an incident.
+
 ## What it does
 
 1. **Probe** — `POST {}` to `/api/submit`, expecting `400 {"ok":false,...}`. A
@@ -28,16 +33,18 @@ up by hand — this script exists so that never has to happen again.
 Exit 0 prints `✓ PASS`. Any failure exits 1 with the stage name and the likely
 cause. Typical run is 60–120 seconds, dominated by waiting for the timer.
 
-## Wait two minutes after a deploy
+## Running near a deploy
 
-Do not run the full test in the first ~2 minutes after `function-deploy.yml`
-finishes. During the handover the previous host instance can still hold the
-singleton timer lease, so `Submit` runs on the new code while the next
-`ProcessSubmissions` tick runs on the old one. The old code does not know the
-`SmokeTest` flag: the row becomes an ordinary `from-website` issue, triage fires
-on it, and the script times out waiting for a `smoke-test` label. The first run
-after the skill itself shipped hit exactly this (#431). `--probe-only` is safe
-at any time.
+During the handover after a deploy, the previous host instance can still hold the
+`ProcessSubmissions` singleton lease, so `Submit` runs on the new build while the
+next timer tick runs on the one just replaced. A pass in that window proves the
+old build, not the new one — and the first run after the skill shipped hit the
+worse version of this, where the old build did not know the `SmokeTest` flag and
+the row became a triaged `from-website` issue (#431).
+
+`SMOKE_SETTLE_SECONDS` delays the keyed submission to let the lease move; CI sets
+it to 150. Locally, set it (or wait) when running within a few minutes of a
+deploy. `--probe-only` is safe at any time.
 
 ## Prerequisites
 
@@ -71,4 +78,5 @@ Run that from PowerShell on Windows — Git Bash rewrites `/subscriptions/...` r
 ## Environment overrides
 
 `FEEDBACK_ENDPOINT`, `FEEDBACK_ORIGIN`, `FEEDBACK_REPO`, `FEEDBACK_VAULT`,
-`FEEDBACK_SMOKE_SECRET`, `SMOKE_TIMEOUT_SECONDS`. Defaults target production.
+`FEEDBACK_SMOKE_SECRET`, `SMOKE_TIMEOUT_SECONDS`, `SMOKE_SETTLE_SECONDS`. Defaults
+target production.

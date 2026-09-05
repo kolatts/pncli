@@ -11,6 +11,7 @@ on:
 permissions:
   id-token: write   # required for OIDC login
   contents: read
+  issues: read      # smoke test polls for the issue it creates
 
 jobs:
   deploy:
@@ -45,3 +46,19 @@ jobs:
         with:
           app-name: ${{ env.FUNCAPP }}
           package:  ./publish
+
+      # A deploy that leaves the function empty (#424) or broken must fail this
+      # run, not wait for a user report. The script reads SMOKE-TEST-KEY from
+      # Key Vault with the OIDC login above — the CI principal has Key Vault
+      # Secrets User scoped to that one secret (infra/README.md §7) — submits a
+      # keyed report, and waits for it to become a closed `smoke-test` issue.
+      #
+      # SMOKE_SETTLE_SECONDS: right after a deploy the previous host instance can
+      # still hold the ProcessSubmissions singleton lease, so the first tick may
+      # run the build we just replaced (#431). Wait for the handover so the test
+      # exercises the code this run deployed.
+      - name: Smoke test (end to end)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SMOKE_SETTLE_SECONDS: '150'
+        run: bash .claude/skills/feedback-smoke/smoke.sh
