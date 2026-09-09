@@ -1,7 +1,21 @@
 import { Command } from 'commander';
 import { getAdoContext, PR_VOTE } from '../helpers.js';
 import { success, fail } from '../../../lib/output.js';
-import type { AdoPRThread, AdoPRComment } from '../../../types/ado.js';
+import type { AdoPRThread, AdoPRComment, AdoPullRequest } from '../../../types/ado.js';
+import type { Meta } from '../../../types/common.js';
+
+/** Coverage signal for list-prs: the actual date range and count returned, so callers
+ * can judge whether the (fully auto-paginated) result covers the window they expected
+ * instead of trusting a bare "success". */
+export function computePrCoverage(prs: AdoPullRequest[], status: string): NonNullable<Meta['coverage']> {
+  const dates = prs.map((pr) => pr.creationDate).sort();
+  return {
+    count: prs.length,
+    oldestDate: dates[0] ?? null,
+    newestDate: dates[dates.length - 1] ?? null,
+    status
+  };
+}
 
 /** Flatten all comments across all threads into a sorted list with threadContext attached */
 function flattenThreadComments(
@@ -78,12 +92,13 @@ export function registerAdoRepoCommands(ado: Command): void {
       const start = Date.now();
       try {
         const { collection, project, repo, gitClient } = getAdoContext(ado, true);
+        const status = opts.state ?? 'active';
         const data = await gitClient.listPRs(collection, project, repo, {
-          status: opts.state,
+          status,
           creatorAlias: opts.creator,
           reviewerAlias: opts.reviewer
         });
-        success(data, 'ado', 'repo-list-prs', start);
+        success(data, 'ado', 'repo-list-prs', start, undefined, computePrCoverage(data, status));
       } catch (err) { fail(err, 'ado', 'repo-list-prs', start); }
     });
 
