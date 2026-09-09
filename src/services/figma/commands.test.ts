@@ -62,7 +62,7 @@ describe('figma file — --document flag', () => {
     expect(captured[0]?.url).not.toContain('depth');
   });
 
-  it('sends geometry=paths and depth=0 when --document is omitted (metadata-only default)', async () => {
+  it('sends depth=1 and omits geometry when --document is omitted (metadata-only default)', async () => {
     const captured: { url: string; init: RequestInit }[] = [];
     vi.stubEnv('PNCLI_FIGMA_BASE_URL', 'https://api.figma.com');
     vi.stubEnv('PNCLI_FIGMA_TOKEN', 'figma-tok');
@@ -78,7 +78,7 @@ describe('figma file — --document flag', () => {
     await buildProgram().parseAsync(['node', 'pncli', 'figma', 'file', 'ABC123XYZ']);
 
     expect(captured).toHaveLength(1);
-    expect(captured[0]?.url).toContain('geometry=paths');
-    expect(captured[0]?.url).toContain('depth=0');
+    expect(captured[0]?.url).not.toContain('geometry');
+    expect(captured[0]?.url).toContain('depth=1');
   });
 });
