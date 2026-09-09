@@ -104,8 +104,7 @@ export function registerFigmaCommands(program: Command): void {
         const fileKey = parseFileKey(fileKeyOrUrl);
         const params: Record<string, string | number | boolean | undefined> = {};
         if (!opts.document) {
-          params['geometry'] = 'paths';
-          params['depth'] = 0;
+          params['depth'] = 1;
         }
         const data = await getHttp(program).figma<FigmaFile>(`/v1/files/${encodeURIComponent(fileKey)}`, { params });
         success(
