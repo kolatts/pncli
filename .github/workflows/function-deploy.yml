@@ -38,6 +38,9 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Test function
+        run: dotnet test functions/feedback.tests/Feedback.Tests.csproj -c Release
+
       - name: Publish function
         run: dotnet publish functions/feedback/Feedback.csproj -c Release -o ./publish
 
