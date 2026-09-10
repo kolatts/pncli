@@ -21,6 +21,8 @@ export interface ErrorDetail {
   status: number;
   message: string;
   url: string | null;
+  /** Server-requested delay in seconds, when a 429 includes a valid Retry-After. */
+  retryAfterSeconds?: number;
 }
 
 export interface ErrorEnvelope {

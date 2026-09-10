@@ -854,6 +854,82 @@ describe('HttpClient — Figma', () => {
   });
 });
 
+describe('HttpClient — 429 rate limit cap', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-10T12:00:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  function client() {
+    return new HttpClient(baseConfig({ figma: { baseUrl: 'https://api.figma.com', token: 'tok' } }));
+  }
+
+  it.each([
+    ['86400', 86400],
+    ['31', 31],
+    ['Fri, 11 Sep 2026 12:00:00 GMT', 86400],
+    ['9'.repeat(400), Number.MAX_VALUE]
+  ])('rejects over-cap delay %s without sleeping or retrying', async (header, seconds) => {
+    const fetchMock = vi.fn(async () => new Response('', {
+      status: 429, headers: { 'Retry-After': String(header) }
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(client().figma('/v1/me')).rejects.toMatchObject({
+      status: 429, retryAfterSeconds: seconds, url: 'https://api.figma.com/v1/me'
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([
+    ['5', 5000],
+    ['30', 30000],
+    ['0', 0],
+    ['Thu, 10 Sep 2026 12:00:05 GMT', 5000],
+    ['Wed, 09 Sep 2026 12:00:00 GMT', 0],
+    [undefined, 1000],
+    ['nonsense', 1000],
+    ['-1', 1000],
+    ['1.5', 1000],
+    ['5garbage', 1000]
+  ])('uses the correct retry delay for %s', async (header, delay) => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('', {
+        status: 429, headers: header === undefined ? {} : { 'Retry-After': header }
+      }))
+      .mockResolvedValueOnce(new Response('{"id":"1"}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const result = client().figma('/v1/me');
+    if (delay > 0) {
+      await vi.advanceTimersByTimeAsync(delay - 1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+    } else {
+      await vi.advanceTimersByTimeAsync(0);
+    }
+    await expect(result).resolves.toEqual({ id: '1' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('fails after three 429 responses without sleeping after the last attempt', async () => {
+    const fetchMock = vi.fn(async () => new Response('', {
+      status: 429, headers: { 'Retry-After': '30' }
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const result = expect(client().figma('/v1/me')).rejects.toMatchObject({
+      status: 429, retryAfterSeconds: 30
+    });
+    await vi.advanceTimersByTimeAsync(60000);
+    await result;
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
 describe('HttpClient — fetch error cause surfacing', () => {
   afterEach(() => vi.unstubAllGlobals());
 

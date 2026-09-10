@@ -66,7 +66,8 @@ export function fail(
   const errorDetail: ErrorDetail = {
     status: err instanceof PncliError ? err.status : 1,
     message: err instanceof Error ? err.message : String(err),
-    url: err instanceof PncliError ? (err.url ?? null) : null
+    url: err instanceof PncliError ? (err.url ?? null) : null,
+    retryAfterSeconds: err instanceof PncliError ? err.retryAfterSeconds : undefined
   };
 
   const envelope: ErrorEnvelope = {

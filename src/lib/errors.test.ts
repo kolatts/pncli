@@ -30,4 +30,12 @@ describe('PncliError', () => {
   it('accepts url', () => {
     expect(new PncliError('x', 500, 'https://api.imagile.dev').url).toBe('https://api.imagile.dev');
   });
+
+  it('defaults retryAfterSeconds to undefined', () => {
+    expect(new PncliError('x').retryAfterSeconds).toBeUndefined();
+  });
+
+  it('accepts retryAfterSeconds', () => {
+    expect(new PncliError('x', 429, 'https://api.imagile.dev', 86400).retryAfterSeconds).toBe(86400);
+  });
 });
