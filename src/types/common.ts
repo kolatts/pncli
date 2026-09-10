@@ -21,6 +21,8 @@ export interface ErrorDetail {
   status: number;
   message: string;
   url: string | null;
+  /** Seconds the server asked us to wait, present on a 429 whose Retry-After exceeded the retry cap. */
+  retryAfterSeconds?: number;
 }
 
 export interface ErrorEnvelope {

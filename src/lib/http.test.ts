@@ -854,6 +854,80 @@ describe('HttpClient — Figma', () => {
   });
 });
 
+describe('HttpClient — 429 rate limit cap', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('returns a structured 429 immediately when Retry-After exceeds the cap, without waiting', async () => {
+    vi.stubGlobal('fetch', async () => new Response('', {
+      status: 429,
+      statusText: 'Too Many Requests',
+      headers: { 'Retry-After': '86400' }
+    }));
+
+    const config = baseConfig({ figma: { baseUrl: 'https://api.figma.com', token: 'tok' } });
+    const client = new HttpClient(config);
+
+    const start = Date.now();
+    await expect(client.figma('/v1/me')).rejects.toMatchObject({
+      status: 429,
+      retryAfterSeconds: 86400
+    });
+    expect(Date.now() - start).toBeLessThan(1000);
+  });
+
+  it('waits and retries when Retry-After is within the cap', async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    vi.stubGlobal('fetch', async () => {
+      calls++;
+      if (calls === 1) {
+        return new Response('', { status: 429, statusText: 'Too Many Requests', headers: { 'Retry-After': '5' } });
+      }
+      return new Response('{"id":"1","email":"you@example.com","handle":"you","img_url":""}', { status: 200 });
+    });
+
+    try {
+      const config = baseConfig({ figma: { baseUrl: 'https://api.figma.com', token: 'tok' } });
+      const client = new HttpClient(config);
+
+      const promise = client.figma('/v1/me');
+      await vi.advanceTimersByTimeAsync(5000);
+      await expect(promise).resolves.toMatchObject({ id: '1' });
+      expect(calls).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('falls back to attempt-based backoff when Retry-After is not a number (e.g. an HTTP-date)', async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    vi.stubGlobal('fetch', async () => {
+      calls++;
+      if (calls === 1) {
+        return new Response('', {
+          status: 429,
+          statusText: 'Too Many Requests',
+          headers: { 'Retry-After': 'Wed, 21 Oct 2099 07:28:00 GMT' }
+        });
+      }
+      return new Response('{"id":"1","email":"you@example.com","handle":"you","img_url":""}', { status: 200 });
+    });
+
+    try {
+      const config = baseConfig({ figma: { baseUrl: 'https://api.figma.com', token: 'tok' } });
+      const client = new HttpClient(config);
+
+      const promise = client.figma('/v1/me');
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect(promise).resolves.toMatchObject({ id: '1' });
+      expect(calls).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('HttpClient — fetch error cause surfacing', () => {
   afterEach(() => vi.unstubAllGlobals());
 

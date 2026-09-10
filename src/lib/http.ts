@@ -25,6 +25,16 @@ export interface HttpError {
 
 const SENSITIVE_HEADERS = new Set(['authorization', 'api-key', 'x-figma-token']);
 
+// A Retry-After above this would otherwise block the process for that long — long
+// enough that a large value (misconfigured server, abuse-prevention lockout) makes
+// the CLI look hung rather than rate-limited. Fail fast with a structured error instead.
+const MAX_RETRY_AFTER_SECONDS = 30;
+
+/** Pure so the cap decision is unit-testable without waiting on a real timer. */
+function exceedsRetryCap(retryAfterSeconds: number | undefined, capSeconds: number = MAX_RETRY_AFTER_SECONDS): boolean {
+  return retryAfterSeconds !== undefined && retryAfterSeconds > capSeconds;
+}
+
 function redactHeaders(headers: RequestInit['headers']): Record<string, string> {
   if (!headers) return {};
   let entries: [string, string][];
@@ -114,11 +124,23 @@ async function requestRaw<T>(
     debug(`← ${response.status} ${response.statusText} (${Date.now() - reqStart}ms)`);
 
     if (response.status === 429) {
-      const retryAfter = response.headers.get('Retry-After');
-      const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : (attempt + 1) * 1000;
+      const retryAfterHeader = response.headers.get('Retry-After');
+      const parsedRetryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : NaN;
+      const retryAfterSeconds = Number.isFinite(parsedRetryAfter) ? parsedRetryAfter : undefined;
+
+      if (exceedsRetryCap(retryAfterSeconds)) {
+        throw new PncliError(
+          `Rate limited: server requested a ${retryAfterSeconds}s retry delay, which exceeds the ${MAX_RETRY_AFTER_SECONDS}s cap`,
+          429,
+          url,
+          retryAfterSeconds
+        );
+      }
+
+      const waitMs = retryAfterSeconds !== undefined ? retryAfterSeconds * 1000 : (attempt + 1) * 1000;
       log(`Rate limited. Retrying after ${waitMs}ms...`);
       await new Promise(resolve => setTimeout(resolve, waitMs));
-      lastError = new PncliError('Rate limited', 429, url);
+      lastError = new PncliError('Rate limited', 429, url, retryAfterSeconds);
       continue;
     }
 
