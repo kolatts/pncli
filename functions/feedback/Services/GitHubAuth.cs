@@ -93,7 +93,7 @@ public abstract record GitHubAuth
                 "No GitHub credentials configured: set GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY (GitHub App auth), or GITHUB_TOKEN (PAT, local development only).");
 
         RejectUnresolvedReference("GITHUB_TOKEN", token);
-        return new Token(token);
+        return new Token(token.Trim());
     }
 
     private static string? Setting(Func<string, string?> getSetting, string name)

@@ -307,11 +307,17 @@ az functionapp config appsettings set -n pncli-prod-feedback -g rg-pncli-site \
   --settings GITHUB_APP_PRIVATE_KEY="@Microsoft.KeyVault(VaultName=imagile-keyvault;SecretName=GITHUB-APP-PRIVATE-KEY)"
 ```
 
-Submissions that fail during the window stay pending and are retried on the next
-tick, so nothing is lost.
+This is a **full feedback outage** for the window, not a degradation: the worker
+refuses to start, so `Submit` and the webhook answer 404 and website submissions are
+rejected rather than queued. Keep it short. Only the heartbeat rule is exercised;
+`ProcessSubmissions` never runs, so nothing is stuck and the other two rules stay
+quiet.
 
-The unconverted-submissions rule is the one to confirm, since it is the direct
-signal. During that window, watch the trace it keys off:
+To exercise the unconverted-submissions rule — the direct signal, and the one worth
+confirming — break something that fails **per tick** instead, e.g. set
+`GITHUB_APP_INSTALLATION_ID` to an installation id that does not exist and restore it
+afterwards. Submissions that fail that way stay pending and are retried on the next
+tick, so nothing is lost. During that window, watch the trace it keys off:
 
 ```bash
 az monitor app-insights query --app pncli-prod-ai -g rg-pncli-site --analytics-query \n  "traces | where message startswith 'SubmissionBacklog' | project timestamp, customDimensions.StuckCount, customDimensions.OldestUnconvertedMinutes | order by timestamp desc | take 10"

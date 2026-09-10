@@ -9,7 +9,13 @@ public class GitHubAuthTests
     private const string UnresolvedReference =
         "@Microsoft.KeyVault(VaultName=imagile-keyvault;SecretName=GITHUB-APP-PRIVATE-KEY)";
 
-    private static readonly string ValidPem = RSA.Create(2048).ExportRSAPrivateKeyPem();
+    private static readonly string ValidPem = GeneratePem();
+
+    private static string GeneratePem()
+    {
+        using var rsa = RSA.Create(2048);
+        return rsa.ExportRSAPrivateKeyPem();
+    }
 
     private static Func<string, string?> Settings(params (string Name, string? Value)[] settings)
     {
