@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.0.1](https://github.com/kolatts/pncli/compare/v5.0.0...v5.0.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* cap rate-limit retry waits and surface requested delay ([#453](https://github.com/kolatts/pncli/issues/453)) ([011722b](https://github.com/kolatts/pncli/commit/011722b8d23ab98b380a569d326aec6d647891b5))
+* **functions:** fail fast at startup when GitHub auth is misconfigured ([#455](https://github.com/kolatts/pncli/issues/455)) ([2fc3b0e](https://github.com/kolatts/pncli/commit/2fc3b0e31e1530d3f41bd71980b01e785304ae2e))
+
 ## [5.0.0](https://github.com/kolatts/pncli/compare/v4.1.1...v5.0.0) (2026-09-09)
 
 
