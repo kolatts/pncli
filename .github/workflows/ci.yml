@@ -18,6 +18,18 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  # The feedback function's unit tests. Also run by function-deploy.yml before
+  # publish, but that only fires on main; this surfaces a break on the PR.
+  function:
+    name: feedback function tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet test functions/feedback.tests/Feedback.Tests.csproj -c Release
+
   # Separate job: needs no npm install, so it runs in parallel with the checks
   # above and reports workflow problems even when the Node build is broken.
   workflows:

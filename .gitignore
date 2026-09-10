@@ -22,6 +22,8 @@ site/public/llms.txt
 functions/feedback/bin/
 functions/feedback/obj/
 functions/feedback/local.settings.json
+functions/feedback.tests/bin/
+functions/feedback.tests/obj/
 
 # Image generation working folders (prompt records + multi-MB masters)
 .claude/image-generation/

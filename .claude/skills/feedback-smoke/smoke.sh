@@ -44,7 +44,7 @@ resp=$(post -d '{}')
 code=${resp##*$'\n'}; body=${resp%$'\n'*}
 case "$code" in
   400) [[ "$body" == *'"ok":false'* ]] || fail probe "400 without the JSON envelope: $body" ;;
-  404) fail probe "404 — the host is up but no functions are loaded (empty deployment; see #424). Check the latest function-deploy.yml run." ;;
+  404) fail probe "404 — the host is up but no functions are loaded: empty deployment (#424), or the worker refused to start because GitHub auth is misconfigured (#417; look for 'FATAL: GitHub auth misconfigured' in the log stream). Check the latest function-deploy.yml run." ;;
   403) fail probe "403 — Origin '$ORIGIN' rejected; ALLOWED_ORIGIN on the app disagrees with FEEDBACK_ORIGIN." ;;
   000|"") fail probe "no HTTP response — DNS/TLS/network, or the app is stopped." ;;
   *)   fail probe "unexpected HTTP $code: $body" ;;

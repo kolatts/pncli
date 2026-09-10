@@ -64,6 +64,16 @@ az functionapp config appsettings delete -n pncli-prod-feedback -g rg-pncli-site
 
 (`GITHUB_TOKEN` remains supported as a local-dev fallback when no app id/key is configured. `GITHUB_APP_INSTALLATION_ID` can optionally be set to skip the per-repo installation lookup; normally leave it unset.)
 
+The function validates this credential **at startup** and refuses to start if it
+cannot work (#417): an unresolved Key Vault reference (the setting still reads
+`@Microsoft.KeyVault(...)` because the secret is missing or §2 was skipped), a value
+that is not a parseable PEM, or an app id without a key. It does not fall back to
+`GITHUB_TOKEN` when App auth is configured but broken. A host that fails to start
+shows as a 404 from the smoke test's probe stage and trips the
+`pncli-prod-processsubmissions-heartbeat` alert; the worker's stderr in the function
+log carries a `FATAL: GitHub auth misconfigured: app setting ...` line naming the
+setting.
+
 ## 4. Azure Communication Services (ACS-CONNECTION-STRING in Key Vault)
 
 1. Create an Azure Communication Services resource in the portal (or via CLI).
@@ -283,8 +293,12 @@ subscription email and will silently drop every alert.
 Then break the path once and confirm delivery, per #418's acceptance criteria:
 
 ```bash
-# Point the private key at a secret that does not exist; ProcessSubmissions will
-# throw on every tick. The exceptions alert should arrive within ~5 minutes.
+# Point the private key at a secret that does not exist. The reference stays
+# unresolved, startup validation rejects it (#417) and the host never comes up,
+# so the heartbeat alert (no invocations in 15 min) is the one that fires here.
+# To exercise the exceptions alert instead, break something that fails per
+# tick — e.g. GITHUB_APP_INSTALLATION_ID set to an installation id that does
+# not exist.
 az functionapp config appsettings set -n pncli-prod-feedback -g rg-pncli-site \
   --settings GITHUB_APP_PRIVATE_KEY="@Microsoft.KeyVault(VaultName=imagile-keyvault;SecretName=DOES-NOT-EXIST)"
 
@@ -293,11 +307,17 @@ az functionapp config appsettings set -n pncli-prod-feedback -g rg-pncli-site \
   --settings GITHUB_APP_PRIVATE_KEY="@Microsoft.KeyVault(VaultName=imagile-keyvault;SecretName=GITHUB-APP-PRIVATE-KEY)"
 ```
 
-Submissions that fail during the window stay pending and are retried on the next
-tick, so nothing is lost.
+This is a **full feedback outage** for the window, not a degradation: the worker
+refuses to start, so `Submit` and the webhook answer 404 and website submissions are
+rejected rather than queued. Keep it short. Only the heartbeat rule is exercised;
+`ProcessSubmissions` never runs, so nothing is stuck and the other two rules stay
+quiet.
 
-The unconverted-submissions rule is the one to confirm, since it is the direct
-signal. During that window, watch the trace it keys off:
+To exercise the unconverted-submissions rule — the direct signal, and the one worth
+confirming — break something that fails **per tick** instead, e.g. set
+`GITHUB_APP_INSTALLATION_ID` to an installation id that does not exist and restore it
+afterwards. Submissions that fail that way stay pending and are retried on the next
+tick, so nothing is lost. During that window, watch the trace it keys off:
 
 ```bash
 az monitor app-insights query --app pncli-prod-ai -g rg-pncli-site --analytics-query \n  "traces | where message startswith 'SubmissionBacklog' | project timestamp, customDimensions.StuckCount, customDimensions.OldestUnconvertedMinutes | order by timestamp desc | take 10"

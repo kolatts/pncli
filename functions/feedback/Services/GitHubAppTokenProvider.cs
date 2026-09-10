@@ -15,6 +15,7 @@ namespace Feedback.Services;
 /// until shortly before expiry.
 /// </summary>
 public class GitHubAppTokenProvider(
+    GitHubAuth.App app,
     IHttpClientFactory httpClientFactory,
     ILogger<GitHubAppTokenProvider> logger)
 {
@@ -91,15 +92,11 @@ public class GitHubAppTokenProvider(
             ?? throw new InvalidOperationException($"Installation lookup for {repo} returned no id");
     }
 
-    private static string CreateAppJwt()
+    private string CreateAppJwt()
     {
-        var appId = Environment.GetEnvironmentVariable("GITHUB_APP_ID")
-            ?? throw new InvalidOperationException("GITHUB_APP_ID not configured");
-        var pem = Environment.GetEnvironmentVariable("GITHUB_APP_PRIVATE_KEY")
-            ?? throw new InvalidOperationException("GITHUB_APP_PRIVATE_KEY not configured");
-
-        // App settings sometimes carry the PEM with escaped newlines.
-        pem = pem.Replace("\\n", "\n");
+        // Validated at startup by GitHubAuth.Resolve — the PEM is known to parse.
+        var appId = app.AppId;
+        var pem = app.PrivateKeyPem;
 
         var now = DateTimeOffset.UtcNow;
         // iat backdated 60s for clock drift; exp well under GitHub's 10-minute cap.
