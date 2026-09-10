@@ -30,9 +30,18 @@ const SENSITIVE_HEADERS = new Set(['authorization', 'api-key', 'x-figma-token'])
 // the CLI look hung rather than rate-limited. Fail fast with a structured error instead.
 const MAX_RETRY_AFTER_SECONDS = 30;
 
-/** Pure so the cap decision is unit-testable without waiting on a real timer. */
-function exceedsRetryCap(retryAfterSeconds: number | undefined, capSeconds: number = MAX_RETRY_AFTER_SECONDS): boolean {
-  return retryAfterSeconds !== undefined && retryAfterSeconds > capSeconds;
+function parseRetryAfter(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (/^\d+$/.test(trimmed)) {
+    // Keep even overflowing delays above the cap and JSON-serializable.
+    return Math.min(Number(trimmed), Number.MAX_VALUE);
+  }
+  // HTTP dates start with a weekday. Avoid Date.parse's permissive handling
+  // of malformed numeric delays such as "-1" or "1.5".
+  if (!/^[A-Za-z]+[, ]/.test(trimmed)) return undefined;
+  const date = Date.parse(trimmed);
+  return Number.isFinite(date) ? Math.max(0, Math.ceil((date - Date.now()) / 1000)) : undefined;
 }
 
 function redactHeaders(headers: RequestInit['headers']): Record<string, string> {
@@ -124,11 +133,9 @@ async function requestRaw<T>(
     debug(`← ${response.status} ${response.statusText} (${Date.now() - reqStart}ms)`);
 
     if (response.status === 429) {
-      const retryAfterHeader = response.headers.get('Retry-After');
-      const parsedRetryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : NaN;
-      const retryAfterSeconds = Number.isFinite(parsedRetryAfter) ? parsedRetryAfter : undefined;
+      const retryAfterSeconds = parseRetryAfter(response.headers.get('Retry-After'));
 
-      if (exceedsRetryCap(retryAfterSeconds)) {
+      if (retryAfterSeconds !== undefined && retryAfterSeconds > MAX_RETRY_AFTER_SECONDS) {
         throw new PncliError(
           `Rate limited: server requested a ${retryAfterSeconds}s retry delay, which exceeds the ${MAX_RETRY_AFTER_SECONDS}s cap`,
           429,
@@ -137,10 +144,12 @@ async function requestRaw<T>(
         );
       }
 
+      lastError = new PncliError('Rate limited', 429, url, retryAfterSeconds);
+      if (attempt === 2) break;
+
       const waitMs = retryAfterSeconds !== undefined ? retryAfterSeconds * 1000 : (attempt + 1) * 1000;
       log(`Rate limited. Retrying after ${waitMs}ms...`);
       await new Promise(resolve => setTimeout(resolve, waitMs));
-      lastError = new PncliError('Rate limited', 429, url, retryAfterSeconds);
       continue;
     }
 

@@ -855,76 +855,78 @@ describe('HttpClient — Figma', () => {
 });
 
 describe('HttpClient — 429 rate limit cap', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-10T12:00:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
 
-  it('returns a structured 429 immediately when Retry-After exceeds the cap, without waiting', async () => {
-    vi.stubGlobal('fetch', async () => new Response('', {
-      status: 429,
-      statusText: 'Too Many Requests',
-      headers: { 'Retry-After': '86400' }
+  function client() {
+    return new HttpClient(baseConfig({ figma: { baseUrl: 'https://api.figma.com', token: 'tok' } }));
+  }
+
+  it.each([
+    ['86400', 86400],
+    ['31', 31],
+    ['Fri, 11 Sep 2026 12:00:00 GMT', 86400],
+    ['9'.repeat(400), Number.MAX_VALUE]
+  ])('rejects over-cap delay %s without sleeping or retrying', async (header, seconds) => {
+    const fetchMock = vi.fn(async () => new Response('', {
+      status: 429, headers: { 'Retry-After': String(header) }
     }));
-
-    const config = baseConfig({ figma: { baseUrl: 'https://api.figma.com', token: 'tok' } });
-    const client = new HttpClient(config);
-
-    const start = Date.now();
-    await expect(client.figma('/v1/me')).rejects.toMatchObject({
-      status: 429,
-      retryAfterSeconds: 86400
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(client().figma('/v1/me')).rejects.toMatchObject({
+      status: 429, retryAfterSeconds: seconds, url: 'https://api.figma.com/v1/me'
     });
-    expect(Date.now() - start).toBeLessThan(1000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('waits and retries when Retry-After is within the cap', async () => {
-    vi.useFakeTimers();
-    let calls = 0;
-    vi.stubGlobal('fetch', async () => {
-      calls++;
-      if (calls === 1) {
-        return new Response('', { status: 429, statusText: 'Too Many Requests', headers: { 'Retry-After': '5' } });
-      }
-      return new Response('{"id":"1","email":"you@example.com","handle":"you","img_url":""}', { status: 200 });
-    });
-
-    try {
-      const config = baseConfig({ figma: { baseUrl: 'https://api.figma.com', token: 'tok' } });
-      const client = new HttpClient(config);
-
-      const promise = client.figma('/v1/me');
-      await vi.advanceTimersByTimeAsync(5000);
-      await expect(promise).resolves.toMatchObject({ id: '1' });
-      expect(calls).toBe(2);
-    } finally {
-      vi.useRealTimers();
+  it.each([
+    ['5', 5000],
+    ['30', 30000],
+    ['0', 0],
+    ['Thu, 10 Sep 2026 12:00:05 GMT', 5000],
+    ['Wed, 09 Sep 2026 12:00:00 GMT', 0],
+    [undefined, 1000],
+    ['nonsense', 1000],
+    ['-1', 1000],
+    ['1.5', 1000],
+    ['5garbage', 1000]
+  ])('uses the correct retry delay for %s', async (header, delay) => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('', {
+        status: 429, headers: header === undefined ? {} : { 'Retry-After': header }
+      }))
+      .mockResolvedValueOnce(new Response('{"id":"1"}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const result = client().figma('/v1/me');
+    if (delay > 0) {
+      await vi.advanceTimersByTimeAsync(delay - 1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+    } else {
+      await vi.advanceTimersByTimeAsync(0);
     }
+    await expect(result).resolves.toEqual({ id: '1' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('falls back to attempt-based backoff when Retry-After is not a number (e.g. an HTTP-date)', async () => {
-    vi.useFakeTimers();
-    let calls = 0;
-    vi.stubGlobal('fetch', async () => {
-      calls++;
-      if (calls === 1) {
-        return new Response('', {
-          status: 429,
-          statusText: 'Too Many Requests',
-          headers: { 'Retry-After': 'Wed, 21 Oct 2099 07:28:00 GMT' }
-        });
-      }
-      return new Response('{"id":"1","email":"you@example.com","handle":"you","img_url":""}', { status: 200 });
+  it('fails after three 429 responses without sleeping after the last attempt', async () => {
+    const fetchMock = vi.fn(async () => new Response('', {
+      status: 429, headers: { 'Retry-After': '30' }
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const result = expect(client().figma('/v1/me')).rejects.toMatchObject({
+      status: 429, retryAfterSeconds: 30
     });
-
-    try {
-      const config = baseConfig({ figma: { baseUrl: 'https://api.figma.com', token: 'tok' } });
-      const client = new HttpClient(config);
-
-      const promise = client.figma('/v1/me');
-      await vi.advanceTimersByTimeAsync(1000);
-      await expect(promise).resolves.toMatchObject({ id: '1' });
-      expect(calls).toBe(2);
-    } finally {
-      vi.useRealTimers();
-    }
+    await vi.advanceTimersByTimeAsync(60000);
+    await result;
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 
