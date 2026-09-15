@@ -2,9 +2,9 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execSync } from 'child_process';
-import { PncliError } from './errors.js';
 import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, GitHubDefaults, SonarDefaults, SdeDefaults, AdoDefaults, JenkinsDefaults, JenkinsInstanceConfig } from '../types/config.js';
 import type { CustomFieldDefinition } from '../types/jira.js';
+import { assertValidCustomFields } from './validate-custom-fields.js';
 
 const ENV_KEYS = {
   EMAIL: 'PNCLI_EMAIL',
@@ -98,44 +98,17 @@ function parseSdeConnection(connection: string): { token: string; baseUrl: strin
   return { token, baseUrl };
 }
 
-/**
- * Validates a `jira.customFields` value read off disk before it's dereferenced. The stored
- * config's static type says `CustomFieldDefinition[]`, but `config set` falls back to storing
- * a raw JSON value with no shape check (e.g. `'{}'` when the user forgot the array brackets),
- * and a hand-edited config file can contain anything JSON allows (e.g. `[null]`).
- */
-function assertValidCustomFields(fields: unknown, source: string): asserts fields is CustomFieldDefinition[] {
-  if (!Array.isArray(fields)) {
-    throw new PncliError(
-      `Invalid jira.customFields in ${source}: expected an array, got ${JSON.stringify(fields)}. Fix with: pncli config set jira.customFields '[]'${source.includes('.pncli.json') ? ' --repo' : ''}`,
-      1
-    );
-  }
-  for (const f of fields) {
-    if (
-      typeof f !== 'object' || f === null ||
-      typeof (f as { id?: unknown }).id !== 'string' ||
-      typeof (f as { name?: unknown }).name !== 'string'
-    ) {
-      throw new PncliError(
-        `Invalid jira.customFields in ${source}: each entry must be an object with string "id" and "name" fields. Got: ${JSON.stringify(f)}. Fix with: pncli config set jira.customFields '[{"id":"customfield_10032","name":"Epic Link","type":"select"}]'${source.includes('.pncli.json') ? ' --repo' : ''}`,
-        1
-      );
-    }
-  }
-}
-
 function mergeCustomFields(
   global: CustomFieldDefinition[] | undefined,
   repo: CustomFieldDefinition[] | undefined
 ): CustomFieldDefinition[] {
   const map = new Map<string, CustomFieldDefinition>();
   if (global != null) {
-    assertValidCustomFields(global, 'global config');
+    assertValidCustomFields(global, { source: 'global config' });
     for (const f of global) map.set(f.id, f);
   }
   if (repo != null) {
-    assertValidCustomFields(repo, 'repo config (.pncli.json)');
+    assertValidCustomFields(repo, { source: 'repo config (.pncli.json)', repo: true });
     for (const f of repo) map.set(f.id, f); // repo wins
   }
   return Array.from(map.values());

@@ -83,4 +83,19 @@ describe('buildFieldMap', () => {
     expect(() => buildFieldMap('[{"id":"customfield_10100","name":"Epic Link"}]' as never))
       .toThrow('Invalid jira.customFields config');
   });
+
+  it('accepts an entry with no "type" (documented as "send the raw string as-is")', () => {
+    const map = buildFieldMap([{ id: 'customfield_10100', name: 'Epic Link' }]);
+    expect(map.byId.get('customfield_10100')?.type).toBeUndefined();
+  });
+
+  it('throws a PncliError naming the allowed values when "type" is unknown', () => {
+    expect(() => buildFieldMap([{ id: 'customfield_10100', name: 'Epic Link', type: 'dropdown' } as never]))
+      .toThrow('unknown "type" "dropdown"; expected one of string, number');
+  });
+
+  it('throws a PncliError when "type" is not a string', () => {
+    expect(() => buildFieldMap([{ id: 'customfield_10100', name: 'Epic Link', type: 42 } as never]))
+      .toThrow('unknown "type" 42');
+  });
 });

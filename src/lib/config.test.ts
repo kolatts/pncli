@@ -4,6 +4,7 @@ import os from 'os';
 import path from 'path';
 import { maskConfig, loadConfig, setConfigValue, setRepoConfigValue } from './config.js';
 import type { ResolvedConfig } from '../types/config.js';
+import { PncliError } from './errors.js';
 
 vi.mock('child_process', () => ({ execSync: vi.fn() }));
 
@@ -594,6 +595,24 @@ describe('loadConfig — jira.customFields validation', () => {
     fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({ jira: { customFields: [{ id: 'customfield_10100' }] } }));
 
     expect(() => loadConfig({ configPath: globalConfigPath })).toThrow('Invalid jira.customFields in repo config (.pncli.json)');
+  });
+
+  it('suggests --repo in the fix only for .pncli.json', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jira: {} }));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({ jira: { customFields: {} } }));
+    expect(() => loadConfig({ configPath: globalConfigPath })).toThrow(/'\[\]' --repo$/);
+
+    fs.rmSync(path.join(tmpDir, '.pncli.json'));
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jira: { customFields: {} } }));
+    expect(() => loadConfig({ configPath: globalConfigPath })).toThrow(/'\[\]'$/);
+  });
+
+  it('rejects an entry whose "type" is not a known CustomFieldType', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({
+      jira: { customFields: [{ id: 'customfield_10100', name: 'Epic Link', type: 'dropdown' }] }
+    }));
+    expect(() => loadConfig({ configPath: globalConfigPath })).toThrow(PncliError);
+    expect(() => loadConfig({ configPath: globalConfigPath })).toThrow('unknown "type" "dropdown"');
   });
 
   it('treats a missing customFields key as no custom fields', () => {
