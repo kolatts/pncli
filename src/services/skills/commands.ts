@@ -110,23 +110,34 @@ const GIT_AUTH_FAILURE_PATTERNS = [
 const GIT_NOT_FOUND_PATTERNS = [/repository not found/i];
 
 /**
+ * Which credential (if any) was used for the git operation that failed — distinguishes an
+ * explicit per-marketplace token from the CLI's global GitHub token fallback, since the fix
+ * for a rejected token differs: rotate the marketplace's own token vs. the global one.
+ */
+export type GitTokenSource = 'none' | 'explicit' | 'fallback';
+
+/**
  * Turns a raw git clone/pull failure into an actionable pncli error instead of git's raw
  * stderr. Only rewrites messages matching known auth/access failure signatures — anything
  * else (network errors, merge conflicts, disk space) passes through scrubbed but otherwise
  * unchanged, so this never masks an unrelated failure as a credential problem.
  */
-export function describeGitFailure(rawMessage: string, marketplaceName: string, hasToken: boolean): Error {
+export function describeGitFailure(rawMessage: string, marketplaceName: string, tokenSource: GitTokenSource): Error {
   const msg = scrubToken(rawMessage);
   if (GIT_AUTH_FAILURE_PATTERNS.some(p => p.test(msg))) {
-    const hint = hasToken
+    const hint = tokenSource === 'explicit'
       ? `The token configured for marketplace "${marketplaceName}" was rejected — it may be expired, revoked, or missing required scopes. Update it with: pncli skills marketplace add <url> --token <new-token>`
-      : `Marketplace "${marketplaceName}" requires authentication but no token is configured. Add one with: pncli skills marketplace add <url> --token <token>`;
+      : tokenSource === 'fallback'
+        ? `The GitHub token pncli is using (PNCLI_GITHUB_TOKEN / GITHUB_TOKEN / github.token) was rejected for marketplace "${marketplaceName}" — it may be expired, revoked, or missing required scopes for this repo. Rotate that token, or set one specifically for this marketplace: pncli skills marketplace add <url> --token <new-token>`
+        : `Marketplace "${marketplaceName}" requires authentication but no token is configured. Add one with: pncli skills marketplace add <url> --token <token>`;
     return new Error(`${hint}\n\nGit reported: ${msg}`);
   }
   if (GIT_NOT_FOUND_PATTERNS.some(p => p.test(msg))) {
-    const hint = hasToken
+    const hint = tokenSource === 'explicit'
       ? `Repository for marketplace "${marketplaceName}" was not found — check the URL and that the configured token has access to it.`
-      : `Repository for marketplace "${marketplaceName}" was not found — if it's private, add a token: pncli skills marketplace add <url> --token <token>`;
+      : tokenSource === 'fallback'
+        ? `Repository for marketplace "${marketplaceName}" was not found — check the URL and that pncli's configured GitHub token has access to it.`
+        : `Repository for marketplace "${marketplaceName}" was not found — if it's private, add a token: pncli skills marketplace add <url> --token <token>`;
     return new Error(`${hint}\n\nGit reported: ${msg}`);
   }
   return new Error(msg);
@@ -944,7 +955,8 @@ function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { bran
     } catch { /* repo not valid — fall through and re-throw original error */ }
     if (!cloneActuallySucceeded) {
       const msg = e instanceof Error ? e.message : String(e);
-      throw describeGitFailure(msg, marketplaceName, !!resolvedToken);
+      const tokenSource: GitTokenSource = opts.token ? 'explicit' : resolvedToken ? 'fallback' : 'none';
+      throw describeGitFailure(msg, marketplaceName, tokenSource);
     }
   }
 }
@@ -965,7 +977,8 @@ function pullMarketplace(marketplacePath: string, repoUrl: string | undefined, t
     pullOutput = execFileSync('git', gitArgs, { encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'], env: { ...process.env, LANG: 'C', LC_ALL: 'C' } });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    throw describeGitFailure(msg, marketplaceName, !!resolvedToken);
+    const tokenSource: GitTokenSource = token ? 'explicit' : resolvedToken ? 'fallback' : 'none';
+    throw describeGitFailure(msg, marketplaceName, tokenSource);
   }
   const updated = !pullOutput.includes('Already up to date');
   if (pullOutput.trim() && updated) warn(pullOutput.trim());

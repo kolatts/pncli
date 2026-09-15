@@ -90,39 +90,58 @@ describe('resolveMarketplaceToken', () => {
 // ── describeGitFailure ────────────────────────────────────────────────────────
 
 describe('describeGitFailure', () => {
-  it('rewrites a GitHub auth rejection into an actionable message naming the marketplace, when a token was configured', () => {
+  it('rewrites a GitHub auth rejection into an actionable message naming the marketplace, when an explicit token was configured', () => {
     const err = describeGitFailure(
       'Command failed: git pull\nremote: Invalid username or token. Password authentication is not supported for Git operations.\nfatal: Authentication failed',
       'my-marketplace',
-      true
+      'explicit'
     );
     expect(err.message).toContain('my-marketplace');
+    expect(err.message).toContain('The token configured for marketplace');
     expect(err.message).toContain('was rejected');
     expect(err.message).toContain('marketplace add <url> --token <new-token>');
   });
 
+  it('rewrites a GitHub auth rejection to point at the global token when it came from the fallback', () => {
+    const err = describeGitFailure(
+      'fatal: Authentication failed for \'https://github.com/owner/repo.git/\'',
+      'my-marketplace',
+      'fallback'
+    );
+    expect(err.message).toContain('GitHub token pncli is using');
+    expect(err.message).toContain('github.token');
+    expect(err.message).toContain('my-marketplace');
+    expect(err.message).not.toContain('The token configured for marketplace');
+  });
+
   it('points to adding a token when no token was configured and auth failed', () => {
-    const err = describeGitFailure('fatal: Authentication failed for \'https://github.com/owner/repo.git/\'', 'my-marketplace', false);
+    const err = describeGitFailure('fatal: Authentication failed for \'https://github.com/owner/repo.git/\'', 'my-marketplace', 'none');
     expect(err.message).toContain('requires authentication but no token is configured');
   });
 
   it('rewrites a "repository not found" failure into an access-check hint', () => {
-    const err = describeGitFailure('remote: Repository not found.', 'my-marketplace', true);
+    const err = describeGitFailure('remote: Repository not found.', 'my-marketplace', 'explicit');
     expect(err.message).toContain('was not found');
     expect(err.message).toContain('my-marketplace');
+  });
+
+  it('rewrites a "repository not found" failure to reference the fallback token when that is what was used', () => {
+    const err = describeGitFailure('remote: Repository not found.', 'my-marketplace', 'fallback');
+    expect(err.message).toContain('was not found');
+    expect(err.message).toContain('pncli\'s configured GitHub token');
   });
 
   it('scrubs any embedded token before it reaches the rewritten message', () => {
     const err = describeGitFailure(
       'fatal: unable to access \'https://x-access-token:ghp_secret123@github.com/owner/repo.git/\': Authentication failed',
       'my-marketplace',
-      true
+      'explicit'
     );
     expect(err.message).not.toContain('ghp_secret123');
   });
 
   it('passes unrelated errors through scrubbed but otherwise unchanged', () => {
-    const err = describeGitFailure('fatal: unable to access: Could not resolve host: github.com', 'my-marketplace', true);
+    const err = describeGitFailure('fatal: unable to access: Could not resolve host: github.com', 'my-marketplace', 'explicit');
     expect(err.message).toBe('fatal: unable to access: Could not resolve host: github.com');
   });
 });
