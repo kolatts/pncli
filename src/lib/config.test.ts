@@ -554,3 +554,67 @@ describe('loadConfig — config files carrying keys for removed services', () =>
     expect(stored.servicenow.baseUrl).toBe('https://legacy.imagile.dev');
   });
 });
+
+describe('loadConfig — jira.customFields validation', () => {
+  let tmpDir: string;
+  let globalConfigPath: string;
+
+  beforeEach(async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-test-'));
+    globalConfigPath = path.join(tmpDir, 'config.json');
+    const { execSync } = await import('child_process');
+    vi.mocked(execSync).mockReturnValue(tmpDir as unknown as ReturnType<typeof execSync>);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.clearAllMocks();
+  });
+
+  // Regression for #458 round 2: `pncli config set jira.customFields '{}'` (forgetting the
+  // array brackets) stores a plain object, not an array — loadConfig() must reject it with
+  // a PncliError before any command runs, not throw a raw "not iterable" TypeError.
+  it('throws a PncliError, not a raw TypeError, when global customFields is an object', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jira: { customFields: {} } }));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
+
+    expect(() => loadConfig({ configPath: globalConfigPath })).toThrow('Invalid jira.customFields in global config');
+  });
+
+  // Regression for #458 round 2: a hand-edited config with `[null]` must not crash on `f.id`.
+  it('throws a PncliError, not a raw TypeError, when a global customFields entry is null', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ jira: { customFields: [null] } }));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
+
+    expect(() => loadConfig({ configPath: globalConfigPath })).toThrow('Invalid jira.customFields in global config');
+  });
+
+  it('throws a PncliError naming the repo config when .pncli.json customFields is malformed', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({}));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({ jira: { customFields: [{ id: 'customfield_10100' }] } }));
+
+    expect(() => loadConfig({ configPath: globalConfigPath })).toThrow('Invalid jira.customFields in repo config (.pncli.json)');
+  });
+
+  it('treats a missing customFields key as no custom fields', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({}));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
+
+    const config = loadConfig({ configPath: globalConfigPath });
+
+    expect(config.jira.customFields).toEqual([]);
+  });
+
+  it('loads well-formed customFields from both global and repo config, repo winning on id collision', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({
+      jira: { customFields: [{ id: 'customfield_10100', name: 'Epic Link', type: 'select' }] }
+    }));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({
+      jira: { customFields: [{ id: 'customfield_10100', name: 'Epic Link Override', type: 'select' }] }
+    }));
+
+    const config = loadConfig({ configPath: globalConfigPath });
+
+    expect(config.jira.customFields).toEqual([{ id: 'customfield_10100', name: 'Epic Link Override', type: 'select' }]);
+  });
+});
