@@ -10,7 +10,7 @@ vi.mock('fs', () => ({
 const mockReadFileSync = vi.mocked(readFileSync);
 
 const fieldMap = buildFieldMap([
-  { id: 'customfield_11204', name: 'Test Steps', type: 'json' as never },
+  { id: 'customfield_11204', name: 'Test Steps', type: 'textarea' },
   { id: 'customfield_10016', name: 'Story Points', type: 'number' },
   { id: 'customfield_10020', name: 'Sprint', type: 'select' },
 ]);

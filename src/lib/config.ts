@@ -4,6 +4,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, GitHubDefaults, SonarDefaults, SdeDefaults, AdoDefaults, JenkinsDefaults, JenkinsInstanceConfig } from '../types/config.js';
 import type { CustomFieldDefinition } from '../types/jira.js';
+import { assertValidCustomFields } from './validate-custom-fields.js';
 
 const ENV_KEYS = {
   EMAIL: 'PNCLI_EMAIL',
@@ -102,8 +103,14 @@ function mergeCustomFields(
   repo: CustomFieldDefinition[] | undefined
 ): CustomFieldDefinition[] {
   const map = new Map<string, CustomFieldDefinition>();
-  for (const f of global ?? []) map.set(f.id, f);
-  for (const f of repo ?? []) map.set(f.id, f); // repo wins
+  if (global != null) {
+    assertValidCustomFields(global, { source: 'global config' });
+    for (const f of global) map.set(f.id, f);
+  }
+  if (repo != null) {
+    assertValidCustomFields(repo, { source: 'repo config (.pncli.json)', repo: true });
+    for (const f of repo) map.set(f.id, f); // repo wins
+  }
   return Array.from(map.values());
 }
 
