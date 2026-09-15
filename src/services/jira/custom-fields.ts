@@ -1,9 +1,36 @@
+import { PncliError } from '../../lib/errors.js';
 import type { CustomFieldDefinition, CustomFieldMap, CustomFieldType } from '../../types/jira.js';
+
+/**
+ * Validates config-sourced field definitions before they're indexed. `jira.customFields`
+ * comes straight off disk (or a `config set` value that fell back to a raw string when
+ * JSON.parse failed — e.g. mangled shell quoting), so it isn't guaranteed to match
+ * CustomFieldDefinition at runtime even though the type says it does.
+ */
+function assertValidFieldDefinition(f: unknown): asserts f is CustomFieldDefinition {
+  if (
+    typeof f !== 'object' || f === null ||
+    typeof (f as { id?: unknown }).id !== 'string' ||
+    typeof (f as { name?: unknown }).name !== 'string'
+  ) {
+    throw new PncliError(
+      `Invalid jira.customFields config: each entry must be an object with string "id" and "name" fields. Got: ${JSON.stringify(f)}. Fix with: pncli config set jira.customFields '[{"id":"customfield_10032","name":"Epic Link","type":"select"}]'`,
+      1
+    );
+  }
+}
 
 export function buildFieldMap(fields: CustomFieldDefinition[]): CustomFieldMap {
   const byName = new Map<string, CustomFieldDefinition>();
   const byId = new Map<string, CustomFieldDefinition>();
+  if (!Array.isArray(fields)) {
+    throw new PncliError(
+      `Invalid jira.customFields config: expected an array, got ${JSON.stringify(fields)}. Fix with: pncli config set jira.customFields '[]'`,
+      1
+    );
+  }
   for (const f of fields) {
+    assertValidFieldDefinition(f);
     byName.set(f.name.toLowerCase(), f);
     byId.set(f.id, f);
   }

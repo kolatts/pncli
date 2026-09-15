@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatFieldValue } from './custom-fields.js';
+import { formatFieldValue, buildFieldMap } from './custom-fields.js';
 
 describe('formatFieldValue', () => {
   it('formats string type as raw string', () => {
@@ -54,5 +54,33 @@ describe('formatFieldValue', () => {
 
   it('does not emit the Jira Cloud accountId field for user type', () => {
     expect(formatFieldValue('jsmith', 'user')).not.toHaveProperty('accountId');
+  });
+});
+
+describe('buildFieldMap', () => {
+  it('indexes well-formed field definitions by name and id', () => {
+    const map = buildFieldMap([{ id: 'customfield_10100', name: 'Epic Link', type: 'select' }]);
+    expect(map.byName.get('epic link')?.id).toBe('customfield_10100');
+    expect(map.byId.get('customfield_10100')?.name).toBe('Epic Link');
+  });
+
+  it('throws a PncliError instead of crashing when an entry is missing "name"', () => {
+    // Regression for #458: a raw TypeError instead of a validation error, for every
+    // jira create-issue/update-issue call, once any malformed entry was registered.
+    expect(() => buildFieldMap([{ id: 'customfield_10100' } as never]))
+      .toThrow('Invalid jira.customFields config');
+  });
+
+  it('throws a PncliError instead of crashing when an entry is missing "id"', () => {
+    expect(() => buildFieldMap([{ name: 'Epic Link' } as never]))
+      .toThrow('Invalid jira.customFields config');
+  });
+
+  it('throws a PncliError when customFields is not an array', () => {
+    // Regression for #458: config set falls back to storing a raw string when JSON.parse
+    // fails on malformed shell-quoted input (e.g. PowerShell mangling nested quotes).
+    // A string is iterable, so an unguarded `for..of` walks individual characters.
+    expect(() => buildFieldMap('[{"id":"customfield_10100","name":"Epic Link"}]' as never))
+      .toThrow('Invalid jira.customFields config');
   });
 });
