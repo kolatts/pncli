@@ -8,7 +8,7 @@ import { execFileSync } from 'child_process';
 import select from '@inquirer/select';
 import checkbox, { Separator } from '@inquirer/checkbox';
 import input from '@inquirer/input';
-import { writeGlobalConfig, getGlobalConfigPath, loadJsonFile } from '../../lib/config.js';
+import { writeGlobalConfig, getGlobalConfigPath, loadJsonFile, loadConfig } from '../../lib/config.js';
 import { getPncliVersion } from '../../lib/version.js';
 import type { GlobalConfig, MarketplaceConfig } from '../../types/config.js';
 
@@ -65,6 +65,71 @@ function marketplaceLabel(m: MarketplaceConfig): string {
 /** Strips injected credentials out of git error output before it reaches JSON output or logs. */
 function scrubToken(msg: string): string {
   return msg.replace(/x-(?:token-auth|access-token):[^@]+@/g, 'x-token-auth:***@');
+}
+
+/** True when repoUrl's host is github.com, or matches the configured GitHub Enterprise Server host. */
+function isConfiguredGitHubHost(repoUrl: string, githubBaseUrl: string | undefined): boolean {
+  try {
+    const host = new URL(repoUrl).hostname;
+    if (host === 'github.com') return true;
+    if (!githubBaseUrl) return false;
+    return new URL(githubBaseUrl).hostname === host;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolves the token to use for a marketplace's git clone/pull: the marketplace's own
+ * stored token when set, otherwise the CLI's normal GitHub credential (`PNCLI_GITHUB_TOKEN` /
+ * `GITHUB_TOKEN` / `github.token` in config — see src/lib/config.ts) when the marketplace repo
+ * is hosted on github.com or the configured GitHub Enterprise Server host. A marketplace on any
+ * other host with no stored token gets no fallback — pncli has no generic credential for
+ * arbitrary git hosts.
+ *
+ * This never overrides an explicitly configured marketplace token: a user who deliberately set
+ * `--token` for a marketplace (e.g. a scoped PAT that differs from their working GitHub token)
+ * keeps that behavior unchanged.
+ */
+export function resolveMarketplaceToken(explicitToken: string | undefined, repoUrl: string | undefined): string | undefined {
+  if (explicitToken) return explicitToken;
+  if (!repoUrl) return undefined;
+  const resolved = loadConfig();
+  if (!isConfiguredGitHubHost(repoUrl, resolved.github.baseUrl)) return undefined;
+  return resolved.github.token;
+}
+
+const GIT_AUTH_FAILURE_PATTERNS = [
+  /invalid username or (password|token)/i,
+  /authentication failed/i,
+  /could not read username/i,
+  /could not read password/i,
+  /support for password authentication was removed/i,
+];
+
+const GIT_NOT_FOUND_PATTERNS = [/repository not found/i];
+
+/**
+ * Turns a raw git clone/pull failure into an actionable pncli error instead of git's raw
+ * stderr. Only rewrites messages matching known auth/access failure signatures — anything
+ * else (network errors, merge conflicts, disk space) passes through scrubbed but otherwise
+ * unchanged, so this never masks an unrelated failure as a credential problem.
+ */
+export function describeGitFailure(rawMessage: string, marketplaceName: string, hasToken: boolean): Error {
+  const msg = scrubToken(rawMessage);
+  if (GIT_AUTH_FAILURE_PATTERNS.some(p => p.test(msg))) {
+    const hint = hasToken
+      ? `The token configured for marketplace "${marketplaceName}" was rejected — it may be expired, revoked, or missing required scopes. Update it with: pncli skills marketplace add <url> --token <new-token>`
+      : `Marketplace "${marketplaceName}" requires authentication but no token is configured. Add one with: pncli skills marketplace add <url> --token <token>`;
+    return new Error(`${hint}\n\nGit reported: ${msg}`);
+  }
+  if (GIT_NOT_FOUND_PATTERNS.some(p => p.test(msg))) {
+    const hint = hasToken
+      ? `Repository for marketplace "${marketplaceName}" was not found — check the URL and that the configured token has access to it.`
+      : `Repository for marketplace "${marketplaceName}" was not found — if it's private, add a token: pncli skills marketplace add <url> --token <token>`;
+    return new Error(`${hint}\n\nGit reported: ${msg}`);
+  }
+  return new Error(msg);
 }
 
 /**
@@ -852,7 +917,7 @@ export function upsertMarketplace(all: MarketplaceConfig[], entry: MarketplaceCo
  * Manager case where git writes auth warnings to stderr and exits non-zero even though the
  * clone succeeded — verified by checking that `git rev-parse HEAD` resolves at the destination.
  */
-function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { branch?: string; token?: string }): void {
+function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { branch?: string; token?: string }, marketplaceName: string): void {
   const hasGit = fs.existsSync(path.join(resolvedPath, '.git'));
   if (fs.existsSync(resolvedPath) && !hasGit && fs.readdirSync(resolvedPath).length > 0) {
     throw new Error(`Directory already exists and is not a git repo: ${resolvedPath}`);
@@ -862,9 +927,10 @@ function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { bran
     return;
   }
 
+  const resolvedToken = resolveMarketplaceToken(opts.token, url);
   const branchLabel = opts.branch ?? 'remote default';
   warn(`Cloning ${url} (branch: ${branchLabel}) → ${resolvedPath}...`);
-  const cloneUrl = opts.token ? injectTokenIntoUrl(url, opts.token) : url;
+  const cloneUrl = resolvedToken ? injectTokenIntoUrl(url, resolvedToken) : url;
   const cloneArgs = ['clone'];
   if (opts.branch) cloneArgs.push('--branch', opts.branch);
   cloneArgs.push(cloneUrl, resolvedPath);
@@ -878,7 +944,7 @@ function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { bran
     } catch { /* repo not valid — fall through and re-throw original error */ }
     if (!cloneActuallySucceeded) {
       const msg = e instanceof Error ? e.message : String(e);
-      throw new Error(scrubToken(msg));
+      throw describeGitFailure(msg, marketplaceName, !!resolvedToken);
     }
   }
 }
@@ -887,10 +953,11 @@ function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { bran
  * Pulls the latest content for a marketplace repo. Returns whether the pull brought in new changes.
  */
 function pullMarketplace(marketplacePath: string, repoUrl: string | undefined, token: string | undefined, marketplaceName: string): { updated: boolean } {
+  const resolvedToken = resolveMarketplaceToken(token, repoUrl);
   warn(`Pulling latest content for "${marketplaceName}"...`);
   const gitArgs = ['-C', marketplacePath];
-  if (repoUrl && token) {
-    gitArgs.push('-c', `remote.origin.url=${injectTokenIntoUrl(repoUrl, token)}`);
+  if (repoUrl && resolvedToken) {
+    gitArgs.push('-c', `remote.origin.url=${injectTokenIntoUrl(repoUrl, resolvedToken)}`);
   }
   gitArgs.push('pull');
   let pullOutput: string;
@@ -898,7 +965,7 @@ function pullMarketplace(marketplacePath: string, repoUrl: string | undefined, t
     pullOutput = execFileSync('git', gitArgs, { encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'], env: { ...process.env, LANG: 'C', LC_ALL: 'C' } });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(scrubToken(msg));
+    throw describeGitFailure(msg, marketplaceName, !!resolvedToken);
   }
   const updated = !pullOutput.includes('Already up to date');
   if (pullOutput.trim() && updated) warn(pullOutput.trim());
@@ -1034,7 +1101,7 @@ function performMarketplaceAdd(url: string, localPath: string | undefined, opts:
   const resolvedPath = path.resolve(localPath ?? defaultMarketplacePath(url));
   const marketplaceName = opts.name ?? repoNameFromUrl(url);
 
-  cloneOrReuseMarketplace(url, resolvedPath, opts);
+  cloneOrReuseMarketplace(url, resolvedPath, opts, marketplaceName);
 
   const configPath = getGlobalConfigPath();
   const { existing, all } = loadMarketplacesConfig(configPath);

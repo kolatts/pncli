@@ -17,6 +17,8 @@ pncli skills marketplace add https://bitbucket.imagile.dev/scm/ai/skills.git --n
 
 You can register as many marketplaces as you like — just run `add` again with a different URL. `marketplace setup` is kept as an alias of `add` for backward compatibility.
 
+For a private repo, pass `--token <token>` (a Bitbucket or GitHub access token) — it's stored with that marketplace's entry and injected into the clone/pull URL. For a marketplace hosted on `github.com` (or the host configured as `github.baseUrl`), you can omit `--token` if you already have a working GitHub credential configured (`PNCLI_GITHUB_TOKEN`, `GITHUB_TOKEN`, or `pncli config set github.token`) — `marketplace add` and `marketplace sync` fall back to it automatically. An explicit `--token` on the marketplace always takes priority over that fallback. To rotate a marketplace's own token, re-run `marketplace add <url> --token <new-token>`; a rejected or expired token surfaces as a clear error naming the marketplace rather than raw git output.
+
 If you upgrade pncli from a version that only supported a single marketplace, your existing config is migrated to the multi-marketplace format automatically the first time you run any `marketplace` command — no manual steps required.
 
 ## List marketplaces and browse plugins
