@@ -98,7 +98,7 @@ jobs:
                gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews --jq '.[] | select(.user.login == "github-actions[bot]" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED")) | .id'
                and dismiss each with:
                gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews/<id>/dismissals -X PUT -f message="Superseded by a newer automated review"
-            5. Resolve any outdated inline review comment threads from previous reviews (use `gh api graphql` with the resolveReviewThread mutation).
+            5. Best effort only: try to resolve outdated inline review comment threads from previous reviews with `gh api graphql` (resolveReviewThread mutation). The workflow token is often refused on that mutation; if it fails, move on without reporting it as a problem.
 
             **Now review the pull request:**
 
