@@ -1,8 +1,10 @@
+import { assertValidCustomFields } from '../../lib/validate-custom-fields.js';
 import type { CustomFieldDefinition, CustomFieldMap, CustomFieldType } from '../../types/jira.js';
 
 export function buildFieldMap(fields: CustomFieldDefinition[]): CustomFieldMap {
   const byName = new Map<string, CustomFieldDefinition>();
   const byId = new Map<string, CustomFieldDefinition>();
+  assertValidCustomFields(fields);
   for (const f of fields) {
     byName.set(f.name.toLowerCase(), f);
     byId.set(f.id, f);
@@ -59,7 +61,7 @@ export function translateFieldsInOutput(
  * For `cascading-select`, pass the parent option ID alone or `parentId:childId`
  * to also set the child option. Example: `10001` or `10001:10002`.
  */
-export function formatFieldValue(value: string, type: CustomFieldType): unknown {
+export function formatFieldValue(value: string, type: CustomFieldType | undefined): unknown {
   switch (type) {
     case 'number':
       return Number(value);

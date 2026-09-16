@@ -2,9 +2,15 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin, DISABLED_SUBDIR, disablePluginSkills, enablePluginSkills, listPluginStates, getInstalledPluginsForMarketplace, AGENT_PATHS, DEFAULT_AGENT, AGENT_CHOICES, summarizeLocation, listKnownLocations, collectSkillStatus, readCustomTargets, rememberCustomTarget, forgetCustomTarget } from './commands.js';
+import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin, DISABLED_SUBDIR, disablePluginSkills, enablePluginSkills, listPluginStates, getInstalledPluginsForMarketplace, AGENT_PATHS, DEFAULT_AGENT, AGENT_CHOICES, summarizeLocation, listKnownLocations, collectSkillStatus, readCustomTargets, rememberCustomTarget, forgetCustomTarget, resolveMarketplaceToken, describeGitFailure } from './commands.js';
 import type { InstalledMeta, InstalledSkillRecord } from './commands.js';
 import type { GlobalConfig } from '../../types/config.js';
+import { loadConfig } from '../../lib/config.js';
+
+vi.mock('../../lib/config.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/config.js')>();
+  return { ...actual, loadConfig: vi.fn() };
+});
 
 type ReaddirResult = ReturnType<typeof fs.readdirSync>;
 
@@ -41,6 +47,102 @@ describe('injectTokenIntoUrl', () => {
 
   it('throws on a non-http URL', () => {
     expect(() => injectTokenIntoUrl('git@bitbucket.imagile.dev:proj/repo.git', 'tok')).toThrow();
+  });
+});
+
+// ── resolveMarketplaceToken ───────────────────────────────────────────────────
+
+describe('resolveMarketplaceToken', () => {
+  function mockGithubConfig(baseUrl: string | undefined, token: string | undefined): void {
+    vi.mocked(loadConfig).mockReturnValue({ github: { baseUrl, token } } as ReturnType<typeof loadConfig>);
+  }
+
+  it('returns the explicit token unchanged when set, without consulting global config', () => {
+    expect(resolveMarketplaceToken('explicit-token', 'https://github.com/owner/repo.git')).toBe('explicit-token');
+    expect(loadConfig).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the resolved global GitHub token for a github.com repo when no explicit token is set', () => {
+    mockGithubConfig(undefined, 'global-github-token');
+    expect(resolveMarketplaceToken(undefined, 'https://github.com/owner/repo.git')).toBe('global-github-token');
+  });
+
+  it('falls back to the global token for a GitHub Enterprise Server host matching github.baseUrl', () => {
+    mockGithubConfig('https://ghe.imagile.dev/api/v3', 'ghes-token');
+    expect(resolveMarketplaceToken(undefined, 'https://ghe.imagile.dev/owner/repo.git')).toBe('ghes-token');
+  });
+
+  it('does not fall back for a non-GitHub host', () => {
+    mockGithubConfig(undefined, 'global-github-token');
+    expect(resolveMarketplaceToken(undefined, 'https://bitbucket.imagile.dev/scm/proj/repo.git')).toBeUndefined();
+  });
+
+  it('returns undefined when repoUrl is missing', () => {
+    expect(resolveMarketplaceToken(undefined, undefined)).toBeUndefined();
+  });
+
+  it('returns undefined when no global GitHub token is configured either', () => {
+    mockGithubConfig(undefined, undefined);
+    expect(resolveMarketplaceToken(undefined, 'https://github.com/owner/repo.git')).toBeUndefined();
+  });
+});
+
+// ── describeGitFailure ────────────────────────────────────────────────────────
+
+describe('describeGitFailure', () => {
+  it('rewrites a GitHub auth rejection into an actionable message naming the marketplace, when an explicit token was configured', () => {
+    const err = describeGitFailure(
+      'Command failed: git pull\nremote: Invalid username or token. Password authentication is not supported for Git operations.\nfatal: Authentication failed',
+      'my-marketplace',
+      'explicit'
+    );
+    expect(err.message).toContain('my-marketplace');
+    expect(err.message).toContain('The token configured for marketplace');
+    expect(err.message).toContain('was rejected');
+    expect(err.message).toContain('marketplace add <url> --token <new-token>');
+  });
+
+  it('rewrites a GitHub auth rejection to point at the global token when it came from the fallback', () => {
+    const err = describeGitFailure(
+      'fatal: Authentication failed for \'https://github.com/owner/repo.git/\'',
+      'my-marketplace',
+      'fallback'
+    );
+    expect(err.message).toContain('GitHub token pncli is using');
+    expect(err.message).toContain('github.token');
+    expect(err.message).toContain('my-marketplace');
+    expect(err.message).not.toContain('The token configured for marketplace');
+  });
+
+  it('points to adding a token when no token was configured and auth failed', () => {
+    const err = describeGitFailure('fatal: Authentication failed for \'https://github.com/owner/repo.git/\'', 'my-marketplace', 'none');
+    expect(err.message).toContain('requires authentication but no token is configured');
+  });
+
+  it('rewrites a "repository not found" failure into an access-check hint', () => {
+    const err = describeGitFailure('remote: Repository not found.', 'my-marketplace', 'explicit');
+    expect(err.message).toContain('was not found');
+    expect(err.message).toContain('my-marketplace');
+  });
+
+  it('rewrites a "repository not found" failure to reference the fallback token when that is what was used', () => {
+    const err = describeGitFailure('remote: Repository not found.', 'my-marketplace', 'fallback');
+    expect(err.message).toContain('was not found');
+    expect(err.message).toContain('pncli\'s configured GitHub token');
+  });
+
+  it('scrubs any embedded token before it reaches the rewritten message', () => {
+    const err = describeGitFailure(
+      'fatal: unable to access \'https://x-access-token:ghp_secret123@github.com/owner/repo.git/\': Authentication failed',
+      'my-marketplace',
+      'explicit'
+    );
+    expect(err.message).not.toContain('ghp_secret123');
+  });
+
+  it('passes unrelated errors through scrubbed but otherwise unchanged', () => {
+    const err = describeGitFailure('fatal: unable to access: Could not resolve host: github.com', 'my-marketplace', 'explicit');
+    expect(err.message).toBe('fatal: unable to access: Could not resolve host: github.com');
   });
 });
 

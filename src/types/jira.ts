@@ -1,23 +1,27 @@
 // Phase 3 — Jira Data Cloud types
 
-export type CustomFieldType =
-  | 'string'
-  | 'number'
-  | 'date'
-  | 'datetime'
-  | 'select'
-  | 'multi-select'
-  | 'option-id'
-  | 'cascading-select'
-  | 'user'
-  | 'labels'
-  | 'url'
-  | 'textarea';
+export const CUSTOM_FIELD_TYPES = [
+  'string',
+  'number',
+  'date',
+  'datetime',
+  'select',
+  'multi-select',
+  'option-id',
+  'cascading-select',
+  'user',
+  'labels',
+  'url',
+  'textarea'
+] as const;
+
+export type CustomFieldType = (typeof CUSTOM_FIELD_TYPES)[number];
 
 export interface CustomFieldDefinition {
   id: string;
   name: string;
-  type: CustomFieldType;
+  /** Drives how a `--field` value is shaped for Jira's API. Omitted = raw string. */
+  type?: CustomFieldType;
   description?: string;
   examples?: string[];
 }

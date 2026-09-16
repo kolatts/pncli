@@ -42,9 +42,27 @@ pncli jira set-sprint --key ACME-123 --sprint <sprint-id>
 
 `list-sprints` output includes `startDate`/`endDate`/`state`/`goal` for each sprint.
 
+## Custom fields
+
+Register a custom field once so `--field <Name>=value` and `--input-file` can address it by
+friendly name instead of its raw `customfield_NNNNN` id:
+
+```
+pncli config set jira.customFields '[{"id":"customfield_10100","name":"Epic Link","type":"select"}]'
+pncli jira update-issue --key ACME-123 --field "Epic Link=EPIC-100"
+```
+
+`jira.customFields` replaces the whole array — re-include every field you've already
+registered when adding another one. `type` drives how the value is shaped for Jira's API
+(see `pncli jira schema`); omit it to send the raw string value as-is. On Windows, run this
+from PowerShell (or wrap the JSON in double quotes with escaped inner quotes) — some shells
+mangle nested double quotes inside a single-quoted argument, which silently stores a broken
+value. `pncli jira fields` prints what's currently registered; `pncli jira fields --discover`
+fetches field metadata straight from the Jira API instead.
+
 ## Large fields via --input-file
 
-`create-issue` and `update-issue` accept `--input-file <path>` (`-` for stdin) instead of, or alongside, individual flags — useful for a long description or many custom fields at once. Run `pncli jira schema` to print the JSON Schema plus a runnable example. Any string value in `fields` may be `@path/to/file` to pull that field's content from a file (e.g. a big HTML description) instead of inlining it. Custom fields resolve by friendly name (if registered via `pncli jira fields`) or by raw id (`customfield_10032`) with no registration required. Individual flags (`--summary`, `--description`, `--field`, ...) override matching keys from the file; overridden keys are printed to stderr and included in the output's `meta.overrides`.
+`create-issue` and `update-issue` accept `--input-file <path>` (`-` for stdin) instead of, or alongside, individual flags — useful for a long description or many custom fields at once. Run `pncli jira schema` to print the JSON Schema plus a runnable example. Any string value in `fields` may be `@path/to/file` to pull that field's content from a file (e.g. a big HTML description) instead of inlining it. Custom fields resolve by friendly name (if registered — see **Custom fields** above) or by raw id (`customfield_10032`) with no registration required. Individual flags (`--summary`, `--description`, `--field`, ...) override matching keys from the file; overridden keys are printed to stderr and included in the output's `meta.overrides`.
 
 ```
 pncli jira schema --example-only > issue.json
