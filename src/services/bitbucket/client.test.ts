@@ -139,6 +139,55 @@ describe('BitbucketClient — addReviewer', () => {
   });
 });
 
+describe('BitbucketClient — createPR / updatePR reviewers', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('serializes createPR reviewers as user.name, not user.slug', async () => {
+    const calls: Array<{ url: string; method: string; body?: unknown }> = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      const body = init.body ? JSON.parse(init.body as string) : undefined;
+      calls.push({ url, method: init.method ?? 'GET', body });
+      return new Response(JSON.stringify({}), { status: 201 });
+    });
+
+    const client = new BitbucketClient(new HttpClient(makeConfig()));
+    await client.createPR({
+      project: 'PROJ',
+      repo: 'REPO',
+      title: 'Test PR',
+      source: 'feat',
+      target: 'main',
+      reviewers: ['jsmith', 'jdoe']
+    });
+
+    expect(calls).toHaveLength(1);
+    const body = calls[0].body as { reviewers: Array<{ user: Record<string, unknown> }> };
+    expect(body.reviewers).toEqual([{ user: { name: 'jsmith' } }, { user: { name: 'jdoe' } }]);
+  });
+
+  it('serializes updatePR reviewers as user.name, not user.slug', async () => {
+    const calls: Array<{ url: string; method: string; body?: unknown }> = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      const body = init.body ? JSON.parse(init.body as string) : undefined;
+      calls.push({ url, method: init.method ?? 'GET', body });
+      return new Response(JSON.stringify({}), { status: 200 });
+    });
+
+    const client = new BitbucketClient(new HttpClient(makeConfig()));
+    await client.updatePR({
+      project: 'PROJ',
+      repo: 'REPO',
+      id: 42,
+      version: 1,
+      reviewers: ['jsmith']
+    });
+
+    expect(calls).toHaveLength(1);
+    const body = calls[0].body as { reviewers: Array<{ user: Record<string, unknown> }> };
+    expect(body.reviewers).toEqual([{ user: { name: 'jsmith' } }]);
+  });
+});
+
 describe('BitbucketClient — needsWorkPR', () => {
   beforeEach(() => { vi.unstubAllGlobals(); });
   afterEach(() => { vi.unstubAllGlobals(); });

@@ -111,7 +111,7 @@ export class BitbucketClient {
               project: { key: opts.project }
             }
           },
-          reviewers: (opts.reviewers ?? []).map(slug => ({ user: { slug } }))
+          reviewers: (opts.reviewers ?? []).map(name => ({ user: { name } }))
         }
       }
     );
@@ -121,7 +121,7 @@ export class BitbucketClient {
     const body: Record<string, unknown> = { version: opts.version };
     if (opts.title) body.title = opts.title;
     if (opts.description !== undefined) body.description = opts.description;
-    if (opts.reviewers) body.reviewers = opts.reviewers.map(slug => ({ user: { slug } }));
+    if (opts.reviewers) body.reviewers = opts.reviewers.map(name => ({ user: { name } }));
 
     return this.http.bitbucket<BitbucketPR>(
       `${API}/projects/${opts.project}/repos/${opts.repo}/pull-requests/${opts.id}`,
