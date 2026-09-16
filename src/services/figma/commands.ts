@@ -98,20 +98,55 @@ export function parseFileKey(input: string): string {
 }
 
 /**
- * Extract a Figma node ID from either a raw ID or a full Figma URL's `node-id`
- * query param. Figma URLs encode node IDs with a dash (`node-id=123-456`) where
- * the API expects a colon (`123:456`); a raw ID passed directly is normalized
- * the same way so a value copy-pasted straight out of the URL bar works either way.
+ * Shape of a normalized Figma node ID: `123:456`, or for a node inside an
+ * instance, `I123:456;789:012` — one or more `<id>:<id>` segments joined by `;`.
  */
-export function parseNodeId(input: string): string | undefined {
-  let raw: string | undefined;
-  if (input.startsWith('http://') || input.startsWith('https://')) {
-    raw = new URL(input).searchParams.get('node-id') ?? undefined;
-  } else {
-    raw = input;
+const NODE_ID_PATTERN = /^[A-Za-z0-9]+:[A-Za-z0-9]+(?:;[A-Za-z0-9]+:[A-Za-z0-9]+)*$/;
+
+const NODE_ID_HINT = 'Expected a node ID like 12:34 or 12-34, or a Figma URL with a node-id query param';
+
+function isUrl(input: string): boolean {
+  return input.startsWith('http://') || input.startsWith('https://');
+}
+
+/**
+ * Extract a Figma node ID from either a raw ID or a full Figma URL's `node-id`
+ * query param. Figma URLs encode node IDs with dashes (`node-id=123-456`) where
+ * the API expects colons (`123:456`); a raw ID is normalized the same way so a
+ * value copy-pasted straight out of the URL bar works either way.
+ *
+ * Like `parseFileKey`, this is for an explicit user-supplied value and always
+ * yields an ID or throws — it never silently returns nothing. Use
+ * `findNodeIdInUrl` when the node ID is optional.
+ */
+export function parseNodeId(input: string): string {
+  let raw: string | null = input;
+  if (isUrl(input)) {
+    try {
+      raw = new URL(input).searchParams.get('node-id');
+    } catch {
+      raw = null;
+    }
+    if (raw === null) {
+      throw new Error(`Could not extract a Figma node ID from URL: ${input}\n${NODE_ID_HINT}`);
+    }
   }
-  if (!raw) return undefined;
-  return raw.includes(':') ? raw : raw.replace('-', ':');
+  const nodeId = raw.trim().replace(/-/g, ':');
+  if (!NODE_ID_PATTERN.test(nodeId)) {
+    throw new Error(`Invalid Figma node ID: ${input}\n${NODE_ID_HINT}`);
+  }
+  return nodeId;
+}
+
+/**
+ * Auto-detect an optional node ID from a Figma URL's `node-id` query param.
+ * Returns `undefined` when the URL has no `node-id` at all (the caller then
+ * fetches the whole file), but a `node-id` that is present and malformed is
+ * still an error rather than a silent fallback.
+ */
+export function findNodeIdInUrl(url: string): string | undefined {
+  if (!new URL(url).searchParams.has('node-id')) return undefined;
+  return parseNodeId(url);
 }
 
 function getHttp(program: Command): HttpClient {
@@ -136,8 +171,13 @@ export function registerFigmaCommands(program: Command): void {
       const { success, fail } = await import('../../lib/output.js');
       try {
         const fileKey = parseFileKey(fileKeyOrUrl);
-        const isUrl = fileKeyOrUrl.startsWith('http://') || fileKeyOrUrl.startsWith('https://');
-        const nodeId = opts.nodeId ? parseNodeId(opts.nodeId) : isUrl ? parseNodeId(fileKeyOrUrl) : undefined;
+        // An explicit --node-id must resolve or fail loudly; a node-id in the
+        // positional URL is optional and only used when present.
+        const nodeId = opts.nodeId
+          ? parseNodeId(opts.nodeId)
+          : isUrl(fileKeyOrUrl)
+            ? findNodeIdInUrl(fileKeyOrUrl)
+            : undefined;
 
         if (nodeId) {
           const data = await getHttp(program).figma<FigmaNodesResponse>(

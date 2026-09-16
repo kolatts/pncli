@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import fs from 'fs';
 import { Command } from 'commander';
-import { parseFileKey, parseNodeId, registerFigmaCommands } from './commands.js';
+import { findNodeIdInUrl, parseFileKey, parseNodeId, registerFigmaCommands } from './commands.js';
 
 function buildProgram(): Command {
   const program = new Command();
@@ -47,16 +47,53 @@ describe('parseNodeId', () => {
     expect(parseNodeId('https://www.figma.com/design/ABC123XYZ/My-Design?node-id=12-34')).toBe('12:34');
   });
 
-  it('returns undefined when the URL has no node-id param', () => {
-    expect(parseNodeId('https://www.figma.com/design/ABC123XYZ/My-Design')).toBeUndefined();
-  });
-
   it('normalizes a raw dash-separated node ID', () => {
     expect(parseNodeId('12-34')).toBe('12:34');
   });
 
   it('passes a raw colon-separated node ID through unchanged', () => {
     expect(parseNodeId('12:34')).toBe('12:34');
+  });
+
+  it('normalizes every dash in an instance sub-node ID', () => {
+    expect(parseNodeId('I12-34;56-78')).toBe('I12:34;56:78');
+  });
+
+  it('trims surrounding whitespace', () => {
+    expect(parseNodeId('  12-34 ')).toBe('12:34');
+  });
+
+  it('throws when the URL has no node-id param instead of returning nothing', () => {
+    expect(() => parseNodeId('https://www.figma.com/design/ABC123XYZ/My-Design')).toThrow(
+      'Could not extract a Figma node ID from URL: https://www.figma.com/design/ABC123XYZ/My-Design'
+    );
+  });
+
+  it('throws on an unparseable URL', () => {
+    expect(() => parseNodeId('https://')).toThrow('Could not extract a Figma node ID from URL: https://');
+  });
+
+  it.each(['', '   ', '1234', 'abc', '12:', ':34', '12:34;', 'https://www.figma.com/design/ABC123XYZ/My-Design?node-id=nope'])(
+    'rejects malformed node ID %j',
+    (input) => {
+      expect(() => parseNodeId(input)).toThrow('Invalid Figma node ID');
+    }
+  );
+});
+
+describe('findNodeIdInUrl', () => {
+  it('returns the normalized node-id when the URL has one', () => {
+    expect(findNodeIdInUrl('https://www.figma.com/design/ABC123XYZ/My-Design?node-id=12-34')).toBe('12:34');
+  });
+
+  it('returns undefined when the URL has no node-id param', () => {
+    expect(findNodeIdInUrl('https://www.figma.com/design/ABC123XYZ/My-Design')).toBeUndefined();
+  });
+
+  it('still throws when a node-id is present but malformed', () => {
+    expect(() => findNodeIdInUrl('https://www.figma.com/design/ABC123XYZ/My-Design?node-id=nope')).toThrow(
+      'Invalid Figma node ID'
+    );
   });
 });
 
@@ -134,6 +171,23 @@ describe('figma file — --node-id', () => {
     await expect(
       buildProgram().parseAsync(['node', 'pncli', 'figma', 'file', 'ABC123XYZ', '--node-id', '12-34'])
     ).rejects.toThrow('Node 12:34 not found in file ABC123XYZ');
+  });
+
+  it('fails instead of silently fetching the whole file when --node-id is a URL without a node-id', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubEnv('PNCLI_FIGMA_BASE_URL', 'https://api.figma.com');
+    vi.stubEnv('PNCLI_FIGMA_TOKEN', 'figma-tok');
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    vi.spyOn(fs, 'writeSync').mockImplementation(() => 0);
+
+    await expect(
+      buildProgram().parseAsync([
+        'node', 'pncli', 'figma', 'file', 'ABC123XYZ',
+        '--node-id', 'https://www.figma.com/design/ABC123XYZ/My-Design'
+      ])
+    ).rejects.toThrow('Could not extract a Figma node ID from URL');
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 
