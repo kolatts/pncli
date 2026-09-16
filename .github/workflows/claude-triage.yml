@@ -334,8 +334,12 @@ jobs:
                     3. `npm test`
                     Do NOT proceed to branch/commit/PR if any check fails.
                   - Create a branch named `claude/issue-${{ steps.issue.outputs.number }}`.
-                  - Commit your changes and push the branch.
-                  - Write the proposed PR title to `/tmp/pr-title.txt` and the complete PR body
+                  - Commit your changes and push the branch. Use a Conventional Commits subject
+                    (`fix(scope): ...` / `feat(scope): ...`) and a body that explains the change:
+                    if you skip the next step, the workflow builds the PR title and description
+                    from this commit message, so make it a good one.
+                  - Use the **Write tool** (not Bash — shell redirection is not in your allowlist)
+                    to write the proposed PR title to `/tmp/pr-title.txt` and the complete PR body
                     (including `Closes #${{ steps.issue.outputs.number }}`) to `/tmp/pr-body.md`.
                     The workflow creates the PR after your action finishes.
                   - Do not create the PR or post the implementation comment yourself. The workflow
@@ -400,13 +404,47 @@ jobs:
             echo "PR #$EXISTING already exists for $BRANCH_NAME"
             exit 0
           fi
-          TITLE="fix: issue #${{ steps.issue.outputs.number }} (automated)"
+          # The agent is asked to write /tmp/pr-title.txt and /tmp/pr-body.md, but
+          # it skips that step often enough (#436, #437, #457, #467) that the
+          # fallback is the common path. Its commit message is always a proper
+          # Conventional Commit with a real body, so build the PR from that
+          # instead of a placeholder title and a bare `Closes #N` — the old
+          # `fix: issue #N (automated)` title also mislabelled features as fixes
+          # in the release-please changelog.
+          ISSUE='${{ steps.issue.outputs.number }}'
+          BASE="${{ github.event.repository.default_branch }}"
+          RANGE="origin/${BASE}..${BRANCH}"
           if [ -s /tmp/pr-title.txt ]; then
             TITLE=$(head -1 /tmp/pr-title.txt)
+          else
+            # Oldest commit first: on a multi-commit branch the first one is the
+            # change, later ones are review fix-ups.
+            TITLE=$(git log --reverse --format=%s "$RANGE" | head -1)
+          fi
+          if [ -z "$TITLE" ]; then
+            TITLE="fix: issue #${ISSUE} (automated)"
           fi
           if [ ! -s /tmp/pr-body.md ]; then
-            printf 'Closes #%s\n' '${{ steps.issue.outputs.number }}' > /tmp/pr-body.md
+            {
+              # Commit bodies minus the trailers; the `Closes` line is re-added
+              # once at the end so it is present exactly once. `|| true` is
+              # load-bearing: this step runs under `bash -eo pipefail`, and
+              # `grep -v` exits 1 when it filters out every line (a commit with
+              # no body, or one that is only a `Closes #N` trailer), which would
+              # otherwise abort the step before `gh pr create` runs.
+              git log --reverse --format='%b' "$RANGE" \
+                | grep -viE '^(co-authored-by|signed-off-by): |^(closes|fixes|resolves) #[0-9]+$' \
+                | cat -s || true
+              if [ "$(git rev-list --count "$RANGE")" -gt 1 ]; then
+                echo "## Commits"
+                echo ""
+                git log --reverse --format='- %s' "$RANGE"
+                echo ""
+              fi
+              echo "Closes #${ISSUE}"
+            } > /tmp/pr-body.md
           fi
+          echo "PR title: $TITLE"
           echo "No PR found for $BRANCH_NAME — creating PR"
           PR_URL=$(gh_retry gh pr create \
             --title "$TITLE" \
