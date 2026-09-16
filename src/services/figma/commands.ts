@@ -64,6 +64,22 @@ interface FigmaProjectFilesResponse {
   files: FigmaProjectFile[];
 }
 
+interface FigmaNode {
+  document: unknown;
+  components?: Record<string, unknown>;
+  componentSets?: Record<string, unknown>;
+  styles?: Record<string, unknown>;
+  schemaVersion?: number;
+}
+
+interface FigmaNodesResponse {
+  name: string;
+  lastModified: string;
+  thumbnailUrl?: string;
+  err?: string | null;
+  nodes: Record<string, FigmaNode | null>;
+}
+
 /**
  * Extract a Figma file key from either a raw key or a full Figma URL.
  * Figma URLs follow the pattern: https://www.figma.com/design/<key>/...
@@ -81,6 +97,23 @@ export function parseFileKey(input: string): string {
   return input;
 }
 
+/**
+ * Extract a Figma node ID from either a raw ID or a full Figma URL's `node-id`
+ * query param. Figma URLs encode node IDs with a dash (`node-id=123-456`) where
+ * the API expects a colon (`123:456`); a raw ID passed directly is normalized
+ * the same way so a value copy-pasted straight out of the URL bar works either way.
+ */
+export function parseNodeId(input: string): string | undefined {
+  let raw: string | undefined;
+  if (input.startsWith('http://') || input.startsWith('https://')) {
+    raw = new URL(input).searchParams.get('node-id') ?? undefined;
+  } else {
+    raw = input;
+  }
+  if (!raw) return undefined;
+  return raw.includes(':') ? raw : raw.replace('-', ':');
+}
+
 function getHttp(program: Command): HttpClient {
   const opts = program.optsWithGlobals();
   return createHttpClient(
@@ -94,14 +127,45 @@ export function registerFigmaCommands(program: Command): void {
 
   figma
     .command('file')
-    .description('Get a Figma file — metadata, structure, and component/style inventory')
-    .argument('<file-key-or-url>', 'Figma file key or full Figma URL (https://www.figma.com/design/<key>/...)')
+    .description('Get a Figma file — metadata, structure, and component/style inventory (or a single node with --node-id)')
+    .argument('<file-key-or-url>', 'Figma file key or full Figma URL (https://www.figma.com/design/<key>/...); a node-id query param is auto-detected')
     .option('--document', 'Include the full document node tree (can be large; omitted by default)')
-    .action(async (fileKeyOrUrl: string, opts: { document?: boolean }) => {
+    .option('--node-id <id>', 'Fetch only this node and its descendants instead of the whole file (overrides any node-id detected in the URL)')
+    .action(async (fileKeyOrUrl: string, opts: { document?: boolean; nodeId?: string }) => {
       const start = Date.now();
       const { success, fail } = await import('../../lib/output.js');
       try {
         const fileKey = parseFileKey(fileKeyOrUrl);
+        const isUrl = fileKeyOrUrl.startsWith('http://') || fileKeyOrUrl.startsWith('https://');
+        const nodeId = opts.nodeId ? parseNodeId(opts.nodeId) : isUrl ? parseNodeId(fileKeyOrUrl) : undefined;
+
+        if (nodeId) {
+          const data = await getHttp(program).figma<FigmaNodesResponse>(
+            `/v1/files/${encodeURIComponent(fileKey)}/nodes`,
+            { params: { ids: nodeId } }
+          );
+          const node = data.nodes[nodeId];
+          if (!node) {
+            throw new Error(`Node ${nodeId} not found in file ${fileKey}`);
+          }
+          success(
+            {
+              fileKey,
+              nodeId,
+              name: data.name,
+              lastModified: data.lastModified,
+              thumbnailUrl: data.thumbnailUrl,
+              document: node.document,
+              componentCount: node.components ? Object.keys(node.components).length : 0,
+              styleCount: node.styles ? Object.keys(node.styles).length : 0
+            },
+            'figma',
+            'file',
+            start
+          );
+          return;
+        }
+
         const params: Record<string, string | number | boolean | undefined> = {};
         if (!opts.document) {
           params['depth'] = 1;
