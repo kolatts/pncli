@@ -43,6 +43,14 @@ pncli figma file "https://www.figma.com/design/ABCDEFGH1234/My-Design"
 # Include the full document node tree (can be large)
 pncli figma file ABCDEFGH1234 --document
 
+# Fetch a single node (frame, component, section) and its descendants instead
+# of the whole file — pass a URL copied straight from Figma's "Copy link to
+# selection" and the node-id query param is detected automatically
+pncli figma file "https://www.figma.com/design/ABCDEFGH1234/My-Design?node-id=12-34"
+
+# Or supply the node ID explicitly alongside a raw file key
+pncli figma file ABCDEFGH1234 --node-id 12:34
+
 # Get all comments on a file
 pncli figma comments ABCDEFGH1234
 
@@ -59,4 +67,5 @@ pncli figma project-files 123456789
 ## Notes
 
 - `figma file` returns a summary by default: name, last-modified, version, thumbnail URL, role, editor type, schema version, and counts of components and styles. Pass `--document` to include the full document node tree (this can be very large for complex designs).
+- When a node ID is supplied — via `--node-id` or auto-detected from a URL's `node-id` query param — pncli fetches only that node and its descendants instead of the whole file, and always includes the node's document tree (there's no need for `--document` in this mode). `--node-id` takes precedence over a node ID found in the URL. `--node-id` accepts `12:34`, `12-34`, or a Figma URL containing a `node-id` query param; a value it cannot parse (for example a file URL with no `node-id`) is an error rather than a silent fall back to the whole file.
 - Passing a Figma image (screenshot or export) rather than a link is **not supported** — pncli works with the Figma REST API only, not image analysis. Use the file key or URL instead.
