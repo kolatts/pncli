@@ -1,5 +1,15 @@
 # Changelog
 
+## [5.0.2](https://github.com/kolatts/pncli/compare/v5.0.1...v5.0.2) (2026-09-16)
+
+
+### Bug Fixes
+
+* **bitbucket:** send reviewer user.name instead of user.slug ([#462](https://github.com/kolatts/pncli/issues/462)) ([8f5eb51](https://github.com/kolatts/pncli/commit/8f5eb5159ef0f4dba183d5d95e0c6217f873df61)), closes [#461](https://github.com/kolatts/pncli/issues/461)
+* **ci:** claude-review cannot submit formal reviews or clean up comments ([#465](https://github.com/kolatts/pncli/issues/465)) ([c0bc02f](https://github.com/kolatts/pncli/commit/c0bc02fceb0ce4e7a9544d38682eead417fa70ea))
+* issue [#456](https://github.com/kolatts/pncli/issues/456) (automated) ([#457](https://github.com/kolatts/pncli/issues/457)) ([7444833](https://github.com/kolatts/pncli/commit/7444833a23d06efbdd861a5de0d6f4eae2dcb72c))
+* **jira:** validate jira.customFields entries instead of crashing ([#459](https://github.com/kolatts/pncli/issues/459)) ([a2e8249](https://github.com/kolatts/pncli/commit/a2e8249ce3f4533aed585254c500238734857096))
+
 ## [5.0.1](https://github.com/kolatts/pncli/compare/v5.0.0...v5.0.1) (2026-09-10)
 
 
