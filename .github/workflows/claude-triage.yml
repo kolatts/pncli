@@ -427,10 +427,14 @@ jobs:
           if [ ! -s /tmp/pr-body.md ]; then
             {
               # Commit bodies minus the trailers; the `Closes` line is re-added
-              # once at the end so it is present exactly once.
+              # once at the end so it is present exactly once. `|| true` is
+              # load-bearing: this step runs under `bash -eo pipefail`, and
+              # `grep -v` exits 1 when it filters out every line (a commit with
+              # no body, or one that is only a `Closes #N` trailer), which would
+              # otherwise abort the step before `gh pr create` runs.
               git log --reverse --format='%b' "$RANGE" \
                 | grep -viE '^(co-authored-by|signed-off-by): |^(closes|fixes|resolves) #[0-9]+$' \
-                | cat -s
+                | cat -s || true
               if [ "$(git rev-list --count "$RANGE")" -gt 1 ]; then
                 echo "## Commits"
                 echo ""
