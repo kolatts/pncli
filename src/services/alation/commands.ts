@@ -1,8 +1,10 @@
+import fs from 'fs';
 import { Command } from 'commander';
 import { loadConfig } from '../../lib/config.js';
 import { createHttpClient, type HttpClient } from '../../lib/http.js';
 import { success, fail, warn, writeRawOutput } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
+import { ExitCode } from '../../lib/exitCodes.js';
 import { readJsonInputFile, resolveAtFileRef, mergeWithOverrides } from '../../lib/input.js';
 import { validateAlationAccessToken } from '../../lib/alationFetch.js';
 
@@ -277,6 +279,13 @@ export function registerAlationCommands(program: Command): void {
       try {
         const opts = program.optsWithGlobals();
         const config = loadConfig({ configPath: opts.config as string | undefined });
+        if (opts.dryRun) {
+          // This command bypasses HttpClient, so honour --dry-run here: no token is minted.
+          fs.writeSync(process.stderr.fd, `DRY RUN: POST ${config.alation.baseUrl ?? '<alation.baseUrl>'}/integration/v1/createAPIAccessToken/ (token exchange skipped)
+`);
+          process.exitCode = ExitCode.SUCCESS;
+          throw new PncliError('dry-run', 0);
+        }
         const data = await validateAlationAccessToken(config);
         success(data, 'alation', 'token-status', start);
       } catch (err) { fail(err, 'alation', 'token-status', start); }

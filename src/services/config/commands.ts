@@ -378,7 +378,7 @@ export function registerConfigCommands(program: Command): void {
           results.figma = { ok: null, message: 'not configured' };
         }
 
-        if (cfg.alation.baseUrl && cfg.alation.refreshToken && cfg.alation.userId !== undefined) {
+        if (cfg.alation.baseUrl && cfg.alation.refreshToken && cfg.alation.userId !== undefined && cfg.alation.userId !== '') {
           try {
             await validateAlationAccessToken(cfg);
             results.alation = { ok: true, message: 'connected' };

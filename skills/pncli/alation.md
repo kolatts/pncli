@@ -25,7 +25,7 @@ pncli config set alation.userId 102
 pncli config test
 ```
 
-`pncli config check` and `pncli config test` verify the refresh token by minting and validating an access token.
+`pncli config check`, `pncli config test`, and `pncli alation token status` verify the refresh token by minting and validating an access token. Each of those calls creates a new 24-hour token on the server, so expect them to accumulate under **Settings → Authentication** until they expire; ordinary commands reuse one token per run.
 
 ## Commands
 

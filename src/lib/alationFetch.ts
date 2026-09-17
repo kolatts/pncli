@@ -106,11 +106,20 @@ export async function validateAlationAccessToken(config: ResolvedConfig): Promis
   const { baseUrl, userId } = requireAlationConfig(config);
   const minted = await createAlationAccessToken(config);
   const validateUrl = alationUrl(baseUrl, 'integration/v1/validateAPIAccessToken/');
-  const response = await fetch(validateUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify({ api_access_token: minted.api_access_token, user_id: userId })
-  });
+  let response: Response;
+  try {
+    response = await fetch(validateUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ api_access_token: minted.api_access_token, user_id: userId })
+    });
+  } catch (err) {
+    throw new PncliError(
+      `Alation token validation failed: ${err instanceof Error ? err.message : String(err)}`,
+      0,
+      validateUrl
+    );
+  }
   if (!response.ok) {
     const text = await response.text().catch(() => '');
     throw new PncliError(`Alation token validation failed (${response.status}): ${text || response.statusText}`, response.status, validateUrl);

@@ -7,7 +7,7 @@
 
 pncli gives AI coding agents (and humans) structured CLI access to the enterprise tools your org actually runs — Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, Checkmarx, and more. No MCP servers required. No meetings to schedule. No forms to fill out.
 
-The service list grows. Any enterprise tool that authenticates with a personal access token is a candidate — issue trackers and CI/CD, but equally design, docs, observability, and collaboration tools your agents need context from. [Request one](https://kolatts.github.io/pncli/feedback/).
+The service list grows. Any enterprise tool that authenticates with a long-lived credential you generate once (a personal access token, or a refresh token pncli can exchange over plain HTTP) is a candidate — issue trackers and CI/CD, but equally design, docs, observability, and collaboration tools your agents need context from. [Request one](https://kolatts.github.io/pncli/feedback/).
 
 ## Why?
 
@@ -138,7 +138,7 @@ Auth specifics and supported server versions for each service live in its [`skil
 
 Requests for new integrations are welcome for **any enterprise tool**, not just the SDLC categories above — design, documentation, observability, ITSM, and collaboration tools all count.
 
-The one hard requirement is authentication: the tool must support a **personal access token** — a long-lived static credential you generate in its own UI and paste into an env var or config file. Vendor naming doesn't matter (API token, user token, PAT). Tools whose only auth is interactive OAuth, SSO/SAML, username+password, a registered OAuth app, a cloud IAM credential chain, or mTLS can't be supported. Checkmarx (username + password via an OAuth2 password grant that pncli handles natively) predates this rule and is grandfathered. Two integrations have been removed for exactly this reason. ServiceNow went in v5.0.0: its personal access tokens are an opt-in instance feature many enterprises never enable, so in practice the integration authenticated with a username + password. IBM UrbanCode Deploy went in v2.0.0: UCD tokens are not usable as a standalone credential the way pncli requires, so its only workable auth was username + password.
+The one hard requirement is authentication: the tool must support a **long-lived credential you generate once in its own UI** and paste into an env var or config file, with no interactive step between that credential and an authenticated request. For almost every service that is a personal access token that goes straight into a header; vendor naming doesn't matter (API token, user token, PAT). A long-lived token that must first be exchanged for a short-lived one over a plain HTTP call also qualifies — Alation's refresh token is the example, and pncli performs that exchange itself. Tools whose only auth is interactive OAuth, SSO/SAML, username+password, a registered OAuth app, a cloud IAM credential chain, or mTLS can't be supported. Checkmarx's OAuth2 client-credentials path predates this rule and is grandfathered. Two integrations have been removed for exactly this reason. ServiceNow went in v5.0.0: its personal access tokens are an opt-in instance feature many enterprises never enable, so in practice the integration authenticated with a username + password. IBM UrbanCode Deploy went in v2.0.0: UCD tokens are not usable as a standalone credential the way pncli requires, so its only workable auth was username + password.
 
 ## License
 

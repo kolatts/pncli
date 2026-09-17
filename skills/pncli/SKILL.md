@@ -11,7 +11,7 @@ metadata:
 
 pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, GitHub, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, Checkmarx, Contrast Security IAST, Sonatype IQ Server, OpenShift / Kubernetes, Dynatrace, LogScale, Split.IO, Figma, and Alation.
 
-Every service authenticates with a long-lived credential you generate once in that tool's own UI and put in an env var or the config file — for almost all of them a personal access token that goes straight into a header. Alation is the one exception: you configure its refresh token, and pncli exchanges it for short-lived API tokens on every run without any interaction. If a tool you need is missing from the table below, it is not out of scope by default — pncli covers enterprise tooling broadly, and the only hard requirement is a credential you can generate once with no browser or interactive step at use time.
+Every service authenticates with a long-lived credential you generate once in that tool's own UI and put in an env var or the config file — for almost all of them a personal access token that goes straight into a header. Alation is the exception: you configure its refresh token, and pncli exchanges it for short-lived API tokens on every run without any interaction. If a tool you need is missing from the table below, it is not out of scope by default — pncli covers enterprise tooling broadly, and the only hard requirement is a credential you can generate once with no browser or interactive step at use time.
 
 ## Output and errors
 
