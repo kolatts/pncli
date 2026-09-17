@@ -27,6 +27,7 @@ function makeConfig(): ResolvedConfig {
     logscale: { baseUrl: undefined, token: undefined },
     splitio: { baseUrl: undefined, adminApiKey: undefined },
     figma: { baseUrl: undefined, token: undefined },
+    alation: { baseUrl: undefined, refreshToken: undefined, userId: undefined },
     defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, jenkins: {} }
   };
 }

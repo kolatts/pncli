@@ -52,6 +52,7 @@ const SERVICES = [
   { name: 'LogScale',                    file: 'src/services/logscale/commands.ts',       prefix: 'logscale' },
   { name: 'Split.IO',                    file: 'src/services/splitio/commands.ts',        prefix: 'splitio' },
   { name: 'Figma',                       file: 'src/services/figma/commands.ts',          prefix: 'figma' },
+  { name: 'Alation',                     file: 'src/services/alation/commands.ts',        prefix: 'alation' },
   { name: 'Skills',                      file: 'src/services/skills/commands.ts',         prefix: 'skills' },
   { name: 'JWT',                         file: 'src/services/jwt/commands.ts',            prefix: 'jwt' },
 ];

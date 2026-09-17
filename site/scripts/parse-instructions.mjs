@@ -37,7 +37,7 @@ function hideHiddenServices(text) {
       .filter((line) => !(line.startsWith('|') && line.split('|')[1]?.trim() === svc))
       .join('\n');
     // Drop mentions from comma-separated prose lists. The ", and X" form has to
-    // go first: the intro sentence ends "..., LogScale, Split.IO, and Figma.",
+    // go first: the intro sentence ends "..., Split.IO, Figma, and Alation.",
     // so matching only ", X" would leave a dangling "and" — or the service name
     // itself, which is the leak this list exists to prevent.
     text = text

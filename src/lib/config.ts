@@ -62,6 +62,9 @@ const ENV_KEYS = {
   SPLITIO_ADMIN_API_KEY: 'PNCLI_SPLITIO_ADMIN_API_KEY',
   FIGMA_BASE_URL: 'PNCLI_FIGMA_BASE_URL',
   FIGMA_TOKEN: 'PNCLI_FIGMA_TOKEN',
+  ALATION_BASE_URL: 'PNCLI_ALATION_BASE_URL',
+  ALATION_REFRESH_TOKEN: 'PNCLI_ALATION_REFRESH_TOKEN',
+  ALATION_USER_ID: 'PNCLI_ALATION_USER_ID',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -250,6 +253,11 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       baseUrl: process.env[ENV_KEYS.FIGMA_BASE_URL] ?? globalConfig.figma?.baseUrl,
       token: process.env[ENV_KEYS.FIGMA_TOKEN] ?? globalConfig.figma?.token,
     },
+    alation: {
+      baseUrl: process.env[ENV_KEYS.ALATION_BASE_URL] ?? globalConfig.alation?.baseUrl,
+      refreshToken: process.env[ENV_KEYS.ALATION_REFRESH_TOKEN] ?? globalConfig.alation?.refreshToken,
+      userId: process.env[ENV_KEYS.ALATION_USER_ID] ?? globalConfig.alation?.userId,
+    },
     defaults: mergedDefaults
   };
 }
@@ -428,6 +436,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     figma: {
       ...config.figma,
       token: config.figma.token ? '***' : undefined
+    },
+    alation: {
+      ...config.alation,
+      refreshToken: config.alation.refreshToken ? '***' : undefined
     }
   };
 }

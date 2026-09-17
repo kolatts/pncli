@@ -45,6 +45,7 @@ export const integrations: Integration[] = [
   { slug: 'logscale',    name: 'LogScale',       description: 'Log queries, repositories',      active: true, testing: 'untested' },
   { slug: 'figma',       name: 'Figma',          description: 'Design files, comments, history', active: true, testing: 'untested' },
   { slug: 'splitio',     name: 'Split.IO',       description: 'Feature flags, change requests', active: true, testing: 'untested' },
+  { slug: 'alation',     name: 'Alation',        description: 'Catalog metadata, search, documents', active: true, testing: 'untested' },
   { slug: 'deps',        name: 'Dependencies',   description: 'CVE detection, license audit',   active: true, testing: 'basic'    },
 ];
 
@@ -82,7 +83,7 @@ export const removedIntegrations: RemovedIntegration[] = [
     reason:
       'ServiceNow personal access tokens are an opt-in feature many enterprises never turn on, ' +
       'so in practice the integration fell back to a username and password. That fails pncli’s ' +
-      'authentication bar, which requires a personal access token and nothing else.',
+      'authentication bar, which requires a long-lived credential the user can generate on the instance they actually work against.',
   },
   {
     name: 'IBM UrbanCode Deploy',

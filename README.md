@@ -125,6 +125,7 @@ This project uses Conventional Commits for automatic versioning:
 | LogScale | ⚪ Untested | Log queries, repositories |
 | Figma | ⚪ Untested | Design files, comments, history |
 | Split.IO | ⚪ Untested | Feature flags, change requests |
+| Alation | ⚪ Untested | Catalog metadata, search, documents |
 
 Status reflects validation against a **real instance**, not code maturity: **Live** — used routinely day-to-day · **Beta** — exercised across several commands and instances · **Basic** — smoke-tested against one instance · **Untested** — shipped, not yet run against a live server. The [homepage](https://kolatts.github.io/pncli/) shows the same grid.
 

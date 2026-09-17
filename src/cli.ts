@@ -40,6 +40,7 @@ import { registerDynatraceCommands } from './services/dynatrace/commands.js';
 import { registerLogscaleCommands } from './services/logscale/commands.js';
 import { registerSplitioCommands } from './services/splitio/commands.js';
 import { registerFigmaCommands } from './services/figma/commands.js';
+import { registerAlationCommands } from './services/alation/commands.js';
 
 const TAGLINE = 'One command does what three meetings couldn\'t.';
 
@@ -96,6 +97,7 @@ registerDynatraceCommands(program);
 registerLogscaleCommands(program);
 registerSplitioCommands(program);
 registerFigmaCommands(program);
+registerAlationCommands(program);
 
 program.addHelpText('after', `
 Services:
@@ -118,6 +120,7 @@ Services:
   logscale     LogScale (log query, repositories)
   splitio      Split.IO (feature flags, Change Requests)
   figma        Figma (files, comments, version history)
+  alation      Alation (data sources, schemas, tables, columns, search, Document Hubs)
   config       Manage pncli configuration
   doctor       Diagnose pncli setup (config files, credentials, agent skills)
   skills       Install and manage agent skills (Codex, GitHub Copilot, Claude Code)
