@@ -29,6 +29,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     logscale: { baseUrl: undefined, token: undefined },
     splitio: { baseUrl: undefined, adminApiKey: undefined },
     figma: { baseUrl: undefined, token: undefined },
+    alation: { baseUrl: undefined, refreshToken: undefined, userId: undefined },
     defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, jenkins: {} },
     ...overrides
   };
@@ -384,6 +385,59 @@ describe('loadConfig — CI env var fallbacks', () => {
     process.env['GITHUB_TOKEN'] = 'ci-gh-token';
     const config = loadConfig({ configPath: globalConfigPath });
     expect(config.github.token).toBe('ci-gh-token');
+  });
+});
+
+describe('loadConfig — PNCLI_ALATION_* env vars', () => {
+  let tmpDir: string;
+  let globalConfigPath: string;
+
+  beforeEach(async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-test-'));
+    globalConfigPath = path.join(tmpDir, 'config.json');
+    fs.writeFileSync(globalConfigPath, JSON.stringify({}));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
+    const { execSync } = await import('child_process');
+    vi.mocked(execSync).mockReturnValue(tmpDir as unknown as ReturnType<typeof execSync>);
+  });
+
+  afterEach(() => {
+    delete process.env['PNCLI_ALATION_BASE_URL'];
+    delete process.env['PNCLI_ALATION_REFRESH_TOKEN'];
+    delete process.env['PNCLI_ALATION_USER_ID'];
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.clearAllMocks();
+  });
+
+  it('resolves all three alation fields from env vars', () => {
+    process.env['PNCLI_ALATION_BASE_URL'] = 'https://alation.imagile.dev';
+    process.env['PNCLI_ALATION_REFRESH_TOKEN'] = 'refresh-env';
+    process.env['PNCLI_ALATION_USER_ID'] = '102';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.alation).toEqual({ baseUrl: 'https://alation.imagile.dev', refreshToken: 'refresh-env', userId: '102' });
+  });
+
+  it('env vars win over stored config', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ alation: { baseUrl: 'https://stored.imagile.dev', refreshToken: 'stored', userId: 1 } }));
+    process.env['PNCLI_ALATION_REFRESH_TOKEN'] = 'env-token';
+    process.env['PNCLI_ALATION_USER_ID'] = '102';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.alation.baseUrl).toBe('https://stored.imagile.dev');
+    expect(config.alation.refreshToken).toBe('env-token');
+    expect(config.alation.userId).toBe('102');
+  });
+
+  it('falls back to stored config, keeping a numeric userId as written', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ alation: { baseUrl: 'https://alation.imagile.dev', refreshToken: 'stored', userId: 7 } }));
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.alation.userId).toBe(7);
+    expect(config.alation.refreshToken).toBe('stored');
+  });
+
+  it('masks refreshToken but not userId', () => {
+    const masked = maskConfig(baseConfig({ alation: { baseUrl: 'https://alation.imagile.dev', refreshToken: 'secret', userId: '102' } })) as ResolvedConfig;
+    expect(masked.alation.refreshToken).toBe('***');
+    expect(masked.alation.userId).toBe('102');
   });
 });
 

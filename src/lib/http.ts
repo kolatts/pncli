@@ -5,6 +5,7 @@ import { ExitCode } from './exitCodes.js';
 import { log, debug, isDebugEnabled } from './output.js';
 import { buildAdoFetcher } from './adoFetch.js';
 import { buildCheckmarxFetcher } from './checkmarxFetch.js';
+import { buildAlationFetcher } from './alationFetch.js';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
@@ -23,7 +24,7 @@ export interface HttpError {
   url: string;
 }
 
-const SENSITIVE_HEADERS = new Set(['authorization', 'api-key', 'x-figma-token']);
+const SENSITIVE_HEADERS = new Set(['authorization', 'api-key', 'x-figma-token', 'token']);
 
 // A Retry-After above this would otherwise block the process for that long — long
 // enough that a large value (misconfigured server, abuse-prevention lockout) makes
@@ -214,6 +215,7 @@ export class HttpClient {
   private dryRun: boolean;
   private adoFetcher: typeof fetch | null = null;
   private checkmarxFetcher: typeof fetch | null = null;
+  private alationFetcher: typeof fetch | null = null;
 
   constructor(config: ResolvedConfig, dryRun = false) {
     this.config = config;
@@ -1124,6 +1126,13 @@ export class HttpClient {
     return this.checkmarxFetcher;
   }
 
+  private getAlationFetcher(): typeof fetch {
+    if (!this.alationFetcher) {
+      this.alationFetcher = buildAlationFetcher(this.config);
+    }
+    return this.alationFetcher;
+  }
+
   private contrastHeaders(): Record<string, string> {
     const { apiKey, serviceKey, username } = this.config.contrast;
     if (!apiKey || !serviceKey || !username) {
@@ -1472,6 +1481,41 @@ export class HttpClient {
     }
 
     return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
+  /**
+   * Alation. The refresh token configured by the user is exchanged for a
+   * short-lived API access token inside the fetcher (see alationFetch.ts) and
+   * sent as the `TOKEN` header; no static credential goes on the wire here.
+   * Alation's paths are Django routes — keep the trailing slash.
+   */
+  async alation<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.alation.baseUrl;
+    if (!baseUrl) throw new PncliError('Alation baseUrl not configured. Run: pncli config set alation.baseUrl https://alation.imagile.dev');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+
+    if (this.dryRun) {
+      const msg = `DRY RUN: ${opts.method ?? 'GET'} ${url}
+`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}
+` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    const fetcher = this.getAlationFetcher();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', ...opts.headers },
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000, fetcher);
   }
 }
 

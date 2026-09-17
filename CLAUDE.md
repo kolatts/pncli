@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI coding agents and humans unified access to the enterprise tools their org runs — currently Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, Checkmarx, Contrast Security IAST, Sonatype IQ Server, OpenShift/Kubernetes, Dynatrace, LogScale, and GitHub. Built with TypeScript, Commander.js, and published as `@kolatts/pncli`.
+pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI coding agents and humans unified access to the enterprise tools their org runs — currently Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, Checkmarx, Contrast Security IAST, Sonatype IQ Server, OpenShift/Kubernetes, Dynatrace, LogScale, GitHub, Split.IO, Figma, and Alation. Built with TypeScript, Commander.js, and published as `@kolatts/pncli`.
 
 **That list is a snapshot, not the boundary.** Any enterprise tool that meets the bar in **Service Scope** below is a candidate. See that section before rejecting a new-integration request.
 
@@ -93,7 +93,7 @@ Every new branch that represents a work request must have a corresponding GitHub
 
 ## Adding a New Service Integration
 
-First confirm the service clears **Service Scope** below — in particular that it authenticates with a personal access token. If it doesn't, stop; no amount of implementation quality fixes a non-PAT auth story.
+First confirm the service clears **Service Scope** below — in particular that it authenticates with a long-lived credential the user generates once, with no interactive step between that credential and an authenticated request (see **The Authentication Bar**). If it doesn't, stop; no amount of implementation quality fixes a non-qualifying auth story.
 
 When adding a new service integration (new entry under `src/services/`), these files must all be updated together:
 
@@ -215,25 +215,32 @@ Do **not** reject a proposed integration on any of these grounds:
 
 ### The Authentication Bar
 
-**A new integration must authenticate with a personal access token — and nothing else.**
+**A new integration must authenticate with a long-lived credential the user generates once in the target tool's own UI, copies, and pastes into an env var or config file — and pncli must get from that credential to an authenticated request without any interactive step.**
 
-That means: a long-lived, static credential the user generates in the target tool's own UI, copies once, and pastes into an env var or config file. Vendor naming varies and does not matter — Jira "API token", SonarQube "user token", Jenkins "API token", Figma "personal access token", GitHub "fine-grained PAT" all qualify. What matters is that pncli's entire auth story is *put the string in a header*.
+The simplest and preferred shape is a personal access token that goes straight into a header. Vendor naming varies and does not matter — Jira "API token", SonarQube "user token", Jenkins "API token", Figma "personal access token", GitHub "fine-grained PAT" all qualify. When a PAT of this kind exists, pncli's entire auth story is *put the string in a header*.
+
+**Also acceptable: a long-lived credential that mints short-lived tokens over plain HTTP.** Some vendors issue a long-lived token from their UI that is *not* accepted by the data API directly; it has to be exchanged, through an ordinary REST call, for a short-lived access token that is. Alation is the case that set this rule: a 60-day refresh token, generated once in the Alation UI, is POSTed to `/integration/v1/createAPIAccessToken/` to obtain a 24-hour API access token that goes in the `TOKEN` header. That is in scope because every hop is a non-interactive HTTP request pncli makes itself, and the long-lived credential is the only input. When implementing one of these:
+
+- Follow `src/lib/alationFetch.ts`: exchange lazily on first request, cache the short-lived token in-process for the life of the `HttpClient`, and re-exchange before expiry.
+- Never write the short-lived token to disk, never prompt for anything mid-command, and never require the user to run the exchange by hand. If a token exchange is visible to the user at all, the integration is wrong.
+- The exchange endpoint's failure is an auth error for that service, surfaced as a `PncliError` naming the endpoint and status, not a raw fetch rejection.
+- Test the exchange, the cache, and the expiry/refresh path with a stubbed `fetch` per **Testing Rule**.
 
 Explicitly **out of scope, regardless of how useful the integration would be**:
 
 - Interactive OAuth flows — authorization code, browser redirect, or device code.
-- SSO / SAML / OIDC login, or anything that needs a browser session.
-- Username + password login, including password-grant token exchanges.
+- SSO / SAML / OIDC login, or anything that needs a browser session at use time. Generating the long-lived credential once in the vendor's web UI is fine — that is where every PAT comes from. Needing the browser *again* to use it is not.
+- Username + password login, including password-grant token exchanges. A refresh-token exchange is not a password grant: its input is a token the vendor issued, not an account password.
 - Client-credential exchanges that require the user to register an OAuth app or service principal.
 - Cloud IAM credential chains (`az`, `aws`, `gcloud`, instance metadata, workload identity).
 - Anything requiring another CLI or external command to mint a token — see **Self-Containment Rule**.
 - mTLS or client-certificate auth.
 
-If a tool's *only* supported auth is one of the above, deny the request and say specifically which mechanism it needs and why that's the blocker. If the tool supports a PAT *alongside* other mechanisms, it's in scope — implement the PAT path and only the PAT path.
+If a tool's *only* supported auth is one of the above, deny the request and say specifically which mechanism it needs and why that's the blocker. If the tool supports a qualifying credential *alongside* other mechanisms, it's in scope — implement the qualifying path and only that path.
 
-Checkmarx's OAuth2 password grant predates this rule and is grandfathered. Do not extend that pattern to anything new, and do not cite it as precedent for approving a non-PAT integration.
+Checkmarx's OAuth2 client-credentials path predates this rule and is grandfathered. Do not extend that pattern to anything new, and do not cite it as precedent for approving a client-credential or password-grant integration. Its API-key path is a refresh-token exchange of the kind described above and would clear the bar today.
 
-ServiceNow was removed in v5.0.0 for failing this bar: ServiceNow personal access tokens are an opt-in feature many enterprises never enable, so in practice the integration fell back to a username and password. “The vendor documents a PAT somewhere” is not enough — the bar is a PAT the user can actually generate on the instance they have to work against. Do not re-add it.
+ServiceNow was removed in v5.0.0 for failing this bar: ServiceNow personal access tokens are an opt-in feature many enterprises never enable, so in practice the integration fell back to a username and password. “The vendor documents a PAT somewhere” is not enough — the bar is a credential the user can actually generate on the instance they have to work against. Do not re-add it.
 
 IBM UrbanCode Deploy was removed in v2.0.0 for failing this bar: UCD has no personal access token usable as a standalone credential, so its only workable auth was a username and password — which meant asking users to put a real account password in a config file. It is not coming back; do not re-add it, and do not cite it as precedent.
 
@@ -245,7 +252,7 @@ Beyond auth, an integration must be a plain HTTP API call that returns structure
 
 pncli integrations must be self-contained. Users cannot be required to have any other CLI installed (e.g. `az`, `gcloud`, `kubectl`, `aws`) to obtain credentials, exchange tokens, or otherwise use a pncli command. The only external dependency allowed at runtime is the target service's HTTP API.
 
-For new integrations this collapses into the PAT rule above: the user supplies a token, pncli sets a header, there is no exchange to perform. Existing services that do perform a token exchange (Checkmarx) do it natively over HTTP inside pncli — never by shelling out — and remain grandfathered per **Service Scope**.
+For most integrations this collapses into the PAT rule above: the user supplies a token, pncli sets a header, there is no exchange to perform. Where the vendor requires a long-lived credential to be exchanged for a short-lived token (Alation's refresh token, Checkmarx's API key), pncli performs that exchange natively over HTTP inside the process — never by shelling out, never by asking the user to fetch the token first — per **The Authentication Bar**.
 
 ## Testing Rule
 

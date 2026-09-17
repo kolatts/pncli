@@ -19,6 +19,7 @@ import { AdoCoreClient } from '../ado/client/core.js';
 import { AdoWorkClient } from '../ado/client/work.js';
 import { discoverFields, discoverTypes, buildDefaultAliases } from '../ado/discovery.js';
 import { runCredentialChecks } from './check.js';
+import { validateAlationAccessToken } from '../../lib/alationFetch.js';
 import { success, fail, warn } from '../../lib/output.js';
 import { hasInstalledPncliSkill } from '../skills/commands.js';
 import { ExitCode } from '../../lib/exitCodes.js';
@@ -377,6 +378,17 @@ export function registerConfigCommands(program: Command): void {
           results.figma = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.alation.baseUrl && cfg.alation.refreshToken && cfg.alation.userId !== undefined && cfg.alation.userId !== '') {
+          try {
+            await validateAlationAccessToken(cfg);
+            results.alation = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.alation = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.alation = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -413,7 +425,7 @@ export function registerConfigCommands(program: Command): void {
         const allServices = [
           'jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins',
           'artifactory', 'checkmarx', 'contrast', 'sonatypeiq', 'openshift',
-          ...clusterKeys, 'dynatrace', 'dynatrace_platform', ...dynamicEnvKeys, 'logscale', 'splitio', 'figma'
+          ...clusterKeys, 'dynatrace', 'dynatrace_platform', ...dynamicEnvKeys, 'logscale', 'splitio', 'figma', 'alation'
         ];
 
         if (cmdOpts.output === 'table') {
@@ -1132,6 +1144,54 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── Alation ───────────────────────────────────────\n');
+  const useAlation = await confirm({
+    message: 'Configure Alation for data catalog and Document Hub access?',
+    default: false
+  });
+
+  let alationBaseUrl = '';
+  let alationRefreshToken = '';
+  let alationUserId = '';
+
+  if (useAlation) {
+    process.stderr.write('  Generate a refresh token in Alation under your profile → Settings → Authentication → Create Refresh Token.\n');
+    process.stderr.write('  Note the numeric user ID shown with it; pncli exchanges the refresh token for short-lived API tokens itself.\n');
+
+    alationBaseUrl = await input({
+      message: 'Alation base URL (e.g. https://alation.imagile.dev):',
+      validate: (v) => v.trim().length > 0 || 'Required'
+    });
+
+    alationRefreshToken = await password({
+      message: 'Alation refresh token:'
+    });
+
+    alationUserId = await input({
+      message: 'Alation user ID (numeric):',
+      validate: (v) => /^\d+$/.test(v.trim()) || 'Must be a positive integer'
+    });
+
+    if (alationBaseUrl && alationRefreshToken && alationUserId) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          alation: {
+            baseUrl: normalizeBaseUrl(alationBaseUrl),
+            refreshToken: alationRefreshToken,
+            userId: alationUserId.trim()
+          }
+        };
+        await validateAlationAccessToken(tempConfig as Parameters<typeof createHttpClient>[0]);
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to Alation: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your URL, refresh token, and user ID and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -1301,6 +1361,13 @@ async function initGlobalConfig(start: number): Promise<void> {
       figma: {
         baseUrl: 'https://api.figma.com',
         token: figmaToken
+      }
+    } : {}),
+    ...(useAlation && alationBaseUrl ? {
+      alation: {
+        baseUrl: normalizeBaseUrl(alationBaseUrl),
+        refreshToken: alationRefreshToken || undefined,
+        userId: alationUserId.trim() || undefined
       }
     } : {}),
     defaults: {

@@ -24,6 +24,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     logscale: { baseUrl: undefined, token: undefined },
     splitio: { baseUrl: undefined, adminApiKey: undefined },
     figma: { baseUrl: undefined, token: undefined },
+    alation: { baseUrl: undefined, refreshToken: undefined, userId: undefined },
     defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, jenkins: {} },
     ...overrides
   };
@@ -851,6 +852,55 @@ describe('HttpClient — Figma', () => {
     const config = baseConfig({ figma: { baseUrl: 'https://api.figma.com', token: 'tok' } });
     const client = new HttpClient(config, true);
     await expect(client.figma('/v1/me')).rejects.toMatchObject({ status: 0, message: 'dry-run' });
+  });
+});
+
+describe('HttpClient — Alation', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const alation = { baseUrl: 'https://alation.imagile.dev', refreshToken: 'refresh-abc', userId: '102' };
+
+  it('throws on missing baseUrl', async () => {
+    const client = new HttpClient(baseConfig({ alation: { ...alation, baseUrl: undefined } }));
+    await expect(client.alation('integration/v2/table/')).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('throws on missing refreshToken before any request', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const client = new HttpClient(baseConfig({ alation: { ...alation, refreshToken: undefined } }));
+    await expect(client.alation('integration/v2/table/')).rejects.toMatchObject({ name: 'PncliError' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('exchanges the refresh token once and sends TOKEN (not Authorization) on data requests', async () => {
+    const calls: { url: string; headers: Record<string, string> }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      calls.push({ url: String(url), headers: Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()) });
+      if (String(url).includes('createAPIAccessToken')) {
+        return new Response('{"api_access_token":"short","user_id":102,"token_expires_at":"2099-01-01T00:00:00Z"}', { status: 200 });
+      }
+      return new Response('[]', { status: 200 });
+    });
+    const client = new HttpClient(baseConfig({ alation }));
+    await client.alation('integration/v2/table/', { params: { limit: 1 } });
+    await client.alation('integration/v2/schema/');
+    expect(calls.map((c) => c.url)).toEqual([
+      'https://alation.imagile.dev/integration/v1/createAPIAccessToken/',
+      'https://alation.imagile.dev/integration/v2/table/?limit=1',
+      'https://alation.imagile.dev/integration/v2/schema/'
+    ]);
+    expect(calls[1]?.headers['token']).toBe('short');
+    expect(calls[1]?.headers['authorization']).toBeUndefined();
+    expect(calls[0]?.headers['token']).toBeUndefined();
+  });
+
+  it('throws PncliError with status 0 on dry-run without exchanging a token', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const client = new HttpClient(baseConfig({ alation }), true);
+    await expect(client.alation('integration/v2/table/')).rejects.toMatchObject({ status: 0, message: 'dry-run' });
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 

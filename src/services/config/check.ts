@@ -1,5 +1,6 @@
 import { createHttpClient } from '../../lib/http.js';
 import type { ResolvedConfig } from '../../types/config.js';
+import { validateAlationAccessToken } from '../../lib/alationFetch.js';
 import { checkArtifactoryConnectivity } from '../deps/clients/artifactory.js';
 
 export type CheckStatus = 'blank' | 'valid' | 'invalid' | 'error';
@@ -372,6 +373,22 @@ export async function runCredentialChecks(cfg: ResolvedConfig, http: HttpClient)
       results.figma = { status: 'valid', message: 'ok' };
     } catch (err) {
       results.figma = categorize(err);
+    }
+  }
+
+  // Alation — validates the refresh token by minting a short-lived API access token
+  if (!cfg.alation.refreshToken) {
+    results.alation = { status: 'blank', message: 'not configured' };
+  } else if (!cfg.alation.baseUrl) {
+    results.alation = { status: 'error', message: 'baseUrl not configured' };
+  } else if (cfg.alation.userId === undefined || cfg.alation.userId === '') {
+    results.alation = { status: 'error', message: 'userId not configured' };
+  } else {
+    try {
+      await validateAlationAccessToken(cfg);
+      results.alation = { status: 'valid', message: 'ok' };
+    } catch (err) {
+      results.alation = categorize(err);
     }
   }
 

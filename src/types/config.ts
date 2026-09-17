@@ -184,6 +184,15 @@ export interface FigmaConfig {
   token?: string;
 }
 
+export interface AlationConfig {
+  /** Alation instance base URL, for example https://alation.imagile.dev */
+  baseUrl?: string;
+  /** Long-lived refresh token generated in Alation under Settings → Authentication (60-day default) */
+  refreshToken?: string;
+  /** Numeric ID of the user the refresh token was created for; Alation requires it on the token exchange */
+  userId?: string | number;
+}
+
 export interface MarketplaceConfig {
   name?: string;
   repoUrl?: string;
@@ -226,6 +235,7 @@ export interface GlobalConfig {
   logscale?: LogscaleConfig;
   splitio?: SplitioConfig;
   figma?: FigmaConfig;
+  alation?: AlationConfig;
   marketplace?: MarketplaceConfig;
   marketplaces?: MarketplaceConfig[];
   /**
@@ -333,6 +343,12 @@ export interface ResolvedConfig {
   figma: {
     baseUrl: string | undefined;
     token: string | undefined;
+  };
+  alation: {
+    baseUrl: string | undefined;
+    refreshToken: string | undefined;
+    /** Kept as-written; validated to a positive integer when Alation is actually used. */
+    userId: string | number | undefined;
   };
   defaults: {
     jira: JiraDefaults;

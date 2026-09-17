@@ -9,9 +9,9 @@ metadata:
   services: config
 ---
 
-pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, GitHub, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, Checkmarx, Contrast Security IAST, Sonatype IQ Server, OpenShift / Kubernetes, Dynatrace, LogScale, Split.IO, and Figma.
+pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, GitHub, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, Checkmarx, Contrast Security IAST, Sonatype IQ Server, OpenShift / Kubernetes, Dynatrace, LogScale, Split.IO, Figma, and Alation.
 
-Every service authenticates the same way: a personal access token you generate in that tool's own UI and put in an env var or the config file. If a tool you need is missing from the table below, it is not out of scope by default — pncli covers enterprise tooling broadly, and the only hard requirement is personal-access-token auth.
+Every service authenticates with a long-lived credential you generate once in that tool's own UI and put in an env var or the config file — for almost all of them a personal access token that goes straight into a header. Alation is the exception: you configure its refresh token, and pncli exchanges it for short-lived API tokens on every run without any interaction. If a tool you need is missing from the table below, it is not out of scope by default — pncli covers enterprise tooling broadly, and the only hard requirement is a credential you can generate once with no browser or interactive step at use time.
 
 ## Output and errors
 
@@ -106,6 +106,7 @@ Each service has its own file in this skill with the config keys and example val
 | LogScale | `logscale.md` | Log queries, repository listing |
 | Split.IO | `splitio.md` | Feature flag discovery, targeting updates, Change Requests |
 | Figma | `figma.md` | Design files, comments, version history |
+| Alation | `alation.md` | Data catalog metadata (data sources, schemas, tables, columns), search, Document Hubs |
 | Skills Marketplace | `marketplace.md` | Install org-internal skills |
 
 ## Installing skills
