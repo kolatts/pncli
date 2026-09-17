@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.1.0](https://github.com/kolatts/pncli/compare/v5.0.2...v5.1.0) (2026-09-17)
+
+
+### Features
+
+* **alation:** add Alation integration and allow HTTP-only token exchange in the auth bar ([#473](https://github.com/kolatts/pncli/issues/473)) ([7ebd733](https://github.com/kolatts/pncli/commit/7ebd733a723b9d850ce3cd755d15a06dd75580e1))
+* **figma:** support fetching a single node via --node-id or URL ([#467](https://github.com/kolatts/pncli/issues/467)) ([a28cd75](https://github.com/kolatts/pncli/commit/a28cd755038d915edbafb1a35f655995997b7028))
+
+
+### Bug Fixes
+
+* **ci:** build triage PR title and body from the commit when the agent skips the side files ([#469](https://github.com/kolatts/pncli/issues/469)) ([2064414](https://github.com/kolatts/pncli/commit/20644143286b64cf571422a1aefb9f858e97d47c))
+
 ## [5.0.2](https://github.com/kolatts/pncli/compare/v5.0.1...v5.0.2) (2026-09-16)
 
 
