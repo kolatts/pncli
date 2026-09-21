@@ -296,12 +296,12 @@ export function registerBitbucketCommands(program: Command): void {
     .description('Resolve a comment on a pull request')
     .requiredOption('--pr <pr-id>', 'Pull request ID')
     .requiredOption('--comment-id <id>', 'Comment ID')
-    .option('--version <n>', 'Comment version', '0')
-    .action(async (opts: { pr: string; commentId: string; version?: string }) => {
+    .option('--comment-version <n>', 'Comment version, as reported by list-comments', '0')
+    .action(async (opts: { pr: string; commentId: string; commentVersion?: string }) => {
       const start = Date.now();
       try {
         const { client, project, repo } = getClient(bb);
-        await client.resolveComment(project, repo, parseInt(opts.pr, 10), parseInt(opts.commentId, 10), parseInt(opts.version ?? '0', 10));
+        await client.resolveComment(project, repo, parseInt(opts.pr, 10), parseInt(opts.commentId, 10), parseInt(opts.commentVersion ?? '0', 10));
         success({ resolved: true }, 'bitbucket', 'resolve-comment', start);
       } catch (err) { fail(err, 'bitbucket', 'resolve-comment', start); }
     });
@@ -310,12 +310,12 @@ export function registerBitbucketCommands(program: Command): void {
     .description('Delete a comment on a pull request')
     .requiredOption('--pr <pr-id>', 'Pull request ID')
     .requiredOption('--comment-id <id>', 'Comment ID')
-    .option('--version <n>', 'Comment version', '0')
-    .action(async (opts: { pr: string; commentId: string; version?: string }) => {
+    .option('--comment-version <n>', 'Comment version, as reported by list-comments', '0')
+    .action(async (opts: { pr: string; commentId: string; commentVersion?: string }) => {
       const start = Date.now();
       try {
         const { client, project, repo } = getClient(bb);
-        await client.deleteComment(project, repo, parseInt(opts.pr, 10), parseInt(opts.commentId, 10), parseInt(opts.version ?? '0', 10));
+        await client.deleteComment(project, repo, parseInt(opts.pr, 10), parseInt(opts.commentId, 10), parseInt(opts.commentVersion ?? '0', 10));
         success({ deleted: true }, 'bitbucket', 'delete-comment', start);
       } catch (err) { fail(err, 'bitbucket', 'delete-comment', start); }
     });
