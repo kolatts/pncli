@@ -195,6 +195,33 @@ describe('managed block', () => {
   it('reports not removed when no block exists', () => {
     expect(removeManagedBlock('plain\n', 'org')).toEqual({ content: 'plain\n', removed: false });
   });
+
+  it('never rewrites whitespace elsewhere in the file on remove', () => {
+    const personal = '# Mine\n\n\n\n```\ncode\n\n\n\nmore\n```\n';
+    const withBlock = upsertManagedBlock(personal, 'org', block()).content;
+    expect(removeManagedBlock(withBlock, 'org').content).toBe(personal);
+
+    const trailing = 'a\n\n\n';
+    const withBlock2 = upsertManagedBlock(trailing, 'org', block()).content;
+    expect(removeManagedBlock(withBlock2, 'org').content).toBe(trailing);
+  });
+
+  it('removes a block that opens the file without leaving a leading blank line', () => {
+    let content = upsertManagedBlock('', 'org', block('org', 'first')).content;
+    content += '\n# Mine\n';
+    expect(removeManagedBlock(content, 'org').content).toBe('# Mine\n');
+  });
+
+  it('adopts CRLF line endings from the file and compares equal on a re-run', () => {
+    const personal = '# Mine\r\n\r\nkeep me\r\n';
+    const { content, action } = upsertManagedBlock(personal, 'org', block());
+    expect(action).toBe('added');
+    expect(content.startsWith(personal)).toBe(true);
+    expect(content).not.toMatch(/[^\r]\n/);
+    expect(upsertManagedBlock(content, 'org', block()).action).toBe('unchanged');
+    expect(upsertManagedBlock(content, 'org', block('org', 'v2')).action).toBe('updated');
+    expect(removeManagedBlock(content, 'org').content).toBe(personal);
+  });
 });
 
 describe('applyMarketplaceInstructions', () => {

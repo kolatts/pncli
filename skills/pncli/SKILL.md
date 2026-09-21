@@ -107,7 +107,7 @@ Each service has its own file in this skill with the config keys and example val
 | Split.IO | `splitio.md` | Feature flag discovery, targeting updates, Change Requests |
 | Figma | `figma.md` | Design files, comments, version history |
 | Alation | `alation.md` | Data catalog metadata (data sources, schemas, tables, columns), search, Document Hubs |
-| Skills Marketplace | `marketplace.md` | Install org-internal skills |
+| Skills Marketplace | `marketplace.md` | Org plugins and shipped AGENTS.md / CLAUDE.md from git marketplaces |
 
 ## Installing skills
 

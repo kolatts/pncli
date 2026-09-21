@@ -1232,7 +1232,7 @@ interface MarketplaceAddOptions {
   agent?: string;
   claude?: boolean;
   allAgents?: boolean;
-  /** Commander's negatable `--no-instructions`; undefined means enabled. */
+  /** Commander's negatable `--no-instructions`: true unless the flag is passed (undefined when called programmatically). */
   instructions?: boolean;
 }
 
@@ -1750,8 +1750,10 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
     .option('--all-agents', 'Install to every supported agent host in one run')
     .option('--no-instructions', 'Do not apply the shipped AGENTS.md / CLAUDE.md to user-level instructions files')
     .action((url: string, localPath: string | undefined, opts: MarketplaceAddOptions) => {
-      // Preserve the historical meta.action for callers that invoked the alias.
-      const invokedAs = process.argv.includes('setup') && !process.argv.includes('add') ? 'marketplace-setup' : 'marketplace-add';
+      // Preserve the historical meta.action for callers that invoked the alias. Only the
+      // token right after `marketplace` counts, so a URL or --name of "setup" cannot flip it.
+      const marketplaceIdx = process.argv.indexOf('marketplace');
+      const invokedAs = marketplaceIdx !== -1 && process.argv[marketplaceIdx + 1] === 'setup' ? 'marketplace-setup' : 'marketplace-add';
       return marketplaceAddAction(url, localPath, opts, invokedAs);
     });
 
@@ -2213,7 +2215,7 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
 
   marketplace
     .command('manage')
-    .description('Manage marketplaces and plugins: toggle plugins on/off, add or remove marketplaces (interactive)')
+    .description('Manage marketplaces and plugins: toggle plugins on/off, sync every marketplace, apply shipped AGENTS.md / CLAUDE.md, add or remove marketplaces (interactive)')
     .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--scope <scope>', 'Installation scope: project | user (default: user)')
@@ -2221,7 +2223,7 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
     .action(async (opts: { agent?: string; claude?: boolean; scope?: string; target?: string }) => {
       const start = Date.now();
       try {
-        assertInteractive('Use `pncli skills marketplace enable|disable <plugin>`, `add <url>`, and `remove <name>` to manage non-interactively.');
+        assertInteractive('Use `pncli skills marketplace enable|disable <plugin>`, `sync --marketplace all`, `instructions install`, `add <url>`, and `remove <name>` to manage non-interactively.');
         const targetDir = resolveTargetDir(opts);
 
         interface PluginChange { plugin: string; marketplace?: string; skills: string[] }
@@ -2230,8 +2232,9 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
         const stashMissing: string[] = [];
         const addedMarketplaces: Record<string, unknown>[] = [];
         const removedMarketplaces: Record<string, unknown>[] = [];
-        const syncedMarketplaces: Record<string, unknown>[] = [];
-        const appliedInstructions: Record<string, unknown>[] = [];
+        // Keyed by marketplace so choosing Sync twice reports the latest outcome, not duplicates.
+        const syncedMarketplaces = new Map<string, Record<string, unknown>>();
+        const appliedInstructions = new Map<string, Record<string, unknown>>();
         // Instructions files belong to an agent host; a custom --target has no host to map to.
         const instructionAgents = opts.target ? [] : [resolveAgentName(opts)];
 
@@ -2258,14 +2261,14 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
           if (action === 'sync') {
             const syncTargets: InstallTarget[] = [{ agent: opts.target ? 'custom' : resolveAgentName(opts), target: targetDir }];
             for (const m of registered) {
-              syncedMarketplaces.push(syncMarketplacePlugins(m, syncTargets, 'all', { force: false, installedOnly: false, instructions: instructionAgents.length > 0 }));
+              syncedMarketplaces.set(marketplaceLabel(m), syncMarketplacePlugins(m, syncTargets, 'all', { force: false, installedOnly: false, instructions: instructionAgents.length > 0 }));
             }
             continue;
           }
 
           if (action === 'instructions') {
             for (const m of shipping) {
-              appliedInstructions.push({ marketplace: marketplaceLabel(m), agents: applyMarketplaceInstructions(m.localPath as string, marketplaceLabel(m), instructionAgents) });
+              appliedInstructions.set(marketplaceLabel(m), { marketplace: marketplaceLabel(m), agents: applyMarketplaceInstructions(m.localPath as string, marketplaceLabel(m), instructionAgents) });
             }
             continue;
           }
@@ -2329,6 +2332,8 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
               name: name || undefined,
               agent: opts.agent,
               claude: opts.claude,
+              // A custom --target has no agent host to map instructions onto.
+              instructions: instructionAgents.length > 0,
             }));
           } else if (action === 'remove') {
             const chosen = await select({
@@ -2350,8 +2355,8 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
           disabled: disabledPlugins,
           addedMarketplaces,
           removedMarketplaces,
-          syncedMarketplaces,
-          appliedInstructions,
+          syncedMarketplaces: [...syncedMarketplaces.values()],
+          appliedInstructions: [...appliedInstructions.values()],
           target: targetDir,
           ...(stashMissing.length > 0 ? {
             stashMissing,

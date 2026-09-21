@@ -131,31 +131,50 @@ export function renderManagedBlock(marketplaceName: string, body: string, source
 
 export type BlockAction = 'added' | 'updated' | 'unchanged';
 
+/** The line ending a file already uses, so a block written into it does not mix endings. */
+function detectEol(content: string): '\r\n' | '\n' {
+  return /\r\n/.test(content) ? '\r\n' : '\n';
+}
+
 /**
  * Inserts or replaces the managed block for a marketplace in an instructions file's content.
- * Everything outside the block is preserved byte-for-byte.
+ * Everything outside the block is preserved byte-for-byte; the block adopts the file's own
+ * line endings so a CRLF file stays CRLF and a re-run compares equal.
  */
 export function upsertManagedBlock(existing: string, marketplaceName: string, block: string): { content: string; action: BlockAction } {
+  const eol = detectEol(existing);
+  const rendered = block.replace(/\n/g, eol);
   const pattern = blockPattern(marketplaceName);
   const match = pattern.exec(existing);
   if (match) {
-    if (match[0] === block) return { content: existing, action: 'unchanged' };
-    return { content: existing.replace(pattern, () => block), action: 'updated' };
+    if (match[0] === rendered) return { content: existing, action: 'unchanged' };
+    return { content: existing.slice(0, match.index) + rendered + existing.slice(match.index + match[0].length), action: 'updated' };
   }
-  const separator = existing.length === 0 ? '' : existing.endsWith('\n\n') ? '' : existing.endsWith('\n') ? '\n' : '\n\n';
-  return { content: `${existing}${separator}${block}\n`, action: 'added' };
+  // Always add exactly one separating line (two when the file lacks a trailing newline) so
+  // `removeManagedBlock` can take back precisely what was added and restore the file.
+  const separator = existing.length === 0 ? '' : existing.endsWith(eol) ? eol : eol + eol;
+  return { content: `${existing}${separator}${rendered}${eol}`, action: 'added' };
 }
 
-/** Removes the managed block for a marketplace, collapsing the blank lines it leaves behind. */
+/**
+ * Removes the managed block for a marketplace. Only the block itself and the blank line
+ * `upsertManagedBlock` put around it are cut; the rest of the file is untouched.
+ */
 export function removeManagedBlock(existing: string, marketplaceName: string): { content: string; removed: boolean } {
-  const pattern = blockPattern(marketplaceName);
-  if (!pattern.test(existing)) return { content: existing, removed: false };
-  const content = existing
-    .replace(pattern, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/^\n+/, '')
-    .replace(/\n{2,}$/, '\n');
-  return { content, removed: true };
+  const match = blockPattern(marketplaceName).exec(existing);
+  if (!match) return { content: existing, removed: false };
+  const eol = detectEol(existing);
+  let start = match.index;
+  let end = start + match[0].length;
+
+  // The block's own terminating newline.
+  if (existing.startsWith(eol, end)) end += eol.length;
+  // The blank line that separated it from the content before it — or, when the block
+  // opened the file, the blank line that separated it from the content after it.
+  if (existing.slice(0, start).endsWith(eol + eol)) start -= eol.length;
+  else if (start === 0 && existing.startsWith(eol, end)) end += eol.length;
+
+  return { content: existing.slice(0, start) + existing.slice(end), removed: true };
 }
 
 /** Marketplace names that have a managed block in the given content, in file order. */

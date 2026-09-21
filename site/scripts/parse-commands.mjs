@@ -175,6 +175,12 @@ function extractCommands(filePath, prefix) {
     for (const m of afterCmd.matchAll(new RegExp(`\\.(requiredOption|option)\\s*\\(\\s*${STRING_LITERAL}\\s*,\\s*${STRING_LITERAL}`, 'g'))) {
       const flag = literalText(m, 2);
       const help = literalText(m, 4);
+      // An interpolation we could not resolve would ship as literal "${...}" text; skip it
+      // loudly so the next one gets a TEMPLATE_VALUES entry instead of a broken reference.
+      if (/\$\{/.test(flag) || /\$\{/.test(help)) {
+        console.warn(`parse-commands: skipping option ${flag} of "${prefix} ${cmdName}" — unresolved template expression in ${filePath}`);
+        continue;
+      }
       options.push({ flag, description: scrubDescription(help), required: m[1] === 'requiredOption' });
     }
 

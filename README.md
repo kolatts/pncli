@@ -41,7 +41,7 @@ Add `--scope user` to install for every repo on the machine instead. Installed s
 
 ### Org plugins from a marketplace
 
-Org-internal skills distribute the same way from a private git-hosted marketplace, and the marketplace can ship an `AGENTS.md` / `CLAUDE.md` that lands in each agent's user-level instructions file as a managed block (your own content is never touched):
+Org-internal plugins distribute the same way from a private git-hosted marketplace, and the marketplace can ship an `AGENTS.md` / `CLAUDE.md` that lands in each agent's user-level instructions file as a managed block (your own content is never touched):
 
 ```bash
 # Register, clone, install every plugin, and apply shipped instructions — all three agent hosts
@@ -65,7 +65,7 @@ pncli config init
 # Add repo-level defaults (check this into git)
 pncli config init --repo
 
-# When something isn't working: config, credentials, and skills in one report
+# When something isn't working: config, credentials, skills, and marketplaces in one report
 pncli doctor
 ```
 

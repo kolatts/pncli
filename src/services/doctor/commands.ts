@@ -140,10 +140,11 @@ export function buildProblems(
     });
   }
   const marketplaceSkillTotal = skillLocations.reduce((sum, l) => sum + (l.marketplaceSkills ?? 0), 0);
-  if (marketplaces.some(m => m.cloneExists) && marketplaceSkillTotal === 0) {
+  const liveMarketplaces = marketplaces.filter(m => m.cloneExists).length;
+  if (liveMarketplaces > 0 && marketplaceSkillTotal === 0) {
     problems.push({
       area: 'marketplaces',
-      message: `${marketplaces.length} marketplace(s) registered but no plugin skills are installed from any of them`,
+      message: `${liveMarketplaces} marketplace(s) registered but no plugin skills are installed from any of them`,
       fix: 'Run: pncli skills marketplace sync --marketplace all --all-agents',
     });
   }
@@ -154,7 +155,7 @@ export function buildProblems(
 export function registerDoctorCommands(program: Command): void {
   program
     .command('doctor')
-    .description('Diagnose pncli setup: config files, credentials, and agent skills')
+    .description('Diagnose pncli setup: config files, credentials, agent skills, and skills marketplaces')
     .option('--offline', 'Skip credential checks (no network calls)')
     .action(async (cmdOpts: { offline?: boolean }) => {
       const start = Date.now();
