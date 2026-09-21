@@ -115,7 +115,7 @@ The skills bundled with pncli install into a repo with `pncli skills install` (d
 
 Installed skills are a copy — after upgrading pncli, re-run `pncli skills install` to refresh them. `skills list` and `skills status` warn when the installed copy came from a different pncli version.
 
-Org-internal skills come from a git-hosted marketplace: `pncli skills marketplace setup <git-clone-url>` registers one, and `pncli skills marketplace sync` keeps everything installed from it current. `pncli skills status` and `pncli skills locations` show what is installed and where. The full workflow is in the `marketplace.md` file that ships inside the installed skill.
+Org-internal plugins come from a git-hosted marketplace: `pncli skills marketplace add <git-clone-url> --all-agents` registers one and installs every plugin into all three agent hosts, and `pncli skills marketplace sync --marketplace all --all-agents` keeps them current. A marketplace can also ship an `instructions/AGENTS.md` and `instructions/CLAUDE.md`; `add` and `sync` merge those into each agent's user-level instructions file (`~/.codex/AGENTS.md`, `~/.copilot/copilot-instructions.md`, `~/.claude/CLAUDE.md`) as a marked block that leaves your own content untouched — `pncli skills marketplace instructions list|install|remove` manages them. `pncli skills status`, `pncli skills locations`, and `pncli doctor` show what is installed and where. The full workflow is in the `marketplace.md` file that ships inside the installed skill, and `pncli skills marketplace --help` summarises it.
 
 ## Setup walkthrough
 

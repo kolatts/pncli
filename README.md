@@ -3,7 +3,7 @@
 [![npm](https://img.shields.io/npm/v/%40kolatts%2Fpncli?style=flat-square&color=cb3837&logo=npm)](https://www.npmjs.com/package/@kolatts/pncli)
 [![docs](https://img.shields.io/badge/docs-getting%20started-FF5C39?style=flat-square)](https://kolatts.github.io/pncli/getting-started/)
 
-> One command does what three meetings couldn't.
+> Connectivity without MCP.
 
 pncli gives AI coding agents (and humans) structured CLI access to the enterprise tools your org actually runs — Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, Checkmarx, and more. No MCP servers required. No meetings to schedule. No forms to fill out.
 
@@ -37,7 +37,24 @@ pncli skills install --agent claude-code
 pncli skills install --all-agents
 ```
 
-Add `--scope user` to install for every repo on the machine instead. Installed skills are a copy — after upgrading pncli, re-run `pncli skills install`; `skills list`, `skills status`, and `pncli doctor` warn when the installed copy is stale. Org-internal skills distribute the same way from a git-hosted marketplace: `pncli skills marketplace setup <git-clone-url>` registers one, `pncli skills marketplace sync` keeps it current, and `pncli skills status` shows what's installed where.
+Add `--scope user` to install for every repo on the machine instead. Installed skills are a copy — after upgrading pncli, re-run `pncli skills install`; `skills list`, `skills status`, and `pncli doctor` warn when the installed copy is stale.
+
+### Org plugins from a marketplace
+
+Org-internal skills distribute the same way from a private git-hosted marketplace, and the marketplace can ship an `AGENTS.md` / `CLAUDE.md` that lands in each agent's user-level instructions file as a managed block (your own content is never touched):
+
+```bash
+# Register, clone, install every plugin, and apply shipped instructions — all three agent hosts
+pncli skills marketplace add <git-clone-url> --all-agents
+
+# Later: pull and refresh everything installed from every marketplace
+pncli skills marketplace sync --marketplace all --all-agents
+
+# Interactive hub: toggle plugins on/off, add or remove marketplaces
+pncli skills marketplace manage
+```
+
+`pncli skills marketplace --help` lists the whole workflow, `pncli skills marketplace instructions list` shows which instructions are installed where, and `pncli skills status` traces every installed skill back to its marketplace.
 
 ## Quick Start
 

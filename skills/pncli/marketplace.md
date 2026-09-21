@@ -1,6 +1,14 @@
 # Skills Marketplace
 
-Enables installing org-internal Claude Code or GitHub Copilot skills from one or more private git-hosted marketplace repositories.
+Enables installing org-internal skills — and org-wide `AGENTS.md` / `CLAUDE.md` instructions — for Codex, GitHub Copilot, and Claude Code from one or more private git-hosted marketplace repositories.
+
+**Quick start (every agent host at once):**
+```
+pncli skills marketplace add <git-clone-url> --all-agents
+pncli skills marketplace sync --marketplace all --all-agents   # later, to refresh
+```
+
+`pncli skills marketplace --help` prints the whole workflow; `pncli doctor` reports registered marketplaces and tells you when nothing has been installed from them yet.
 
 ## Add a marketplace
 
@@ -8,11 +16,13 @@ Enables installing org-internal Claude Code or GitHub Copilot skills from one or
 pncli skills marketplace add <git-clone-url> [local-path]
 ```
 
-Use `--branch main` if the default branch is `main` instead of `master`. Use `--name` to give the marketplace a short, human-friendly identifier (defaults to the repo name). This clones the repo to `local-path` (default: `~/.agents/marketplaces/<repo-name>`), registers it in your pncli global config, and installs all of its plugins.
+Use `--branch main` if the default branch is `main` instead of `master`. Use `--name` to give the marketplace a short, human-friendly identifier (defaults to the repo name). This clones the repo to `local-path` (default: `~/.agents/marketplaces/<repo-name>`), registers it in your pncli global config, installs all of its plugins, and applies any instructions it ships (see **Shipped instructions** below; `--no-instructions` skips that step).
+
+Plugins install at user scope for one agent host — `--agent codex` (the default, `~/.agents/skills`), `--agent github-copilot`, or `--claude`. Pass `--all-agents` to install into all three in one run; the JSON output then lists a `targets` array with one entry per host instead of the flat `plugins` / `target` keys.
 
 **Example:**
 ```
-pncli skills marketplace add https://bitbucket.imagile.dev/scm/ai/skills.git --name internal-ai
+pncli skills marketplace add https://bitbucket.imagile.dev/scm/ai/skills.git --name internal-ai --all-agents
 ```
 
 You can register as many marketplaces as you like — just run `add` again with a different URL. `marketplace setup` is kept as an alias of `add` for backward compatibility.
@@ -42,6 +52,11 @@ Install to `~/.claude/skills` (Claude Code):
 pncli skills marketplace sync --claude
 ```
 
+Install to every agent host at once:
+```
+pncli skills marketplace sync --marketplace all --all-agents
+```
+
 With a single registered marketplace, `sync` just prompts you to pick a plugin (or pass one explicitly). With more than one marketplace registered, it first prompts you to pick a marketplace — if you pick the wrong plugin from the wrong marketplace, choose "← Back to marketplace selection" to reselect rather than restarting the command.
 
 Pass a plugin name to skip the interactive plugin picker:
@@ -64,7 +79,9 @@ Sync every plugin from every registered marketplace in one shot:
 pncli skills marketplace sync --marketplace all
 ```
 
-`sync` skips reinstalling when a marketplace has no new upstream changes (single-plugin and `all` installs alike). Pass `--force` to reinstall anyway.
+`sync` skips reinstalling into a target that already has everything you asked for when the marketplace has no new upstream changes. A target that is *missing* something — a second agent host you just added with `--all-agents`, or a plugin that is not installed there yet — gets the missing plugins installed regardless, so you never need `--force` just to reach a new location. Pass `--force` to reinstall everything anyway. With several targets the JSON output nests per-host results under `targets`; a single target keeps the flat `plugins` / `target` shape.
+
+Routine progress is one line per target on stderr; add the global `--verbose` flag to see every skill's source and destination path.
 
 ### Update what you already have, without picking up new plugins
 
@@ -75,6 +92,36 @@ pncli skills marketplace sync --marketplace all --installed-only
 ```
 
 Plugins are matched by the marketplace name recorded at install time, falling back to the clone URL — so a marketplace you have since renamed still resolves. Disabled plugins count as installed and are refreshed in place, staying disabled. If a marketplace has no installed plugins at all, it is reported as `skipped` with `installedOnly: true` rather than silently installing everything.
+
+## Shipped instructions (`AGENTS.md` / `CLAUDE.md`)
+
+A marketplace can distribute org-wide agent instructions alongside its plugins. Put them in an `instructions/` directory at the marketplace root:
+
+```
+instructions/AGENTS.md    # for Codex and GitHub Copilot
+instructions/CLAUDE.md    # for Claude Code
+```
+
+Ship one or both. Each agent host takes its preferred file and falls back to the other, so a marketplace that ships only `AGENTS.md` still reaches Claude Code. pncli merges the file into the agent's **user-level** instructions file:
+
+| Agent | User-level file |
+|---|---|
+| `codex` | `~/.codex/AGENTS.md` (or `$CODEX_HOME/AGENTS.md`) |
+| `github-copilot` | `~/.copilot/copilot-instructions.md` (or `$COPILOT_HOME/…`) |
+| `claude-code` | `~/.claude/CLAUDE.md` (or `$CLAUDE_CONFIG_DIR/CLAUDE.md`) |
+
+The content lands as a **managed block** delimited by `<!-- pncli:instructions marketplace="<name>" begin -->` / `end` comments. Everything else in the file — your own personal instructions — is left exactly as it was: the block is appended on first install, replaced in place on every later sync, and stripped cleanly on remove. Each marketplace gets its own block, so several can coexist. Do not edit inside the markers; the next sync overwrites them.
+
+`marketplace add` and `marketplace sync` apply instructions automatically for the agent hosts they target (`--no-instructions` opts out). To manage them directly:
+
+```
+pncli skills marketplace instructions list                       # who ships what, installed/current per agent
+pncli skills marketplace instructions install --all-agents       # apply or refresh every marketplace's instructions
+pncli skills marketplace instructions install --marketplace internal-ai --claude
+pncli skills marketplace instructions remove internal-ai --all-agents
+```
+
+`list` reports, per marketplace and agent, `installed` and `upToDate` (false when the marketplace's file has changed since the block was written, or when it no longer ships one). `remove` accepts a marketplace name even after the marketplace has been unregistered, so a stale block can always be cleaned up.
 
 ## Enable / disable installed plugins
 
@@ -100,6 +147,8 @@ pncli skills marketplace manage
 It loops through a menu until you're done:
 
 - **Toggle plugins on/off** — a checkbox list of every installed plugin, grouped under its marketplace, with skill counts (checked = enabled). The selection you leave on submit becomes the desired state.
+- **Sync every marketplace** — pulls each registered marketplace and refreshes its plugins in the target (same as `marketplace sync --marketplace all`).
+- **Apply shipped AGENTS.md / CLAUDE.md** — shown when a registered marketplace ships instructions; merges them into the target agent's user-level file.
 - **Add a marketplace** — prompts for the clone URL and a name, then clones, registers, and installs its plugins (same as `marketplace add`).
 - **Remove a marketplace** — pick one to unregister (the local clone is kept on disk).
 
@@ -161,3 +210,5 @@ The marketplace repo should contain either:
 - Or a `plugins/` directory where each subdirectory is a plugin
 
 Each plugin directory should have a `skills/` subdirectory containing skill directories (each with a `SKILL.md`).
+
+Optionally, an `instructions/` directory at the root with `AGENTS.md` and/or `CLAUDE.md` — see **Shipped instructions** above. A `CLAUDE.md` or `AGENTS.md` at the repo root is *not* distributed; that one is treated as guidance for people working on the marketplace repo itself.

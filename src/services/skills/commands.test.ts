@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin, DISABLED_SUBDIR, disablePluginSkills, enablePluginSkills, listPluginStates, getInstalledPluginsForMarketplace, AGENT_PATHS, DEFAULT_AGENT, AGENT_CHOICES, summarizeLocation, listKnownLocations, collectSkillStatus, readCustomTargets, rememberCustomTarget, forgetCustomTarget, resolveMarketplaceToken, describeGitFailure } from './commands.js';
+import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin, DISABLED_SUBDIR, disablePluginSkills, enablePluginSkills, listPluginStates, getInstalledPluginsForMarketplace, AGENT_PATHS, DEFAULT_AGENT, AGENT_CHOICES, summarizeLocation, listKnownLocations, collectSkillStatus, readCustomTargets, rememberCustomTarget, forgetCustomTarget, resolveMarketplaceToken, describeGitFailure, resolveInstallTargets, installMarketplaceToTarget } from './commands.js';
 import type { InstalledMeta, InstalledSkillRecord } from './commands.js';
 import type { GlobalConfig } from '../../types/config.js';
 import { loadConfig } from '../../lib/config.js';
@@ -1161,5 +1161,139 @@ describe('listKnownLocations', () => {
   it('does not list a custom target that duplicates a built-in agent path', () => {
     const locations = listKnownLocations({ skillsTargets: [AGENT_PATHS['claude-code'].user] });
     expect(locations.filter(l => l.scope === 'custom')).toEqual([]);
+  });
+});
+
+// ── resolveInstallTargets ─────────────────────────────────────────────────────
+
+describe('resolveInstallTargets', () => {
+  it('returns the default agent user path when nothing is specified', () => {
+    const targets = resolveInstallTargets({});
+    expect(targets).toEqual([{ agent: DEFAULT_AGENT, target: path.resolve(AGENT_PATHS[DEFAULT_AGENT].user) }]);
+  });
+
+  it('honors --claude and --agent', () => {
+    expect(resolveInstallTargets({ claude: true })[0]).toEqual({ agent: 'claude-code', target: path.resolve(AGENT_PATHS['claude-code'].user) });
+    expect(resolveInstallTargets({ agent: 'codex' })[0].agent).toBe('codex');
+  });
+
+  it('returns every agent host for --all-agents, in AGENT_PATHS order', () => {
+    const targets = resolveInstallTargets({ allAgents: true });
+    expect(targets.map(t => t.agent)).toEqual(Object.keys(AGENT_PATHS));
+    expect(targets.map(t => t.target)).toEqual(Object.values(AGENT_PATHS).map(p => path.resolve(p.user)));
+  });
+
+  it('resolves project scope when asked', () => {
+    const targets = resolveInstallTargets({ allAgents: true }, 'project');
+    expect(targets.every(t => !t.target.startsWith(os.homedir() + path.sep) || t.target.includes('.agents'))).toBe(true);
+    expect(targets.map(t => path.basename(path.dirname(t.target)))).toEqual(['.agents', '.github', '.claude']);
+  });
+
+  it('rejects --all-agents combined with an explicit host', () => {
+    expect(() => resolveInstallTargets({ allAgents: true, claude: true })).toThrow(/cannot be combined/);
+    expect(() => resolveInstallTargets({ allAgents: true, agent: 'codex' })).toThrow(/cannot be combined/);
+  });
+
+  it('rejects an unknown agent', () => {
+    expect(() => resolveInstallTargets({ agent: 'cursor' })).toThrow(/Unknown agent/);
+  });
+});
+
+// ── installMarketplaceToTarget ────────────────────────────────────────────────
+
+describe('installMarketplaceToTarget', () => {
+  let tmp: string;
+  let marketplacePath: string;
+  const m = { name: 'org', repoUrl: 'https://ghe.imagile.dev/org/skills.git', localPath: '' };
+  const choices = [{ name: 'alpha' }, { name: 'beta' }];
+
+  function makePlugin(plugin: string, skills: string[]): void {
+    for (const skill of skills) {
+      const dir = path.join(marketplacePath, 'plugins', plugin, 'skills', skill);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, 'SKILL.md'), `---\nname: ${skill}\n---\n`, 'utf8');
+    }
+  }
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-target-install-'));
+    marketplacePath = path.join(tmp, 'marketplace');
+    m.localPath = marketplacePath;
+    makePlugin('alpha', ['a-one', 'a-two']);
+    makePlugin('beta', ['b-one']);
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  const target = (name: string) => ({ agent: name, target: path.join(tmp, name) });
+  const unchanged = { updated: false, force: false, installedOnly: false };
+  const changed = { updated: true, force: false, installedOnly: false };
+
+  it('installs every plugin into an empty target even when upstream is unchanged', () => {
+    const result = installMarketplaceToTarget(m, marketplacePath, choices, 'all', target('codex'), unchanged);
+    expect(result.skipped).toBeUndefined();
+    expect(result.total).toBe(3);
+    expect(Object.keys(result.plugins).sort()).toEqual(['alpha', 'beta']);
+    expect(fs.existsSync(path.join(tmp, 'codex', 'a-one', 'SKILL.md'))).toBe(true);
+  });
+
+  it('skips a target that already has everything requested when upstream is unchanged', () => {
+    const t = target('codex');
+    installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, changed);
+    const again = installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, unchanged);
+    expect(again.skipped).toBe(true);
+    expect(again.message).toMatch(/--force/);
+    expect(again.total).toBe(0);
+  });
+
+  it('installs only the missing plugin when upstream is unchanged but the request grew', () => {
+    const t = target('codex');
+    installMarketplaceToTarget(m, marketplacePath, choices, 'alpha', t, changed);
+    const result = installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, unchanged);
+    expect(result.skipped).toBeUndefined();
+    expect(Object.keys(result.plugins)).toEqual(['beta']);
+    expect(result.total).toBe(1);
+  });
+
+  it('reinstalls everything with --force even when unchanged and fully installed', () => {
+    const t = target('codex');
+    installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, changed);
+    const result = installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, { ...unchanged, force: true });
+    expect(result.total).toBe(3);
+  });
+
+  it('reinstalls everything when upstream changed', () => {
+    const t = target('codex');
+    installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, changed);
+    expect(installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, changed).total).toBe(3);
+  });
+
+  it('with --installed-only, refreshes only plugins already present and skips an empty target', () => {
+    const t = target('codex');
+    const empty = installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, { ...changed, installedOnly: true });
+    expect(empty.skipped).toBe(true);
+    expect(empty.installedOnly).toBe(true);
+
+    installMarketplaceToTarget(m, marketplacePath, choices, 'alpha', t, changed);
+    const refreshed = installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, { ...changed, installedOnly: true });
+    expect(Object.keys(refreshed.plugins)).toEqual(['alpha']);
+    expect(fs.existsSync(path.join(tmp, 'codex', 'b-one'))).toBe(false);
+  });
+
+  it('treats each target independently so a fresh second host is filled while the first is skipped', () => {
+    const first = target('codex');
+    const second = target('claude-code');
+    installMarketplaceToTarget(m, marketplacePath, choices, 'all', first, changed);
+    expect(installMarketplaceToTarget(m, marketplacePath, choices, 'all', first, unchanged).skipped).toBe(true);
+    expect(installMarketplaceToTarget(m, marketplacePath, choices, 'all', second, unchanged).total).toBe(3);
+  });
+
+  it('records marketplace provenance for what it installs', () => {
+    const t = target('codex');
+    installMarketplaceToTarget(m, marketplacePath, choices, 'beta', t, changed);
+    expect(getInstalledPluginsForMarketplace(t.target, 'org')).toEqual(['beta']);
   });
 });

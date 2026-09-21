@@ -8,7 +8,7 @@ import { createHttpClient } from '../../lib/http.js';
 import { getPncliVersion } from '../../lib/version.js';
 import { runCredentialChecks } from '../config/check.js';
 import type { CheckResult } from '../config/check.js';
-import { listKnownLocations, findStaleBundledSkills, findGitRoot } from '../skills/commands.js';
+import { listKnownLocations, findStaleBundledSkills, findGitRoot, getAllMarketplaces } from '../skills/commands.js';
 import type { StaleSkill } from '../skills/commands.js';
 import type { GlobalConfig } from '../../types/config.js';
 
@@ -42,7 +42,7 @@ export function checkConfigFile(filePath: string): ConfigFileHealth {
 }
 
 export interface DoctorProblem {
-  area: 'config' | 'credentials' | 'skills';
+  area: 'config' | 'credentials' | 'skills' | 'marketplaces';
   message: string;
   fix: string;
 }
@@ -53,7 +53,16 @@ interface SkillLocationReport {
   path: string;
   exists: boolean;
   totalSkills: number;
+  marketplaceSkills?: number;
   staleSkills: StaleSkill[];
+}
+
+export interface MarketplaceReport {
+  name: string;
+  repoUrl: string | null;
+  localPath: string | null;
+  /** False when the registered clone directory is gone — sync will fail until it is re-added. */
+  cloneExists: boolean;
 }
 
 /**
@@ -64,7 +73,8 @@ export function buildProblems(
   globalFile: ConfigFileHealth,
   repoFile: ConfigFileHealth,
   credentials: Record<string, CheckResult> | null,
-  skillLocations: SkillLocationReport[]
+  skillLocations: SkillLocationReport[],
+  marketplaces: MarketplaceReport[] = []
 ): DoctorProblem[] {
   const problems: DoctorProblem[] = [];
 
@@ -120,6 +130,24 @@ export function buildProblems(
     });
   }
 
+  // Marketplace advisories: a registered marketplace that nothing was ever installed from is
+  // the most common "I ran add but my agent can't see the plugin" report.
+  for (const m of marketplaces.filter(m => !m.cloneExists)) {
+    problems.push({
+      area: 'marketplaces',
+      message: `Marketplace "${m.name}" is registered but its clone is missing (${m.localPath ?? 'no local path'})`,
+      fix: `Re-clone it with: pncli skills marketplace add ${m.repoUrl ?? '<url>'}`,
+    });
+  }
+  const marketplaceSkillTotal = skillLocations.reduce((sum, l) => sum + (l.marketplaceSkills ?? 0), 0);
+  if (marketplaces.some(m => m.cloneExists) && marketplaceSkillTotal === 0) {
+    problems.push({
+      area: 'marketplaces',
+      message: `${marketplaces.length} marketplace(s) registered but no plugin skills are installed from any of them`,
+      fix: 'Run: pncli skills marketplace sync --marketplace all --all-agents',
+    });
+  }
+
   return problems;
 }
 
@@ -158,10 +186,17 @@ export function registerDoctorCommands(program: Command): void {
           path: l.path,
           exists: l.exists,
           totalSkills: l.totalSkills,
+          marketplaceSkills: l.marketplaceSkills,
           staleSkills: l.exists ? findStaleBundledSkills(l.path) : [],
         }));
+        const marketplaces: MarketplaceReport[] = getAllMarketplaces(globalConfig).map(m => ({
+          name: m.name ?? m.repoUrl ?? '(unnamed)',
+          repoUrl: m.repoUrl ?? null,
+          localPath: m.localPath ?? null,
+          cloneExists: !!m.localPath && fs.existsSync(m.localPath),
+        }));
 
-        const problems = buildProblems(globalFile, repoFile, credentials, skillLocations);
+        const problems = buildProblems(globalFile, repoFile, credentials, skillLocations, marketplaces);
 
         // Mirror `config check` exit semantics so CI can gate on doctor directly:
         // invalid credentials → AUTH_ERROR, other credential failures → NETWORK_ERROR.
@@ -184,6 +219,12 @@ export function registerDoctorCommands(program: Command): void {
           skills: {
             locations: skillLocations,
             staleTotal: skillLocations.reduce((sum, l) => sum + l.staleSkills.length, 0),
+          },
+          marketplaces: {
+            registered: marketplaces,
+            hint: marketplaces.length === 0
+              ? 'No org marketplaces registered. Add one with: pncli skills marketplace add <git-url> --all-agents'
+              : 'Refresh with: pncli skills marketplace sync --marketplace all --all-agents',
           },
           problems,
         }, 'doctor', 'check', start);
