@@ -1,7 +1,7 @@
 {
   "name": "@kolatts/pncli",
   "version": "5.1.0",
-  "description": "The Paperwork Nightmare CLI — structured JSON access to Jira, Bitbucket, GitHub, Confluence, Azure DevOps, SonarQube, Jenkins, and more, built for AI coding agents. One command does what three meetings couldn't.",
+  "description": "The Paperwork Nightmare CLI — structured JSON access to Jira, Bitbucket, GitHub, Confluence, Azure DevOps, SonarQube, Jenkins, and more, built for AI coding agents. Connectivity without MCP.",
   "type": "module",
   "bin": {
     "pncli": "./dist/cli.js"

@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { success, fail, warn } from '../../lib/output.js';
+import { success, fail, warn, log } from '../../lib/output.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -11,6 +11,14 @@ import input from '@inquirer/input';
 import { writeGlobalConfig, getGlobalConfigPath, loadJsonFile, loadConfig } from '../../lib/config.js';
 import { getPncliVersion } from '../../lib/version.js';
 import type { GlobalConfig, MarketplaceConfig } from '../../types/config.js';
+import {
+  applyMarketplaceInstructions,
+  removeMarketplaceInstructions,
+  marketplaceInstructionsStatus,
+  findMarketplaceInstructions,
+  agentInstructionsFile,
+} from './instructions.js';
+import type { InstructionApplyResult } from './instructions.js';
 
 const BACK = '__back__';
 const ALL_MARKETPLACES = '__all_marketplaces__';
@@ -251,6 +259,29 @@ function resolveTargetDir(opts: { agent?: string; claude?: boolean; scope?: stri
   if (opts.target) return path.resolve(opts.target);
   const agentConfig = resolveAgentPaths(resolveAgentName(opts));
   return resolveScopedPath(agentConfig, opts.scope ?? 'user');
+}
+
+/** One agent host's install directory, as produced by `resolveInstallTargets`. */
+export interface InstallTarget { agent: string; target: string }
+
+interface TargetingOptions { agent?: string; claude?: boolean; allAgents?: boolean }
+
+/**
+ * Resolves the agent hosts a marketplace command installs into. `--all-agents` yields every
+ * supported host; otherwise the single host from `--agent` / `--claude` (default codex).
+ * Marketplace installs are always user-scoped, so only the user path is returned.
+ */
+export function resolveInstallTargets(opts: TargetingOptions, scope: 'project' | 'user' = 'user'): InstallTarget[] {
+  if (opts.allAgents) {
+    if (opts.claude || opts.agent) {
+      throw new Error('--all-agents cannot be combined with --claude or --agent');
+    }
+    // AGENT_PATHS is used directly (not resolveAgentPaths) so the github-copilot retarget
+    // warning doesn't fire on an install the user never aimed at that agent specifically.
+    return Object.entries(AGENT_PATHS).map(([agent, paths]) => ({ agent, target: resolveScopedPath(paths, scope) }));
+  }
+  const agent = resolveAgentName(opts);
+  return [{ agent, target: resolveScopedPath(resolveAgentPaths(agent), scope) }];
 }
 
 // Resolve the bundled skills directory relative to this file (dist/cli.js → ../skills)
@@ -1016,39 +1047,154 @@ function installPluginsForMarketplace(
     });
     results[pluginName] = { installed, failed };
     totalInstalled += installed.length;
+    // Per-skill paths are noise on a routine install (three targets × N plugins × M skills);
+    // they stay available under --verbose, and the JSON envelope always carries the full list.
     for (const skill of installed) {
-      warn(`  ${skill}: ${path.join(skillsSrc, skill)} → ${path.join(targetDir, skill)}`);
+      log(`  ${skill}: ${path.join(skillsSrc, skill)} → ${path.join(targetDir, skill)}`);
     }
     if (failed.length > 0) {
       warn(`Skipped ${failed.length} skill(s) with invalid names in "${pluginName}": ${failed.join(', ')}`);
     }
   }
 
+  warn(`Installed ${totalInstalled} skill(s) from ${pluginNames.length} plugin(s) in "${marketplaceName}" to ${targetDir}`);
   return { results, totalInstalled };
 }
 
+/** Per-target outcome of a marketplace install; `skipped` targets were deliberately left alone. */
+export interface TargetInstallResult {
+  agent: string;
+  target: string;
+  plugins: Record<string, { installed: string[]; failed: string[] }>;
+  total: number;
+  skipped?: true;
+  installedOnly?: true;
+  message?: string;
+}
+
 /**
- * Installs every plugin from a freshly cloned marketplace (used by `marketplace add`/`setup`).
+ * Decides which plugins to install into one target and installs them.
+ *
+ * - `pluginFilter` is "all" or a plugin name; with `installedOnly`, "all" means only the
+ *   plugins already installed here from this marketplace.
+ * - A target that already has every requested plugin is skipped when upstream is unchanged
+ *   (unless `force`). A target missing any of them gets the missing ones installed even
+ *   with no upstream change — so a second agent host, or a plugin added to the request,
+ *   never needs `--force`.
  */
-function installAllPlugins(resolvedPath: string, marketplaceName: string, url: string, targetDir: string): { pluginResults: Record<string, { installed: string[]; failed: string[] }>; totalInstalled: number } {
+export function installMarketplaceToTarget(
+  m: MarketplaceConfig,
+  marketplacePath: string,
+  pluginChoices: { name: string }[],
+  pluginFilter: string,
+  target: InstallTarget,
+  opts: { updated: boolean; force: boolean; installedOnly: boolean }
+): TargetInstallResult {
+  const marketplaceName = marketplaceLabel(m);
+  const base = { agent: target.agent, target: target.target };
+  const installedHere = getInstalledPluginsForMarketplace(target.target, marketplaceName, m.repoUrl)
+    .filter(name => pluginChoices.some(p => p.name === name));
+
+  let requested: string[];
+  if (pluginFilter === 'all') {
+    if (opts.installedOnly) {
+      if (installedHere.length === 0) {
+        warn(`No installed plugins from "${marketplaceName}" in ${target.target} — skipping. Run marketplace sync without --installed-only to install plugins.`);
+        return { ...base, plugins: {}, total: 0, skipped: true, installedOnly: true, message: 'No installed plugins found — nothing to sync.' };
+      }
+      requested = installedHere;
+    } else {
+      requested = pluginChoices.map(p => p.name);
+    }
+  } else {
+    requested = [pluginFilter];
+  }
+
+  const missing = requested.filter(name => !installedHere.includes(name));
+  if (!opts.updated && !opts.force) {
+    if (missing.length === 0) {
+      return { ...base, plugins: {}, total: 0, skipped: true, message: 'No changes detected — skipping install. Use --force to reinstall anyway.' };
+    }
+    requested = missing;
+  }
+
+  const { results, totalInstalled } = installPluginsForMarketplace(marketplacePath, marketplaceName, m.repoUrl, requested, target.target);
+  return { ...base, plugins: results, total: totalInstalled };
+}
+
+/**
+ * Applies a marketplace's shipped instructions (if any) to each target's agent host.
+ * Returns undefined when the marketplace ships none, so callers can omit the key entirely.
+ */
+function applyInstructionsForTargets(m: MarketplaceConfig, marketplacePath: string, targets: InstallTarget[], enabled: boolean): InstructionApplyResult[] | undefined {
+  if (!enabled || findMarketplaceInstructions(marketplacePath).length === 0) return undefined;
+  const results = applyMarketplaceInstructions(marketplacePath, marketplaceLabel(m), targets.map(t => t.agent));
+  for (const r of results) {
+    if (r.action === 'added' || r.action === 'updated') warn(`Instructions ${r.action} in ${r.file} (from ${r.source})`);
+  }
+  return results;
+}
+
+/**
+ * Shapes a sync outcome into the JSON envelope. One target keeps the flat shape earlier
+ * versions emitted (`plugins`/`total`/`target`, or `plugin`/`installed`/`failed` for a single
+ * plugin); several targets nest per-target results under `targets`.
+ */
+function shapeSyncResult(
+  marketplaceName: string,
+  updated: boolean,
+  pluginFilter: string,
+  targetResults: TargetInstallResult[],
+  extras: { installedOnly?: boolean; instructions?: InstructionApplyResult[] }
+): Record<string, unknown> {
+  const tail = {
+    marketplaceUpdated: updated,
+    ...(extras.installedOnly ? { installedOnly: true } : {}),
+    ...(extras.instructions ? { instructions: extras.instructions } : {}),
+  };
+
+  if (targetResults.length === 1) {
+    const r = targetResults[0];
+    if (r.skipped) {
+      return { marketplace: marketplaceName, updated: false, skipped: true, target: r.target, message: r.message, ...tail };
+    }
+    if (pluginFilter === 'all') {
+      return { marketplace: marketplaceName, plugins: r.plugins, total: r.total, target: r.target, ...tail };
+    }
+    const single = r.plugins[pluginFilter] ?? { installed: [], failed: [] };
+    return { marketplace: marketplaceName, plugin: pluginFilter, installed: single.installed, failed: single.failed, total: single.installed.length, target: r.target, ...tail };
+  }
+
+  return {
+    marketplace: marketplaceName,
+    ...(pluginFilter === 'all' ? {} : { plugin: pluginFilter }),
+    targets: targetResults,
+    total: targetResults.reduce((sum, r) => sum + r.total, 0),
+    ...tail,
+  };
+}
+
+/**
+ * Installs every plugin from a freshly cloned marketplace into each target
+ * (used by `marketplace add`/`setup`).
+ */
+function installAllPlugins(m: MarketplaceConfig, resolvedPath: string, targets: InstallTarget[]): TargetInstallResult[] {
   const pluginChoices = resolvePluginChoices(resolvedPath);
   if (pluginChoices.length === 0) {
     warn('No plugins found in marketplace. Check the marketplace repository structure.');
-    return { pluginResults: {}, totalInstalled: 0 };
+    return targets.map(t => ({ ...t, plugins: {}, total: 0 }));
   }
-  warn(`Installing ${pluginChoices.length} plugin(s) to ${targetDir}...`);
-  const { results, totalInstalled } = installPluginsForMarketplace(resolvedPath, marketplaceName, url, pluginChoices.map(p => p.name), targetDir);
-  return { pluginResults: results, totalInstalled };
+  return targets.map(t => installMarketplaceToTarget(m, resolvedPath, pluginChoices, 'all', t, { updated: true, force: true, installedOnly: false }));
 }
+
+interface SyncOptions { force: boolean; installedOnly: boolean; instructions: boolean }
 
 /**
  * Pulls and installs plugins for one marketplace, honoring an optional plugin name filter
  * ("all" installs every plugin). Used by the "sync every marketplace" flows. Never throws —
  * problems are reported back as a `skipped` result so one bad marketplace doesn't abort the rest.
- * When `installedOnly` is true and `pluginFilter` is "all", only plugins already installed
- * from this marketplace are synced instead of every plugin available in the repo.
  */
-function syncMarketplacePlugins(m: MarketplaceConfig, targetDir: string, force: boolean, pluginFilter: string, installedOnly = false): Record<string, unknown> {
+function syncMarketplacePlugins(m: MarketplaceConfig, targets: InstallTarget[], pluginFilter: string, opts: SyncOptions): Record<string, unknown> {
   const marketplaceName = marketplaceLabel(m);
   try {
     const marketplacePath = m.localPath;
@@ -1058,38 +1204,20 @@ function syncMarketplacePlugins(m: MarketplaceConfig, targetDir: string, force: 
     }
 
     const { updated } = pullMarketplace(marketplacePath, m.repoUrl, m.token, marketplaceName);
-    if (!updated && !force) {
-      return { marketplace: marketplaceName, marketplaceUpdated: false, skipped: true, message: 'No changes detected — skipping install. Use --force to reinstall anyway.' };
-    }
 
     const pluginChoices = resolvePluginChoices(marketplacePath);
     if (pluginChoices.length === 0) {
       warn(`No plugins found in marketplace "${marketplaceName}" — skipping.`);
       return { marketplace: marketplaceName, skipped: true, message: 'No plugins found.' };
     }
-
-    let pluginNames: string[];
-    if (pluginFilter === 'all') {
-      if (installedOnly) {
-        const installed = getInstalledPluginsForMarketplace(targetDir, marketplaceName, m.repoUrl)
-          .filter(name => pluginChoices.some(p => p.name === name));
-        if (installed.length === 0) {
-          warn(`No installed plugins found for "${marketplaceName}" — skipping. Run marketplace sync without --installed-only to install plugins.`);
-          return { marketplace: marketplaceName, skipped: true, installedOnly: true, message: 'No installed plugins found — nothing to sync.' };
-        }
-        pluginNames = installed;
-      } else {
-        pluginNames = pluginChoices.map(p => p.name);
-      }
-    } else if (pluginChoices.some(p => p.name === pluginFilter)) {
-      pluginNames = [pluginFilter];
-    } else {
+    if (pluginFilter !== 'all' && !pluginChoices.some(p => p.name === pluginFilter)) {
       warn(`Plugin "${pluginFilter}" not found in "${marketplaceName}" — skipping.`);
       return { marketplace: marketplaceName, skipped: true, message: `Plugin "${pluginFilter}" not found.` };
     }
 
-    const { results, totalInstalled } = installPluginsForMarketplace(marketplacePath, marketplaceName, m.repoUrl, pluginNames, targetDir);
-    return { marketplace: marketplaceName, plugins: results, total: totalInstalled, marketplaceUpdated: updated };
+    const targetResults = targets.map(t => installMarketplaceToTarget(m, marketplacePath, pluginChoices, pluginFilter, t, { updated, ...opts }));
+    const instructions = applyInstructionsForTargets(m, marketplacePath, targets, opts.instructions);
+    return shapeSyncResult(marketplaceName, updated, pluginFilter, targetResults, { installedOnly: opts.installedOnly, instructions });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     warn(`Marketplace "${marketplaceName}" failed — skipping. ${message}`);
@@ -1103,6 +1231,9 @@ interface MarketplaceAddOptions {
   token?: string;
   agent?: string;
   claude?: boolean;
+  allAgents?: boolean;
+  /** Commander's negatable `--no-instructions`: true unless the flag is passed (undefined when called programmatically). */
+  instructions?: boolean;
 }
 
 /**
@@ -1127,9 +1258,9 @@ function performMarketplaceAdd(url: string, localPath: string | undefined, opts:
   upsertMarketplace(all, entry);
   saveMarketplaces(configPath, existing, all);
 
-  const targetDir = resolveAgentPaths(resolveAgentName(opts)).user;
-
-  const { pluginResults, totalInstalled } = installAllPlugins(resolvedPath, marketplaceName, url, targetDir);
+  const targets = resolveInstallTargets(opts);
+  const targetResults = installAllPlugins(entry, resolvedPath, targets);
+  const instructions = applyInstructionsForTargets(entry, resolvedPath, targets, opts.instructions !== false);
 
   return {
     name: marketplaceName,
@@ -1137,9 +1268,11 @@ function performMarketplaceAdd(url: string, localPath: string | undefined, opts:
     localPath: resolvedPath,
     branch: opts.branch ?? null,
     tokenConfigured: !!opts.token,
-    plugins: pluginResults,
-    total: totalInstalled,
-    target: targetDir,
+    // One target keeps the flat shape earlier versions emitted; several nest under `targets`.
+    ...(targetResults.length === 1
+      ? { plugins: targetResults[0].plugins, total: targetResults[0].total, target: targetResults[0].target }
+      : { targets: targetResults, total: targetResults.reduce((sum, r) => sum + r.total, 0) }),
+    ...(instructions ? { instructions } : {}),
   };
 }
 
@@ -1223,7 +1356,7 @@ function installBundledSkillsTo(targetDir: string, skillDirs: string[]): { insta
     }
   }
 
-  warn(`Installing ${skillDirs.length} bundled skill(s) to ${targetDir}...`);
+  log(`Installing ${skillDirs.length} bundled skill(s) to ${targetDir}...`);
 
   for (const skillName of skillDirs) {
     const skillDir = path.resolve(targetDir, skillName);
@@ -1246,7 +1379,7 @@ function installBundledSkillsTo(targetDir: string, skillDirs: string[]): { insta
     }
   }
 
-  warn(`Installed ${installed.length} skill(s) to ${targetDir}`);
+  warn(`Installed ${installed.length} bundled skill(s) to ${targetDir}`);
   if (failed.length > 0) {
     warn(`Failed to install: ${failed.join(', ')}`);
   }
@@ -1256,11 +1389,31 @@ function installBundledSkillsTo(targetDir: string, skillDirs: string[]): { insta
 }
 
 export function registerSkillsCommands(program: Command): void {
-  const skills = program.command('skills').description(`Manage agent skills (${AGENT_CHOICES})`);
+  const skills = program.command('skills').description(`Install bundled pncli skills and org plugins from git marketplaces (${AGENT_CHOICES})`);
+  skills.addHelpText('after', `
+Where skills go:
+  --agent codex (default) → .agents/skills (project) or ~/.agents/skills (user); read by Codex and GitHub Copilot
+  --agent github-copilot  → .github/skills or ~/.copilot/skills
+  --agent claude-code     → .claude/skills or ~/.claude/skills (--claude is a shorthand)
+  --all-agents            → every host above in one run
+
+Bundled skills (ship with pncli, refresh after upgrading):
+  pncli skills install --all-agents               # into this repo, every agent host
+  pncli skills install --all-agents --scope user  # for every repo on this machine
+
+Org plugins (skills and AGENTS.md/CLAUDE.md from a git-hosted marketplace):
+  pncli skills marketplace add <git-url> --all-agents   # register, clone, install everything
+  pncli skills marketplace sync --marketplace all --all-agents
+  pncli skills marketplace manage                        # interactive: toggle plugins, add/remove marketplaces
+  pncli skills marketplace --help                        # the full plugin workflow
+
+Check what is installed:
+  pncli skills status | pncli skills locations | pncli doctor
+`);
 
   skills
     .command('install')
-    .description('Install pncli skills into the current repo')
+    .description('Install the bundled pncli skills (project scope by default; --scope user for every repo)')
     .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES}`, DEFAULT_AGENT)
     .option('--scope <scope>', 'Installation scope: project | user', 'project')
     .option('--claude', 'Shorthand for --agent claude-code')
@@ -1279,13 +1432,9 @@ export function registerSkillsCommands(program: Command): void {
         const skillDirs = listBundledSkillDirs();
 
         if (opts.allAgents) {
-          // AGENT_PATHS is used directly (not resolveAgentPaths) so the
-          // github-copilot retarget warning doesn't fire on an install the
-          // user never aimed at that agent specifically.
-          const targets = Object.entries(AGENT_PATHS).map(([agent, agentPaths]) => {
-            const targetDir = resolveScopedPath(agentPaths, scope);
-            const { installed, failed } = installBundledSkillsTo(targetDir, skillDirs);
-            return { agent, target: targetDir, installed, failed, total: installed.length };
+          const targets = resolveInstallTargets({ allAgents: true }, scope).map(({ agent, target }) => {
+            const { installed, failed } = installBundledSkillsTo(target, skillDirs);
+            return { agent, target, installed, failed, total: installed.length };
           });
           success({
             targets,
@@ -1566,27 +1715,47 @@ export function registerSkillsCommands(program: Command): void {
       }
     });
 
-  const marketplace = skills.command('marketplace').description('Manage git-hosted skills marketplaces');
+  const marketplace = skills.command('marketplace').description('Org plugins from git-hosted marketplaces: add, sync, enable/disable, and shipped AGENTS.md/CLAUDE.md');
+  marketplace.addHelpText('after', `
+Workflow:
+  pncli skills marketplace add <git-url> --all-agents         # register + clone + install every plugin
+  pncli skills marketplace sync --marketplace all --all-agents # pull and refresh everything installed
+  pncli skills marketplace plugins <name>                      # browse a marketplace without installing
+  pncli skills marketplace manage                              # interactive hub (toggle, add, remove)
+  pncli skills marketplace disable <plugin> / enable <plugin>  # switch a plugin off without deleting it
 
-  function withMarketplaceAddOptions(cmd: Command): Command {
-    return cmd
-      .argument('<url>', 'Git clone URL of the marketplace repository')
-      .argument('[localPath]', 'Local directory to clone into (default: ~/.agents/marketplaces/<repo-name>)')
-      .option('--name <name>', 'Human-readable name for this marketplace (default: derived from URL)')
-      .option('--branch <branch>', 'Branch to clone (default: remote HEAD)')
-      .option('--token <token>', 'HTTP access token for authenticated clone and pull (GitHub PAT or Bitbucket token)')
-      .option('--agent <agent>', `Target agent host for plugin install: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
-      .option('--claude', 'Shorthand for --agent claude-code');
-  }
+Shipped instructions:
+  A marketplace may ship instructions/AGENTS.md and/or instructions/CLAUDE.md. add and sync merge
+  them into each agent's user-level file (~/.codex/AGENTS.md, ~/.copilot/copilot-instructions.md,
+  ~/.claude/CLAUDE.md) as a marked block that never touches your own content.
+  pncli skills marketplace instructions list | install | remove <name>
 
-  withMarketplaceAddOptions(
-    marketplace.command('add').description('Register a new marketplace, clone it, and install all its plugins')
-  ).action((url: string, localPath: string | undefined, opts: MarketplaceAddOptions) => marketplaceAddAction(url, localPath, opts, 'marketplace-add'));
+Plugin skills always install at user scope. --agent picks the host (default: ${DEFAULT_AGENT}); --all-agents covers all of them.
+`);
 
-  // Kept as an alias for `add` for backward compatibility with existing scripts/docs.
-  withMarketplaceAddOptions(
-    marketplace.command('setup').description('Alias for `marketplace add` — clone a marketplace and install all its plugins')
-  ).action((url: string, localPath: string | undefined, opts: MarketplaceAddOptions) => marketplaceAddAction(url, localPath, opts, 'marketplace-setup'));
+  // `setup` is kept as an alias of `add` for backward compatibility with existing scripts/docs.
+  // The options are registered inline (not via a helper) so the site's command-reference
+  // generator, which reads the source text after `.command('add')`, can see them.
+  marketplace
+    .command('add')
+    .alias('setup')
+    .description('Register a new marketplace, clone it, install all its plugins, and apply its shipped AGENTS.md / CLAUDE.md (`setup` is an alias)')
+    .argument('<url>', 'Git clone URL of the marketplace repository')
+    .argument('[localPath]', 'Local directory to clone into (default: ~/.agents/marketplaces/<repo-name>)')
+    .option('--name <name>', 'Human-readable name for this marketplace (default: derived from URL)')
+    .option('--branch <branch>', 'Branch to clone (default: remote HEAD)')
+    .option('--token <token>', 'HTTP access token for authenticated clone and pull (GitHub PAT or Bitbucket token)')
+    .option('--agent <agent>', `Target agent host for plugin install: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
+    .option('--claude', 'Shorthand for --agent claude-code')
+    .option('--all-agents', 'Install to every supported agent host in one run')
+    .option('--no-instructions', 'Do not apply the shipped AGENTS.md / CLAUDE.md to user-level instructions files')
+    .action((url: string, localPath: string | undefined, opts: MarketplaceAddOptions) => {
+      // Preserve the historical meta.action for callers that invoked the alias. Only the
+      // token right after `marketplace` counts, so a URL or --name of "setup" cannot flip it.
+      const marketplaceIdx = process.argv.indexOf('marketplace');
+      const invokedAs = marketplaceIdx !== -1 && process.argv[marketplaceIdx + 1] === 'setup' ? 'marketplace-setup' : 'marketplace-add';
+      return marketplaceAddAction(url, localPath, opts, invokedAs);
+    });
 
   marketplace
     .command('list')
@@ -1662,9 +1831,11 @@ export function registerSkillsCommands(program: Command): void {
     .option('--marketplace <name>', 'Marketplace name to sync, or "all" to sync every registered marketplace (skips interactive selection)')
     .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
     .option('--claude', 'Shorthand for --agent claude-code')
+    .option('--all-agents', 'Install to every supported agent host in one run')
     .option('--force', 'Reinstall even if a marketplace has no new changes (applies to single-plugin and "all" installs alike)')
     .option('--installed-only', 'Only sync plugins that are already installed — skip plugins newly added to the marketplace')
-    .action(async (plugin: string | undefined, opts: { marketplace?: string; agent?: string; claude?: boolean; force?: boolean; installedOnly?: boolean }) => {
+    .option('--no-instructions', 'Do not apply the shipped AGENTS.md / CLAUDE.md to user-level instructions files')
+    .action(async (plugin: string | undefined, opts: { marketplace?: string; agent?: string; claude?: boolean; allAgents?: boolean; force?: boolean; installedOnly?: boolean; instructions?: boolean }) => {
       const start = Date.now();
       try {
         const configPath = getGlobalConfigPath();
@@ -1673,14 +1844,14 @@ export function registerSkillsCommands(program: Command): void {
           throw new Error('No marketplaces configured. Run: pncli skills marketplace add <url>');
         }
 
-        const targetDir = resolveAgentPaths(resolveAgentName(opts)).user;
-        const force = opts.force ?? false;
-        const installedOnly = opts.installedOnly ?? false;
+        const targets = resolveInstallTargets(opts);
+        const syncOpts: SyncOptions = { force: opts.force ?? false, installedOnly: opts.installedOnly ?? false, instructions: opts.instructions !== false };
+        const targetSummary = targets.length === 1 ? { target: targets[0].target } : { targets: targets.map(t => t.target) };
 
         // Non-interactive "sync everything" — explicit flag.
         if (opts.marketplace === 'all') {
-          const results = allMarketplaces.map(m => syncMarketplacePlugins(m, targetDir, force, plugin ?? 'all', installedOnly));
-          success({ allMarketplaces: true, marketplaces: results, target: targetDir }, 'skills', 'marketplace-sync', start);
+          const results = allMarketplaces.map(m => syncMarketplacePlugins(m, targets, plugin ?? 'all', syncOpts));
+          success({ allMarketplaces: true, marketplaces: results, ...targetSummary }, 'skills', 'marketplace-sync', start);
           return;
         }
 
@@ -1711,8 +1882,8 @@ export function registerSkillsCommands(program: Command): void {
               ],
             });
             if (chosen === ALL_MARKETPLACES) {
-              const results = allMarketplaces.map(m => syncMarketplacePlugins(m, targetDir, force, selectedPlugin ?? 'all', installedOnly));
-              success({ allMarketplaces: true, marketplaces: results, target: targetDir }, 'skills', 'marketplace-sync', start);
+              const results = allMarketplaces.map(m => syncMarketplacePlugins(m, targets, selectedPlugin ?? 'all', syncOpts));
+              success({ allMarketplaces: true, marketplaces: results, ...targetSummary }, 'skills', 'marketplace-sync', start);
               return;
             }
             selectedMarketplace = allMarketplaces[Number(chosen)];
@@ -1753,58 +1924,124 @@ export function registerSkillsCommands(program: Command): void {
             throw new Error(`Plugin "${selectedPlugin}" not found in "${marketplaceName}". Available: ${pluginChoices.map(p => p.name).join(', ')}`);
           }
 
-          if (!updated && !force) {
-            success({
-              marketplace: marketplaceName,
-              marketplaceUpdated: false,
-              updated: false,
-              skipped: true,
-              message: `No changes detected in "${marketplaceName}" — skipping install. Use --force to reinstall anyway.`,
-            }, 'skills', 'marketplace-sync', start);
-            return;
-          }
-
-          let pluginNames: string[];
-          if (selectedPlugin === 'all') {
-            if (installedOnly) {
-              const installed = getInstalledPluginsForMarketplace(targetDir, marketplaceName, selectedMarketplace.repoUrl)
-                .filter(name => pluginChoices.some(p => p.name === name));
-              if (installed.length === 0) {
-                success({
-                  marketplace: marketplaceName,
-                  skipped: true,
-                  installedOnly: true,
-                  message: `No installed plugins found for "${marketplaceName}" — run marketplace sync without --installed-only to install plugins.`,
-                }, 'skills', 'marketplace-sync', start);
-                return;
-              }
-              pluginNames = installed;
-            } else {
-              pluginNames = pluginChoices.map(p => p.name);
-            }
-          } else {
-            pluginNames = [selectedPlugin];
-          }
-          const { results, totalInstalled } = installPluginsForMarketplace(marketplacePath, marketplaceName, selectedMarketplace.repoUrl, pluginNames, targetDir);
-
-          if (selectedPlugin === 'all') {
-            success({ marketplace: marketplaceName, plugins: results, total: totalInstalled, target: targetDir, marketplaceUpdated: updated, ...(installedOnly ? { installedOnly: true } : {}) }, 'skills', 'marketplace-sync', start);
-          } else {
-            const single = results[selectedPlugin] ?? { installed: [], failed: [] };
-            success({
-              marketplace: marketplaceName,
-              plugin: selectedPlugin,
-              installed: single.installed,
-              failed: single.failed,
-              total: single.installed.length,
-              target: targetDir,
-              marketplaceUpdated: updated,
-            }, 'skills', 'marketplace-sync', start);
-          }
+          const m = selectedMarketplace;
+          const targetResults = targets.map(t => installMarketplaceToTarget(m, marketplacePath, pluginChoices, selectedPlugin as string, t, { updated, force: syncOpts.force, installedOnly: syncOpts.installedOnly }));
+          const instructions = applyInstructionsForTargets(m, marketplacePath, targets, syncOpts.instructions);
+          success(
+            shapeSyncResult(marketplaceName, updated, selectedPlugin, targetResults, { installedOnly: syncOpts.installedOnly, instructions }),
+            'skills', 'marketplace-sync', start
+          );
           return;
         }
       } catch (err) {
         fail(err, 'skills', 'marketplace-sync', start);
+      }
+    });
+
+  const instructions = marketplace
+    .command('instructions')
+    .description('Manage the AGENTS.md / CLAUDE.md a marketplace ships (merged as a marked block into each agent\'s user-level instructions file)');
+
+  function resolveInstructionAgents(opts: TargetingOptions): string[] {
+    return resolveInstallTargets(opts).map(t => t.agent);
+  }
+
+  function findMarketplaceOrThrow(all: MarketplaceConfig[], name: string): MarketplaceConfig {
+    const found = all.find(m => m.name === name || m.repoUrl === name);
+    if (!found) throw new Error(`Marketplace "${name}" not found. Run: pncli skills marketplace list`);
+    return found;
+  }
+
+  instructions
+    .command('list')
+    .description('Show which marketplaces ship instructions and whether each agent\'s user-level file has them installed and current')
+    .option('--marketplace <name>', 'Only report this marketplace (name or clone URL)')
+    .action((opts: { marketplace?: string }) => {
+      const start = Date.now();
+      try {
+        const all = loadMarketplaces(getGlobalConfigPath());
+        const selected = opts.marketplace ? [findMarketplaceOrThrow(all, opts.marketplace)] : all;
+        const agents = Object.keys(AGENT_PATHS);
+        const marketplaces = selected.map(m => {
+          const shipped = m.localPath && fs.existsSync(m.localPath) ? findMarketplaceInstructions(m.localPath).map(s => s.file) : [];
+          return {
+            marketplace: marketplaceLabel(m),
+            localPath: m.localPath ?? null,
+            ships: shipped,
+            agents: marketplaceInstructionsStatus(m.localPath, marketplaceLabel(m), agents),
+          };
+        });
+        success({
+          files: Object.fromEntries(agents.map(a => [a, agentInstructionsFile(a)])),
+          marketplaces,
+          hint: marketplaces.some(m => m.ships.length > 0)
+            ? 'Apply with: pncli skills marketplace instructions install --all-agents'
+            : 'No registered marketplace ships an instructions/AGENTS.md or instructions/CLAUDE.md.',
+        }, 'skills', 'marketplace-instructions-list', start);
+      } catch (err) {
+        fail(err, 'skills', 'marketplace-instructions-list', start);
+      }
+    });
+
+  instructions
+    .command('install')
+    .description('Apply (or refresh) the shipped instructions of one or every marketplace into the agent\'s user-level file')
+    .option('--marketplace <name>', 'Marketplace to apply (name or clone URL); default: every registered marketplace that ships instructions')
+    .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
+    .option('--claude', 'Shorthand for --agent claude-code')
+    .option('--all-agents', 'Apply to every supported agent host in one run')
+    .action((opts: { marketplace?: string } & TargetingOptions) => {
+      const start = Date.now();
+      try {
+        const all = loadMarketplaces(getGlobalConfigPath());
+        if (all.length === 0) throw new Error('No marketplaces configured. Run: pncli skills marketplace add <url>');
+        const agents = resolveInstructionAgents(opts);
+        const selected = opts.marketplace ? [findMarketplaceOrThrow(all, opts.marketplace)] : all;
+
+        const results = selected.map(m => {
+          const name = marketplaceLabel(m);
+          if (!m.localPath || !fs.existsSync(m.localPath)) {
+            return { marketplace: name, skipped: true, message: 'Local path not found. Run: pncli skills marketplace add <url>' };
+          }
+          if (findMarketplaceInstructions(m.localPath).length === 0) {
+            return { marketplace: name, skipped: true, message: `Ships no instructions/AGENTS.md or instructions/CLAUDE.md.` };
+          }
+          const applied = applyMarketplaceInstructions(m.localPath, name, agents);
+          for (const r of applied) {
+            if (r.action === 'added' || r.action === 'updated') warn(`Instructions ${r.action} in ${r.file} (from ${r.source})`);
+          }
+          return { marketplace: name, agents: applied };
+        });
+        if (opts.marketplace && 'skipped' in results[0]) throw new Error(`Marketplace "${results[0].marketplace}": ${results[0].message}`);
+
+        success({ marketplaces: results, agents }, 'skills', 'marketplace-instructions-install', start);
+      } catch (err) {
+        fail(err, 'skills', 'marketplace-instructions-install', start);
+      }
+    });
+
+  instructions
+    .command('remove')
+    .description('Strip a marketplace\'s instructions block from the agent\'s user-level file (everything else in the file is kept)')
+    .argument('<marketplace>', 'Marketplace name (or clone URL). Works even after the marketplace has been removed from config.')
+    .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
+    .option('--claude', 'Shorthand for --agent claude-code')
+    .option('--all-agents', 'Remove from every supported agent host in one run')
+    .action((marketplaceName: string, opts: TargetingOptions) => {
+      const start = Date.now();
+      try {
+        const agents = resolveInstructionAgents(opts);
+        // Resolve a clone URL to the registered name when possible; otherwise treat the
+        // argument as the name literally so blocks from an unregistered marketplace can still go.
+        const registered = loadMarketplaces(getGlobalConfigPath()).find(m => m.name === marketplaceName || m.repoUrl === marketplaceName);
+        const name = registered ? marketplaceLabel(registered) : marketplaceName;
+        const results = removeMarketplaceInstructions(name, agents);
+        for (const r of results) {
+          if (r.removed) warn(`Instructions block for "${name}" removed from ${r.file}`);
+        }
+        success({ marketplace: name, agents: results, removed: results.filter(r => r.removed).length }, 'skills', 'marketplace-instructions-remove', start);
+      } catch (err) {
+        fail(err, 'skills', 'marketplace-instructions-remove', start);
       }
     });
 
@@ -1978,7 +2215,7 @@ export function registerSkillsCommands(program: Command): void {
 
   marketplace
     .command('manage')
-    .description('Manage marketplaces and plugins: toggle plugins on/off, add or remove marketplaces (interactive)')
+    .description('Manage marketplaces and plugins: toggle plugins on/off, sync every marketplace, apply shipped AGENTS.md / CLAUDE.md, add or remove marketplaces (interactive)')
     .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--scope <scope>', 'Installation scope: project | user (default: user)')
@@ -1986,7 +2223,7 @@ export function registerSkillsCommands(program: Command): void {
     .action(async (opts: { agent?: string; claude?: boolean; scope?: string; target?: string }) => {
       const start = Date.now();
       try {
-        assertInteractive('Use `pncli skills marketplace enable|disable <plugin>`, `add <url>`, and `remove <name>` to manage non-interactively.');
+        assertInteractive('Use `pncli skills marketplace enable|disable <plugin>`, `sync --marketplace all`, `instructions install`, `add <url>`, and `remove <name>` to manage non-interactively.');
         const targetDir = resolveTargetDir(opts);
 
         interface PluginChange { plugin: string; marketplace?: string; skills: string[] }
@@ -1995,23 +2232,46 @@ export function registerSkillsCommands(program: Command): void {
         const stashMissing: string[] = [];
         const addedMarketplaces: Record<string, unknown>[] = [];
         const removedMarketplaces: Record<string, unknown>[] = [];
+        // Keyed by marketplace so choosing Sync twice reports the latest outcome, not duplicates.
+        const syncedMarketplaces = new Map<string, Record<string, unknown>>();
+        const appliedInstructions = new Map<string, Record<string, unknown>>();
+        // Instructions files belong to an agent host; a custom --target has no host to map to.
+        const instructionAgents = opts.target ? [] : [resolveAgentName(opts)];
 
         // Hub loop: each pass re-reads config and the skills dir so the menu reflects
         // whatever the previous action changed.
         for (;;) {
           const states = fs.existsSync(targetDir) ? listPluginStates(targetDir) : [];
           const registered = loadMarketplaces(getGlobalConfigPath());
+          const shipping = registered.filter(m => m.localPath && fs.existsSync(m.localPath) && findMarketplaceInstructions(m.localPath).length > 0);
 
           const action = await select({
             message: `Manage skills marketplaces (target: ${targetDir}):`,
             choices: [
               ...(states.length > 0 ? [{ value: 'toggle', name: `Toggle plugins on/off (${states.length} installed)` }] : []),
+              ...(registered.length > 0 ? [{ value: 'sync', name: `Sync every marketplace (${registered.length} registered)` }] : []),
+              ...(shipping.length > 0 && instructionAgents.length > 0 ? [{ value: 'instructions', name: `Apply shipped AGENTS.md / CLAUDE.md (${shipping.length} marketplace(s) ship them)` }] : []),
               { value: 'add', name: 'Add a marketplace' },
               ...(registered.length > 0 ? [{ value: 'remove', name: `Remove a marketplace (${registered.length} registered)` }] : []),
               { value: 'done', name: 'Done' },
             ],
           });
           if (action === 'done') break;
+
+          if (action === 'sync') {
+            const syncTargets: InstallTarget[] = [{ agent: opts.target ? 'custom' : resolveAgentName(opts), target: targetDir }];
+            for (const m of registered) {
+              syncedMarketplaces.set(marketplaceLabel(m), syncMarketplacePlugins(m, syncTargets, 'all', { force: false, installedOnly: false, instructions: instructionAgents.length > 0 }));
+            }
+            continue;
+          }
+
+          if (action === 'instructions') {
+            for (const m of shipping) {
+              appliedInstructions.set(marketplaceLabel(m), { marketplace: marketplaceLabel(m), agents: applyMarketplaceInstructions(m.localPath as string, marketplaceLabel(m), instructionAgents) });
+            }
+            continue;
+          }
 
           if (action === 'toggle') {
             // Group the checkbox list by marketplace with separator headers.
@@ -2072,6 +2332,8 @@ export function registerSkillsCommands(program: Command): void {
               name: name || undefined,
               agent: opts.agent,
               claude: opts.claude,
+              // A custom --target has no agent host to map instructions onto.
+              instructions: instructionAgents.length > 0,
             }));
           } else if (action === 'remove') {
             const chosen = await select({
@@ -2093,6 +2355,8 @@ export function registerSkillsCommands(program: Command): void {
           disabled: disabledPlugins,
           addedMarketplaces,
           removedMarketplaces,
+          syncedMarketplaces: [...syncedMarketplaces.values()],
+          appliedInstructions: [...appliedInstructions.values()],
           target: targetDir,
           ...(stashMissing.length > 0 ? {
             stashMissing,

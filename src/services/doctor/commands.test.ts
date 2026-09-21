@@ -97,3 +97,28 @@ describe('buildProblems', () => {
     expect(problems.some(p => p.area === 'skills' && p.message.includes('different pncli version'))).toBe(true);
   });
 });
+
+describe('buildProblems — marketplaces', () => {
+  const registered = { name: 'org', repoUrl: 'https://ghe.imagile.dev/org/skills.git', localPath: '/x/marketplaces/skills', cloneExists: true };
+
+  it('adds nothing when no marketplaces are registered', () => {
+    expect(buildProblems(okFile('g'), missingFile('r'), null, [healthyLocation], [])).toEqual([]);
+  });
+
+  it('flags a registered marketplace whose clone directory is gone', () => {
+    const problems = buildProblems(okFile('g'), missingFile('r'), null, [healthyLocation], [{ ...registered, cloneExists: false }]);
+    const p = problems.find(p => p.area === 'marketplaces');
+    expect(p?.message).toContain('clone is missing');
+    expect(p?.fix).toContain('marketplace add https://ghe.imagile.dev/org/skills.git');
+  });
+
+  it('nudges toward sync when marketplaces exist but nothing is installed from them', () => {
+    const problems = buildProblems(okFile('g'), missingFile('r'), null, [{ ...healthyLocation, marketplaceSkills: 0 }], [registered]);
+    expect(problems.some(p => p.area === 'marketplaces' && p.fix.includes('marketplace sync'))).toBe(true);
+  });
+
+  it('stays quiet once plugin skills are installed from a marketplace', () => {
+    const problems = buildProblems(okFile('g'), missingFile('r'), null, [{ ...healthyLocation, marketplaceSkills: 2 }], [registered]);
+    expect(problems.filter(p => p.area === 'marketplaces')).toEqual([]);
+  });
+});

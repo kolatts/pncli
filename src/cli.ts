@@ -42,7 +42,7 @@ import { registerSplitioCommands } from './services/splitio/commands.js';
 import { registerFigmaCommands } from './services/figma/commands.js';
 import { registerAlationCommands } from './services/alation/commands.js';
 
-const TAGLINE = 'One command does what three meetings couldn\'t.';
+const TAGLINE = 'Connectivity without MCP.';
 
 const program = new Command();
 
@@ -122,9 +122,16 @@ Services:
   figma        Figma (files, comments, version history)
   alation      Alation (data sources, schemas, tables, columns, search, Document Hubs)
   config       Manage pncli configuration
-  doctor       Diagnose pncli setup (config files, credentials, agent skills)
+  doctor       Diagnose pncli setup (config files, credentials, agent skills, marketplaces)
   skills       Install and manage agent skills (Codex, GitHub Copilot, Claude Code)
   jwt          JWT token utilities (decode header and payload)
+
+Agent skills and org plugins:
+  pncli skills install --all-agents                     Bundled pncli skills into this repo, every agent host
+  pncli skills marketplace add <git-url> --all-agents   Org plugins (skills + AGENTS.md/CLAUDE.md) from a git marketplace
+  pncli skills marketplace sync --marketplace all       Pull and refresh everything installed from marketplaces
+  pncli skills marketplace manage                       Interactive: toggle plugins, add/remove marketplaces
+  pncli skills --help                                   Every install location and command
 `);
 
 program.parseAsync(process.argv).catch((err: unknown) => {

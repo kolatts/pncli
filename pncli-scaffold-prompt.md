@@ -6,7 +6,7 @@
 
 # pncli — The Paperwork Nightmare CLI
 
-> One command does what three meetings couldn't.
+> Connectivity without MCP.
 
 > **Historical document.** This is the original scaffolding prompt that produced the first version of pncli. It describes the project's scope as it was at creation (Jira + Bitbucket only) and is kept for provenance. It is **not** a statement of current scope — see the **Service Scope** section of `CLAUDE.md` for that, and never cite this file when assessing whether a service integration fits the project.
 
@@ -29,7 +29,7 @@ This CLI will be published to npm and installed globally (`npm install -g pncli`
 - Full name: **Paperwork Nightmare CLI**
 - Binary name: `pncli`
 - npm package name: `pncli`
-- Tagline: "One command does what three meetings couldn't."
+- Tagline: "Connectivity without MCP."
 - Include the tagline in the README hero section, `--help` banner, and `--version` output
 - ASCII art banner on `--help` is welcome but not required
 
@@ -99,7 +99,7 @@ pncli/
 #### package.json
 
 - `name`: `pncli`
-- `description`: `The Paperwork Nightmare CLI — One command does what three meetings couldn't.`
+- `description`: `The Paperwork Nightmare CLI — Connectivity without MCP.`
 - `bin`: `{ "pncli": "./dist/cli.js" }`
 - `type`: `module`
 - `engines`: `{ "node": ">=18" }`
@@ -610,7 +610,7 @@ Generate a `copilot-instructions.md` file in the project root. This file teaches
 ```markdown
 # pncli — The Paperwork Nightmare CLI
 
-> One command does what three meetings couldn't.
+> Connectivity without MCP.
 
 ## What is pncli?
 
@@ -702,7 +702,7 @@ Always check `ok` before accessing `data`.
 ```markdown
 # pncli — The Paperwork Nightmare CLI
 
-> One command does what three meetings couldn't.
+> Connectivity without MCP.
 
 pncli gives AI coding agents (and humans) structured CLI access to Jira Data Cloud and Bitbucket Server. No MCP servers required. No meetings to schedule. No forms to fill out.
 

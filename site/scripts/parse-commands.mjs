@@ -69,6 +69,29 @@ const DESCRIPTION_SCRUBS = [];
 // Wrap flag-like tokens (--foo, -x) in backticks so they render as code spans.
 // Without this, remark turns "--" in prose into an em dash. Skips text already
 // inside inline code spans to avoid double-wrapping.
+// A JS string literal in source: single-quoted or a template literal. Two capture
+// groups per use — (single-quoted body)(template body) — one of which is undefined.
+const STRING_LITERAL = "(?:'((?:[^'\\\\]|\\\\.)*)'|`((?:[^`\\\\]|\\\\.)*)`)";
+
+// Constants the CLI interpolates into help text; anything else is left as written.
+const TEMPLATE_VALUES = {
+  AGENT_CHOICES: 'codex | github-copilot | claude-code',
+  DEFAULT_AGENT: 'codex',
+};
+
+// Resolves the escape sequences a single-quoted JS literal can carry (\' \\ \n).
+function unescapeJs(text) {
+  return text.replace(/\\(.)/g, (_, ch) => (ch === 'n' ? ' ' : ch));
+}
+
+// Text of a STRING_LITERAL match whose capture groups start at `first` (1-based).
+function literalText(match, first = 1) {
+  const single = match[first];
+  const template = match[first + 1];
+  if (single !== undefined) return unescapeJs(single);
+  return unescapeJs(template).replace(/\$\{(\w+)\}/g, (whole, name) => TEMPLATE_VALUES[name] ?? whole);
+}
+
 function scrubDescription(text) {
   for (const [pattern, replacement] of DESCRIPTION_SCRUBS) {
     text = text.replace(pattern, replacement);
@@ -139,13 +162,26 @@ function extractCommands(filePath, prefix) {
     // Slice from the last .command('name') onwards to find description and options.
     const afterCmd = segment.slice(lastCmd.index + lastCmd[0].length);
 
-    const descMatch = afterCmd.match(/\.description\s*\(\s*'([^']+)'\s*\)/);
+    // Single-quoted JS string literal: allows escaped characters (an apostrophe in
+    // prose is written as \'), so a description like "a plugin\'s skills" no longer
+    // fails the match and silently drops the whole command from the reference.
+    const descMatch = afterCmd.match(new RegExp(`\\.description\\s*\\(\\s*${STRING_LITERAL}\\s*\\)`));
     if (!descMatch) continue;
-    const description = scrubDescription(descMatch[1]);
+    const description = scrubDescription(literalText(descMatch));
 
+    // Options whose help text is a template literal (`Target agent host: ${AGENT_CHOICES}`)
+    // render too, with the handful of constants the CLI interpolates substituted in.
     const options = [];
-    for (const m of afterCmd.matchAll(/\.(requiredOption|option)\s*\(\s*'([^']+)'\s*,\s*'([^']+)'/g)) {
-      options.push({ flag: m[2], description: scrubDescription(m[3]), required: m[1] === 'requiredOption' });
+    for (const m of afterCmd.matchAll(new RegExp(`\\.(requiredOption|option)\\s*\\(\\s*${STRING_LITERAL}\\s*,\\s*${STRING_LITERAL}`, 'g'))) {
+      const flag = literalText(m, 2);
+      const help = literalText(m, 4);
+      // An interpolation we could not resolve would ship as literal "${...}" text; skip it
+      // loudly so the next one gets a TEMPLATE_VALUES entry instead of a broken reference.
+      if (/\$\{/.test(flag) || /\$\{/.test(help)) {
+        console.warn(`parse-commands: skipping option ${flag} of "${prefix} ${cmdName}" — unresolved template expression in ${filePath}`);
+        continue;
+      }
+      options.push({ flag, description: scrubDescription(help), required: m[1] === 'requiredOption' });
     }
 
     // A top-level command (e.g. `pncli doctor`) registers itself as its own
