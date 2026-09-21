@@ -1169,7 +1169,7 @@ async function initGlobalConfig(start: number): Promise<void> {
 
     alationUserId = await input({
       message: 'Alation user ID (numeric):',
-      validate: (v) => /^\d+$/.test(v.trim()) || 'Must be a positive integer'
+      validate: (v) => /^[1-9]\d*$/.test(v.trim()) || 'Must be a positive integer'
     });
 
     if (alationBaseUrl && alationRefreshToken && alationUserId) {

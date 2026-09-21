@@ -33,7 +33,7 @@ export const ALATION_CONFIG_HINT =
 export function parseAlationUserId(raw: string | number | undefined): number | undefined {
   if (raw === undefined || raw === '') return undefined;
   const text = String(raw).trim();
-  if (!/^\d+$/.test(text)) {
+  if (!/^[1-9]\d*$/.test(text)) {
     throw new PncliError(
       `Alation userId must be a positive integer (the numeric ID Alation returned when the refresh token was created), got "${text}". ${ALATION_CONFIG_HINT}`,
       1

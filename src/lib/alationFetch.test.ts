@@ -70,6 +70,12 @@ describe('parseAlationUserId', () => {
     expect(() => parseAlationUserId('you@example.com')).toThrow(/userId must be a positive integer/);
     expect(() => parseAlationUserId('you@example.com')).toThrow(/pncli config set alation.userId/);
   });
+
+  it('rejects zero and leading-zero values', () => {
+    expect(() => parseAlationUserId('0')).toThrow(/userId must be a positive integer/);
+    expect(() => parseAlationUserId('000')).toThrow(/userId must be a positive integer/);
+    expect(() => parseAlationUserId(0)).toThrow(/userId must be a positive integer/);
+  });
 });
 
 describe('buildAlationFetcher — configuration', () => {
