@@ -33,6 +33,8 @@ export interface BitbucketPR {
 
 export interface BitbucketComment {
   id: number;
+  /** Optimistic-locking version — pass the current value to resolve-comment/delete-comment's --comment-version */
+  version: number;
   text: string;
   author: BitbucketUser;
   createdDate: number;
@@ -47,6 +49,12 @@ export interface BitbucketComment {
     line: number;
     lineType: 'ADDED' | 'REMOVED' | 'CONTEXT';
     fileType?: 'FROM' | 'TO';
+  };
+  /** What the current user may do to this comment/thread, e.g. transitionable=true means it can be resolved */
+  permittedOperations?: {
+    editable?: boolean;
+    deletable?: boolean;
+    transitionable?: boolean;
   };
   /** Nested replies — present in raw API responses; flattened out in listComments() */
   comments?: BitbucketComment[];
