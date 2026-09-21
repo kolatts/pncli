@@ -1185,8 +1185,9 @@ describe('resolveInstallTargets', () => {
 
   it('resolves project scope when asked', () => {
     const targets = resolveInstallTargets({ allAgents: true }, 'project');
-    expect(targets.every(t => !t.target.startsWith(os.homedir() + path.sep) || t.target.includes('.agents'))).toBe(true);
+    // Project paths resolve against the repo root, wherever that lives (on CI it is under $HOME).
     expect(targets.map(t => path.basename(path.dirname(t.target)))).toEqual(['.agents', '.github', '.claude']);
+    expect(targets.every(t => t.target !== path.resolve(AGENT_PATHS[t.agent].user))).toBe(true);
   });
 
   it('rejects --all-agents combined with an explicit host', () => {

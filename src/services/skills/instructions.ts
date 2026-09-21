@@ -150,9 +150,10 @@ export function upsertManagedBlock(existing: string, marketplaceName: string, bl
     if (match[0] === rendered) return { content: existing, action: 'unchanged' };
     return { content: existing.slice(0, match.index) + rendered + existing.slice(match.index + match[0].length), action: 'updated' };
   }
-  // Always add exactly one separating line (two when the file lacks a trailing newline) so
-  // `removeManagedBlock` can take back precisely what was added and restore the file.
-  const separator = existing.length === 0 ? '' : existing.endsWith(eol) ? eol : eol + eol;
+  // Always add exactly one line ending before the block (a blank line when the file already
+  // ends with one, a bare terminator when it does not) so `removeManagedBlock` can take back
+  // precisely what was added and restore the file byte-for-byte.
+  const separator = existing.length === 0 ? '' : eol;
   return { content: `${existing}${separator}${rendered}${eol}`, action: 'added' };
 }
 
@@ -169,9 +170,9 @@ export function removeManagedBlock(existing: string, marketplaceName: string): {
 
   // The block's own terminating newline.
   if (existing.startsWith(eol, end)) end += eol.length;
-  // The blank line that separated it from the content before it — or, when the block
-  // opened the file, the blank line that separated it from the content after it.
-  if (existing.slice(0, start).endsWith(eol + eol)) start -= eol.length;
+  // The single line ending `upsertManagedBlock` put before it — or, when the block opened
+  // the file, the blank line that separated it from content added after it.
+  if (start > 0 && existing.slice(0, start).endsWith(eol)) start -= eol.length;
   else if (start === 0 && existing.startsWith(eol, end)) end += eol.length;
 
   return { content: existing.slice(0, start) + existing.slice(end), removed: true };

@@ -149,7 +149,13 @@ describe('managed block', () => {
 
   it('adds a newline before the block when the file does not end with one', () => {
     const { content } = upsertManagedBlock('no trailing newline', 'org', block());
-    expect(content).toBe('no trailing newline\n\n' + block() + '\n');
+    expect(content).toBe('no trailing newline\n' + block() + '\n');
+  });
+
+  it('restores a file that had no trailing newline byte-for-byte on remove', () => {
+    const original = '# Mine\n\nno trailing newline';
+    const withBlock = upsertManagedBlock(original, 'org', block()).content;
+    expect(removeManagedBlock(withBlock, 'org')).toEqual({ content: original, removed: true });
   });
 
   it('replaces an existing block in place and reports updated', () => {
