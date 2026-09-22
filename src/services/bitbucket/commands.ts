@@ -104,7 +104,7 @@ export function registerBitbucketCommands(program: Command): void {
         const { client, project, repo } = getClient(bb, { project: opts.project, repo: opts.repo });
         const config = loadConfig({ configPath: bb.optsWithGlobals().config });
         const target = opts.target ?? config.defaults.bitbucket?.targetBranch ?? 'main';
-        const reviewers = opts.reviewers ? opts.reviewers.split(',').map(s => s.trim()) : [];
+        const reviewers = opts.reviewers ? opts.reviewers.split(',').map(s => s.trim()) : undefined;
         const data = await client.createPR({ project, repo, title: opts.title, source: opts.source, target, description: opts.description, reviewers });
         success(data, 'bitbucket', 'create-pr', start);
       } catch (err) { fail(err, 'bitbucket', 'create-pr', start); }
@@ -139,7 +139,7 @@ export function registerBitbucketCommands(program: Command): void {
         }
 
         const title = opts.title ?? `Promote ${opts.from} to ${opts.to}`;
-        const reviewers = opts.reviewers ? opts.reviewers.split(',').map(s => s.trim()) : [];
+        const reviewers = opts.reviewers ? opts.reviewers.split(',').map(s => s.trim()) : undefined;
 
         type RepoResult =
           | { repo: string; status: 'created'; pr: BitbucketPR }
