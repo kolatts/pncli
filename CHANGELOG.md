@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.2.0](https://github.com/kolatts/pncli/compare/v5.1.0...v5.2.0) (2026-09-21)
+
+
+### Features
+
+* **skills:** multi-host marketplace installs, shipped AGENTS.md/CLAUDE.md, plugin discoverability, new tagline ([#482](https://github.com/kolatts/pncli/issues/482)) ([883c476](https://github.com/kolatts/pncli/commit/883c476420892d02d2ca2f344dbbd5ed5f003d08))
+
+
+### Bug Fixes
+
+* **alation:** reject zero and leading-zero user IDs ([#477](https://github.com/kolatts/pncli/issues/477)) ([0181517](https://github.com/kolatts/pncli/commit/018151733236d2e17a566d2f6868691cbff85ca2))
+* **bitbucket:** stop --version on resolve-comment/delete-comment from colliding with the global flag ([#481](https://github.com/kolatts/pncli/issues/481)) ([ed90660](https://github.com/kolatts/pncli/commit/ed90660291c61cbc3a403aadcf4372e7c3642353))
+
 ## [5.1.0](https://github.com/kolatts/pncli/compare/v5.0.2...v5.1.0) (2026-09-17)
 
 
