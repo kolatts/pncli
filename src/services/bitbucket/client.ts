@@ -90,30 +90,34 @@ export class BitbucketClient {
   }
 
   async createPR(opts: CreatePROpts): Promise<BitbucketPR> {
-    return this.http.bitbucket<BitbucketPR>(
-      `${API}/projects/${opts.project}/repos/${opts.repo}/pull-requests`,
-      {
-        method: 'POST',
-        body: {
-          title: opts.title,
-          description: opts.description,
-          fromRef: {
-            id: `refs/heads/${opts.source}`,
-            repository: {
-              slug: opts.repo,
-              project: { key: opts.project }
-            }
-          },
-          toRef: {
-            id: `refs/heads/${opts.target}`,
-            repository: {
-              slug: opts.repo,
-              project: { key: opts.project }
-            }
-          },
-          reviewers: (opts.reviewers ?? []).map(name => ({ user: { name } }))
+    const body: Record<string, unknown> = {
+      title: opts.title,
+      description: opts.description,
+      fromRef: {
+        id: `refs/heads/${opts.source}`,
+        repository: {
+          slug: opts.repo,
+          project: { key: opts.project }
+        }
+      },
+      toRef: {
+        id: `refs/heads/${opts.target}`,
+        repository: {
+          slug: opts.repo,
+          project: { key: opts.project }
         }
       }
+    };
+    // Omitting reviewers entirely (rather than sending []) lets Bitbucket Server
+    // apply its configured default-reviewer condition; an explicit empty array
+    // is treated as "no reviewers" and overrides that condition.
+    if (opts.reviewers && opts.reviewers.length > 0) {
+      body.reviewers = opts.reviewers.map(name => ({ user: { name } }));
+    }
+
+    return this.http.bitbucket<BitbucketPR>(
+      `${API}/projects/${opts.project}/repos/${opts.repo}/pull-requests`,
+      { method: 'POST', body }
     );
   }
 
