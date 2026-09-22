@@ -143,7 +143,7 @@ export function registerSplitioCommands(program: Command): void {
       try {
         const http = getHttp(program);
         const data = await http.splitio<PagedResponse<SplitEnvironment>>(
-          `/internal/api/v2/workspaces/${encodeURIComponent(opts.workspace)}/environments`
+          `/internal/api/v2/environments/ws/${encodeURIComponent(opts.workspace)}`
         );
         success(
           { count: data.objects.length, environments: data.objects },
@@ -167,12 +167,14 @@ export function registerSplitioCommands(program: Command): void {
       try {
         const http = getHttp(program);
         const params: Record<string, string | number | boolean | undefined> = {
-          wsId: opts.workspace,
           limit: parseInt(opts.limit, 10),
           offset: parseInt(opts.offset, 10)
         };
         if (opts.flagSet) params['flagSetName'] = opts.flagSet;
-        const data = await http.splitio<PagedResponse<SplitFlag>>('/internal/api/v2/splits', { params });
+        const data = await http.splitio<PagedResponse<SplitFlag>>(
+          `/internal/api/v2/splits/ws/${encodeURIComponent(opts.workspace)}`,
+          { params }
+        );
         success(
           { count: data.objects.length, totalCount: data.totalCount, flags: data.objects },
           'splitio', 'flags list', start
@@ -192,14 +194,12 @@ export function registerSplitioCommands(program: Command): void {
         const http = getHttp(program);
         if (opts.environment) {
           const data = await http.splitio<SplitFlagDefinition>(
-            `/internal/api/v2/splits/${encodeURIComponent(opts.flag)}/environments/${encodeURIComponent(opts.environment)}`,
-            { params: { wsId: opts.workspace } }
+            `/internal/api/v2/splits/ws/${encodeURIComponent(opts.workspace)}/name/${encodeURIComponent(opts.flag)}/environment/${encodeURIComponent(opts.environment)}`
           );
           success(data, 'splitio', 'flags get', start);
         } else {
           const data = await http.splitio<SplitFlag>(
-            `/internal/api/v2/splits/${encodeURIComponent(opts.flag)}`,
-            { params: { wsId: opts.workspace } }
+            `/internal/api/v2/splits/ws/${encodeURIComponent(opts.workspace)}/name/${encodeURIComponent(opts.flag)}`
           );
           success(data, 'splitio', 'flags get', start);
         }
@@ -238,7 +238,7 @@ export function registerSplitioCommands(program: Command): void {
           },
           workspace: { id: opts.workspace }
         };
-        const data = await http.splitio<ChangeRequest>('/internal/api/v2/changeRequests', {
+        const data = await http.splitio<ChangeRequest>(`/internal/api/v2/changeRequests/ws/${encodeURIComponent(opts.workspace)}`, {
           method: 'POST',
           body
         });
@@ -273,8 +273,7 @@ export function registerSplitioCommands(program: Command): void {
 
         // Fetch current definition to patch in-place
         const current = await http.splitio<SplitFlagDefinition>(
-          `/internal/api/v2/splits/${encodeURIComponent(opts.flag)}/environments/${encodeURIComponent(opts.environment)}`,
-          { params: { wsId: opts.workspace } }
+          `/internal/api/v2/splits/ws/${encodeURIComponent(opts.workspace)}/name/${encodeURIComponent(opts.flag)}/environment/${encodeURIComponent(opts.environment)}`
         );
 
         const rules = (current.rules ?? []) as Array<Record<string, unknown>>;
@@ -302,7 +301,7 @@ export function registerSplitioCommands(program: Command): void {
           },
           workspace: { id: opts.workspace }
         };
-        const data = await http.splitio<ChangeRequest>('/internal/api/v2/changeRequests', {
+        const data = await http.splitio<ChangeRequest>(`/internal/api/v2/changeRequests/ws/${encodeURIComponent(opts.workspace)}`, {
           method: 'POST',
           body
         });
@@ -331,8 +330,7 @@ export function registerSplitioCommands(program: Command): void {
 
         // Fetch current definition so we only change defaultRule
         const current = await http.splitio<SplitFlagDefinition>(
-          `/internal/api/v2/splits/${encodeURIComponent(opts.flag)}/environments/${encodeURIComponent(opts.environment)}`,
-          { params: { wsId: opts.workspace } }
+          `/internal/api/v2/splits/ws/${encodeURIComponent(opts.workspace)}/name/${encodeURIComponent(opts.flag)}/environment/${encodeURIComponent(opts.environment)}`
         );
 
         await confirmWrite(opts, `SET_DEFAULT ${opts.treatment} on ${opts.flag} in ${opts.environment}`);
@@ -350,7 +348,7 @@ export function registerSplitioCommands(program: Command): void {
           },
           workspace: { id: opts.workspace }
         };
-        const data = await http.splitio<ChangeRequest>('/internal/api/v2/changeRequests', {
+        const data = await http.splitio<ChangeRequest>(`/internal/api/v2/changeRequests/ws/${encodeURIComponent(opts.workspace)}`, {
           method: 'POST',
           body
         });
@@ -386,7 +384,7 @@ export function registerSplitioCommands(program: Command): void {
           split: { name: opts.flag, environment: { id: opts.environment } },
           workspace: { id: opts.workspace }
         };
-        const data = await http.splitio<ChangeRequest>('/internal/api/v2/changeRequests', {
+        const data = await http.splitio<ChangeRequest>(`/internal/api/v2/changeRequests/ws/${encodeURIComponent(opts.workspace)}`, {
           method: 'POST',
           body
         });
@@ -429,7 +427,7 @@ export function registerSplitioCommands(program: Command): void {
               split: { name: entry.flag, environment: { id: opts.environment } },
               workspace: { id: opts.workspace }
             };
-            const cr = await http.splitio<ChangeRequest>('/internal/api/v2/changeRequests', {
+            const cr = await http.splitio<ChangeRequest>(`/internal/api/v2/changeRequests/ws/${encodeURIComponent(opts.workspace)}`, {
               method: 'POST',
               body
             });
@@ -469,7 +467,7 @@ export function registerSplitioCommands(program: Command): void {
           split: { name: opts.flag, environment: { id: opts.environment } },
           workspace: { id: opts.workspace }
         };
-        const data = await http.splitio<ChangeRequest>('/internal/api/v2/changeRequests', {
+        const data = await http.splitio<ChangeRequest>(`/internal/api/v2/changeRequests/ws/${encodeURIComponent(opts.workspace)}`, {
           method: 'POST',
           body
         });
@@ -499,7 +497,7 @@ export function registerSplitioCommands(program: Command): void {
           split: { name: opts.flag, environment: { id: opts.environment } },
           workspace: { id: opts.workspace }
         };
-        const data = await http.splitio<ChangeRequest>('/internal/api/v2/changeRequests', {
+        const data = await http.splitio<ChangeRequest>(`/internal/api/v2/changeRequests/ws/${encodeURIComponent(opts.workspace)}`, {
           method: 'POST',
           body
         });
@@ -527,7 +525,7 @@ export function registerSplitioCommands(program: Command): void {
           split: { name: opts.flag },
           workspace: { id: opts.workspace }
         };
-        const data = await http.splitio<ChangeRequest>('/internal/api/v2/changeRequests', {
+        const data = await http.splitio<ChangeRequest>(`/internal/api/v2/changeRequests/ws/${encodeURIComponent(opts.workspace)}`, {
           method: 'POST',
           body
         });
@@ -553,14 +551,13 @@ export function registerSplitioCommands(program: Command): void {
       try {
         const http = getHttp(program);
         const params: Record<string, string | number | boolean | undefined> = {
-          wsId: opts.workspace,
           limit: parseInt(opts.limit, 10),
           offset: parseInt(opts.offset, 10)
         };
         if (opts.environment) params['environmentId'] = opts.environment;
         if (opts.status) params['status'] = opts.status;
         const data = await http.splitio<PagedResponse<ChangeRequest>>(
-          '/internal/api/v2/changeRequests',
+          `/internal/api/v2/changeRequests/ws/${encodeURIComponent(opts.workspace)}`,
           { params }
         );
         success(
