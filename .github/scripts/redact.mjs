@@ -6,7 +6,7 @@
 // and credential-shaped strings. Pure ESM with no dependencies so a workflow
 // can run it straight from a sparse checkout without `npm ci`.
 //
-// Used by .github/workflows/issue-redact.yml and claude-triage.yml. Tests live
+// Used by .github/workflows/claude-triage.yml. Tests live
 // next to it in redact.test.mjs.
 
 import { pathToFileURL } from 'node:url';

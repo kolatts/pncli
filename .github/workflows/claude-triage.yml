@@ -133,11 +133,12 @@ jobs:
       # fields the prompt needs from the API instead. Every later reference goes
       # through these outputs so both triggers take the identical code path.
       #
-      # The title and body are redacted here (see issue-redact.yml) before they
-      # reach any output, so the agent never sees — and so can never echo into a
-      # comment, branch, commit, or PR — an organization name, internal host, or
-      # pasted credential. The issue itself is rewritten in the same step rather
-      # than left to issue-redact.yml, which races this job on website issues.
+      # The title and body are redacted here (.github/scripts/redact.mjs, denylist
+      # in the REDACT_TERMS secret) before they reach any output, so the agent
+      # never sees — and so can never echo into a comment, branch, commit, or PR —
+      # an organization name, internal host, or pasted credential. When anything
+      # matched, the issue itself is rewritten with the redacted text too. This is
+      # the only place redaction runs; see CLAUDE.md **Issue Redaction**.
       - name: Resolve target issue
         id: issue
         env:

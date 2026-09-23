@@ -324,7 +324,13 @@ Do not use `example.com`, `company.com`, `mycompany.com`, `your-company.com`, or
 
 ## Issue Redaction
 
-Issues, PRs, and issue comments are rewritten in place by `.github/workflows/issue-redact.yml` to strip whatever identifies a reporter's employer. The rules live in `.github/scripts/redact.mjs` (tested by `redact.test.mjs` under `npm test`) and run in a fixed order: credential-shaped strings → `[redacted-secret]`; denylisted domains and hosts under `.local` / `.internal` / `.corp` / `.lan` / `.intranet` / `.localdomain` → `<service>.imagile.dev` when the first label is a known service name, otherwise `redacted.imagile.dev`; private IPv4 → `[redacted-ip]`; denylisted words → `[org]`. Redaction is idempotent, so reruns are no-ops. Triage runs the same redactor on the title and body before building its prompt and rewrites the issue in that step, so the agent never sees the unredacted text.
+`.github/workflows/claude-triage.yml` redacts every issue it triages — website submissions (`from-website`), `claude-triage`-labelled issues, and manual re-triages — stripping whatever identifies a reporter's employer. The rules live in `.github/scripts/redact.mjs` (tested by `redact.test.mjs` under `npm test`) and run in a fixed order: credential-shaped strings → `[redacted-secret]`; denylisted domains and hosts under `.local` / `.internal` / `.corp` / `.lan` / `.intranet` / `.localdomain` → `<service>.imagile.dev` when the first label is a known service name, otherwise `redacted.imagile.dev`; private IPv4 → `[redacted-ip]`; denylisted words → `[org]`. Redaction is idempotent, so reruns are no-ops. It runs on the title and body before the prompt is built, and the issue is rewritten in that same step, so the agent never sees the unredacted text.
+
+Scope is deliberately just triage. Issues filed directly without a triage label, comments, and PR titles and bodies are **not** redacted. To scrub one of those, run the redactor by hand and patch it:
+
+```bash
+gh issue view 123 --repo kolatts/pncli --json title,body   | REDACT_TERMS="$(cat terms.txt)" node .github/scripts/redact.mjs   | jq '{title, body}' | gh api -X PATCH repos/kolatts/pncli/issues/123 --input -
+```
 
 The organization denylist lives **only** in the `REDACT_TERMS` repository secret — never in the repo, a test, a log line, or a commit message, since publishing it would publish the very names it hides. Tests use fictional names (`acmebank`, `initech`, `acme-int.net`). Format, one entry per line:
 
@@ -338,11 +344,7 @@ acme-int.net
 re:/acme[- ]?corp/i
 ```
 
-With the secret empty, the built-in rules (secrets, internal hosts, private IPs) still run. To backfill every existing issue, PR, and comment:
-
-```bash
-gh workflow run issue-redact.yml --repo kolatts/pncli -f sweep=true
-```
+With the secret empty, the built-in rules (secrets, internal hosts, private IPs) still run.
 
 **Known limit:** GitHub keeps edit history and has no API to delete a revision, so text scrubbed after creation stays visible under "edited" until a maintainer deletes that revision in the UI. The durable fix for website submissions is to redact in the feedback function before the issue is created (tracked as a follow-up).
 
