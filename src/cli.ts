@@ -129,7 +129,7 @@ Services:
 Agent skills and org plugins:
   pncli skills install --all-agents                     Bundled pncli skills into this repo, every agent host
   pncli skills marketplace add <git-url> --all-agents   Org plugins (skills + AGENTS.md/CLAUDE.md) from a git marketplace
-  pncli skills marketplace sync --marketplace all       Pull and refresh everything installed from marketplaces
+  pncli skills marketplace sync                         Pull and refresh everything installed from marketplaces
   pncli skills marketplace manage                       Interactive: toggle plugins, add/remove marketplaces
   pncli skills --help                                   Every install location and command
 `);

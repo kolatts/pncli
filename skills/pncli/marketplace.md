@@ -5,7 +5,7 @@ Enables installing org-internal skills — and org-wide `AGENTS.md` / `CLAUDE.md
 **Quick start (every agent host at once):**
 ```
 pncli skills marketplace add <git-clone-url> --all-agents
-pncli skills marketplace sync --marketplace all --all-agents   # later, to refresh
+pncli skills marketplace sync --all-agents   # later, to refresh what's installed
 ```
 
 `pncli skills marketplace --help` prints the whole workflow; `pncli doctor` reports registered marketplaces and tells you when nothing has been installed from them yet.
@@ -42,22 +42,26 @@ pncli skills marketplace plugins <name>
 
 ## Sync (pull + install)
 
-Install to `~/.agents/skills` (Codex / GitHub Copilot — the default):
+With no plugin, no `--marketplace`, and no `--force`, `sync` is shorthand for `--marketplace all --installed-only`: it pulls every registered marketplace and refreshes only the plugins already installed, without prompting. This is the common case — running it regularly keeps what you already have current.
+
+Refresh everything already installed, to `~/.agents/skills` (Codex / GitHub Copilot — the default):
 ```
 pncli skills marketplace sync
 ```
 
-Install to `~/.claude/skills` (Claude Code):
+Refresh everything already installed, to `~/.claude/skills` (Claude Code):
 ```
 pncli skills marketplace sync --claude
 ```
 
-Install to every agent host at once:
+Refresh everything already installed, to every agent host at once:
 ```
-pncli skills marketplace sync --marketplace all --all-agents
+pncli skills marketplace sync --all-agents
 ```
 
-With a single registered marketplace, `sync` just prompts you to pick a plugin (or pass one explicitly). With more than one marketplace registered, it first prompts you to pick a marketplace — if you pick the wrong plugin from the wrong marketplace, choose "← Back to marketplace selection" to reselect rather than restarting the command.
+To install a plugin you don't have yet, or to browse what's available, pass `--force`, a plugin name, or `--marketplace <name>` — any of those opts back into the interactive picker instead of the "installed only" shorthand above.
+
+With a single registered marketplace, `sync --force` just prompts you to pick a plugin (or pass one explicitly). With more than one marketplace registered, it first prompts you to pick a marketplace — if you pick the wrong plugin from the wrong marketplace, choose "← Back to marketplace selection" to reselect rather than restarting the command.
 
 Pass a plugin name to skip the interactive plugin picker:
 ```
@@ -69,26 +73,26 @@ Pass `--marketplace <name>` to skip the interactive marketplace picker:
 pncli skills marketplace sync my-plugin --marketplace internal-ai
 ```
 
-Install every plugin from one marketplace:
+Install every plugin from one marketplace, including ones you haven't installed yet:
 ```
 pncli skills marketplace sync all --marketplace internal-ai
 ```
 
-Sync every plugin from every registered marketplace in one shot:
+Install every plugin from every registered marketplace, including new ones, in one shot:
 ```
 pncli skills marketplace sync --marketplace all
 ```
 
-`sync` skips reinstalling into a target that already has everything you asked for when the marketplace has no new upstream changes. A target that is *missing* something — a second agent host you just added with `--all-agents`, or a plugin that is not installed there yet — gets the missing plugins installed regardless, so you never need `--force` just to reach a new location. Pass `--force` to reinstall everything anyway. With several targets the JSON output nests per-host results under `targets`; a single target keeps the flat `plugins` / `target` shape.
+`sync` skips reinstalling into a target that already has everything you asked for when the marketplace has no new upstream changes. A target that is *missing* something — a second agent host you just added with `--all-agents`, or a plugin that is not installed there yet — gets the missing plugins installed regardless, so you never need `--force` just to reach a new location. Pass `--force` to reinstall everything anyway (and, with no plugin or `--marketplace` given, to get the interactive picker instead of the installed-only shorthand). With several targets the JSON output nests per-host results under `targets`; a single target keeps the flat `plugins` / `target` shape.
 
 Routine progress is one line per target on stderr; add the global `--verbose` flag to see every skill's source and destination path.
 
-### Update what you already have, without picking up new plugins
+### Picking up newly-added plugins
 
-By default an `all` sync installs every plugin the marketplace offers, including ones added upstream since you last synced. Pass `--installed-only` to update just the plugins already on disk:
+The bare `sync` shorthand (and any `--marketplace all --installed-only` you type explicitly) only refreshes plugins already on disk — it does not install plugins added upstream since you last synced. To pick those up, run an interactive `sync --force`, name the plugin directly, or drop `--installed-only` from an explicit `--marketplace all` sync:
 
 ```
-pncli skills marketplace sync --marketplace all --installed-only
+pncli skills marketplace sync --marketplace all
 ```
 
 Plugins are matched by the marketplace name recorded at install time, falling back to the clone URL — so a marketplace you have since renamed still resolves. Disabled plugins count as installed and are refreshed in place, staying disabled. If a marketplace has no installed plugins at all, it is reported as `skipped` with `installedOnly: true` rather than silently installing everything.

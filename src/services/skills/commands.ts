@@ -1189,6 +1189,19 @@ function installAllPlugins(m: MarketplaceConfig, resolvedPath: string, targets: 
 
 interface SyncOptions { force: boolean; installedOnly: boolean; instructions: boolean }
 
+interface BareSyncArgs { marketplace?: string; force?: boolean }
+
+/**
+ * True for a bare `pncli skills marketplace sync` — no plugin, no `--marketplace`, and no
+ * `--force`. That invocation is shorthand for `--marketplace all --installed-only`: refresh
+ * everything already installed across every registered marketplace, non-interactively, since
+ * that is the most common case. `--force` opts back into the normal interactive picker so a
+ * user forcing a reinstall can still choose what to force.
+ */
+export function isBareMarketplaceSync(plugin: string | undefined, opts: BareSyncArgs): boolean {
+  return plugin === undefined && !opts.marketplace && !opts.force;
+}
+
 /**
  * Pulls and installs plugins for one marketplace, honoring an optional plugin name filter
  * ("all" installs every plugin). Used by the "sync every marketplace" flows. Never throws —
@@ -1826,7 +1839,7 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
 
   marketplace
     .command('sync')
-    .description('Pull latest marketplace content and install plugin skills (interactive picker when no plugin is given)')
+    .description('With no arguments, refreshes every already-installed plugin from every marketplace (same as --marketplace all --installed-only). Pass --force, a plugin, or --marketplace to get the interactive picker instead.')
     .argument('[plugin]', 'Plugin name to install, or "all" to install every plugin (skips interactive selection)')
     .option('--marketplace <name>', 'Marketplace name to sync, or "all" to sync every registered marketplace (skips interactive selection)')
     .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
@@ -1844,12 +1857,14 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
           throw new Error('No marketplaces configured. Run: pncli skills marketplace add <url>');
         }
 
+        const bareSync = isBareMarketplaceSync(plugin, opts);
         const targets = resolveInstallTargets(opts);
-        const syncOpts: SyncOptions = { force: opts.force ?? false, installedOnly: opts.installedOnly ?? false, instructions: opts.instructions !== false };
+        const syncOpts: SyncOptions = { force: opts.force ?? false, installedOnly: bareSync ? true : (opts.installedOnly ?? false), instructions: opts.instructions !== false };
         const targetSummary = targets.length === 1 ? { target: targets[0].target } : { targets: targets.map(t => t.target) };
 
-        // Non-interactive "sync everything" — explicit flag.
-        if (opts.marketplace === 'all') {
+        // Non-interactive "sync everything" — explicit `--marketplace all`, or the bare
+        // invocation shorthand for it (see isBareMarketplaceSync).
+        if (opts.marketplace === 'all' || bareSync) {
           const results = allMarketplaces.map(m => syncMarketplacePlugins(m, targets, plugin ?? 'all', syncOpts));
           success({ allMarketplaces: true, marketplaces: results, ...targetSummary }, 'skills', 'marketplace-sync', start);
           return;
