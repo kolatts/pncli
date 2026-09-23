@@ -108,6 +108,7 @@ Each service has its own file in this skill with the config keys and example val
 | Figma | `figma.md` | Design files, comments, version history |
 | Alation | `alation.md` | Data catalog metadata (data sources, schemas, tables, columns), search, Document Hubs |
 | Skills Marketplace | `marketplace.md` | Org plugins and shipped AGENTS.md / CLAUDE.md from git marketplaces |
+| Skills guide | `skills-guide.md` | How skills management fits together: sources, agent hosts, scopes, sync, private-repo auth, OS keychain |
 
 ## Installing skills
 
@@ -115,7 +116,7 @@ The skills bundled with pncli install into a repo with `pncli skills install` (d
 
 Installed skills are a copy — after upgrading pncli, re-run `pncli skills install` to refresh them. `skills list` and `skills status` warn when the installed copy came from a different pncli version.
 
-Org-internal plugins come from a git-hosted marketplace: `pncli skills marketplace add <git-clone-url> --all-agents` registers one and installs every plugin into all three agent hosts, and `pncli skills marketplace sync --marketplace all --all-agents` keeps them current. A marketplace can also ship an `instructions/AGENTS.md` and `instructions/CLAUDE.md`; `add` and `sync` merge those into each agent's user-level instructions file (`~/.codex/AGENTS.md`, `~/.copilot/copilot-instructions.md`, `~/.claude/CLAUDE.md`) as a marked block that leaves your own content untouched — `pncli skills marketplace instructions list|install|remove` manages them. `pncli skills status`, `pncli skills locations`, and `pncli doctor` show what is installed and where. The full workflow is in the `marketplace.md` file that ships inside the installed skill, and `pncli skills marketplace --help` summarises it.
+Org-internal plugins come from a git-hosted marketplace: `pncli skills marketplace add <git-clone-url> --all-agents` registers one and installs every plugin into all three agent hosts, and `pncli skills marketplace sync --marketplace all --all-agents` keeps them current. A marketplace can also ship an `instructions/AGENTS.md` and `instructions/CLAUDE.md`; `add` and `sync` merge those into each agent's user-level instructions file (`~/.codex/AGENTS.md`, `~/.copilot/copilot-instructions.md`, `~/.claude/CLAUDE.md`) as a marked block that leaves your own content untouched — `pncli skills marketplace instructions list|install|remove` manages them. `pncli skills status`, `pncli skills locations`, and `pncli doctor` show what is installed and where. The full workflow is in the `marketplace.md` file that ships inside the installed skill, and `pncli skills marketplace --help` summarises it. For the concepts behind all of this — where skills come from, how they stay current, and how private marketplaces authenticate — run `pncli skills guide` (or read `skills-guide.md`).
 
 ## Setup walkthrough
 
@@ -159,10 +160,12 @@ Review results. If any service shows `ok: false`, help troubleshoot the URL or c
 pncli config show
 ```
 
+**Keeping tokens out of plaintext** — `pncli config keychain migrate` moves every secret in `~/.pncli/config.json` into the OS keychain (macOS Keychain, Windows Credential Manager, Secret Service) and leaves `keychain:` references in their place; `--to config` moves them back. `PNCLI_*` environment variables still take precedence.
+
 **Troubleshooting** — when any command fails unexpectedly, run:
 
 ```
 pncli doctor
 ```
 
-It reports config-file health, credential validity per service, and skill install state (including stale skills) in one JSON envelope, with a `problems` array listing suggested fixes. Add `--offline` to skip the network checks.
+It reports config-file health, credential validity per service, keychain references that do not resolve, git authentication for marketplace hosts (GitHub token scope, expiry, and SSO authorization), and skill install state (including stale skills) in one JSON envelope, with a `problems` array listing suggested fixes. Add `--offline` to skip the network checks.

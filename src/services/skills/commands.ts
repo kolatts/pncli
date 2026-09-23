@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { success, fail, warn, log } from '../../lib/output.js';
+import { success, fail, warn, log, writeRawOutput } from '../../lib/output.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -19,6 +19,9 @@ import {
   agentInstructionsFile,
 } from './instructions.js';
 import type { InstructionApplyResult } from './instructions.js';
+import { resolveSecretValue, getKeychainBackend, keychainRef } from '../../lib/keychain.js';
+import { parseCredentialRequest, resolveCredential, formatCredentialAnswer } from './git-auth.js';
+import { registerGitAuthCommands } from './git-auth-commands.js';
 
 const BACK = '__back__';
 const ALL_MARKETPLACES = '__all_marketplaces__';
@@ -100,7 +103,7 @@ function isConfiguredGitHubHost(repoUrl: string, githubBaseUrl: string | undefin
  * keeps that behavior unchanged.
  */
 export function resolveMarketplaceToken(explicitToken: string | undefined, repoUrl: string | undefined): string | undefined {
-  if (explicitToken) return explicitToken;
+  if (explicitToken) return resolveSecretValue(explicitToken);
   if (!repoUrl) return undefined;
   const resolved = loadConfig();
   if (!isConfiguredGitHubHost(repoUrl, resolved.github.baseUrl)) return undefined;
@@ -292,6 +295,57 @@ function getBundledSkillsDir(): string {
   } catch {
     return '';
   }
+}
+
+export const GUIDE_FILE = 'skills-guide.md';
+
+/**
+ * Locates the skills-management guide. Shipped inside the bundled pncli skill
+ * (`skills/pncli/skills-guide.md`), so agents that installed the skill can read it too. Falls
+ * back to walking up from this file so `npm run dev` (tsx, no dist/) finds the repo copy.
+ */
+export function findGuidePath(): string | null {
+  const bundled = path.join(getBundledSkillsDir(), 'pncli', GUIDE_FILE);
+  if (fs.existsSync(bundled)) return bundled;
+  try {
+    let dir = path.dirname(fileURLToPath(import.meta.url));
+    for (let i = 0; i < 6; i++) {
+      const candidate = path.join(dir, 'skills', 'pncli', GUIDE_FILE);
+      if (fs.existsSync(candidate)) return candidate;
+      dir = path.dirname(dir);
+    }
+  } catch { /* fall through */ }
+  return null;
+}
+
+export interface GuideSection {
+  title: string;
+  slug: string;
+}
+
+export function slugify(title: string): string {
+  return title.toLowerCase().replace(/[`*_]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+/** Top-level (`##`) sections of the guide, in order. */
+export function listGuideSections(markdown: string): GuideSection[] {
+  return markdown.split(/\r?\n/)
+    .filter(l => /^## /.test(l))
+    .map(l => { const title = l.slice(3).trim(); return { title, slug: slugify(title) }; });
+}
+
+/**
+ * Returns one `##` section (through the line before the next `##`), matched by exact slug first
+ * and then by substring of the slug, so `pncli skills guide auth` finds "Private repos and auth".
+ */
+export function extractGuideSection(markdown: string, query: string): string | null {
+  const lines = markdown.split(/\r?\n/);
+  const heads = lines.map((l, i) => ({ l, i })).filter(x => /^## /.test(x.l));
+  const q = slugify(query);
+  const pick = heads.find(h => slugify(h.l.slice(3)) === q) ?? heads.find(h => slugify(h.l.slice(3)).includes(q));
+  if (!pick) return null;
+  const next = heads.find(h => h.i > pick.i);
+  return lines.slice(pick.i, next ? next.i : lines.length).join('\n').trimEnd() + '\n';
 }
 
 /**
@@ -990,6 +1044,20 @@ function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { bran
       throw describeGitFailure(msg, marketplaceName, tokenSource);
     }
   }
+  // git records the clone URL verbatim as `origin`, token included. Put the plain URL back so the
+  // token is not left in plaintext in .git/config — pull re-injects it per invocation, and the
+  // `git-auth` credential helper covers every other git client.
+  if (resolvedToken) stripOriginCredentials(resolvedPath, url);
+}
+
+/** Rewrites a clone's `origin` to `plainUrl`. Best-effort: a failure here must not fail the add. */
+export function stripOriginCredentials(repoPath: string, plainUrl: string): boolean {
+  try {
+    execFileSync('git', ['-C', repoPath, 'remote', 'set-url', 'origin', plainUrl], { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -1245,6 +1313,8 @@ interface MarketplaceAddOptions {
   agent?: string;
   claude?: boolean;
   allAgents?: boolean;
+  /** Store --token in the OS keychain and record only a `keychain:` reference in config. */
+  keychain?: boolean;
   /** Commander's negatable `--no-instructions`: true unless the flag is passed (undefined when called programmatically). */
   instructions?: boolean;
 }
@@ -1262,11 +1332,17 @@ function performMarketplaceAdd(url: string, localPath: string | undefined, opts:
 
   const configPath = getGlobalConfigPath();
   const { existing, all } = loadMarketplacesConfig(configPath);
+  let storedToken = opts.token;
+  if (opts.token && opts.keychain) {
+    const account = `marketplaces.${marketplaceName}.token`;
+    getKeychainBackend().set(account, opts.token);
+    storedToken = keychainRef(account);
+  }
   const entry: MarketplaceConfig = {
     name: marketplaceName,
     repoUrl: url,
     localPath: resolvedPath,
-    ...(opts.token ? { token: opts.token } : {}),
+    ...(storedToken ? { token: storedToken } : {}),
   };
   upsertMarketplace(all, entry);
   saveMarketplaces(configPath, existing, all);
@@ -1281,6 +1357,7 @@ function performMarketplaceAdd(url: string, localPath: string | undefined, opts:
     localPath: resolvedPath,
     branch: opts.branch ?? null,
     tokenConfigured: !!opts.token,
+    tokenStorage: !opts.token ? null : opts.keychain ? 'keychain' : 'config',
     // One target keeps the flat shape earlier versions emitted; several nest under `targets`.
     ...(targetResults.length === 1
       ? { plugins: targetResults[0].plugins, total: targetResults[0].total, target: targetResults[0].target }
@@ -1422,6 +1499,12 @@ Org plugins (skills and AGENTS.md/CLAUDE.md from a git-hosted marketplace):
 
 Check what is installed:
   pncli skills status | pncli skills locations | pncli doctor
+
+Private marketplaces and credentials:
+  pncli skills git-auth enable       # let git (and agent hosts) authenticate to marketplace hosts
+  pncli config keychain migrate      # move tokens out of plaintext config into the OS keychain
+
+New to this? pncli skills guide      # how skills management fits together (or: guide <section>)
 `);
 
   skills
@@ -1728,6 +1811,58 @@ Check what is installed:
       }
     });
 
+  skills
+    .command('guide')
+    .description('Explain how skills management works: bundled skill vs marketplace plugins, agent hosts, scopes, sync, and auth')
+    .argument('[section]', 'Print only one section (e.g. hosts, sync, auth, troubleshooting)')
+    .option('--sections', 'List the section names as JSON instead of printing the guide')
+    .action((section: string | undefined, cmdOpts: { sections?: boolean }) => {
+      const start = Date.now();
+      try {
+        const guidePath = findGuidePath();
+        if (!guidePath) throw new Error(`${GUIDE_FILE} is missing from this pncli install — reinstall pncli, or read it online at https://kolatts.github.io/pncli/skills-guide/`);
+        const markdown = fs.readFileSync(guidePath, 'utf8').replace(/^---\n[\s\S]*?\n---\n/, '');
+        if (cmdOpts.sections) {
+          success({ sections: listGuideSections(markdown), path: guidePath }, 'skills', 'guide', start);
+          return;
+        }
+        if (section) {
+          const text = extractGuideSection(markdown, section);
+          if (!text) {
+            throw new Error(`No guide section matches "${section}". Sections: ${listGuideSections(markdown).map(s => s.slug).join(', ')}`);
+          }
+          writeRawOutput(text);
+          return;
+        }
+        writeRawOutput(markdown);
+      } catch (err) {
+        fail(err, 'skills', 'guide', start);
+      }
+    });
+
+  registerGitAuthCommands(skills);
+
+  // Git credential-helper protocol endpoint, invoked by git (not people) once
+  // `skills git-auth enable` has written it into gitconfig. It must never print a JSON envelope
+  // or fail loudly: printing nothing makes git fall through to its next helper or its prompt.
+  skills
+    .command('git-credential', { hidden: true })
+    .description('Git credential helper (used by git after `skills git-auth enable`; not for direct use)')
+    .argument('<operation>', 'get | store | erase (supplied by git)')
+    .action(async (operation: string) => {
+      if (operation !== 'get') return; // store/erase: pncli's config is the source of truth
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+        const request = parseCredentialRequest(Buffer.concat(chunks).toString('utf8'));
+        const globalConfig = loadJsonFile<GlobalConfig>(getGlobalConfigPath()) ?? {};
+        const answer = resolveCredential(request, globalConfig, loadConfig().github);
+        if (answer) process.stdout.write(formatCredentialAnswer(answer));
+      } catch {
+        // Deliberately silent — see above.
+      }
+    });
+
   const marketplace = skills.command('marketplace').description('Org plugins from git-hosted marketplaces: add, sync, enable/disable, and shipped AGENTS.md/CLAUDE.md');
   marketplace.addHelpText('after', `
 Workflow:
@@ -1758,6 +1893,7 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
     .option('--name <name>', 'Human-readable name for this marketplace (default: derived from URL)')
     .option('--branch <branch>', 'Branch to clone (default: remote HEAD)')
     .option('--token <token>', 'HTTP access token for authenticated clone and pull (GitHub PAT or Bitbucket token)')
+    .option('--keychain', 'Store --token in the OS keychain instead of plaintext config (see: pncli config keychain --help)')
     .option('--agent <agent>', `Target agent host for plugin install: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--all-agents', 'Install to every supported agent host in one run')

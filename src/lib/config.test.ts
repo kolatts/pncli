@@ -5,8 +5,9 @@ import path from 'path';
 import { maskConfig, loadConfig, setConfigValue, setRepoConfigValue } from './config.js';
 import type { ResolvedConfig } from '../types/config.js';
 import { PncliError } from './errors.js';
+import { resetKeychainCache } from './keychain.js';
 
-vi.mock('child_process', () => ({ execSync: vi.fn() }));
+vi.mock('child_process', () => ({ execSync: vi.fn(), spawnSync: vi.fn() }));
 
 function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
   return {
@@ -689,5 +690,42 @@ describe('loadConfig — jira.customFields validation', () => {
     const config = loadConfig({ configPath: globalConfigPath });
 
     expect(config.jira.customFields).toEqual([{ id: 'customfield_10100', name: 'Epic Link Override', type: 'select' }]);
+  });
+});
+
+describe('loadConfig — keychain references', () => {
+  let tmpDir: string;
+  let globalConfigPath: string;
+
+  beforeEach(async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-test-'));
+    globalConfigPath = path.join(tmpDir, 'config.json');
+    const { execSync } = await import('child_process');
+    vi.mocked(execSync).mockReturnValue(tmpDir as unknown as ReturnType<typeof execSync>);
+    resetKeychainCache();
+    process.env['PNCLI_KEYCHAIN_BACKEND'] = 'none';
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    delete process.env['PNCLI_KEYCHAIN_BACKEND'];
+    delete process.env['PNCLI_GITHUB_TOKEN'];
+    delete process.env['GITHUB_TOKEN'];
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.restoreAllMocks();
+  });
+
+  it('never passes the literal reference on as a credential when it cannot be resolved', () => {
+    delete process.env['GITHUB_TOKEN'];
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ github: { baseUrl: 'https://ghe.imagile.dev/api/v3', token: 'keychain:github.token' } }));
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.github.token).toBeUndefined();
+    expect(config.github.baseUrl).toBe('https://ghe.imagile.dev/api/v3');
+  });
+
+  it('PNCLI_* env vars still win over a keychain reference', () => {
+    process.env['PNCLI_GITHUB_TOKEN'] = 'from-env';
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ github: { token: 'keychain:github.token' } }));
+    expect(loadConfig({ configPath: globalConfigPath }).github.token).toBe('from-env');
   });
 });

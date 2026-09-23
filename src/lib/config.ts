@@ -5,6 +5,7 @@ import { execSync } from 'child_process';
 import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, GitHubDefaults, SonarDefaults, SdeDefaults, AdoDefaults, JenkinsDefaults, JenkinsInstanceConfig } from '../types/config.js';
 import type { CustomFieldDefinition } from '../types/jira.js';
 import { assertValidCustomFields } from './validate-custom-fields.js';
+import { resolveKeychainRefs } from './keychain.js';
 
 const ENV_KEYS = {
   EMAIL: 'PNCLI_EMAIL',
@@ -138,7 +139,9 @@ export interface LoadConfigOptions {
 
 export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
   const globalConfigPath = getGlobalConfigPath(opts.configPath);
-  const globalConfig = loadJsonFile<GlobalConfig>(globalConfigPath) ?? {};
+  // `keychain:<account>` values are swapped for the OS-keychain secret here, below every env var
+  // in precedence — env vars are read directly from process.env further down and still win.
+  const globalConfig = resolveKeychainRefs(loadJsonFile<GlobalConfig>(globalConfigPath) ?? {});
 
   const repoRoot = getRepoRoot();
   let repoConfig: RepoConfig = {};

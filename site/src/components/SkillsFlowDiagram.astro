@@ -1,0 +1,116 @@
+---
+/**
+ * Overview diagram for the Skills Guide page. The terminal guide
+ * (`pncli skills guide`) shows the same picture as ASCII; parse-skills-guide.mjs
+ * swaps that block for this component on the web.
+ *
+ * Colours come from the site palette (global.css): ink text, gold accents,
+ * cream surface. Everything is drawn in SVG units so it scales as one figure.
+ */
+---
+
+<figure class="not-prose my-8">
+  <div class="overflow-x-auto">
+    <svg
+      viewBox="0 0 760 372"
+      role="img"
+      aria-labelledby="skills-flow-title skills-flow-desc"
+      class="skills-flow w-full min-w-[560px] h-auto"
+    >
+      <title id="skills-flow-title">How skills reach your agents</title>
+      <desc id="skills-flow-desc">
+        The bundled pncli skill (installed with pncli skills install) and org marketplace plugins (installed with
+        marketplace add and sync) both land in the agent skills directories, where Codex, GitHub Copilot and Claude
+        Code read them. Marketplaces can also ship AGENTS.md and CLAUDE.md, merged into user-level instruction files.
+      </desc>
+      <defs>
+        <marker id="sf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" class="sf-arrowhead" />
+        </marker>
+      </defs>
+
+      <!-- Sources -->
+      <g>
+        <rect x="40" y="16" width="300" height="74" rx="10" class="sf-box" />
+        <text x="190" y="46" text-anchor="middle" class="sf-title">pncli (npm package)</text>
+        <text x="190" y="68" text-anchor="middle" class="sf-sub">bundled “pncli” skill · versioned with pncli</text>
+      </g>
+      <g>
+        <rect x="420" y="16" width="300" height="74" rx="10" class="sf-box sf-accent" />
+        <text x="570" y="46" text-anchor="middle" class="sf-title">Your org’s marketplace repo</text>
+        <text x="570" y="68" text-anchor="middle" class="sf-sub">plugins → skills · instructions/AGENTS.md, CLAUDE.md</text>
+      </g>
+
+      <!-- Install arrows -->
+      <line x1="190" y1="90" x2="190" y2="150" class="sf-line" marker-end="url(#sf-arrow)" />
+      <text x="200" y="124" class="sf-label">pncli skills install</text>
+
+      <line x1="500" y1="90" x2="500" y2="150" class="sf-line sf-gold" marker-end="url(#sf-arrow)" />
+      <text x="510" y="116" class="sf-label">marketplace add · sync</text>
+      <text x="510" y="134" class="sf-note">private? git-auth + keychain</text>
+
+      <line x1="676" y1="90" x2="676" y2="150" class="sf-line sf-dashed" marker-end="url(#sf-arrow)" />
+
+      <!-- Destination -->
+      <g>
+        <rect x="40" y="152" width="520" height="104" rx="10" class="sf-box sf-strong" />
+        <text x="60" y="180" class="sf-title">Agent skills directories</text>
+        <g class="sf-chips">
+          <rect x="60" y="194" width="148" height="26" rx="6" class="sf-chip" />
+          <text x="134" y="212" text-anchor="middle" class="sf-mono">.agents/skills</text>
+          <rect x="220" y="194" width="148" height="26" rx="6" class="sf-chip" />
+          <text x="294" y="212" text-anchor="middle" class="sf-mono">.github/skills</text>
+          <rect x="380" y="194" width="160" height="26" rx="6" class="sf-chip" />
+          <text x="460" y="212" text-anchor="middle" class="sf-mono">.claude/skills</text>
+        </g>
+        <text x="60" y="242" class="sf-sub">project scope in the repo · user scope in ~ · each skill stamped with provenance</text>
+      </g>
+      <g>
+        <rect x="590" y="152" width="130" height="104" rx="10" class="sf-box" />
+        <text x="655" y="180" text-anchor="middle" class="sf-title">Instructions</text>
+        <text x="655" y="204" text-anchor="middle" class="sf-sub">AGENTS.md /</text>
+        <text x="655" y="220" text-anchor="middle" class="sf-sub">CLAUDE.md</text>
+        <text x="655" y="242" text-anchor="middle" class="sf-note">marked block</text>
+      </g>
+
+      <!-- Agents -->
+      <line x1="120" y1="306" x2="120" y2="258" class="sf-line" marker-end="url(#sf-arrow)" />
+      <line x1="300" y1="306" x2="300" y2="258" class="sf-line" marker-end="url(#sf-arrow)" />
+      <line x1="480" y1="306" x2="480" y2="258" class="sf-line" marker-end="url(#sf-arrow)" />
+      <line x1="655" y1="306" x2="655" y2="258" class="sf-line sf-dashed" marker-end="url(#sf-arrow)" />
+      <text x="128" y="287" class="sf-note">read</text>
+
+      <g>
+        <rect x="40" y="308" width="160" height="46" rx="10" class="sf-box" />
+        <text x="120" y="336" text-anchor="middle" class="sf-title">Codex</text>
+        <rect x="220" y="308" width="160" height="46" rx="10" class="sf-box" />
+        <text x="300" y="336" text-anchor="middle" class="sf-title">GitHub Copilot</text>
+        <rect x="400" y="308" width="160" height="46" rx="10" class="sf-box" />
+        <text x="480" y="336" text-anchor="middle" class="sf-title">Claude Code</text>
+        <rect x="590" y="308" width="130" height="46" rx="10" class="sf-box sf-faint" />
+        <text x="655" y="336" text-anchor="middle" class="sf-sub">every host</text>
+      </g>
+    </svg>
+  </div>
+  <figcaption class="mt-3 text-sm text-ink/50 font-mono">
+    Two sources, one destination. <code>pncli skills status</code> traces any skill back to where it came from.
+  </figcaption>
+</figure>
+
+<style>
+  .skills-flow { font-family: inherit; }
+  .sf-box { fill: color-mix(in srgb, var(--color-ink) 4%, transparent); stroke: color-mix(in srgb, var(--color-ink) 28%, transparent); stroke-width: 1.25; }
+  .sf-accent { stroke: var(--color-gold); }
+  .sf-strong { fill: color-mix(in srgb, var(--color-gold) 8%, transparent); stroke: var(--color-gold); stroke-width: 1.75; }
+  .sf-faint { stroke-dasharray: 4 4; }
+  .sf-chip { fill: #141416; stroke: color-mix(in srgb, var(--color-ink) 20%, transparent); }
+  .sf-title { fill: var(--color-ink); font-size: 15px; font-weight: 800; }
+  .sf-sub { fill: color-mix(in srgb, var(--color-ink) 70%, transparent); font-size: 12px; }
+  .sf-note { fill: var(--color-gold); font-size: 11.5px; }
+  .sf-label { fill: var(--color-ink); font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .sf-mono { fill: #ece0a8; font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .sf-line { stroke: color-mix(in srgb, var(--color-ink) 55%, transparent); stroke-width: 1.5; }
+  .sf-gold { stroke: var(--color-gold); }
+  .sf-dashed { stroke-dasharray: 5 4; }
+  .sf-arrowhead { fill: color-mix(in srgb, var(--color-ink) 70%, transparent); }
+</style>
