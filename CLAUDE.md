@@ -322,6 +322,30 @@ Do not use `example.com`, `company.com`, `mycompany.com`, `your-company.com`, or
 
 **Constraint — never add wildcard DNS to `imagile.dev`.** These placeholders are safe because `*.imagile.dev` does not resolve, so a copy-pasted config fails at DNS before pncli sends any auth header. A wildcard A/CNAME record would silently turn every published example into a credential-collection endpoint. If a wildcard ever becomes necessary, migrate these docs to a reserved RFC 2606 domain first.
 
+## Issue Redaction
+
+Issues, PRs, and issue comments are rewritten in place by `.github/workflows/issue-redact.yml` to strip whatever identifies a reporter's employer. The rules live in `.github/scripts/redact.mjs` (tested by `redact.test.mjs` under `npm test`) and run in a fixed order: credential-shaped strings → `[redacted-secret]`; denylisted domains and hosts under `.local` / `.internal` / `.corp` / `.lan` / `.intranet` / `.localdomain` → `<service>.imagile.dev` when the first label is a known service name, otherwise `redacted.imagile.dev`; private IPv4 → `[redacted-ip]`; denylisted words → `[org]`. Redaction is idempotent, so reruns are no-ops. Triage runs the same redactor on the title and body before building its prompt and rewrites the issue in that step, so the agent never sees the unredacted text.
+
+The organization denylist lives **only** in the `REDACT_TERMS` repository secret — never in the repo, a test, a log line, or a commit message, since publishing it would publish the very names it hides. Tests use fictional names (`acmebank`, `initech`, `acme-int.net`). Format, one entry per line:
+
+```text
+# Comment lines and blank lines are ignored; comments must be on their own line.
+# A word: case-insensitive, whole-word (does not match inside acmebankcli).
+acmebank
+# Contains a dot: a domain, matching itself and every subdomain.
+acme-int.net
+# An explicit regex, replaced with [org].
+re:/acme[- ]?corp/i
+```
+
+With the secret empty, the built-in rules (secrets, internal hosts, private IPs) still run. To backfill every existing issue, PR, and comment:
+
+```bash
+gh workflow run issue-redact.yml --repo kolatts/pncli -f sweep=true
+```
+
+**Known limit:** GitHub keeps edit history and has no API to delete a revision, so text scrubbed after creation stays visible under "edited" until a maintainer deletes that revision in the UI. The durable fix for website submissions is to redact in the feedback function before the issue is created (tracked as a follow-up).
+
 ## Commit Conventions
 
 Use Conventional Commits: `fix:` (patch), `feat:` (minor), `feat!:` (breaking/major).

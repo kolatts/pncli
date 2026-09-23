@@ -1,0 +1,255 @@
+name: Issue Redaction
+
+# Rewrites issue, PR, and issue-comment text in place to strip details that
+# identify the organization a reporter works at — company names, internal
+# hostnames and intranet domains, private IPs — and credential-shaped strings.
+# The rules live in .github/scripts/redact.mjs; see its tests for exact behavior.
+#
+# The organization denylist lives in the `REDACT_TERMS` repository secret ON
+# PURPOSE. This repo is public: a denylist committed here would itself publish
+# the list of names it exists to hide. Never move it into a file, a variable, a
+# log line, or a test fixture. With the secret empty the built-in rules
+# (secrets, internal-suffix hosts, private IPs) still run.
+#
+# Known limit: GitHub keeps issue and comment edit history, and there is no API
+# to delete a revision. Text scrubbed here after creation stays visible under
+# "edited" until a maintainer deletes that revision in the UI. The durable fix
+# for website submissions is to redact inside the feedback function before the
+# issue is ever created; that is tracked as a follow-up.
+#
+# Loop safety: edits are made with the default GITHUB_TOKEN, and events raised
+# by that token never trigger workflows, so a PATCH here cannot re-fire this
+# workflow. Edits made by other identities (triage's imagile-bot) do re-fire it,
+# and the rerun is a no-op because redaction is idempotent.
+#
+# Backfill: gh workflow run issue-redact.yml --repo kolatts/pncli -f sweep=true
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created, edited]
+  # Title and body only. `pull_request_target` runs with a write token in the
+  # base repo's context, so this workflow must NEVER check out or execute PR
+  # code — the checkout below is pinned to the default branch.
+  pull_request_target:
+    types: [opened, edited]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue or PR number to redact (title, body, and its comments)'
+        required: false
+        type: string
+      sweep:
+        description: 'Redact every issue, PR, and issue comment in the repository'
+        required: false
+        type: boolean
+        default: false
+
+# Never cancelling: a cancelled run could stop between two PATCHes. GitHub
+# still replaces a *pending* run with a newer one in the same group, which is
+# safe only because every run fetches the current text fresh — so each group
+# must name exactly one piece of text. Comments are keyed by comment id, not
+# by their issue: keyed by issue, a new comment's pending run would be replaced
+# by the next edit to the issue and that comment would never be redacted.
+concurrency:
+  group: >-
+    issue-redact-${{
+    (github.event.comment && format('comment-{0}', github.event.comment.id))
+    || github.event.issue.number
+    || github.event.pull_request.number
+    || (inputs.sweep && 'sweep')
+    || inputs.issue_number
+    || github.run_id }}
+  cancel-in-progress: false
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  redact:
+    runs-on: ubuntu-latest
+    steps:
+      # Same helper as claude-triage.yml: retry transient API failures only, so a
+      # genuine 404 or 422 still fails fast.
+      - name: Install gh retry helper
+        run: |
+          cat > "${RUNNER_TEMP}/gh-retry.sh" <<'HELPER'
+          gh_retry() {
+            local attempt=1 max=5 delay=5 out rc
+            while :; do
+              if out=$("$@" 2>&1); then
+                printf '%s' "$out"
+                return 0
+              else
+                # Captured in the else, not after the fi: an `if` with no else
+                # exits 0 when its condition fails, so `rc=$?` after `fi` would
+                # always read 0 and turn every genuine failure into a success.
+                rc=$?
+              fi
+              # Transient only: 5xx, gateway timeouts, and the connection-level
+              # failures that surface as curl/network errors rather than an HTTP code.
+              if ! printf '%s' "$out" | grep -qiE 'HTTP (50[0-9]|429)|No server is currently available|timeout|timed out|connection reset|EOF|temporarily unavailable'; then
+                printf '%s\n' "$out" >&2
+                return "$rc"
+              fi
+              if [ "$attempt" -ge "$max" ]; then
+                printf '%s\n' "$out" >&2
+                echo "::error::gh call failed after ${max} attempts: $*" >&2
+                return "$rc"
+              fi
+              echo "::warning::transient failure on attempt ${attempt}/${max}, retrying in ${delay}s: $*" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          HELPER
+          echo "Wrote ${RUNNER_TEMP}/gh-retry.sh"
+
+      # Default branch only, and only the script directory. Never the PR head:
+      # see the `pull_request_target` note above.
+      - name: Checkout redactor
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Untrusted text never passes through `${{ }}` or a shell argument: it is
+      # fetched from the API into files, piped through the redactor as JSON, and
+      # PATCHed back from a file. Logs carry issue numbers and counts only —
+      # never the terms, never the matched text.
+      - name: Redact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REDACT_TERMS: ${{ secrets.REDACT_TERMS }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ISSUE: ${{ github.event.issue.number || github.event.pull_request.number }}
+          EVENT_COMMENT: ${{ github.event.comment.id }}
+          INPUT_ISSUE: ${{ inputs.issue_number }}
+          INPUT_SWEEP: ${{ inputs.sweep }}
+        run: |
+          source "${RUNNER_TEMP}/gh-retry.sh"
+          SCRIPT="${GITHUB_WORKSPACE}/.github/scripts/redact.mjs"
+          WORK="${RUNNER_TEMP}/redact"
+          mkdir -p "$WORK"
+          : > "$WORK/counts.jsonl"
+          SCANNED=0
+          CHANGED=0
+
+          if [ -z "$REDACT_TERMS" ]; then
+            echo "::notice::REDACT_TERMS is empty; applying built-in rules only."
+          fi
+
+          # $1 = label for the log, $2 = JSON {title, body} file, $3 = PATCH
+          # endpoint, $4 = jq filter selecting the PATCH payload.
+          process() {
+            local label=$1 in=$2 endpoint=$3 payload=$4
+            node "$SCRIPT" < "$in" > "$WORK/out.json"
+            jq -c '.counts' "$WORK/out.json" >> "$WORK/counts.jsonl"
+            SCANNED=$((SCANNED + 1))
+            if [ "$(jq -r '.changed' "$WORK/out.json")" = "true" ]; then
+              jq "$payload" "$WORK/out.json" > "$WORK/patch.json"
+              gh_retry gh api -X PATCH "$endpoint" --input "$WORK/patch.json" > /dev/null
+              CHANGED=$((CHANGED + 1))
+              echo "${label}: redacted $(jq -r '.counts | to_entries | map("\(.key)=\(.value)") | join(" ")' "$WORK/out.json")"
+            fi
+          }
+
+          # Issues and PRs share the issues endpoint for title and body.
+          redact_issue_json() {
+            local json=$1 num
+            num=$(jq -r '.number' "$json")
+            jq '{title: (.title // ""), body: .body}' "$json" > "$WORK/in.json"
+            process "#${num}" "$WORK/in.json" "repos/${REPO}/issues/${num}" '{title, body}'
+          }
+
+          redact_comment_json() {
+            local json=$1 id
+            id=$(jq -r '.id' "$json")
+            jq '{title: "", body: .body}' "$json" > "$WORK/in.json"
+            process "comment ${id}" "$WORK/in.json" "repos/${REPO}/issues/comments/${id}" '{body}'
+          }
+
+          redact_issue() {
+            gh_retry gh api "repos/${REPO}/issues/$1" > "$WORK/item.json"
+            redact_issue_json "$WORK/item.json"
+          }
+
+          redact_comment() {
+            gh_retry gh api "repos/${REPO}/issues/comments/$1" > "$WORK/item.json"
+            redact_comment_json "$WORK/item.json"
+          }
+
+          # Walks a paginated listing one element per line. `@json` makes each
+          # element a single escaped line, so multi-line bodies stay intact.
+          redact_listing() {
+            local kind=$1 endpoint=$2
+            gh_retry gh api --paginate "$endpoint" --jq '.[] | @json' > "$WORK/listing.jsonl"
+            # Read on fd 3 so nothing inside the loop can drain the listing
+            # through stdin.
+            while IFS= read -r line <&3; do
+              printf '%s' "$line" > "$WORK/item.json"
+              "redact_${kind}_json" "$WORK/item.json"
+            done 3< "$WORK/listing.jsonl"
+          }
+
+          require_number() {
+            if ! [[ "$1" =~ ^[0-9]+$ ]]; then
+              echo "::error::Invalid number: '$1'"
+              exit 1
+            fi
+          }
+
+          case "$EVENT_NAME" in
+            issues|pull_request_target)
+              require_number "$EVENT_ISSUE"
+              redact_issue "$EVENT_ISSUE"
+              ;;
+            issue_comment)
+              require_number "$EVENT_COMMENT"
+              redact_comment "$EVENT_COMMENT"
+              ;;
+            workflow_dispatch)
+              if [ "$INPUT_SWEEP" = "true" ]; then
+                # The issues listing includes PRs.
+                redact_listing issue "repos/${REPO}/issues?state=all&per_page=100"
+                redact_listing comment "repos/${REPO}/issues/comments?per_page=100"
+              elif [ -n "$INPUT_ISSUE" ]; then
+                require_number "$INPUT_ISSUE"
+                redact_issue "$INPUT_ISSUE"
+                redact_listing comment "repos/${REPO}/issues/${INPUT_ISSUE}/comments?per_page=100"
+              else
+                echo "::error::Provide issue_number or set sweep=true."
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Unhandled event: ${EVENT_NAME}"
+              exit 1
+              ;;
+          esac
+
+          TOTALS=$(jq -s -c '{org: (map(.org) | add // 0), domain: (map(.domain) | add // 0),
+            internalHost: (map(.internalHost) | add // 0), privateIp: (map(.privateIp) | add // 0),
+            secret: (map(.secret) | add // 0)}' "$WORK/counts.jsonl")
+          echo "Scanned ${SCANNED}, redacted ${CHANGED}. Totals: ${TOTALS}"
+          {
+            echo "## Issue redaction"
+            echo ""
+            echo "Scanned **${SCANNED}**, redacted **${CHANGED}** (event: \`${EVENT_NAME}\`)."
+            echo ""
+            echo "| org | domain | internalHost | privateIp | secret |"
+            echo "|---|---|---|---|---|"
+            jq -r '"| \(.org) | \(.domain) | \(.internalHost) | \(.privateIp) | \(.secret) |"' <<< "$TOTALS"
+          } >> "$GITHUB_STEP_SUMMARY"
