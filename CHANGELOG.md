@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.3.0](https://github.com/kolatts/pncli/compare/v5.2.0...v5.3.0) (2026-09-23)
+
+
+### Features
+
+* **skills:** bare marketplace sync refreshes installed plugins by default ([#489](https://github.com/kolatts/pncli/issues/489)) ([87aac57](https://github.com/kolatts/pncli/commit/87aac57211b9f41bc067d402d2eff33d9e2c81ac)), closes [#488](https://github.com/kolatts/pncli/issues/488)
+
+
+### Bug Fixes
+
+* **bitbucket:** omit reviewers from create-pr payload when none given ([#487](https://github.com/kolatts/pncli/issues/487)) ([d026f5d](https://github.com/kolatts/pncli/commit/d026f5d11ceedae820a6bdc5363540fa90e2991a))
+* **splitio:** use /ws/{workspaceId} path segments instead of wsId query param ([#484](https://github.com/kolatts/pncli/issues/484)) ([0901a23](https://github.com/kolatts/pncli/commit/0901a2331c250d890d3d39580c2c4a6f52678d77))
+
 ## [5.2.0](https://github.com/kolatts/pncli/compare/v5.1.0...v5.2.0) (2026-09-21)
 
 
