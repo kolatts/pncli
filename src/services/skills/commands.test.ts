@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin, DISABLED_SUBDIR, disablePluginSkills, enablePluginSkills, listPluginStates, getInstalledPluginsForMarketplace, AGENT_PATHS, DEFAULT_AGENT, AGENT_CHOICES, summarizeLocation, listKnownLocations, collectSkillStatus, readCustomTargets, rememberCustomTarget, forgetCustomTarget, resolveMarketplaceToken, describeGitFailure, resolveInstallTargets, installMarketplaceToTarget } from './commands.js';
+import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin, DISABLED_SUBDIR, disablePluginSkills, enablePluginSkills, listPluginStates, getInstalledPluginsForMarketplace, AGENT_PATHS, DEFAULT_AGENT, AGENT_CHOICES, summarizeLocation, listKnownLocations, collectSkillStatus, readCustomTargets, rememberCustomTarget, forgetCustomTarget, resolveMarketplaceToken, describeGitFailure, resolveInstallTargets, installMarketplaceToTarget, isBareMarketplaceSync } from './commands.js';
 import type { InstalledMeta, InstalledSkillRecord } from './commands.js';
 import type { GlobalConfig } from '../../types/config.js';
 import { loadConfig } from '../../lib/config.js';
@@ -1197,6 +1197,32 @@ describe('resolveInstallTargets', () => {
 
   it('rejects an unknown agent', () => {
     expect(() => resolveInstallTargets({ agent: 'cursor' })).toThrow(/Unknown agent/);
+  });
+});
+
+// ── isBareMarketplaceSync ─────────────────────────────────────────────────────
+
+describe('isBareMarketplaceSync', () => {
+  it('is true for a bare invocation with no plugin, marketplace, or force', () => {
+    expect(isBareMarketplaceSync(undefined, {})).toBe(true);
+  });
+
+  it('is true when only unrelated flags (e.g. --claude, --all-agents) are set', () => {
+    expect(isBareMarketplaceSync(undefined, { marketplace: undefined, force: false })).toBe(true);
+  });
+
+  it('is false when a plugin is given', () => {
+    expect(isBareMarketplaceSync('my-plugin', {})).toBe(false);
+    expect(isBareMarketplaceSync('all', {})).toBe(false);
+  });
+
+  it('is false when --marketplace is given', () => {
+    expect(isBareMarketplaceSync(undefined, { marketplace: 'internal-ai' })).toBe(false);
+    expect(isBareMarketplaceSync(undefined, { marketplace: 'all' })).toBe(false);
+  });
+
+  it('is false when --force is given, so force still surfaces the interactive picker', () => {
+    expect(isBareMarketplaceSync(undefined, { force: true })).toBe(false);
   });
 });
 
