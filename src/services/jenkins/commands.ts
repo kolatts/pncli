@@ -1,5 +1,6 @@
 import { Command } from 'commander';
-import { loadConfig, setConfigValue, normalizeBaseUrl } from '../../lib/config.js';
+import { loadConfig, setConfigValue, normalizeBaseUrl, loadJsonFile, getGlobalConfigPath } from '../../lib/config.js';
+import type { GlobalConfig } from '../../types/config.js';
 import { createHttpClient } from '../../lib/http.js';
 import { JenkinsClient } from './client.js';
 import { success, fail, log } from '../../lib/output.js';
@@ -65,6 +66,16 @@ async function pollBuildComplete(
   throw new PncliError(`Timed out waiting for build #${buildNumber} to complete after ${timeoutMs / 1000}s`, 1);
 }
 
+/**
+ * The instances exactly as stored on disk, for read-modify-write. Not `loadConfig()`: that resolves
+ * `keychain:` references, and writing the resolved array back would put every other instance's
+ * token into plaintext (or, if the keychain were unavailable, drop it).
+ */
+export function rawJenkinsInstances(configPath?: string): JenkinsInstanceConfig[] {
+  const stored = loadJsonFile<GlobalConfig>(getGlobalConfigPath(configPath))?.jenkinsInstances;
+  return Array.isArray(stored) ? stored : [];
+}
+
 export function registerJenkinsCommands(program: Command): void {
   const jenkins = program.command('jenkins')
     .description('Jenkins operations')
@@ -102,7 +113,7 @@ export function registerJenkinsCommands(program: Command): void {
       try {
         const opts = jenkins.optsWithGlobals();
         const configPath = opts.config as string | undefined;
-        const existing = loadConfig({ configPath }).jenkinsInstances;
+        const existing = rawJenkinsInstances(configPath);
 
         const idx = existing.findIndex(i => i.name === o.name);
         if (idx >= 0 && !o.force) {
@@ -137,7 +148,7 @@ export function registerJenkinsCommands(program: Command): void {
       try {
         const opts = jenkins.optsWithGlobals();
         const configPath = opts.config as string | undefined;
-        const existing = loadConfig({ configPath }).jenkinsInstances;
+        const existing = rawJenkinsInstances(configPath);
 
         if (!existing.some(i => i.name === o.name)) {
           throw new PncliError(`Jenkins instance "${o.name}" not found. Run: pncli jenkins instance list`, 1);

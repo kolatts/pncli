@@ -121,8 +121,8 @@ Services:
   splitio      Split.IO (feature flags, Change Requests)
   figma        Figma (files, comments, version history)
   alation      Alation (data sources, schemas, tables, columns, search, Document Hubs)
-  config       Manage pncli configuration
-  doctor       Diagnose pncli setup (config files, credentials, agent skills, marketplaces)
+  config       Manage pncli configuration (and OS keychain storage for credentials)
+  doctor       Diagnose pncli setup (config, credentials, keychain, git auth, agent skills, marketplaces)
   skills       Install and manage agent skills (Codex, GitHub Copilot, Claude Code)
   jwt          JWT token utilities (decode header and payload)
 
@@ -131,7 +131,12 @@ Agent skills and org plugins:
   pncli skills marketplace add <git-url> --all-agents   Org plugins (skills + AGENTS.md/CLAUDE.md) from a git marketplace
   pncli skills marketplace sync                         Pull and refresh everything installed from marketplaces
   pncli skills marketplace manage                       Interactive: toggle plugins, add/remove marketplaces
+  pncli skills git-auth enable                          Let git and agent hosts authenticate to private marketplace hosts
+  pncli skills guide                                    How skills management fits together
   pncli skills --help                                   Every install location and command
+
+Credentials:
+  pncli config keychain migrate                         Move plaintext tokens into the OS keychain (--to config reverses it)
 `);
 
 program.parseAsync(process.argv).catch((err: unknown) => {

@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 ## Project Overview
 
@@ -11,11 +11,11 @@ pncli (The Paperwork Nightmare CLI) is a structured JSON CLI that gives AI codin
 - `src/` — TypeScript source (CLI entry: `src/cli.ts`, services in `src/services/`)
 - `site/` — Astro static site for GitHub Pages documentation
 - `skills/pncli/` — The one distributed skill. `SKILL.md` is a lightweight index; individual `<service>.md` files hold per-service setup docs. Installed via `pncli skills install`.
-- `.claude/skills/` — Skills active in this repo only: `ship/`, `conventions/`, and `feedback-smoke/` are repo-internal, and `pncli` is a pointer into `skills/pncli/`.
+- `.Codex/skills/` — Skills active in this repo only: `ship/`, `conventions/`, and `feedback-smoke/` are repo-internal, and `pncli` is a pointer into `skills/pncli/`.
 
-`skills/pncli/` is the **only** skill this repo ships — it is the command reference for every service. There is no `example-skills/` directory and no workflow-skill collection; both were removed deliberately. Do not re-add one. A new skill either belongs to `skills/pncli/` as a service reference, or it is repo-internal under `.claude/skills/`.
+`skills/pncli/` is the **only** skill this repo ships — it is the command reference for every service. There is no `example-skills/` directory and no workflow-skill collection; both were removed deliberately. Do not re-add one. A new skill either belongs to `skills/pncli/` as a service reference, or it is repo-internal under `.Codex/skills/`.
 
-When documenting or choosing default install targets for skills, prefer `.agents/skills` because it works for GitHub Copilot and Codex. That path is reached under the agent name `codex`, which is the default. `--agent github-copilot` targets Copilot's own directories (`.github/skills` and `~/.copilot/skills`), and Claude Code support stays available via `.claude/skills` and `--agent claude-code` / `--claude`.
+When documenting or choosing default install targets for skills, prefer `.agents/skills` because it works for GitHub Copilot and Codex. That path is reached under the agent name `codex`, which is the default. `--agent github-copilot` targets Copilot's own directories (`.github/skills` and `~/.copilot/skills`), and Codex support stays available via `.Codex/skills` and `--agent Codex` / `--Codex`.
 
 ## Build & Test
 
@@ -28,12 +28,12 @@ npm run build          # Build CLI with tsup
 
 ## Opening Pull Requests
 
-Use `.claude/skills/ship/` — repo-internal, GitHub only. It runs `gh`, the hardcoded `npm run` gate, and the `site/src/` audit, and wires up `Closes #<issue>` automatically.
+Use `.Codex/skills/ship/` — repo-internal, GitHub only. It runs `gh`, the hardcoded `npm run` gate, and the `site/src/` audit, and wires up `Closes #<issue>` automatically.
 
 ## Verifying the Feedback Function
 
 `function-deploy.yml` ends by running the `feedback-smoke` skill
-(`.claude/skills/feedback-smoke/`), so every deploy of `functions/` or `infra/` is
+(`.Codex/skills/feedback-smoke/`), so every deploy of `functions/` or `infra/` is
 verified end to end — HTTP function loaded, keyed submission accepted without
 Turnstile, timer recorded it on the one persistent `smoke-test` issue — and a broken
 deploy fails the run. The smoke test never creates issues per run. Run the skill by hand whenever the website feedback page is
@@ -47,15 +47,15 @@ Always use `kolatts/<description>` or `kolatts/<issue#>-<description>`.
 
 ## Automated PR Feedback
 
-`.github/workflows/claude-pr-feedback.yml` reacts to a `CHANGES_REQUESTED` review
+`.github/workflows/Codex-pr-feedback.yml` reacts to a `CHANGES_REQUESTED` review
 on any open same-repo PR by implementing the requested changes and **pushing
 directly to the PR's source branch**. This applies to human-authored branches, not
 just automation-authored ones.
 
-Automated reviews come from `claude-review.yml`, which submits formal reviews as
+Automated reviews come from `Codex-review.yml`, which submits formal reviews as
 `github-actions[bot]` using the workflow's own `GITHUB_TOKEN`. Because default-token
 events never trigger other workflows, that workflow explicitly dispatches
-`claude-pr-feedback.yml` (with `pr_number` and `review_commit`) after submitting a
+`Codex-pr-feedback.yml` (with `pr_number` and `review_commit`) after submitting a
 `CHANGES_REQUESTED` review — the `pull_request_review` event path only fires for
 reviews from humans and GitHub App identities. `APPROVE` from the workflow token
 additionally requires the repo setting "Allow GitHub Actions to create and approve
@@ -70,17 +70,17 @@ Two labels control it:
   comments need a person. The workflow stops on that PR once it is set.
 
 The workflow only responds to reviews from `OWNER` / `MEMBER` / `COLLABORATOR`, or
-from `claude[bot]` / `imagile-bot[bot]` / `github-actions[bot]`. Anyone can submit
+from `Codex[bot]` / `imagile-bot[bot]` / `github-actions[bot]`. Anyone can submit
 a review on a public repo, so this allowlist is the authorization boundary — do not
 widen it without thinking about what a drive-by reviewer could make the agent do.
 
-`claude-code-action` enforces a **second, independent** actor guard that no workflow
+`Codex-action` enforces a **second, independent** actor guard that no workflow
 `if` can satisfy: when the triggering actor is a Bot, the action aborts in under a
 second unless that bot's login (minus the `[bot]` suffix) appears in the step's
 `allowed_bots`. The failure is easy to miss — a near-instant job with no agent output
-— so any workflow here that a bot can trigger needs the input. `claude-triage.yml`
-fires on `from-website` issues authored by `imagile-bot[bot]`; `claude-review.yml`
-and `claude-pr-feedback.yml` react to reviews from the workflow token. Triage shipped
+— so any workflow here that a bot can trigger needs the input. `Codex-triage.yml`
+fires on `from-website` issues authored by `imagile-bot[bot]`; `Codex-review.yml`
+and `Codex-pr-feedback.yml` react to reviews from the workflow token. Triage shipped
 without it and silently no-op'd on every website issue from #404 to #409.
 
 Name the bots explicitly rather than using `*`. These jobs feed untrusted issue and
@@ -109,7 +109,7 @@ When adding a new service integration (new entry under `src/services/`), these f
 
 Never ship a new integration without updating all nine of these. The `skills/pncli/` skill is the onboarding contract — review the index and service file on every service addition or credential change. If a service is missing or its config keys are wrong, new users won't know it exists or how to authenticate.
 
-If the new integration has a "ticket-shaped" create/update command with long rich-text fields (a description, an acceptance-criteria-style field, a body), read the `conventions` skill (`.claude/skills/conventions/`) for the `--input-file` pattern before inventing a one-off flag.
+If the new integration has a "ticket-shaped" create/update command with long rich-text fields (a description, an acceptance-criteria-style field, a body), read the `conventions` skill (`.Codex/skills/conventions/`) for the `--input-file` pattern before inventing a one-off flag.
 
 ## Integration Panels & Testing State
 
@@ -329,7 +329,7 @@ The site does **not** host a skills gallery or catalog — do not re-add one; `s
 
 ### Screenshot Requirement
 
-**Required when `site/src/` files, `skills/pncli/SKILL.md`, or `skills/pncli/skills-guide.md` are edited.** `SKILL.md` is the source of the public Getting Started page, so a change to it changes rendered public content — screenshot `/getting-started/`. Screenshots are NOT required for the per-service `skills/pncli/<service>.md` files, `.claude/skills/`, or `CHANGELOG.md` alone — those feed auto-generation scripts that no site template renders directly.
+**Required when `site/src/` files, `skills/pncli/SKILL.md`, or `skills/pncli/skills-guide.md` are edited.** `SKILL.md` is the source of the public Getting Started page, so a change to it changes rendered public content — screenshot `/getting-started/`. Screenshots are NOT required for the per-service `skills/pncli/<service>.md` files, `.Codex/skills/`, or `CHANGELOG.md` alone — those feed auto-generation scripts that no site template renders directly.
 
 When those files are edited:
 

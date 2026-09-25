@@ -11,6 +11,8 @@ import type { CheckResult } from '../config/check.js';
 import { listKnownLocations, findStaleBundledSkills, findGitRoot, getAllMarketplaces } from '../skills/commands.js';
 import type { StaleSkill } from '../skills/commands.js';
 import type { GlobalConfig } from '../../types/config.js';
+import { checkKeychain, checkGitAuth, buildKeychainProblems, buildGitAuthProblems } from './git-auth-checks.js';
+import type { GitAuthDoctorReport } from './git-auth-checks.js';
 
 export interface ConfigFileHealth {
   path: string;
@@ -42,7 +44,7 @@ export function checkConfigFile(filePath: string): ConfigFileHealth {
 }
 
 export interface DoctorProblem {
-  area: 'config' | 'credentials' | 'skills' | 'marketplaces';
+  area: 'config' | 'credentials' | 'skills' | 'marketplaces' | 'keychain' | 'git-auth';
   message: string;
   fix: string;
 }
@@ -155,7 +157,7 @@ export function buildProblems(
 export function registerDoctorCommands(program: Command): void {
   program
     .command('doctor')
-    .description('Diagnose pncli setup: config files, credentials, agent skills, and skills marketplaces')
+    .description('Diagnose pncli setup: config files, credentials, keychain references, git auth for marketplace hosts, agent skills, and marketplaces')
     .option('--offline', 'Skip credential checks (no network calls)')
     .action(async (cmdOpts: { offline?: boolean }) => {
       const start = Date.now();
@@ -197,7 +199,24 @@ export function registerDoctorCommands(program: Command): void {
           cloneExists: !!m.localPath && fs.existsSync(m.localPath),
         }));
 
-        const problems = buildProblems(globalFile, repoFile, credentials, skillLocations, marketplaces);
+        // Keychain and git-auth are local checks (the token inspection is skipped under --offline).
+        // Either failing to run must degrade to a note, never take the whole report down.
+        const keychain = (() => {
+          try { return checkKeychain(globalConfig, undefined, opts.config ?? getGlobalConfigPath()); } catch (err) { return { error: err instanceof Error ? err.message : String(err) }; }
+        })();
+        let gitAuth: GitAuthDoctorReport[] | { error: string } = [];
+        try {
+          const providerCfg = (() => { try { return loadConfig({ configPath: opts.config }); } catch { return {}; } })();
+          gitAuth = await checkGitAuth(globalConfig, providerCfg, !!cmdOpts.offline);
+        } catch (err) {
+          gitAuth = { error: err instanceof Error ? err.message : String(err) };
+        }
+
+        const problems = [
+          ...buildProblems(globalFile, repoFile, credentials, skillLocations, marketplaces),
+          ...('error' in keychain ? [] : buildKeychainProblems(keychain)),
+          ...(Array.isArray(gitAuth) ? buildGitAuthProblems(gitAuth) : []),
+        ];
 
         // Mirror `config check` exit semantics so CI can gate on doctor directly:
         // invalid credentials → AUTH_ERROR, other credential failures → NETWORK_ERROR.
@@ -227,7 +246,10 @@ export function registerDoctorCommands(program: Command): void {
               ? 'No org marketplaces registered. Add one with: pncli skills marketplace add <git-url> --all-agents'
               : 'Refresh with: pncli skills marketplace sync --marketplace all --all-agents',
           },
+          keychain,
+          gitAuth,
           problems,
+          hint: problems.length === 0 ? null : 'New to skills and marketplaces? pncli skills guide troubleshooting',
         }, 'doctor', 'check', start);
       } catch (err) {
         fail(err, 'doctor', 'check', start);

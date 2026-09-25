@@ -19,6 +19,7 @@ import { AdoCoreClient } from '../ado/client/core.js';
 import { AdoWorkClient } from '../ado/client/work.js';
 import { discoverFields, discoverTypes, buildDefaultAliases } from '../ado/discovery.js';
 import { runCredentialChecks } from './check.js';
+import { registerKeychainCommands } from './keychain-commands.js';
 import { validateAlationAccessToken } from '../../lib/alationFetch.js';
 import { success, fail, warn } from '../../lib/output.js';
 import { hasInstalledPncliSkill } from '../skills/commands.js';
@@ -28,6 +29,7 @@ import fs from 'fs';
 
 export function registerConfigCommands(program: Command): void {
   const config = program.command('config').description('Manage pncli configuration');
+  registerKeychainCommands(config, program);
 
   config
     .command('init')

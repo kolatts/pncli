@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { success, fail, warn, log } from '../../lib/output.js';
+import { success, fail, warn, log, writeRawOutput } from '../../lib/output.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -10,7 +10,7 @@ import checkbox, { Separator } from '@inquirer/checkbox';
 import input from '@inquirer/input';
 import { writeGlobalConfig, getGlobalConfigPath, loadJsonFile, loadConfig } from '../../lib/config.js';
 import { getPncliVersion } from '../../lib/version.js';
-import type { GlobalConfig, MarketplaceConfig } from '../../types/config.js';
+import type { GlobalConfig, MarketplaceConfig, MarketplaceProvider } from '../../types/config.js';
 import {
   applyMarketplaceInstructions,
   removeMarketplaceInstructions,
@@ -19,6 +19,10 @@ import {
   agentInstructionsFile,
 } from './instructions.js';
 import type { InstructionApplyResult } from './instructions.js';
+import { resolveSecretValue, getKeychainBackend, keychainRef, isKeychainRef, purgeEntries } from '../../lib/keychain.js';
+import { parseCredentialRequest, resolveCredential, formatCredentialAnswer, inlineCredentialArgs, httpHostOf, originHasCredentials, resolveMarketplaceAuth, detectProvider, providerFallbackToken, PROVIDERS, UnresolvedMarketplaceTokenError } from './git-auth.js';
+import type { MarketplaceAuth } from './git-auth.js';
+import { registerGitAuthCommands } from './git-auth-commands.js';
 
 const BACK = '__back__';
 const ALL_MARKETPLACES = '__all_marketplaces__';
@@ -75,36 +79,53 @@ function scrubToken(msg: string): string {
   return msg.replace(/x-(?:token-auth|access-token):[^@]+@/g, 'x-token-auth:***@');
 }
 
-/** True when repoUrl's host is github.com, or matches the configured GitHub Enterprise Server host. */
-function isConfiguredGitHubHost(repoUrl: string, githubBaseUrl: string | undefined): boolean {
-  try {
-    const host = new URL(repoUrl).hostname;
-    if (host === 'github.com') return true;
-    if (!githubBaseUrl) return false;
-    return new URL(githubBaseUrl).hostname === host;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Resolves the token to use for a marketplace's git clone/pull: the marketplace's own
- * stored token when set, otherwise the CLI's normal GitHub credential (`PNCLI_GITHUB_TOKEN` /
- * `GITHUB_TOKEN` / `github.token` in config — see src/lib/config.ts) when the marketplace repo
- * is hosted on github.com or the configured GitHub Enterprise Server host. A marketplace on any
- * other host with no stored token gets no fallback — pncli has no generic credential for
- * arbitrary git hosts.
+ * stored token when set, otherwise pncli's own credential for the provider the repo lives on:
+ * - GitHub (github.com or the configured GitHub Enterprise host): `PNCLI_GITHUB_TOKEN` /
+ *   `GITHUB_TOKEN` / `github.token` — unchanged from earlier versions;
+ * - Bitbucket (the configured `bitbucket.baseUrl` host): `PNCLI_BITBUCKET_PAT` / `bitbucket.pat`;
+ * - Azure DevOps (the configured `ado.baseUrl` host): `PNCLI_ADO_PAT` / `SYSTEM_ACCESSTOKEN` / `ado.pat`.
+ * Any other host gets no fallback.
  *
  * This never overrides an explicitly configured marketplace token: a user who deliberately set
  * `--token` for a marketplace (e.g. a scoped PAT that differs from their working GitHub token)
  * keeps that behavior unchanged.
  */
-export function resolveMarketplaceToken(explicitToken: string | undefined, repoUrl: string | undefined): string | undefined {
-  if (explicitToken) return explicitToken;
+export function resolveMarketplaceToken(explicitToken: string | undefined, repoUrl: string | undefined, provider?: MarketplaceProvider): string | undefined {
+  if (explicitToken) {
+    const secret = resolveSecretValue(explicitToken);
+    // An unreadable keychain reference must not fall through to an unauthenticated git call:
+    // git's "authentication failed" would then be blamed on a token that was never sent.
+    if (!secret && isKeychainRef(explicitToken)) {
+      throw new Error(`The marketplace token is stored in the OS keychain as "${explicitToken}", but it could not be read. Check with: pncli config keychain status  (re-store it: pncli config keychain set <marketplaces.<name>.token>)`);
+    }
+    return secret;
+  }
   if (!repoUrl) return undefined;
   const resolved = loadConfig();
-  if (!isConfiguredGitHubHost(repoUrl, resolved.github.baseUrl)) return undefined;
-  return resolved.github.token;
+  return providerFallbackToken(detectProvider(repoUrl, resolved, provider), repoUrl, resolved)?.token;
+}
+
+/**
+ * The credential pncli's own clone/pull use for a marketplace, and whether it is the marketplace's
+ * own token or a provider fallback — the fix for a rejected token differs between the two.
+ */
+function marketplaceGitAuth(m: MarketplaceConfig): { auth: MarketplaceAuth | null; tokenSource: GitTokenSource } {
+  // Unchanged from earlier versions: a token cannot be used with an SSH remote, and saying so beats
+  // silently cloning with the user's SSH key instead.
+  if (m.token && m.repoUrl && !httpHostOf(m.repoUrl)) {
+    throw new Error(`--token requires an HTTPS clone URL; got: ${m.repoUrl}`);
+  }
+  let auth: MarketplaceAuth | null;
+  try {
+    auth = resolveMarketplaceAuth(m, loadConfig());
+  } catch (err) {
+    if (err instanceof UnresolvedMarketplaceTokenError) throw new Error(err.message);
+    throw err;
+  }
+  const tokenSource: GitTokenSource = !auth ? 'none' : auth.source.startsWith('marketplace:') ? 'explicit' : 'fallback';
+  return { auth, tokenSource };
 }
 
 const GIT_AUTH_FAILURE_PATTERNS = [
@@ -130,18 +151,48 @@ export type GitTokenSource = 'none' | 'explicit' | 'fallback';
  * else (network errors, merge conflicts, disk space) passes through scrubbed but otherwise
  * unchanged, so this never masks an unrelated failure as a credential problem.
  */
-export function describeGitFailure(rawMessage: string, marketplaceName: string, tokenSource: GitTokenSource): Error {
+export interface GitFailureContext {
+  provider?: MarketplaceProvider;
+  /** Where a fallback token came from: `github.token`, `bitbucket.pat`, `ado.pat`. */
+  fallbackSource?: string;
+  /** True when the marketplace has its own `username`. */
+  customUsername?: boolean;
+}
+
+const FALLBACK_LABELS: Record<string, string> = {
+  'bitbucket.pat': 'The Bitbucket token pncli is using (PNCLI_BITBUCKET_PAT / bitbucket.pat)',
+  'ado.pat': 'The Azure DevOps token pncli is using (PNCLI_ADO_PAT / SYSTEM_ACCESSTOKEN / ado.pat)',
+};
+
+/** Extra, provider-specific advice appended to an authentication failure. */
+function providerAuthAdvice(marketplaceName: string, ctx: GitFailureContext): string {
+  if (ctx.provider === 'bitbucket' && !ctx.customUsername) {
+    return `\n\nBitbucket Data Center personal access tokens are usually sent with your Bitbucket username. Set it with: pncli skills marketplace update ${marketplaceName} --username <your-bitbucket-username>`;
+  }
+  if (ctx.provider === 'ado') {
+    return '\n\nAzure DevOps personal access tokens need the Code (Read) scope for the collection that hosts this repo.';
+  }
+  return '';
+}
+
+export function describeGitFailure(rawMessage: string, marketplaceName: string, tokenSource: GitTokenSource, ctx: GitFailureContext = {}): Error {
   const msg = scrubToken(rawMessage);
   if (GIT_AUTH_FAILURE_PATTERNS.some(p => p.test(msg))) {
-    const hint = tokenSource === 'explicit'
+    const fallbackLabel = ctx.fallbackSource ? FALLBACK_LABELS[ctx.fallbackSource] : undefined;
+    const hint = tokenSource === 'fallback' && fallbackLabel
+      ? `${fallbackLabel} was rejected for marketplace "${marketplaceName}" — it may be expired, revoked, or missing required scopes for this repo. Rotate that token, or set one specifically for this marketplace: pncli skills marketplace update ${marketplaceName} --token <new-token>`
+      : tokenSource === 'explicit'
       ? `The token configured for marketplace "${marketplaceName}" was rejected — it may be expired, revoked, or missing required scopes. Update it with: pncli skills marketplace add <url> --token <new-token>`
       : tokenSource === 'fallback'
         ? `The GitHub token pncli is using (PNCLI_GITHUB_TOKEN / GITHUB_TOKEN / github.token) was rejected for marketplace "${marketplaceName}" — it may be expired, revoked, or missing required scopes for this repo. Rotate that token, or set one specifically for this marketplace: pncli skills marketplace add <url> --token <new-token>`
         : `Marketplace "${marketplaceName}" requires authentication but no token is configured. Add one with: pncli skills marketplace add <url> --token <token>`;
-    return new Error(`${hint}\n\nGit reported: ${msg}`);
+    return new Error(`${hint}${tokenSource !== 'none' ? providerAuthAdvice(marketplaceName, ctx) : ''}\n\nGit reported: ${msg}`);
   }
   if (GIT_NOT_FOUND_PATTERNS.some(p => p.test(msg))) {
-    const hint = tokenSource === 'explicit'
+    const fallbackLabel = ctx.fallbackSource ? FALLBACK_LABELS[ctx.fallbackSource] : undefined;
+    const hint = tokenSource === 'fallback' && fallbackLabel
+      ? `Repository for marketplace "${marketplaceName}" was not found — check the URL and that ${fallbackLabel.charAt(0).toLowerCase()}${fallbackLabel.slice(1)} has access to it.`
+      : tokenSource === 'explicit'
       ? `Repository for marketplace "${marketplaceName}" was not found — check the URL and that the configured token has access to it.`
       : tokenSource === 'fallback'
         ? `Repository for marketplace "${marketplaceName}" was not found — check the URL and that pncli's configured GitHub token has access to it.`
@@ -292,6 +343,57 @@ function getBundledSkillsDir(): string {
   } catch {
     return '';
   }
+}
+
+export const GUIDE_FILE = 'skills-guide.md';
+
+/**
+ * Locates the skills-management guide. Shipped inside the bundled pncli skill
+ * (`skills/pncli/skills-guide.md`), so agents that installed the skill can read it too. Falls
+ * back to walking up from this file so `npm run dev` (tsx, no dist/) finds the repo copy.
+ */
+export function findGuidePath(): string | null {
+  const bundled = path.join(getBundledSkillsDir(), 'pncli', GUIDE_FILE);
+  if (fs.existsSync(bundled)) return bundled;
+  try {
+    let dir = path.dirname(fileURLToPath(import.meta.url));
+    for (let i = 0; i < 6; i++) {
+      const candidate = path.join(dir, 'skills', 'pncli', GUIDE_FILE);
+      if (fs.existsSync(candidate)) return candidate;
+      dir = path.dirname(dir);
+    }
+  } catch { /* fall through */ }
+  return null;
+}
+
+export interface GuideSection {
+  title: string;
+  slug: string;
+}
+
+export function slugify(title: string): string {
+  return title.toLowerCase().replace(/[`*_]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+/** Top-level (`##`) sections of the guide, in order. */
+export function listGuideSections(markdown: string): GuideSection[] {
+  return markdown.split(/\r?\n/)
+    .filter(l => /^## /.test(l))
+    .map(l => { const title = l.slice(3).trim(); return { title, slug: slugify(title) }; });
+}
+
+/**
+ * Returns one `##` section (through the line before the next `##`), matched by exact slug first
+ * and then by substring of the slug, so `pncli skills guide auth` finds "Private repos and auth".
+ */
+export function extractGuideSection(markdown: string, query: string): string | null {
+  const lines = markdown.split(/\r?\n/);
+  const heads = lines.map((l, i) => ({ l, i })).filter(x => /^## /.test(x.l));
+  const q = slugify(query);
+  const pick = heads.find(h => slugify(h.l.slice(3)) === q) ?? heads.find(h => slugify(h.l.slice(3)).includes(q));
+  if (!pick) return null;
+  const next = heads.find(h => h.i > pick.i);
+  return lines.slice(pick.i, next ? next.i : lines.length).join('\n').trimEnd() + '\n';
 }
 
 /**
@@ -946,7 +1048,13 @@ export function upsertMarketplace(all: MarketplaceConfig[], entry: MarketplaceCo
       throw new Error(`Marketplace name "${entry.name}" is already used by a different marketplace (${all[idxByName].repoUrl}). Choose a different --name.`);
     }
     // Re-running `add` without --token shouldn't silently wipe a previously stored token.
-    all[idxByUrl] = { ...entry, token: entry.token ?? all[idxByUrl].token };
+    const previous = all[idxByUrl];
+    all[idxByUrl] = {
+      ...entry,
+      token: entry.token ?? previous.token,
+      ...(entry.username ?? previous.username ? { username: entry.username ?? previous.username } : {}),
+      ...(entry.provider ?? previous.provider ? { provider: entry.provider ?? previous.provider } : {}),
+    };
   } else if (idxByName !== -1) {
     throw new Error(`Marketplace name "${entry.name}" is already registered for a different repo (${all[idxByName].repoUrl}). Choose a different --name, or remove the existing marketplace first.`);
   } else {
@@ -959,7 +1067,7 @@ export function upsertMarketplace(all: MarketplaceConfig[], entry: MarketplaceCo
  * Manager case where git writes auth warnings to stderr and exits non-zero even though the
  * clone succeeded — verified by checking that `git rev-parse HEAD` resolves at the destination.
  */
-function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { branch?: string; token?: string }, marketplaceName: string): void {
+function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { branch?: string; token?: string; username?: string; provider?: MarketplaceProvider }, marketplaceName: string): void {
   const hasGit = fs.existsSync(path.join(resolvedPath, '.git'));
   if (fs.existsSync(resolvedPath) && !hasGit && fs.readdirSync(resolvedPath).length > 0) {
     throw new Error(`Directory already exists and is not a git repo: ${resolvedPath}`);
@@ -969,15 +1077,15 @@ function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { bran
     return;
   }
 
-  const resolvedToken = resolveMarketplaceToken(opts.token, url);
+  const { auth: credential, tokenSource } = marketplaceGitAuth({ name: marketplaceName, repoUrl: url, token: opts.token, username: opts.username, provider: opts.provider });
   const branchLabel = opts.branch ?? 'remote default';
   warn(`Cloning ${url} (branch: ${branchLabel}) → ${resolvedPath}...`);
-  const cloneUrl = resolvedToken ? injectTokenIntoUrl(url, resolvedToken) : url;
-  const cloneArgs = ['clone'];
+  const auth = gitAuthFor(url, credential);
+  const cloneArgs = [...auth.args, 'clone'];
   if (opts.branch) cloneArgs.push('--branch', opts.branch);
-  cloneArgs.push(cloneUrl, resolvedPath);
+  cloneArgs.push(url, resolvedPath);
   try {
-    execFileSync('git', cloneArgs, { stdio: ['inherit', 'inherit', 'pipe'] });
+    execFileSync('git', cloneArgs, { stdio: ['inherit', 'inherit', 'pipe'], env: { ...process.env, ...auth.env } });
   } catch (e: unknown) {
     let cloneActuallySucceeded = false;
     try {
@@ -986,30 +1094,48 @@ function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { bran
     } catch { /* repo not valid — fall through and re-throw original error */ }
     if (!cloneActuallySucceeded) {
       const msg = e instanceof Error ? e.message : String(e);
-      const tokenSource: GitTokenSource = opts.token ? 'explicit' : resolvedToken ? 'fallback' : 'none';
-      throw describeGitFailure(msg, marketplaceName, tokenSource);
+      throw describeGitFailure(msg, marketplaceName, tokenSource, { provider: credential?.provider, fallbackSource: credential?.source, customUsername: !!opts.username });
     }
+  }
+}
+
+/**
+ * Authenticates one git invocation with `token` through an inline credential helper fed from the
+ * environment, so the token never appears on git's command line (visible to every process) and
+ * never lands in `.git/config` as part of `origin`. Non-HTTPS URLs (SSH) need no token.
+ */
+function gitAuthFor(url: string | undefined, credential: MarketplaceAuth | null): { args: string[]; env: NodeJS.ProcessEnv } {
+  return credential && httpHostOf(url) ? inlineCredentialArgs(credential.username, credential.password) : { args: [], env: {} };
+}
+
+/** Rewrites a clone's `origin` to `plainUrl`. Best-effort: a failure here must not fail the add. */
+export function stripOriginCredentials(repoPath: string, plainUrl: string): boolean {
+  try {
+    execFileSync('git', ['-C', repoPath, 'remote', 'set-url', 'origin', plainUrl], { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
   }
 }
 
 /**
  * Pulls the latest content for a marketplace repo. Returns whether the pull brought in new changes.
  */
-function pullMarketplace(marketplacePath: string, repoUrl: string | undefined, token: string | undefined, marketplaceName: string): { updated: boolean } {
-  const resolvedToken = resolveMarketplaceToken(token, repoUrl);
+function pullMarketplace(marketplacePath: string, m: MarketplaceConfig, marketplaceName: string): { updated: boolean } {
+  const repoUrl = m.repoUrl;
+  const { auth: credential, tokenSource } = marketplaceGitAuth(m);
   warn(`Pulling latest content for "${marketplaceName}"...`);
-  const gitArgs = ['-C', marketplacePath];
-  if (repoUrl && resolvedToken) {
-    gitArgs.push('-c', `remote.origin.url=${injectTokenIntoUrl(repoUrl, resolvedToken)}`);
-  }
-  gitArgs.push('pull');
+  // Clones made by older pncli versions carry a token in `origin`. git prefers URL credentials over
+  // any helper, so a rotated token would keep losing to the stale embedded one (#456) — strip it.
+  if (repoUrl && originHasCredentials(marketplacePath)) stripOriginCredentials(marketplacePath, repoUrl);
+  const auth = gitAuthFor(repoUrl, credential);
+  const gitArgs = ['-C', marketplacePath, ...auth.args, 'pull'];
   let pullOutput: string;
   try {
-    pullOutput = execFileSync('git', gitArgs, { encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'], env: { ...process.env, LANG: 'C', LC_ALL: 'C' } });
+    pullOutput = execFileSync('git', gitArgs, { encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'], env: { ...process.env, ...auth.env, LANG: 'C', LC_ALL: 'C' } });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    const tokenSource: GitTokenSource = token ? 'explicit' : resolvedToken ? 'fallback' : 'none';
-    throw describeGitFailure(msg, marketplaceName, tokenSource);
+    throw describeGitFailure(msg, marketplaceName, tokenSource, { provider: credential?.provider, fallbackSource: credential?.source, customUsername: !!m.username });
   }
   const updated = !pullOutput.includes('Already up to date');
   if (pullOutput.trim() && updated) warn(pullOutput.trim());
@@ -1216,7 +1342,7 @@ function syncMarketplacePlugins(m: MarketplaceConfig, targets: InstallTarget[], 
       return { marketplace: marketplaceName, skipped: true, message: 'Local path not found.' };
     }
 
-    const { updated } = pullMarketplace(marketplacePath, m.repoUrl, m.token, marketplaceName);
+    const { updated } = pullMarketplace(marketplacePath, m, marketplaceName);
 
     const pluginChoices = resolvePluginChoices(marketplacePath);
     if (pluginChoices.length === 0) {
@@ -1245,8 +1371,27 @@ interface MarketplaceAddOptions {
   agent?: string;
   claude?: boolean;
   allAgents?: boolean;
+  /** Store --token in the OS keychain and record only a `keychain:` reference in config. */
+  keychain?: boolean;
+  /** Username sent with the token (Bitbucket Data Center personal tokens usually need it). */
+  username?: string;
+  /** Overrides provider detection (github | bitbucket | ado | git). */
+  provider?: string;
   /** Commander's negatable `--no-instructions`: true unless the flag is passed (undefined when called programmatically). */
   instructions?: boolean;
+}
+
+function parseProviderOption(value: string | undefined): MarketplaceProvider | undefined {
+  if (value === undefined) return undefined;
+  if (!(PROVIDERS as readonly string[]).includes(value)) {
+    throw new Error(`--provider must be one of: ${PROVIDERS.join(', ')} (got "${value}").`);
+  }
+  return value as MarketplaceProvider;
+}
+
+/** Resolved config for provider detection in output — never lets a broken config fail a listing. */
+function safeProviderConfig(): Parameters<typeof detectProvider>[1] {
+  try { return loadConfig(); } catch { return {}; }
 }
 
 /**
@@ -1257,18 +1402,27 @@ interface MarketplaceAddOptions {
 function performMarketplaceAdd(url: string, localPath: string | undefined, opts: MarketplaceAddOptions): Record<string, unknown> {
   const resolvedPath = path.resolve(localPath ?? defaultMarketplacePath(url));
   const marketplaceName = opts.name ?? repoNameFromUrl(url);
+  const provider = parseProviderOption(opts.provider);
 
-  cloneOrReuseMarketplace(url, resolvedPath, opts, marketplaceName);
+  cloneOrReuseMarketplace(url, resolvedPath, { ...opts, provider }, marketplaceName);
 
   const configPath = getGlobalConfigPath();
   const { existing, all } = loadMarketplacesConfig(configPath);
+  if (opts.keychain && !opts.token) warn('--keychain has no effect without --token.');
+  const account = `marketplaces.${marketplaceName}.token`;
+  const storeInKeychain = !!(opts.token && opts.keychain);
   const entry: MarketplaceConfig = {
     name: marketplaceName,
     repoUrl: url,
     localPath: resolvedPath,
-    ...(opts.token ? { token: opts.token } : {}),
+    ...(opts.token ? { token: storeInKeychain ? keychainRef(account) : opts.token } : {}),
+    ...(opts.username ? { username: opts.username } : {}),
+    ...(provider ? { provider } : {}),
   };
+  // upsert first: it throws when the name belongs to another marketplace, and that marketplace's
+  // keychain entry has this same account name — writing the secret first would overwrite it.
   upsertMarketplace(all, entry);
+  if (storeInKeychain) getKeychainBackend().set(account, opts.token!);
   saveMarketplaces(configPath, existing, all);
 
   const targets = resolveInstallTargets(opts);
@@ -1281,6 +1435,8 @@ function performMarketplaceAdd(url: string, localPath: string | undefined, opts:
     localPath: resolvedPath,
     branch: opts.branch ?? null,
     tokenConfigured: !!opts.token,
+    tokenStorage: !opts.token ? null : opts.keychain ? 'keychain' : 'config',
+    provider: detectProvider(url, safeProviderConfig(), provider),
     // One target keeps the flat shape earlier versions emitted; several nest under `targets`.
     ...(targetResults.length === 1
       ? { plugins: targetResults[0].plugins, total: targetResults[0].total, target: targetResults[0].target }
@@ -1305,6 +1461,16 @@ function performMarketplaceRemove(name: string): Record<string, unknown> {
 
   const removed = all.splice(idx, 1)[0];
   saveMarketplaces(configPath, existing, all);
+  // Clean up the marketplace's own keychain entry once nothing else references it.
+  let keychainEntryDeleted = false;
+  if (isKeychainRef(removed.token)) {
+    try {
+      const account = removed.token.slice('keychain:'.length);
+      keychainEntryDeleted = purgeEntries(loadJsonFile<GlobalConfig>(configPath) ?? {}, getKeychainBackend(), [account]).length > 0;
+    } catch (err) {
+      warn(`Could not delete the marketplace's keychain entry: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
 
   return {
     removed: {
@@ -1312,6 +1478,7 @@ function performMarketplaceRemove(name: string): Record<string, unknown> {
       repoUrl: removed.repoUrl,
       localPath: removed.localPath,
     },
+    keychainEntryDeleted,
     remaining: all.length,
   };
 }
@@ -1422,6 +1589,12 @@ Org plugins (skills and AGENTS.md/CLAUDE.md from a git-hosted marketplace):
 
 Check what is installed:
   pncli skills status | pncli skills locations | pncli doctor
+
+Private marketplaces and credentials:
+  pncli skills git-auth enable       # let git (and agent hosts) authenticate to marketplace hosts
+  pncli config keychain migrate      # move tokens out of plaintext config into the OS keychain
+
+New to this? pncli skills guide      # how skills management fits together (or: guide <section>)
 `);
 
   skills
@@ -1728,6 +1901,59 @@ Check what is installed:
       }
     });
 
+  skills
+    .command('guide')
+    .description('Explain how skills management works: bundled skill vs marketplace plugins, agent hosts, scopes, sync, and auth')
+    .argument('[section]', 'Print only one section (e.g. hosts, sync, auth, troubleshooting)')
+    .option('--sections', 'List the section names as JSON instead of printing the guide')
+    .action((section: string | undefined, cmdOpts: { sections?: boolean }) => {
+      const start = Date.now();
+      try {
+        const guidePath = findGuidePath();
+        if (!guidePath) throw new Error(`${GUIDE_FILE} is missing from this pncli install — reinstall pncli, or read it online at https://kolatts.github.io/pncli/skills-guide/`);
+        const markdown = fs.readFileSync(guidePath, 'utf8').replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n/, '');
+        if (cmdOpts.sections) {
+          success({ sections: listGuideSections(markdown), path: guidePath }, 'skills', 'guide', start);
+          return;
+        }
+        if (section) {
+          const text = extractGuideSection(markdown, section);
+          if (!text) {
+            throw new Error(`No guide section matches "${section}". Sections: ${listGuideSections(markdown).map(s => s.slug).join(', ')}`);
+          }
+          writeRawOutput(text);
+          return;
+        }
+        writeRawOutput(markdown);
+      } catch (err) {
+        fail(err, 'skills', 'guide', start);
+      }
+    });
+
+  registerGitAuthCommands(skills);
+
+  // Git credential-helper protocol endpoint, invoked by git (not people) once
+  // `skills git-auth enable` has written it into gitconfig. It must never print a JSON envelope
+  // or fail loudly: printing nothing makes git fall through to its next helper or its prompt.
+  skills
+    .command('git-credential', { hidden: true })
+    .description('Git credential helper (used by git after `skills git-auth enable`; not for direct use)')
+    .option('--marketplace <name>', 'Answer with this marketplace\'s credential (written by git-auth enable)')
+    .argument('<operation>', 'get | store | erase (supplied by git)')
+    .action(async (operation: string, cmdOpts: { marketplace?: string }) => {
+      if (operation !== 'get') return; // store/erase: pncli's config is the source of truth
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+        const request = parseCredentialRequest(Buffer.concat(chunks).toString('utf8'));
+        const globalConfig = loadJsonFile<GlobalConfig>(getGlobalConfigPath()) ?? {};
+        const answer = resolveCredential(request, globalConfig, loadConfig(), undefined, cmdOpts.marketplace);
+        if (answer) process.stdout.write(formatCredentialAnswer(answer));
+      } catch {
+        // Deliberately silent — see above.
+      }
+    });
+
   const marketplace = skills.command('marketplace').description('Org plugins from git-hosted marketplaces: add, sync, enable/disable, and shipped AGENTS.md/CLAUDE.md');
   marketplace.addHelpText('after', `
 Workflow:
@@ -1758,6 +1984,9 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
     .option('--name <name>', 'Human-readable name for this marketplace (default: derived from URL)')
     .option('--branch <branch>', 'Branch to clone (default: remote HEAD)')
     .option('--token <token>', 'HTTP access token for authenticated clone and pull (GitHub PAT or Bitbucket token)')
+    .option('--keychain', 'Store --token in the OS keychain instead of plaintext config (see: pncli config keychain --help)')
+    .option('--username <username>', 'Username sent with the token (default: x-access-token on github.com, x-token-auth elsewhere; Bitbucket Data Center personal tokens usually need your username)')
+    .option('--provider <provider>', 'Git host type, when detection guesses wrong: github | bitbucket | ado | git')
     .option('--agent <agent>', `Target agent host for plugin install: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--all-agents', 'Install to every supported agent host in one run')
@@ -1778,6 +2007,7 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
       try {
         const configPath = getGlobalConfigPath();
         const all = loadMarketplaces(configPath);
+        const providerCfg = safeProviderConfig();
 
         success({
           marketplaces: all.map(m => ({
@@ -1785,6 +2015,9 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
             repoUrl: m.repoUrl,
             localPath: m.localPath,
             tokenConfigured: !!m.token,
+            tokenStorage: !m.token ? null : isKeychainRef(m.token) ? 'keychain' : 'config',
+            provider: detectProvider(m.repoUrl, providerCfg, m.provider),
+            username: m.username ?? null,
             upstreamRemote: m.localPath && fs.existsSync(m.localPath)
               ? getRepoRemoteUrl(m.localPath)
               : null,
@@ -1793,6 +2026,69 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
         }, 'skills', 'marketplace-list', start);
       } catch (err) {
         fail(err, 'skills', 'marketplace-list', start);
+      }
+    });
+
+  marketplace
+    .command('update')
+    .description('Change a registered marketplace\'s token, username, or provider without re-adding it (rotate a token here)')
+    .argument('<name>', 'Marketplace name (or repo URL)')
+    .option('--token <token>', 'New access token for clone and pull')
+    .option('--keychain', 'Store --token in the OS keychain instead of plaintext config')
+    .option('--username <username>', 'Username sent with the token (Bitbucket Data Center personal tokens usually need your username)')
+    .option('--provider <provider>', 'Git host type: github | bitbucket | ado | git')
+    .option('--clear-token', 'Remove the marketplace\'s own token (falls back to the provider token pncli has, if any)')
+    .option('--clear-username', 'Go back to the default username')
+    .option('--clear-provider', 'Go back to automatic provider detection')
+    .action((name: string, opts: { token?: string; keychain?: boolean; username?: string; provider?: string; clearToken?: boolean; clearUsername?: boolean; clearProvider?: boolean }) => {
+      const start = Date.now();
+      try {
+        if (opts.token && opts.clearToken) throw new Error('Pass --token or --clear-token, not both.');
+        if (opts.keychain && !opts.token) throw new Error('--keychain needs --token.');
+        const provider = parseProviderOption(opts.provider);
+        const configPath = getGlobalConfigPath();
+        const { existing, all } = loadMarketplacesConfig(configPath);
+        const idx = all.findIndex(m => m.name === name || m.repoUrl === name);
+        if (idx === -1) throw new Error(`Marketplace "${name}" not found. Run: pncli skills marketplace list`);
+        const entry: MarketplaceConfig = { ...all[idx]! };
+        const oldToken = entry.token;
+        const account = `marketplaces.${marketplaceLabel(entry)}.token`;
+        if (opts.token) {
+          if (opts.keychain) {
+            getKeychainBackend().set(account, opts.token);
+            entry.token = keychainRef(account);
+          } else {
+            entry.token = opts.token;
+          }
+        }
+        if (opts.clearToken) delete entry.token;
+        if (opts.username) entry.username = opts.username;
+        if (opts.clearUsername) delete entry.username;
+        if (provider) entry.provider = provider;
+        if (opts.clearProvider) delete entry.provider;
+        all[idx] = entry;
+        saveMarketplaces(configPath, existing, all);
+        // A keychain entry the marketplace no longer points at is deleted once nothing references it.
+        if (isKeychainRef(oldToken) && oldToken !== entry.token) {
+          try {
+            purgeEntries(loadJsonFile<GlobalConfig>(configPath) ?? {}, getKeychainBackend(), [oldToken.slice('keychain:'.length)]);
+          } catch (err) {
+            warn(`Could not delete the old keychain entry: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+        success({
+          name: marketplaceLabel(entry),
+          repoUrl: entry.repoUrl,
+          tokenConfigured: !!entry.token,
+          tokenStorage: !entry.token ? null : isKeychainRef(entry.token) ? 'keychain' : 'config',
+          username: entry.username ?? null,
+          provider: detectProvider(entry.repoUrl, safeProviderConfig(), entry.provider),
+          next: opts.username || opts.provider || opts.clearUsername || opts.clearProvider
+            ? `If git-auth is enabled for it, refresh that too: pncli skills git-auth enable --marketplace ${marketplaceLabel(entry)}. Then verify with: pncli doctor`
+            : 'Verify with: pncli doctor',
+        }, 'skills', 'marketplace-update', start);
+      } catch (err) {
+        fail(err, 'skills', 'marketplace-update', start);
       }
     });
 
@@ -1913,7 +2209,7 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
             throw new Error(`Marketplace "${marketplaceName}" local path not found at ${marketplacePath ?? '(not set)'}. Run: pncli skills marketplace add <url>`);
           }
 
-          const { updated } = pullMarketplace(marketplacePath, selectedMarketplace.repoUrl, selectedMarketplace.token, marketplaceName);
+          const { updated } = pullMarketplace(marketplacePath, selectedMarketplace, marketplaceName);
 
           const pluginChoices = resolvePluginChoices(marketplacePath);
           if (pluginChoices.length === 0) {

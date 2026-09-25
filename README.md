@@ -65,7 +65,7 @@ pncli config init
 # Add repo-level defaults (check this into git)
 pncli config init --repo
 
-# When something isn't working: config, credentials, skills, and marketplaces in one report
+# When something isn't working: config, credentials, keychain, git auth, skills, and marketplaces in one report
 pncli doctor
 ```
 
