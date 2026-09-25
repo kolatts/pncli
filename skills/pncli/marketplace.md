@@ -27,26 +27,59 @@ pncli skills marketplace add https://bitbucket.imagile.dev/scm/ai/skills.git --n
 
 You can register as many marketplaces as you like — just run `add` again with a different URL. `marketplace setup` is kept as an alias of `add` for backward compatibility.
 
-For a private repo, pass `--token <token>` (a Bitbucket or GitHub access token) — it's stored with that marketplace's entry and injected into the clone/pull URL. For a marketplace hosted on `github.com` (or the host configured as `github.baseUrl`), you can omit `--token` if you already have a working GitHub credential configured (`PNCLI_GITHUB_TOKEN`, `GITHUB_TOKEN`, or `pncli config set github.token`) — `marketplace add` and `marketplace sync` fall back to it automatically. An explicit `--token` on the marketplace always takes priority over that fallback. To rotate a marketplace's own token, re-run `marketplace add <url> --token <new-token>`; a rejected or expired token surfaces as a clear error naming the marketplace rather than raw git output.
+For a private repo, pass `--token <token>` (a Bitbucket or GitHub access token) — it's stored with that marketplace's entry and supplied to git for each clone and pull; it is not left in the clone's `.git/config`. For a marketplace hosted on `github.com` (or the host configured as `github.baseUrl`), you can omit `--token` if you already have a working GitHub credential configured (`PNCLI_GITHUB_TOKEN`, `GITHUB_TOKEN`, or `pncli config set github.token`) — `marketplace add` and `marketplace sync` fall back to it automatically. An explicit `--token` on the marketplace always takes priority over that fallback. To rotate a marketplace's own token, re-run `marketplace add <url> --token <new-token>` (repeat `--keychain` if the old one was stored there, or use `pncli config keychain set marketplaces.<name>.token`); a rejected or expired token surfaces as a clear error naming the marketplace rather than raw git output.
 
-Add `--keychain` to store the token in the OS keychain (macOS Keychain, Windows Credential Manager, Secret Service) instead of plaintext config; the marketplace entry then holds a `keychain:marketplaces.<name>.token` reference. The token is injected per git call and is not left in the clone's `.git/config`.
+Add `--keychain` to store the token in the OS keychain (macOS Keychain, Windows Credential Manager, Secret Service) instead of plaintext config; the marketplace entry then holds a `keychain:marketplaces.<name>.token` reference.
+
+### Providers: GitHub, Bitbucket, Azure DevOps
+
+A marketplace can live on any HTTPS git host. pncli detects the provider from your configured service hosts and the URL shape (`/_git/` is Azure DevOps, `/scm/` is Bitbucket Data Center), and uses it to pick a fallback token when the marketplace has none of its own:
+
+| Provider | Example clone URL | Fallback token (when no `--token`) |
+|---|---|---|
+| GitHub / GitHub Enterprise | `https://ghe.imagile.dev/ai/skills.git` | `PNCLI_GITHUB_TOKEN` / `GITHUB_TOKEN` / `github.token` (github.com or the host of `github.baseUrl`) |
+| Bitbucket Data Center | `https://bitbucket.imagile.dev/scm/ai/skills.git` | `PNCLI_BITBUCKET_PAT` / `bitbucket.pat` (the host of `bitbucket.baseUrl`) |
+| Azure DevOps Server | `https://ado.imagile.dev/DefaultCollection/Platform/_git/skills` | `PNCLI_ADO_PAT` / `SYSTEM_ACCESSTOKEN` / `ado.pat` (the host of `ado.baseUrl`) |
+| anything else | `https://git.imagile.dev/ai/skills.git` | none; pass `--token` |
+
+Each marketplace keeps its own `--token`, so marketplaces on the same host (or on different providers) can use different secrets. Pass `--provider github|bitbucket|ado|git` if detection guesses wrong.
+
+The token is sent with a username: `x-access-token` on github.com, `x-token-auth` everywhere else (unchanged from earlier versions; Azure DevOps accepts any username with a PAT). **Bitbucket Data Center personal access tokens are usually sent with your Bitbucket username** — set it per marketplace:
+
+```
+pncli skills marketplace add https://bitbucket.imagile.dev/scm/ai/skills.git --token <token> --username jdoe --all-agents
+pncli skills marketplace update internal-ai --username jdoe          # for one you already added
+```
+
+### Rotate a token or change credentials (`update`)
+
+```
+pncli skills marketplace update internal-ai --token <new-token> [--keychain]
+pncli skills marketplace update internal-ai --username jdoe
+pncli skills marketplace update internal-ai --clear-token            # use the provider fallback instead
+pncli skills marketplace update internal-ai --provider bitbucket
+```
+
+`update` changes the stored entry only — no re-clone, no reinstall. A keychain entry the marketplace no longer points at is deleted.
 
 ### Let git itself authenticate (`git-auth`)
 
-pncli's own clone and pull are covered above, but an agent host that clones a marketplace itself (e.g. Claude Code's `/plugin marketplace add`) runs plain `git`, which has no credential for the host. Give it one:
+pncli's own clone and pull are covered above, but an agent host that clones a marketplace itself (e.g. Claude Code's `/plugin marketplace add`) runs plain `git`, which has no credential for it. Give it one:
 
 ```
-pncli skills git-auth enable                              # every marketplace host + the configured GitHub host
-pncli skills git-auth enable --host ghe.imagile.dev --mode keychain
-pncli skills git-auth status                              # per host: mode, and whether git sends pncli's token
-pncli skills git-auth disable --host ghe.imagile.dev [--forget-keychain]
+pncli skills git-auth enable                                   # every marketplace that has a credential
+pncli skills git-auth enable --marketplace internal-ai --mode keychain
+pncli skills git-auth status                                   # per marketplace: mode, username, token source, match
+pncli skills git-auth disable [--marketplace internal-ai] [--forget-keychain]
 ```
 
-- `--mode helper` (default) writes a host-scoped `credential.https://<host>.helper = !pncli skills git-credential` to your global gitconfig (preceded by an empty entry, so a global `credential.helper` such as Git Credential Manager is not consulted first for that host). Git asks pncli on every operation; pncli answers from env → config → keychain, so the token is never copied into gitconfig and rotation needs no re-run. `useHttpPath` is set for the host, so two marketplaces on one host can use different `--token`s.
-- `--mode keychain` stores the token in git's own credential store via `git credential approve` — works where pncli is not on git's `PATH`, but must be re-run after rotating the token (`pncli doctor` detects the stale copy).
-- `enable` also rewrites any existing clone on that host whose `origin` still carries an embedded token.
+- Entries are **scoped to each marketplace's repository URL** (with and without `.git`), for example `credential.https://bitbucket.imagile.dev/scm/ai/skills.git.helper`. git consults them only for that repository, so every other repo on the same host keeps using your own login, untouched.
+- `--mode helper` (default) writes an empty reset entry, `!pncli skills git-credential --marketplace '<name>'`, then whatever helpers git used for that repo before (the host's `gh auth setup-git` entry, Git Credential Manager, osxkeychain). pncli answers with that marketplace's own credential — the same username and token its clone and pull use — resolved from env → config → keychain, so nothing is copied into gitconfig and rotation needs no re-run. If pncli cannot answer, git falls through to your helpers as before.
+- `--mode keychain` stores the credential in git's own credential store via `git credential approve`, keyed to the repository (a repo-scoped `useHttpPath`). It works where pncli is not on git's `PATH`, but must be re-run after rotating the token; `pncli doctor` detects the stale copy.
+- `--host <host>` writes a whole-host entry instead, answered with the provider token pncli has for that host. Use it deliberately: it puts that token in front of every repo on the host.
+- `disable` restores exactly what `enable` replaced; pncli records it under `gitAuth.scopes` in its global config. `enable` also rewrites any clone whose `origin` still carries an embedded token.
 
-`pncli doctor` reports a `gitAuth` entry per host — mode, whether git's credential matches pncli's, clones with embedded tokens and, for GitHub hosts (online only), token kind (classic `ghp_` vs fine-grained), missing `repo` scope, SSO authorization, and expiry within 14 days.
+`pncli doctor` reports a `gitAuth` entry per marketplace: provider, mode, username, token source, whether git's credential matches pncli's, and clones with embedded tokens. Online, it runs an authenticated `git ls-remote` with exactly that username and token — which catches a wrong Bitbucket username as reliably as an expired token — and, for GitHub, reports the token kind (classic `ghp_` vs fine-grained), a missing `repo` scope, SSO authorization, and expiry within 14 days.
 
 If you upgrade pncli from a version that only supported a single marketplace, your existing config is migrated to the multi-marketplace format automatically the first time you run any `marketplace` command — no manual steps required.
 

@@ -106,26 +106,30 @@ The counts in `locations` always add up: `marketplaceSkills + bundledSkills + un
 
 A private marketplace needs a credential in two places, and they're easy to confuse:
 
-1. **pncli's own clone and pull.** Pass `--token` to `marketplace add`, or, for a repo on github.com or your configured GitHub Enterprise host, let pncli fall back to its GitHub token (`PNCLI_GITHUB_TOKEN`, `GITHUB_TOKEN`, or `github.token`). pncli injects the token for each git call and no longer leaves it in the clone's `.git/config`.
+1. **pncli's own clone and pull.** Pass `--token` to `marketplace add`, or let pncli fall back to the token it already has for the provider: `github.token` for GitHub and GitHub Enterprise, `bitbucket.pat` for your Bitbucket host, `ado.pat` for your Azure DevOps host. pncli hands the token to git through the environment for each call, so it never shows up on git's command line and is never left in the clone's `.git/config`.
 2. **Everyone else's git.** An agent host that clones a marketplace itself — Claude Code's `/plugin marketplace add`, for instance — runs plain `git`, and plain git has no idea about pncli's token. `git-auth` fixes that:
 
 ```
-pncli skills git-auth enable                 # every marketplace host + your GitHub host
-pncli skills git-auth status                 # per host: mode, and whether git sends pncli's token
+pncli skills git-auth enable                 # every marketplace that has a credential
+pncli skills git-auth status                 # per marketplace: mode, and whether git sends pncli's token
 ```
 
 `git-auth` has two modes:
 
 | Mode | How it works | After a token rotation |
 |---|---|---|
-| `helper` (default) | git asks `pncli skills git-credential` for the token on each operation | Nothing to do — git always gets pncli's current token |
+| `helper` (default) | git asks `pncli skills git-credential --marketplace <name>` on each operation | Nothing to do — git always gets pncli's current token |
 | `keychain` | the token is stored in git's own credential store (Git Credential Manager, macOS Keychain, libsecret) | Re-run `git-auth enable --mode keychain`; `doctor` flags the stale copy |
 
 Use `helper` unless something runs git without pncli on its `PATH`. Some GUI git clients and containers do that, and for those `keychain` is the right mode.
 
+Entries are scoped to each marketplace's own repository URL, so every other repo on the same host keeps your usual login (`gh`, Git Credential Manager, the macOS Keychain), untouched. `git-auth disable` puts your previous setup back exactly. A whole-host entry (`--host`) is available, but only when you ask for it.
+
 **Which GitHub token?** A classic personal access token (`ghp_…`) with the `repo` scope works across every repository your account can see, which suits a marketplace. A fine-grained token (`github_pat_…`) also works, but only for the repositories you selected when you created it. If your org uses SAML single sign-on, authorize the token for the org (Settings → Developer settings → Tokens → Configure SSO). `pncli doctor` checks the scope, the SSO authorization, and the expiry date for you.
 
-When two marketplaces on the same host need different tokens, give each one its own `--token`. The git helper picks the right one by repository path.
+**Several marketplaces, several secrets.** Each marketplace keeps its own `--token` (and `--username`), and every git path — pncli's clone and pull, the git helper, doctor's access check — uses exactly that pair. Rotate one with `pncli skills marketplace update <name> --token <new-token>`.
+
+**Bitbucket and Azure DevOps.** Both work like GitHub. Bitbucket Data Center personal access tokens are usually sent with your Bitbucket username, so give the marketplace `--username <you>`. Azure DevOps PATs need the Code (Read) scope and accept any username. `pncli doctor` tries an authenticated `git ls-remote` for each marketplace, so a wrong username shows up the same way an expired token does.
 
 ## Keeping credentials in the OS keychain
 
@@ -143,6 +147,7 @@ pncli config keychain migrate --to config --purge # …and delete the keychain e
 - `PNCLI_*` environment variables still win over everything, so CI is unaffected. Set `PNCLI_KEYCHAIN_BACKEND=none` on a machine that should ignore references altogether.
 - `migrate` reads each secret back before it rewrites your config, and leaves a `config.json.pre-keychain.bak` behind. Delete that file once `pncli config check` passes.
 - `marketplace add --token … --keychain` stores a marketplace token the same way from the start.
+- Lookups cost a little time. On Windows each pncli command that needs a keychain secret starts PowerShell once (typically well under a second); macOS and Linux are faster.
 - The keychain and `git-auth` helper mode work together. Git asks pncli, pncli reads the keychain, and the token never sits in a file anywhere.
 
 ## Troubleshooting
@@ -156,5 +161,7 @@ pncli config keychain migrate --to config --purge # …and delete the keychain e
 | The bundled skill is out of date after an upgrade | `pncli skills install` (add `--all-agents` / `--scope user` as before) |
 | A plugin added upstream never arrived | `pncli skills marketplace sync --force`, or name it explicitly |
 | A command says "not configured" but the token is in the keychain | `pncli config keychain status` — the reference may point at a missing entry |
+| Some ordinary clone (not a marketplace) says "repository not found" | `pncli git credentials inspect` in that clone, or `pncli git credentials inspect --scan ~/src --problems-only` |
+| git keeps using the wrong account or an old token | `pncli git credentials stored` — shows shadowed and stale stored credentials, then `pncli git credentials forget` |
 
 `pncli doctor` runs every one of these checks at once and prints a fix command next to each problem it finds.

@@ -202,12 +202,12 @@ export function registerDoctorCommands(program: Command): void {
         // Keychain and git-auth are local checks (the token inspection is skipped under --offline).
         // Either failing to run must degrade to a note, never take the whole report down.
         const keychain = (() => {
-          try { return checkKeychain(globalConfig); } catch (err) { return { error: err instanceof Error ? err.message : String(err) }; }
+          try { return checkKeychain(globalConfig, undefined, opts.config ?? getGlobalConfigPath()); } catch (err) { return { error: err instanceof Error ? err.message : String(err) }; }
         })();
         let gitAuth: GitAuthDoctorReport[] | { error: string } = [];
         try {
-          const github = (() => { try { return loadConfig({ configPath: opts.config }).github; } catch { return { baseUrl: undefined, token: undefined }; } })();
-          gitAuth = await checkGitAuth(globalConfig, github, !!cmdOpts.offline);
+          const providerCfg = (() => { try { return loadConfig({ configPath: opts.config }); } catch { return {}; } })();
+          gitAuth = await checkGitAuth(globalConfig, providerCfg, !!cmdOpts.offline);
         } catch (err) {
           gitAuth = { error: err instanceof Error ? err.message : String(err) };
         }

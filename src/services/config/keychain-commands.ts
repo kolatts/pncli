@@ -13,6 +13,7 @@ import {
   accountForPath,
   setAtPath,
   resetKeychainCache,
+  purgeEntries,
   KeychainError,
 } from '../../lib/keychain.js';
 import type { KeychainBackend } from '../../lib/keychain.js';
@@ -128,16 +129,7 @@ export function unmigrateSecrets(config: Record<string, unknown>, backend: Keych
   return { migrated, failed };
 }
 
-/** Deletes keychain entries that no remaining reference in `config` points at. */
-export function purgeEntries(config: unknown, backend: KeychainBackend, accounts: string[]): string[] {
-  const stillReferenced = new Set(findKeychainRefs(config).map(r => r.value.slice('keychain:'.length)));
-  const purged: string[] = [];
-  for (const account of new Set(accounts)) {
-    if (stillReferenced.has(account)) continue;
-    if (backend.delete(account)) purged.push(account);
-  }
-  return purged;
-}
+export { purgeEntries };
 
 /**
  * Moves every plaintext secret in `config` into the keychain and replaces it with a reference.
@@ -285,7 +277,8 @@ Set PNCLI_KEYCHAIN_BACKEND=none to ignore references entirely (e.g. on a CI runn
         // Write config before deleting the entry: if the delete fails the user still has the
         // secret in exactly one place, never in none.
         writeGlobalConfig(raw as GlobalConfig, opts.config);
-        const deleted = backend.delete(account);
+        // purgeEntries skips an account another reference still points at (e.g. via set --account).
+        const deleted = purgeEntries(raw, backend, [account]).length > 0;
         resetKeychainCache();
         success({ key: segments.join('.'), account, deleted, restoredToConfig: restored }, 'config', 'keychain-remove', start);
       } catch (err) {
@@ -332,6 +325,7 @@ Set PNCLI_KEYCHAIN_BACKEND=none to ignore references entirely (e.g. on a CI runn
             // deliberately left for them to delete once they have confirmed everything resolves.
             const backup = `${configPath}.pre-keychain.bak`;
             fs.copyFileSync(configPath, backup);
+            try { fs.chmodSync(backup, 0o600); } catch { /* not supported on every filesystem */ }
             warn(`Plaintext backup written to ${backup} — delete it once \`pncli config check\` passes.`);
           }
           writeGlobalConfig(raw as GlobalConfig, opts.config);

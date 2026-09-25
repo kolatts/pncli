@@ -145,6 +145,8 @@ describe('getKeychainBackend', () => {
     const b = getKeychainBackend(undefined, 'darwin');
     expect(b.name).toBe('none');
     expect(b.available()).toBe(false);
+    process.env.PNCLI_KEYCHAIN_BACKEND = '';
+    expect(getKeychainBackend(undefined, 'darwin').name).toBe('macos');
     process.env.PNCLI_KEYCHAIN_BACKEND = 'bogus';
     expect(() => getKeychainBackend()).toThrow(/Unknown PNCLI_KEYCHAIN_BACKEND/);
   });
@@ -208,6 +210,16 @@ describe('resolveKeychainRefs', () => {
     const out = resolveKeychainRefs({ github: { token: 'keychain:github.token' } }, broken);
     expect(out.github.token).toBeUndefined();
     expect(getUnresolvedKeychainRefs()[0]!.reason).toBe('locked');
+    stderr.mockRestore();
+  });
+
+  it('stays silent when the keychain is disabled on purpose, but still reports the refs', () => {
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const none: KeychainBackend = { ...memoryBackend({ 'github.token': 'x' }), name: 'none' };
+    const out = resolveKeychainRefs({ github: { token: 'keychain:github.token' } }, none);
+    expect(out.github.token).toBeUndefined();
+    expect(stderr).not.toHaveBeenCalled();
+    expect(getUnresolvedKeychainRefs()[0]!.reason).toMatch(/disabled/);
     stderr.mockRestore();
   });
 

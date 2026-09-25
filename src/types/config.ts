@@ -193,11 +193,41 @@ export interface AlationConfig {
   userId?: string | number;
 }
 
+/** Kind of git host a marketplace lives on; detected from the URL and configured hosts unless set. */
+export type MarketplaceProvider = 'github' | 'bitbucket' | 'ado' | 'git';
+
 export interface MarketplaceConfig {
   name?: string;
   repoUrl?: string;
   localPath?: string;
+  /** Access token for clone/pull — plaintext or a `keychain:` reference. Falls back to the provider's pncli token. */
   token?: string;
+  /** Username sent with the token (default: x-access-token on github.com, x-token-auth elsewhere). */
+  username?: string;
+  /** Overrides provider detection. */
+  provider?: MarketplaceProvider;
+}
+
+/**
+ * What `pncli skills git-auth enable` did to one credential scope (a marketplace repository URL, or
+ * `https://<host>` for a --host scope), so disable can undo it exactly and doctor can tell pncli's
+ * setup from the user's own.
+ */
+export interface GitAuthScopeRecord {
+  mode: 'helper' | 'keychain';
+  /** The marketplace this scope serves; absent for a --host scope. */
+  marketplace?: string;
+  /** Username stored with a keychain-mode credential, needed to erase it again. */
+  username?: string;
+  /** `credential.<scope>.helper` entries that were in gitconfig before pncli's, restored by disable. */
+  previousHelpers?: string[];
+  /** Previous `credential.<scope>.useHttpPath`; null when it was unset. */
+  previousUseHttpPath?: string | null;
+  enabledAt?: string;
+}
+
+export interface GitAuthConfig {
+  scopes?: Record<string, GitAuthScopeRecord>;
 }
 
 export interface Defaults {
@@ -244,6 +274,8 @@ export interface GlobalConfig {
    * the built-in agent paths. Managed by `skills install` and `skills forget-target`.
    */
   skillsTargets?: string[];
+  /** Managed by `pncli skills git-auth`. */
+  gitAuth?: GitAuthConfig;
   defaults?: Defaults;
 }
 

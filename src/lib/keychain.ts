@@ -136,6 +136,9 @@ export function macosBackend(run: Runner = defaultRunner): KeychainBackend {
  */
 export const WINDOWS_CREDMAN_SCRIPT = String.raw`
 $ErrorActionPreference = 'Stop'
+# Redirected console streams default to the OEM code page; secrets are UTF-8 JSON both ways.
+[Console]::InputEncoding = New-Object System.Text.UTF8Encoding $false
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
@@ -156,6 +159,8 @@ public static class PncliCredMan {
   private static extern bool CredDeleteW(string target, int type, int flags);
   [DllImport("advapi32.dll")]
   private static extern void CredFree(IntPtr cred);
+  [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+  private static extern bool CredEnumerateW(string filter, int flags, out int count, out IntPtr creds);
   private const int NotFound = 1168;
   public static string Read(string target) {
     IntPtr p;
@@ -183,6 +188,37 @@ public static class PncliCredMan {
       if (!CredWriteW(ref c, 0)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
     } finally { Marshal.FreeHGlobal(c.CredentialBlob); }
   }
+  // Git Credential Manager writes UTF-16LE blobs; pncli and git-credential-wincred write UTF-8.
+  // Tokens are ASCII, so "every odd byte is zero" reliably identifies UTF-16.
+  private static string Decode(byte[] bytes) {
+    bool utf16 = bytes.Length % 2 == 0 && bytes.Length > 0;
+    for (int i = 1; utf16 && i < bytes.Length; i += 2) if (bytes[i] != 0) utf16 = false;
+    return utf16 ? Encoding.Unicode.GetString(bytes) : Encoding.UTF8.GetString(bytes);
+  }
+  // Flattened [target, user, secret] triples for every credential matching the filter (e.g. "git:*").
+  public static string[] List(string filter) {
+    int count; IntPtr list;
+    if (!CredEnumerateW(filter, 0, out count, out list)) {
+      int err = Marshal.GetLastWin32Error();
+      if (err == NotFound) return new string[0];
+      throw new System.ComponentModel.Win32Exception(err);
+    }
+    try {
+      string[] outp = new string[count * 3];
+      for (int i = 0; i < count; i++) {
+        IntPtr item = Marshal.ReadIntPtr(list, i * IntPtr.Size);
+        CREDENTIAL c = (CREDENTIAL)Marshal.PtrToStructure(item, typeof(CREDENTIAL));
+        string secret = "";
+        if (c.CredentialBlobSize > 0) {
+          byte[] bytes = new byte[c.CredentialBlobSize];
+          Marshal.Copy(c.CredentialBlob, bytes, 0, c.CredentialBlobSize);
+          secret = Decode(bytes);
+        }
+        outp[i * 3] = c.TargetName; outp[i * 3 + 1] = c.UserName; outp[i * 3 + 2] = secret;
+      }
+      return outp;
+    } finally { CredFree(list); }
+  }
   public static bool Delete(string target) {
     if (CredDeleteW(target, 1, 0)) return true;
     int err = Marshal.GetLastWin32Error();
@@ -200,9 +236,37 @@ switch ($req.op) {
   }
   'set' { [PncliCredMan]::Write($req.target, $req.user, $req.secret); [Console]::Out.Write('{"ok":true}') }
   'delete' { $d = [PncliCredMan]::Delete($req.target); [Console]::Out.Write((ConvertTo-Json -InputObject @{ deleted = $d } -Compress)) }
+  'list' {
+    $flat = [PncliCredMan]::List($req.filter)
+    $items = @()
+    for ($i = 0; $i -lt $flat.Length; $i += 3) { $items += @{ target = $flat[$i]; user = $flat[$i + 1]; secret = $flat[$i + 2] } }
+    [Console]::Out.Write((ConvertTo-Json -InputObject @($items) -Compress -Depth 3))
+  }
   'ping' { [Console]::Out.Write('{"ok":true}') }
 }
 `;
+
+export interface StoredCredential {
+  target: string;
+  user: string;
+  /** Returned to the caller for fingerprinting and validation only — never printed. */
+  secret: string;
+}
+
+/**
+ * Every Windows Credential Manager entry whose target matches `filter` (e.g. `git:*`, which covers
+ * what Git Credential Manager and git-credential-wincred store). Read-only.
+ */
+export function windowsListCredentials(filter: string, run: Runner = defaultRunner): StoredCredential[] {
+  const encoded = Buffer.from(WINDOWS_CREDMAN_SCRIPT, 'utf16le').toString('base64');
+  const r = run('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded], JSON.stringify({ op: 'list', filter }));
+  if (r.status !== 0) throw failure('Windows Credential Manager', 'list credentials', r);
+  const parsed: unknown = JSON.parse(r.stdout.trim() || '[]');
+  const items = Array.isArray(parsed) ? parsed : [parsed];
+  return items
+    .filter((x): x is { target?: unknown; user?: unknown; secret?: unknown } => !!x && typeof x === 'object')
+    .map(x => ({ target: String(x.target ?? ''), user: String(x.user ?? ''), secret: String(x.secret ?? '') }));
+}
 
 export function windowsTarget(account: string): string {
   return `${KEYCHAIN_SERVICE}:${account}`;
@@ -297,7 +361,7 @@ export function noneBackend(): KeychainBackend {
  * keychain resolution entirely (useful on a CI runner that inherits a developer config).
  */
 export function getKeychainBackend(run: Runner = defaultRunner, platform: NodeJS.Platform = process.platform): KeychainBackend {
-  const override = process.env.PNCLI_KEYCHAIN_BACKEND as KeychainBackendName | undefined;
+  const override = (process.env.PNCLI_KEYCHAIN_BACKEND || undefined) as KeychainBackendName | undefined;
   const name: KeychainBackendName = override
     ?? (platform === 'darwin' ? 'macos' : platform === 'win32' ? 'windows' : platform === 'linux' ? 'linux' : 'none');
   switch (name) {
@@ -345,6 +409,17 @@ export function findConfigStrings(
     }
   }
   return found;
+}
+
+/** Deletes keychain entries that no remaining reference in `config` points at. Returns the accounts deleted. */
+export function purgeEntries(config: unknown, backend: KeychainBackend, accounts: string[]): string[] {
+  const stillReferenced = new Set(findKeychainRefs(config).map(r => r.value.slice(KEYCHAIN_PREFIX.length)));
+  const purged: string[] = [];
+  for (const account of new Set(accounts)) {
+    if (stillReferenced.has(account)) continue;
+    if (backend.delete(account)) purged.push(account);
+  }
+  return purged;
 }
 
 /** Every `keychain:` reference in a config object. */
@@ -432,10 +507,24 @@ export function resolveKeychainRefs<T>(config: T, backend?: KeychainBackend): T 
     }
   }
 
+  const activeBackend = backend ?? getKeychainBackend();
+  if (activeBackend.name === 'none') {
+    // PNCLI_KEYCHAIN_BACKEND=none (or an unsupported platform): references are ignored on purpose,
+    // so no warning — doctor still lists them.
+    for (const [account, paths] of accounts) {
+      for (const p of paths) {
+        setAtPath(copy, p, undefined);
+        unresolved.push({ path: p.join('.'), account, reason: 'keychain disabled (PNCLI_KEYCHAIN_BACKEND=none or unsupported platform)' });
+      }
+    }
+    lastUnresolved = unresolved;
+    return copy as T;
+  }
+
   const missing = [...accounts.keys()].filter(a => !resolvedCache.has(a));
   if (missing.length > 0) {
     try {
-      const found = (backend ?? getKeychainBackend()).getMany(missing);
+      const found = activeBackend.getMany(missing);
       for (const a of missing) resolvedCache.set(a, found[a] ?? null);
     } catch (err) {
       for (const [account, paths] of accounts) {

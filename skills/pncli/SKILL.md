@@ -169,3 +169,5 @@ pncli doctor
 ```
 
 It reports config-file health, credential validity per service, keychain references that do not resolve, git authentication for marketplace hosts (GitHub token scope, expiry, and SSO authorization), and skill install state (including stale skills) in one JSON envelope, with a `problems` array listing suggested fixes. Add `--offline` to skip the network checks.
+
+When a clone fails with "repository not found" or an auth error, `pncli git credentials inspect` shows which credential git actually uses for each remote (after `insteadOf` rewriting, or from Git Credential Manager / the `gh` CLI / the OS keychain), and whether it can read the repo; `--scan <dir>` checks every clone under a folder, and `pncli git credentials stored` lists what the credential stores hold. See `github.md`.
