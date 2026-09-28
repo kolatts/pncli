@@ -80,6 +80,20 @@ describe('parseFieldArgs — standard inline values', () => {
     expect(() => parseFieldArgs(['Unknown Field=value'], fieldMap))
       .toThrow('Unknown custom field');
   });
+
+  it('passes through an unregistered raw field id/name untouched (no pre-registration required)', () => {
+    const result = parseFieldArgs(['fixVersions=1.0'], fieldMap);
+    expect(result['fixVersions']).toBe('1.0');
+  });
+
+  it('reads an unregistered field value from a file with @ syntax', () => {
+    const payload = [{ name: '1.0' }];
+    mockReadFileSync.mockReturnValue(JSON.stringify(payload) as unknown as ReturnType<typeof readFileSync>);
+
+    const result = parseFieldArgs(['fixVersions=@versions.json'], fieldMap);
+
+    expect(result['fixVersions']).toEqual(payload);
+  });
 });
 
 describe('parseFieldsFile', () => {
@@ -134,6 +148,16 @@ describe('parseFieldsFile', () => {
 
     expect(() => parseFieldsFile('fields.json', fieldMap))
       .toThrow('Unknown field in "fields.json"');
+  });
+
+  it('passes through an unregistered raw field id/name untouched (no pre-registration required)', () => {
+    const content = JSON.stringify({ fixVersions: [{ name: '1.0' }], customfield_99999: 'x' });
+    mockReadFileSync.mockReturnValue(content as unknown as ReturnType<typeof readFileSync>);
+
+    const result = parseFieldsFile('fields.json', fieldMap);
+
+    expect(result['fixVersions']).toEqual([{ name: '1.0' }]);
+    expect(result['customfield_99999']).toBe('x');
   });
 });
 

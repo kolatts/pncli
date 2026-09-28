@@ -13,6 +13,21 @@ export function buildFieldMap(fields: CustomFieldDefinition[]): CustomFieldMap {
 }
 
 /**
+ * Resolves a --field/--fields-file/--input-file key to the Jira field id/name to send
+ * to the API. Registered custom fields resolve by friendly name or id. An unregistered
+ * key containing no whitespace is treated as a raw Jira field id or name (e.g.
+ * `customfield_10032`, `fixVersions`) and passed through untouched, so pncli stays
+ * decoupled from any org's custom fields and standard fields need no pre-registration.
+ * Returns undefined when the key has whitespace and isn't registered — almost certainly
+ * a mistyped friendly name rather than a real Jira field id, so callers should error.
+ */
+export function resolveFieldKey(rawKey: string, fieldMap: CustomFieldMap): string | undefined {
+  const def = fieldMap.byName.get(rawKey.toLowerCase()) ?? fieldMap.byId.get(rawKey);
+  if (def) return def.id;
+  return /\s/.test(rawKey) ? undefined : rawKey;
+}
+
+/**
  * Replace friendly field names with customfield_* IDs in a JQL string.
  * Splits on quoted segments to avoid replacing inside string literals.
  * Sorts field names by length descending so "Story Points" matches before "Story".
