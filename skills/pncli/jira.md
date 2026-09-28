@@ -1,6 +1,6 @@
 # Jira
 
-Enables: `pncli jira get-issue`, `create-issue`, `update-issue`, `search`, `list-boards`, `list-sprints`, `set-sprint`, and more — get, create, and update issues, transitions, comments, attachments, custom fields, and sprints.
+Enables: `pncli jira get-issue`, `create-issue`, `update-issue`, `search`, `list-boards`, `list-sprints`, `set-sprint`, `log-work`, and more — get, create, and update issues, transitions, comments, attachments, custom fields, sprints, and worklogs.
 
 ## Required config
 
@@ -41,6 +41,17 @@ pncli jira set-sprint --key ACME-123 --sprint <sprint-id>
 ```
 
 `list-sprints` output includes `startDate`/`endDate`/`state`/`goal` for each sprint.
+
+## Worklogs
+
+```
+pncli jira log-work --key ACME-123 --time-spent "2h 30m" --comment "Investigated the failing build"
+pncli jira log-work --key ACME-123 --time-spent "1d" --started 2024-01-15T09:00:00.000+0000
+```
+
+`--time-spent` uses Jira's own duration format (`1d`, `2h 30m`, `45m`, ...). `--started` takes
+Jira's datetime format (`yyyy-MM-dd'T'HH:mm:ss.SSSZ`, e.g. `2024-01-15T09:00:00.000+0000`) and
+defaults to now when omitted.
 
 ## Custom fields
 

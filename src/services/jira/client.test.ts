@@ -140,6 +140,67 @@ describe('JiraClient — assignIssue', () => {
   });
 });
 
+describe('JiraClient — addWorklog', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('sends POST to the worklog endpoint with timeSpent only', async () => {
+    const capturedUrls: string[] = [];
+    const capturedBodies: unknown[] = [];
+    const capturedMethods: string[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      capturedUrls.push(url);
+      capturedMethods.push(init.method ?? 'GET');
+      capturedBodies.push(JSON.parse(init.body as string));
+      return new Response(JSON.stringify({ id: '10001' }), { status: 201 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    await client.addWorklog('PROJ-1', { timeSpent: '2h 30m' });
+
+    expect(capturedUrls[0]).toContain('/rest/api/2/issue/PROJ-1/worklog');
+    expect(capturedMethods[0]).toBe('POST');
+    expect(capturedBodies[0]).toEqual({ timeSpent: '2h 30m' });
+  });
+
+  it('includes comment and started when provided', async () => {
+    const capturedBodies: unknown[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedBodies.push(JSON.parse(init.body as string));
+      return new Response(JSON.stringify({ id: '10002' }), { status: 201 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    await client.addWorklog('PROJ-2', {
+      timeSpent: '1d',
+      comment: 'Worked on the fix',
+      started: '2024-01-15T09:00:00.000+0000'
+    });
+
+    expect(capturedBodies[0]).toEqual({
+      timeSpent: '1d',
+      comment: 'Worked on the fix',
+      started: '2024-01-15T09:00:00.000+0000'
+    });
+  });
+
+  it('omits comment and started when not provided', async () => {
+    const capturedBodies: unknown[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      capturedBodies.push(JSON.parse(init.body as string));
+      return new Response(JSON.stringify({ id: '10003' }), { status: 201 });
+    });
+
+    const http = new HttpClient(makeConfig());
+    const client = new JiraClient(http);
+    await client.addWorklog('PROJ-3', { timeSpent: '30m' });
+
+    expect(capturedBodies[0]).not.toHaveProperty('comment');
+    expect(capturedBodies[0]).not.toHaveProperty('started');
+  });
+});
+
 describe('JiraClient — listAttachments', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
