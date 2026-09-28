@@ -303,6 +303,21 @@ export function registerJiraCommands(program: Command): void {
       } catch (err) { fail(err, 'jira', 'add-comment', start); }
     });
 
+  jira.command('log-work')
+    .description('Add a worklog (time spent) entry to a Jira issue')
+    .requiredOption('--key <issue-key>', 'Issue key')
+    .requiredOption('--time-spent <duration>', 'Time spent in Jira duration format (e.g. "2h 30m", "1d")')
+    .option('--comment <text>', 'Worklog comment')
+    .option('--started <datetime>', 'When the work started, in Jira datetime format (e.g. 2024-01-15T09:00:00.000+0000); defaults to now')
+    .action(async (opts: { key: string; timeSpent: string; comment?: string; started?: string }) => {
+      const start = Date.now();
+      try {
+        const client = getClient(program);
+        const data = await client.addWorklog(opts.key, { timeSpent: opts.timeSpent, comment: opts.comment, started: opts.started });
+        success(data, 'jira', 'log-work', start);
+      } catch (err) { fail(err, 'jira', 'log-work', start); }
+    });
+
   jira.command('list-comments')
     .description('List comments on a Jira issue')
     .requiredOption('--key <issue-key>', 'Issue key')
