@@ -71,6 +71,36 @@ mangle nested double quotes inside a single-quoted argument, which silently stor
 value. `pncli jira fields` prints what's currently registered; `pncli jira fields --discover`
 fetches field metadata straight from the Jira API instead.
 
+Registration is only needed to address a field by **friendly name**, or to get automatic
+value shaping from `type`. Both `--field` and `--fields-file` accept an unregistered raw
+Jira field id or name directly (e.g. `--field fixVersions=@versions.json`,
+`{"fixVersions": [...]}` in a `--fields-file` JSON file) — nothing needs to be pre-registered
+just to use a standard field like `fixVersions` or a custom field you already know the
+`customfield_NNNNN` id for. Registration only fails for a key that still has whitespace in
+it and isn't a registered friendly name — that's almost always a typo.
+
+Some select-type fields (a "Crew" picker, for example) reject the display text you see in
+Jira's UI and only accept the option's numeric key. Run `pncli jira fields --discover
+--project <key>` to see each field's `allowedValues`; if a field's values are `{id, value}`
+pairs rather than plain strings, register it with `"type":"option-id"` and pass the numeric
+`id`, not the display text. **Sprint** is not a custom field at all — don't try to set it
+via `--field` or `--fields-file`; use `pncli jira set-sprint --key <key> --sprint <id>` after
+the issue exists, with the id from `pncli jira list-sprints`.
+
+### PowerShell-safe JSON values
+
+Passing JSON inline in `--field Name={"a":1}` is unreliable in PowerShell — its argument
+parser mangles embedded quotes before pncli ever sees them. Use the `@file` form instead,
+which sidesteps shell quoting entirely:
+
+```powershell
+'{"steps":[{"action":"click"}]}' | Out-File -Encoding utf8 steps.json
+pncli jira create-issue --project ACME --summary "..." --field "Test Steps=@steps.json"
+```
+
+This also applies to `--jql` and any other flag that would otherwise need inline JSON or
+nested quotes on Windows.
+
 ## Large fields via --input-file
 
 `create-issue` and `update-issue` accept `--input-file <path>` (`-` for stdin) instead of, or alongside, individual flags — useful for a long description or many custom fields at once. Run `pncli jira schema` to print the JSON Schema plus a runnable example. Any string value in `fields` may be `@path/to/file` to pull that field's content from a file (e.g. a big HTML description) instead of inlining it. Custom fields resolve by friendly name (if registered — see **Custom fields** above) or by raw id (`customfield_10032`) with no registration required. Individual flags (`--summary`, `--description`, `--field`, ...) override matching keys from the file; overridden keys are printed to stderr and included in the output's `meta.overrides`.
@@ -90,3 +120,6 @@ pncli jira create-issue --input-file issue.json --priority Low   # --priority wi
 - `--assignee` on `create-issue`, `update-issue`, and `assign` takes a **username**, as does
   any `user`-typed custom field passed via `--field`
 - Custom fields discovered with `pncli jira fields --discover`
+- `create-issue` does not check for duplicates before submitting. If a request times out or
+  the response is otherwise ambiguous, run `pncli jira search` for the exact summary before
+  retrying — a timeout does not tell you whether the issue was actually created.

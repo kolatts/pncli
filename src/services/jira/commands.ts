@@ -2,7 +2,7 @@ import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
 import path from 'path';
 import { Command } from 'commander';
 import { JiraClient } from './client.js';
-import { buildFieldMap, translateJql, translateFieldsInOutput, formatFieldValue } from './custom-fields.js';
+import { buildFieldMap, translateJql, translateFieldsInOutput, formatFieldValue, resolveFieldKey } from './custom-fields.js';
 import { JIRA_INPUT_FILE_SCHEMA, JIRA_INPUT_FILE_EXAMPLE } from './input-schema.js';
 import { createHttpClient } from '../../lib/http.js';
 import { loadConfig } from '../../lib/config.js';
@@ -42,17 +42,14 @@ export function splitFieldsDictionary(
       builtin[key] = value;
       continue;
     }
-    const def = fieldMap.byName.get(key) ?? fieldMap.byId.get(rawKey);
-    if (def) {
-      custom[def.id] = value;
-    } else if (!/\s/.test(rawKey)) {
-      custom[rawKey] = value;
-    } else {
+    const fieldId = resolveFieldKey(rawKey, fieldMap);
+    if (fieldId === undefined) {
       throw new PncliError(
         `Unknown custom field: "${rawKey}". Fields must be registered in config by friendly name or ID. Run: pncli jira fields`,
         1
       );
     }
+    custom[fieldId] = value;
   }
   return { builtin, custom };
 }
@@ -531,7 +528,8 @@ export function parseFieldArgs(
     const name = arg.slice(0, eq).trim();
     const value = arg.slice(eq + 1);
     const def = fieldMap.byName.get(name.toLowerCase()) ?? fieldMap.byId.get(name);
-    if (!def) throw new PncliError(
+    const fieldId = resolveFieldKey(name, fieldMap);
+    if (fieldId === undefined) throw new PncliError(
       `Unknown custom field: "${name}". Fields must be registered in config by friendly name or ID. Run: pncli jira fields`,
       1
     );
@@ -544,12 +542,12 @@ export function parseFieldArgs(
         throw new PncliError(`Cannot read file "${filePath}": ${(e as NodeJS.ErrnoException).message}`, 1);
       }
       try {
-        result[def.id] = JSON.parse(raw);
+        result[fieldId] = JSON.parse(raw);
       } catch {
-        result[def.id] = raw;
+        result[fieldId] = raw;
       }
     } else {
-      result[def.id] = formatFieldValue(value, def.type);
+      result[fieldId] = def ? formatFieldValue(value, def.type) : value;
     }
   }
   return result;
@@ -573,12 +571,12 @@ export function parseFieldsFile(filePath: string, fieldMap: CustomFieldMap): Rec
   }
   const result: Record<string, unknown> = {};
   for (const [key, val] of Object.entries(data as Record<string, unknown>)) {
-    const def = fieldMap.byName.get(key.toLowerCase()) ?? fieldMap.byId.get(key);
-    if (!def) throw new PncliError(
+    const fieldId = resolveFieldKey(key, fieldMap);
+    if (fieldId === undefined) throw new PncliError(
       `Unknown field in "${filePath}": "${key}". Fields must be registered in config by friendly name or ID. Run: pncli jira fields`,
       1
     );
-    result[def.id] = val;
+    result[fieldId] = val;
   }
   return result;
 }
