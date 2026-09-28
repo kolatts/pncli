@@ -149,6 +149,7 @@ const llms = [
   '',
   '- [Getting Started](https://kolatts.github.io/pncli/getting-started/): setup, conventions, and agent integration',
   '- [Skills guide](https://kolatts.github.io/pncli/skills-guide/): how skills, marketplaces, git auth, and OS keychain storage fit together',
+  '- [Credentials](https://kolatts.github.io/pncli/credentials/): where tokens are stored (plaintext config or OS keychain), precedence, and git-auth helper vs keychain modes',
   '- [Command reference](https://kolatts.github.io/pncli/commands/): every command and flag, per service',
   '- [Changelog](https://kolatts.github.io/pncli/changelog/)',
   '- [npm package](https://www.npmjs.com/package/@kolatts/pncli)',

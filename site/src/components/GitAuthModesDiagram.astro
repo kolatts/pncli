@@ -1,0 +1,72 @@
+---
+/**
+ * Credentials page, diagram 3: how git gets a marketplace's credential under
+ * the two `pncli skills git-auth` modes — helper (git asks pncli every time)
+ * and keychain (a copy in git's own credential store).
+ */
+import '../styles/diagrams.css';
+---
+
+<figure class="not-prose my-8">
+  <div class="overflow-x-auto">
+    <svg viewBox="0 0 760 390" role="img" aria-labelledby="ga-title ga-desc" class="dg w-full min-w-[600px] h-auto">
+      <title id="ga-title">How git gets a marketplace credential</title>
+      <desc id="ga-desc">
+        Helper mode, the default: when git or an agent host needs a credential for the marketplace repository, a
+        gitconfig entry scoped to that repository URL runs pncli skills git-credential, which answers with the
+        username and token from environment, config, or keychain. Nothing is copied. Keychain mode: pncli skills
+        git-auth enable --mode keychain stores a copy through git credential approve in git's own credential store,
+        keyed to the repository, and git reads it directly. The copy must be re-stored after the token is rotated.
+      </desc>
+      <defs>
+        <marker id="ga-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" class="dg-arrowhead" />
+        </marker>
+        <marker id="ga-arrow-gold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" class="dg-arrowhead-gold" />
+        </marker>
+      </defs>
+
+      <!-- Panel A: helper mode -->
+      <rect x="20" y="8" width="350" height="374" rx="12" class="dg-panel" />
+      <text x="195" y="34" text-anchor="middle" class="dg-heading">A · Helper mode (default)</text>
+      <rect x="40" y="50" width="270" height="48" rx="10" class="dg-box" />
+      <text x="175" y="79" text-anchor="middle" class="dg-title">git · agent host · IDE</text>
+      <line x1="175" y1="98" x2="175" y2="138" class="dg-line" marker-end="url(#ga-arrow)" />
+      <text x="185" y="123" class="dg-label">needs a credential</text>
+      <rect x="40" y="140" width="270" height="64" rx="10" class="dg-box" />
+      <text x="175" y="164" text-anchor="middle" class="dg-title">gitconfig · this repo URL</text>
+      <text x="175" y="189" text-anchor="middle" class="dg-mono">helper = !pncli … --marketplace</text>
+      <line x1="175" y1="204" x2="175" y2="244" class="dg-line" marker-end="url(#ga-arrow)" />
+      <text x="185" y="229" class="dg-label">runs</text>
+      <rect x="40" y="246" width="270" height="64" rx="10" class="dg-box dg-strong" />
+      <text x="175" y="271" text-anchor="middle" class="dg-title">pncli skills git-credential</text>
+      <text x="175" y="295" text-anchor="middle" class="dg-sub">env · config · keychain</text>
+      <path d="M312,278 H338 V74 H314" class="dg-line dg-gold" marker-end="url(#ga-arrow-gold)" />
+      <text x="354" y="176" text-anchor="middle" transform="rotate(-90 354 176)" class="dg-note">username + token</text>
+      <text x="195" y="340" text-anchor="middle" class="dg-note">Nothing is copied into gitconfig</text>
+      <text x="195" y="360" text-anchor="middle" class="dg-sub">Rotate the token in pncli — git gets the new one</text>
+
+      <!-- Panel B: keychain mode -->
+      <rect x="390" y="8" width="350" height="374" rx="12" class="dg-panel" />
+      <text x="565" y="34" text-anchor="middle" class="dg-heading">B · Keychain mode</text>
+      <rect x="410" y="50" width="310" height="64" rx="10" class="dg-box dg-strong" />
+      <text x="565" y="75" text-anchor="middle" class="dg-title">pncli skills git-auth enable</text>
+      <text x="565" y="100" text-anchor="middle" class="dg-mono">--mode keychain</text>
+      <line x1="565" y1="114" x2="565" y2="154" class="dg-line" marker-end="url(#ga-arrow)" />
+      <text x="575" y="139" class="dg-label">git credential approve</text>
+      <rect x="410" y="156" width="310" height="80" rx="10" class="dg-box dg-accent" />
+      <text x="565" y="180" text-anchor="middle" class="dg-title">git's credential store</text>
+      <text x="565" y="202" text-anchor="middle" class="dg-sub">GCM · macOS Keychain · libsecret</text>
+      <text x="565" y="224" text-anchor="middle" class="dg-mono">git:https://host/org/repo</text>
+      <line x1="565" y1="284" x2="565" y2="238" class="dg-line dg-gold" marker-end="url(#ga-arrow-gold)" />
+      <text x="575" y="266" class="dg-label">reads directly</text>
+      <rect x="410" y="286" width="310" height="48" rx="10" class="dg-box" />
+      <text x="565" y="315" text-anchor="middle" class="dg-title">git · agent host · IDE</text>
+      <text x="565" y="360" text-anchor="middle" class="dg-warn">A copy — re-run enable after rotating the token</text>
+    </svg>
+  </div>
+  <figcaption class="mt-3 text-sm text-ink/50 font-mono">
+    Both modes are scoped to each marketplace's repository URL; every other repo on the host keeps your usual login.
+  </figcaption>
+</figure>

@@ -133,6 +133,8 @@ Entries are scoped to each marketplace's own repository URL, so every other repo
 
 ## Keeping credentials in the OS keychain
 
+Diagrams of both storage options, and of both git-auth modes, are on the website: https://kolatts.github.io/pncli/credentials/
+
 Any secret in `~/.pncli/config.json` can live in your operating system's credential store instead: the macOS Keychain, Windows Credential Manager, or the Secret Service on Linux. The config file then holds only a reference such as `"token": "keychain:github.token"`.
 
 ```
