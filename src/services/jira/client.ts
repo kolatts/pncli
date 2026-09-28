@@ -11,6 +11,7 @@ import type {
   JiraAttachment,
   JiraBoard,
   JiraSprint,
+  JiraWorklog,
   CustomFieldDefinition,
   CustomFieldType
 } from '../../types/jira.js';
@@ -43,6 +44,12 @@ export interface LinkIssueOpts {
   key: string;
   linkType: string;
   target: string;
+}
+
+export interface AddWorklogOpts {
+  timeSpent: string;
+  comment?: string;
+  started?: string;
 }
 
 export class JiraClient {
@@ -118,6 +125,17 @@ export class JiraClient {
         { params: { startAt, maxResults } }
       );
       return { ...result, values: result.comments };
+    });
+  }
+
+  async addWorklog(key: string, opts: AddWorklogOpts): Promise<JiraWorklog> {
+    return this.http.jira<JiraWorklog>(`${API}/issue/${key}/worklog`, {
+      method: 'POST',
+      body: {
+        timeSpent: opts.timeSpent,
+        ...(opts.comment ? { comment: opts.comment } : {}),
+        ...(opts.started ? { started: opts.started } : {})
+      }
     });
   }
 

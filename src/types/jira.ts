@@ -110,3 +110,14 @@ export interface JiraSprint {
   endDate?: string;
   goal?: string;
 }
+
+export interface JiraWorklog {
+  id: string;
+  author: JiraUser;
+  comment?: unknown;
+  started: string;
+  timeSpent: string;
+  timeSpentSeconds: number;
+  created: string;
+  updated: string;
+}
