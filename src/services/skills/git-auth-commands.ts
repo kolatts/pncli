@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { Command } from 'commander';
 import { success, fail, warn } from '../../lib/output.js';
 import { loadConfig, loadJsonFile, getGlobalConfigPath, writeGlobalConfig } from '../../lib/config.js';
@@ -123,6 +124,9 @@ Examples:
         const configPath = configPathOf();
         const cfg = loadConfig({ configPath });
         const globalConfig = readRawConfig(configPath);
+        // Git runs the helper without our flags or env, so a non-default config path is baked into it.
+        const overridePath = configPath ?? process.env.PNCLI_CONFIG_PATH;
+        const helperConfigPath = overridePath ? path.resolve(overridePath) : undefined;
 
         const targets: EnableTarget[] = [];
         const skipped: { marketplace: string; reason: string }[] = [];
@@ -132,7 +136,7 @@ Examples:
             scope: hostScope(host),
             marketplace: null,
             provider: null,
-            helperValue: helperCommandFor(),
+            helperValue: helperCommandFor(undefined, helperConfigPath),
             auth: resolveCredential({ protocol: 'https', host }, globalConfig, cfg),
           });
         } else {
@@ -142,7 +146,7 @@ Examples:
             if (!hostOf(m.repoUrl)) { skipped.push({ marketplace: marketplaceLabelOf(m), reason: 'not an HTTPS URL (SSH marketplaces use your SSH keys)' }); continue; }
             const auth = resolveMarketplaceAuth(m, cfg);
             if (!auth) { skipped.push({ marketplace: marketplaceLabelOf(m), reason: 'no credential — a public repo needs none; for a private one: pncli skills marketplace update <name> --token <token>' }); continue; }
-            const helperValue = helperCommandFor(m.name ?? m.repoUrl);
+            const helperValue = helperCommandFor(m.name ?? m.repoUrl, helperConfigPath);
             for (const scope of marketplaceScopes(m.repoUrl!, auth.provider)) {
               targets.push({ scope, marketplace: m, provider: auth.provider, helperValue, auth });
             }

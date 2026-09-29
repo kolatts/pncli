@@ -173,6 +173,9 @@ describe('scopes and helper values', () => {
     expect(helperCommandFor()).toBe(HELPER_COMMAND);
     expect(helperCommandFor('internal ai')).toBe(`${HELPER_COMMAND} --marketplace 'internal ai'`);
     expect(() => helperCommandFor("x'; rm -rf ~; '")).toThrow(/cannot be used/);
+    expect(helperCommandFor('ai', '/alt/config.json')).toBe(`${HELPER_COMMAND} --config '/alt/config.json' --marketplace 'ai'`);
+    expect(helperCommandFor(undefined, '/alt/config.json')).toBe(`${HELPER_COMMAND} --config '/alt/config.json'`);
+    expect(() => helperCommandFor('ai', "/x'; rm -rf ~; '")).toThrow(/Config path/);
   });
 });
 

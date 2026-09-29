@@ -1977,10 +1977,12 @@ New to this? pncli skills guide      # how skills management fits together (or: 
         const chunks: Buffer[] = [];
         for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
         const request = parseCredentialRequest(Buffer.concat(chunks).toString('utf8'));
-        const globalConfig = loadJsonFile<GlobalConfig>(getGlobalConfigPath()) ?? {};
+        // `enable` bakes a non-default --config into the helper value; the root option parses it anywhere.
+        const configPath = skills.optsWithGlobals().config as string | undefined;
+        const globalConfig = loadJsonFile<GlobalConfig>(getGlobalConfigPath(configPath)) ?? {};
         // git runs this on every fetch: resolve only the provider tokens it can answer with, not
         // every keychain reference in the config (one OS-store lookup per unrelated secret).
-        const cfg = loadConfig({ keychainPaths: ['github.token', 'bitbucket.pat', 'ado.pat'] });
+        const cfg = loadConfig({ configPath, keychainPaths: ['github.token', 'bitbucket.pat', 'ado.pat'] });
         const answer = resolveCredential(request, globalConfig, cfg, undefined, cmdOpts.marketplace);
         if (answer) process.stdout.write(formatCredentialAnswer(answer));
       } catch {
