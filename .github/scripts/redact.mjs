@@ -120,6 +120,18 @@ function placeholderHost(fullHost, isApex) {
 // something an earlier rule already redacted.
 const SECRET_VALUE = '(?!\\[redacted-secret\\]|keychain:|<|\\*|\\$|%|process\\.|env\\.)([^\\s"\',;}]{8,})';
 
+/**
+ * Whether the value half of a key/value pair looks like an actual secret rather than prose, a
+ * placeholder, or the *name* of a secret. Real tokens and passwords carry a digit or are long;
+ * `undefined`, `no-check`, `your_password`, and `CLAUDE_CODE_OAUTH_TOKEN` (a secret's name) are not.
+ */
+function looksLikeSecretValue(value) {
+  const v = value.replace(/^[`"']+|[`"']+$/g, '');
+  if (/^(?:undefined|null|none|true|false|changeme|required|optional)$/i.test(v)) return false;
+  if (/^[A-Z][A-Z0-9_]*$/.test(v)) return false; // an env var / Actions secret name
+  return /\d/.test(v) || v.length >= 20;
+}
+
 const SECRET_RULES = [
   // `https://user:password@host` -> keep scheme and host, drop the userinfo.
   {
@@ -128,7 +140,7 @@ const SECRET_RULES = [
   },
   // `Authorization: Bearer|Basic|Token <value>` — keep the scheme word.
   {
-    re: /\b(Authorization\s*[:=]\s*["']?)(Bearer|Basic|Token)\s+(?!\[redacted-secret\])[^\s"']+/gi,
+    re: /\b(Authorization\s*[:=]\s*["']?)(Bearer|Basic|Token)\s+(?!\[redacted-secret\]|<|\$|\{)[^\s"'`]+/gi,
     replace: (_m, prefix, scheme) => `${prefix}${scheme} ${SECRET_MARKER}`,
   },
   // Bare `Bearer <token>`; 20+ chars so prose like "bearer tokens" is left alone.
@@ -161,13 +173,13 @@ const SECRET_RULES = [
   // key's *suffix*. Keeps the key; skips references rather than secrets (see SECRET_VALUE).
   {
     re: new RegExp(`((?<![A-Za-z0-9_-])["']?(?:[A-Za-z0-9]+[_-])*(?:password|passwd|pwd|passcode|secret|token|api[_-]?key|apikey|pat)["']?\\s*[:=]\\s*["']?)${SECRET_VALUE}`, 'gi'),
-    replace: (_m, prefix) => `${prefix}${SECRET_MARKER}`,
+    replace: (m, prefix, value) => (looksLikeSecretValue(value) ? `${prefix}${SECRET_MARKER}` : m),
   },
   // camelCase config keys — `"apiToken"`, `clientSecret`, `refreshToken`, `adminApiKey`, `serviceKey`
   // (the names in pncli's own config.json). Case-sensitive: the suffix must start a new word.
   {
     re: new RegExp(`((?<![A-Za-z0-9_-])["']?(?:[a-z][A-Za-z0-9]*(?:Token|Secret|Password|Passcode|ApiKey|ServiceKey|Pat)|serviceKey)["']?\\s*[:=]\\s*["']?)${SECRET_VALUE}`, 'g'),
-    replace: (_m, prefix) => `${prefix}${SECRET_MARKER}`,
+    replace: (m, prefix, value) => (looksLikeSecretValue(value) ? `${prefix}${SECRET_MARKER}` : m),
   },
 ];
 
@@ -175,8 +187,9 @@ function applySecrets(text, counts) {
   let out = text;
   for (const rule of SECRET_RULES) {
     out = out.replace(rule.re, (...args) => {
-      counts.secret++;
-      return rule.replace(...args);
+      const replaced = rule.replace(...args);
+      if (replaced !== args[0]) counts.secret++;
+      return replaced;
     });
   }
   return out;

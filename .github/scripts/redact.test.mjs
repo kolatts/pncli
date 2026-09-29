@@ -436,3 +436,25 @@ describe('review follow-ups (#504)', () => {
     expect(r('host at 10.0.0.12 was down').text).toBe('host at [redacted-ip] was down');
   });
 });
+
+describe('key/value false positives found in existing issues', () => {
+  it.each([
+    'logscale: { baseUrl: undefined, token: undefined }',
+    '- Actions secret: `CLAUDE_CODE_OAUTH_TOKEN`',
+    'with `X-Atlassian-Token: no-check` required by Jira',
+    'PNCLI_SNOW_PASSWORD=your_password',
+    'webhook secret = `WEBHOOK_SECRET_VALUE`',
+    'Auth uses `Authorization: Token <token>` (SDElements format)',
+    'curl -H "Authorization: Bearer $GITHUB_TOKEN"',
+  ])('leaves %s alone', (text) => {
+    const out = r(text);
+    expect(out.text).toBe(text);
+    expect(out.counts.secret).toBe(0);
+  });
+
+  it('still redacts real-looking values', () => {
+    expect(r('PNCLI_SNOW_PASSWORD=hunter2hunter2').text).toBe('PNCLI_SNOW_PASSWORD=[redacted-secret]');
+    expect(r('"clientSecret": "averylongsecretwithoutanydigits"').text).toBe('"clientSecret": "[redacted-secret]"');
+    expect(r('Authorization: Token 0123456789abcdef').text).toBe('Authorization: Token [redacted-secret]');
+  });
+});
