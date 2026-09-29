@@ -329,7 +329,7 @@ Do not use `example.com`, `company.com`, `mycompany.com`, `your-company.com`, or
 Scope is deliberately just triage. Issues filed directly without a triage label, comments, and PR titles and bodies are **not** redacted. To scrub one of those, run the redactor by hand and patch it:
 
 ```bash
-gh issue view 123 --repo kolatts/pncli --json title,body   | REDACT_TERMS="$(cat terms.txt)" node .github/scripts/redact.mjs   | jq '{title, body}' | gh api -X PATCH repos/kolatts/pncli/issues/123 --input -
+gh issue view 123 --repo kolatts/pncli --json title,body | REDACT_TERMS="$(cat terms.txt)" node .github/scripts/redact.mjs | jq '{title, body}' | gh api -X PATCH repos/kolatts/pncli/issues/123 --input -
 ```
 
 The organization denylist lives **only** in the `REDACT_TERMS` repository secret — never in the repo, a test, a log line, or a commit message, since publishing it would publish the very names it hides. Tests use fictional names (`acmebank`, `initech`, `acme-int.net`). Format, one entry per line:
