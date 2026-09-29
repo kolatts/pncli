@@ -118,7 +118,8 @@ function placeholderHost(fullHost, isApex) {
 // The value half of a key/value secret: 8+ characters, not a reference to a secret stored elsewhere
 // (keychain:, ${{ … }}, $(…) / $VAR, %VAR%, <placeholder>, ***, process.env / env. lookups), and not
 // something an earlier rule already redacted.
-const SECRET_VALUE = '(?!\\[redacted-secret\\]|keychain:|<|\\*|\\$|%|process\\.|env\\.)([^\\s"\',;}]{8,})';
+// A backtick ends the value too, so a command pasted as inline code keeps its closing backtick.
+const SECRET_VALUE = '(?!\\[redacted-secret\\]|keychain:|<|\\*|\\$|%|process\\.|env\\.)([^\\s"\'`,;}]{8,})';
 
 /**
  * Whether the value half of a key/value pair looks like an actual secret rather than prose, a
@@ -185,10 +186,18 @@ const SECRET_RULES = [
   },
   // The positional `pncli config set <service>.<key> <value>` form every service doc documents. The
   // key has no `=`/`:` after it and no leading `-`, so neither rule above sees it. Jira/Confluence
-  // DC PATs, Checkmarx API keys and Contrast keys have no prefix rule to fall back on.
+  // DC PATs, Checkmarx API keys and Contrast keys have no prefix rule to fall back on. A scope flag
+  // (`config set --repo <key> <value>`) may sit between `set` and the key.
   {
-    re: new RegExp(`(\\bconfig\\s+set\\s+\\S*?(?:token|pat|secret|password|passwd|passcode|api-?key|servicekey|secretkey|accesskey)\\s+["']?)${SECRET_VALUE}`, 'gi'),
+    re: new RegExp(`(\\bconfig\\s+set\\s+(?:--?[A-Za-z-]+\\s+)*\\S*?(?:token|pat|secret|password|passwd|passcode|api-?key|servicekey|secretkey|accesskey)\\s+["']?)${SECRET_VALUE}`, 'gi'),
     replace: (m, prefix, value) => (looksLikeSecretValue(value) ? `${prefix}${SECRET_MARKER}` : m),
+  },
+  // SDElements' credential is `token@hostname` under a key (`sde.connection`, `PNCLI_SDE_CONNECTION`,
+  // `"connection"`) that ends in no secret suffix, with no scheme for the userinfo rule to see.
+  // Drop the token, keep the host so the domain rules can still redact it.
+  {
+    re: /((?:(?:sde\.connection|PNCLI_SDE_CONNECTION)\s*(?:[:=]\s*|\s+)|["']?connection["']?\s*[:=]\s*)["']?)(?!\[redacted-secret\]|<|\$|%|\*)([^\s@"'`,;}]+)@(?=[A-Za-z0-9.-]+)/gi,
+    replace: (m, prefix, token) => (looksLikeSecretValue(token) ? `${prefix}${SECRET_MARKER}@` : m),
   },
   // camelCase config keys — `"apiToken"`, `clientSecret`, `refreshToken`, `adminApiKey`, `serviceKey`
   // (the names in pncli's own config.json). Case-sensitive: the suffix must start a new word.

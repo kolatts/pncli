@@ -516,3 +516,47 @@ describe('review follow-ups, round 3 (#504)', () => {
     expect(r(once).text).toBe(once);
   });
 });
+
+describe('review follow-ups, round 4 (#504)', () => {
+  it('redacts the SDElements token@hostname connection string, keeping the host', () => {
+    expect(r('pncli config set sde.connection 0123456789abcdef0123456789abcdef@sde.imagile.dev').text)
+      .toBe('pncli config set sde.connection [redacted-secret]@sde.imagile.dev');
+    expect(r('export PNCLI_SDE_CONNECTION=0123456789abcdef0123456789abcdef@acmebank.sdelements.com').text)
+      .toBe('export PNCLI_SDE_CONNECTION=[redacted-secret]@[org].sdelements.com');
+    expect(r('"sde": { "connection": "0123456789abcdef@sde.imagile.dev" }').text)
+      .toBe('"sde": { "connection": "[redacted-secret]@sde.imagile.dev" }');
+    expect(r('PNCLI_SDE_CONNECTION: 0123456789abcdef@sde.acme-int.net').text)
+      .toBe('PNCLI_SDE_CONNECTION: [redacted-secret]@sde.imagile.dev');
+  });
+
+  it('leaves SDElements placeholders and the documented example alone', () => {
+    for (const text of [
+      'pncli config set sde.connection mytoken@sde.imagile.dev',
+      'pncli config set sde.connection <token>@sde.imagile.dev',
+      'export PNCLI_SDE_CONNECTION=$SDE_CONNECTION',
+      'Connection string in the format token@hostname',
+      'the connection to sde.imagile.dev timed out',
+    ])
+      expect(r(text).text, text).toBe(text);
+  });
+
+  it('is idempotent on the SDElements form', () => {
+    const once = r('PNCLI_SDE_CONNECTION=0123456789abcdef@sde.imagile.dev').text;
+    expect(r(once).text).toBe(once);
+  });
+
+  it('handles a scope flag between `config set` and the key', () => {
+    expect(r('pncli config set --repo jira.apiToken NjE2MzQ1Njc4OTAxOkFiY2RlZmdo').text)
+      .toBe('pncli config set --repo jira.apiToken [redacted-secret]');
+    expect(r('pncli config set --global bitbucket.pat MDAxNTMxNzk4MjQ0OhIcwvA9').text)
+      .toBe('pncli config set --global bitbucket.pat [redacted-secret]');
+  });
+
+  it('keeps the closing backtick when the command is pasted as inline code', () => {
+    expect(r('ran `pncli config set jira.apiToken NjE2MzQ1Njc4OTAxOkFiY2RlZmdo` and got 401').text)
+      .toBe('ran `pncli config set jira.apiToken [redacted-secret]` and got 401');
+    expect(r('set `PNCLI_JIRA_API_TOKEN=abc123def456ghi789` first').text)
+      .toBe('set `PNCLI_JIRA_API_TOKEN=[redacted-secret]` first');
+    expect(r('`--token abc123def456ghi789`').text).toBe('`--token [redacted-secret]`');
+  });
+});
