@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { Command } from 'commander';
 import { success, fail, warn } from '../../lib/output.js';
 import { loadConfig, loadJsonFile, getGlobalConfigPath, writeGlobalConfig } from '../../lib/config.js';
@@ -28,18 +29,18 @@ import {
 import type { GitAuthMode, GitRunner, CredentialAnswer, ProviderConfig, HelperBackup } from './git-auth.js';
 import { stripOriginCredentials } from './commands.js';
 
-function readRawConfig(): GlobalConfig {
-  return loadJsonFile<GlobalConfig>(getGlobalConfigPath()) ?? {};
+function readRawConfig(configPath?: string): GlobalConfig {
+  return loadJsonFile<GlobalConfig>(getGlobalConfigPath(configPath)) ?? {};
 }
 
 /** Re-reads config before writing so nothing written meanwhile is lost. `null` deletes a record. */
-function saveScopeRecords(updates: Record<string, GitAuthScopeRecord | null>): void {
-  const raw = readRawConfig();
+function saveScopeRecords(updates: Record<string, GitAuthScopeRecord | null>, configPath?: string): void {
+  const raw = readRawConfig(configPath);
   const scopes = { ...(raw.gitAuth?.scopes ?? {}) };
   for (const [scope, record] of Object.entries(updates)) {
     if (record) scopes[scope] = record; else delete scopes[scope];
   }
-  writeGlobalConfig({ ...raw, gitAuth: { ...raw.gitAuth, scopes } });
+  writeGlobalConfig({ ...raw, gitAuth: { ...raw.gitAuth, scopes } }, configPath);
 }
 
 function normalizeHostArg(host: string): string {
@@ -78,6 +79,8 @@ export function registerGitAuthCommands(skills: Command): void {
   const gitAuth = skills
     .command('git-auth')
     .description('Give git itself each marketplace\'s credential, so agent hosts and plain git clones of private marketplaces authenticate (GitHub, Bitbucket, Azure DevOps)');
+  // The global --config override lives on the root program; read it when an action runs.
+  const configPathOf = (): string | undefined => gitAuth.optsWithGlobals().config as string | undefined;
   gitAuth.addHelpText('after', `
 Why:
   pncli's own clone and pull are authenticated, but an agent host that clones a marketplace itself
@@ -118,8 +121,12 @@ Examples:
         if (opts.mode !== 'helper' && opts.mode !== 'keychain') throw new Error(`--mode must be "helper" or "keychain", got "${opts.mode}".`);
         if (opts.marketplace && opts.host) throw new Error('Pass --marketplace or --host, not both.');
         const mode = opts.mode as GitAuthMode;
-        const cfg = loadConfig();
-        const globalConfig = readRawConfig();
+        const configPath = configPathOf();
+        const cfg = loadConfig({ configPath });
+        const globalConfig = readRawConfig(configPath);
+        // Git runs the helper without our flags or env, so a non-default config path is baked into it.
+        const overridePath = configPath ?? process.env.PNCLI_CONFIG_PATH;
+        const helperConfigPath = overridePath ? path.resolve(overridePath) : undefined;
 
         const targets: EnableTarget[] = [];
         const skipped: { marketplace: string; reason: string }[] = [];
@@ -129,7 +136,7 @@ Examples:
             scope: hostScope(host),
             marketplace: null,
             provider: null,
-            helperValue: helperCommandFor(),
+            helperValue: helperCommandFor(undefined, helperConfigPath),
             auth: resolveCredential({ protocol: 'https', host }, globalConfig, cfg),
           });
         } else {
@@ -139,7 +146,7 @@ Examples:
             if (!hostOf(m.repoUrl)) { skipped.push({ marketplace: marketplaceLabelOf(m), reason: 'not an HTTPS URL (SSH marketplaces use your SSH keys)' }); continue; }
             const auth = resolveMarketplaceAuth(m, cfg);
             if (!auth) { skipped.push({ marketplace: marketplaceLabelOf(m), reason: 'no credential — a public repo needs none; for a private one: pncli skills marketplace update <name> --token <token>' }); continue; }
-            const helperValue = helperCommandFor(m.name ?? m.repoUrl);
+            const helperValue = helperCommandFor(m.name ?? m.repoUrl, helperConfigPath);
             for (const scope of marketplaceScopes(m.repoUrl!, auth.provider)) {
               targets.push({ scope, marketplace: m, provider: auth.provider, helperValue, auth });
             }
@@ -191,7 +198,7 @@ Examples:
             tokenKind: t.auth && t.provider === 'github' ? classifyGitHubToken(t.auth.password) : null,
           };
         });
-        saveScopeRecords(records);
+        saveScopeRecords(records, configPath);
 
         const touched = opts.host
           ? allMarketplaces(globalConfig).filter(m => hostOf(m.repoUrl) === normalizeHostArg(opts.host!))
@@ -211,7 +218,8 @@ Examples:
     .action((opts: { marketplace?: string; host?: string; forgetKeychain?: boolean }) => {
       const start = Date.now();
       try {
-        const globalConfig = readRawConfig();
+        const configPath = configPathOf();
+        const globalConfig = readRawConfig(configPath);
         const recorded = globalConfig.gitAuth?.scopes ?? {};
         let scopes: string[];
         if (opts.host) scopes = [hostScope(normalizeHostArg(opts.host))];
@@ -232,7 +240,7 @@ Examples:
         if (opts.forgetKeychain && !results.some(r => r.keychainErased)) {
           warn('--forget-keychain had nothing to erase: helper mode never stores a credential in the keychain.');
         }
-        saveScopeRecords(updates);
+        saveScopeRecords(updates, configPath);
         success({ scopes: results }, 'skills', 'git-auth-disable', start);
       } catch (err) {
         fail(err, 'skills', 'git-auth-disable', start);
@@ -246,8 +254,9 @@ Examples:
     .action((opts: { marketplace?: string }) => {
       const start = Date.now();
       try {
-        const cfg = loadConfig();
-        const globalConfig = readRawConfig();
+        const configPath = configPathOf();
+        const cfg = loadConfig({ configPath });
+        const globalConfig = readRawConfig(configPath);
         const reports = opts.marketplace
           ? [describeMarketplaceAuth(findMarketplace(globalConfig, opts.marketplace), globalConfig, cfg)]
           : describeAllGitAuth(globalConfig, cfg);

@@ -32,12 +32,20 @@ export const HELPER_COMMAND = '!pncli skills git-credential';
 /** Marketplace names that are safe inside the single-quoted helper value. */
 const HELPER_NAME_PATTERN = /^[^'\r\n]+$/;
 
-export function helperCommandFor(marketplaceName?: string): string {
-  if (marketplaceName === undefined) return HELPER_COMMAND;
+export function helperCommandFor(marketplaceName?: string, configPath?: string): string {
+  let command = HELPER_COMMAND;
+  if (configPath !== undefined) {
+    // Git runs the helper without the user's flags or env, so a non-default config must travel in the value.
+    if (!HELPER_NAME_PATTERN.test(configPath)) {
+      throw new Error(`Config path ${JSON.stringify(configPath)} cannot be used in a git credential helper (no quotes or newlines).`);
+    }
+    command += ` --config '${configPath}'`;
+  }
+  if (marketplaceName === undefined) return command;
   if (!HELPER_NAME_PATTERN.test(marketplaceName)) {
     throw new Error(`Marketplace name ${JSON.stringify(marketplaceName)} cannot be used in a git credential helper (no quotes or newlines). Re-add it with a simpler --name.`);
   }
-  return `${HELPER_COMMAND} --marketplace '${marketplaceName}'`;
+  return `${command} --marketplace '${marketplaceName}'`;
 }
 
 export function isPncliHelperValue(value: string): boolean {
