@@ -128,7 +128,9 @@ const SECRET_VALUE = '(?!\\[redacted-secret\\]|keychain:|<|\\*|\\$|%|process\\.|
 function looksLikeSecretValue(value) {
   const v = value.replace(/^[`"']+|[`"']+$/g, '');
   if (/^(?:undefined|null|none|true|false|changeme|required|optional)$/i.test(v)) return false;
-  if (/^[A-Z][A-Z0-9_]*$/.test(v)) return false; // an env var / Actions secret name
+  // An env var / Actions secret *name* (`CLAUDE_CODE_OAUTH_TOKEN`): ALL_CAPS words joined by `_`.
+  // An all-caps value with no `_` (`AB12CD34EF56GH78`, an AWS-style key) is still a secret.
+  if (/^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(v)) return false;
   return /\d/.test(v) || v.length >= 20;
 }
 
@@ -172,13 +174,19 @@ const SECRET_RULES = [
   // prefixed env names (`PNCLI_JIRA_API_TOKEN=…`, `export PNCLI_BITBUCKET_PAT="…"`), matched by the
   // key's *suffix*. Keeps the key; skips references rather than secrets (see SECRET_VALUE).
   {
-    re: new RegExp(`((?<![A-Za-z0-9_-])["']?(?:[A-Za-z0-9]+[_-])*(?:password|passwd|pwd|passcode|secret|token|api[_-]?key|apikey|pat)["']?\\s*[:=]\\s*["']?)${SECRET_VALUE}`, 'gi'),
+    re: new RegExp(`((?<![A-Za-z0-9_-])["']?(?:[A-Za-z0-9]+[_-])*(?:password|passwd|pwd|passcode|secret|token|api[_-]?key|apikey|pat|(?:secret|access)[_-]?(?:access[_-]?)?key)["']?\\s*[:=]\\s*["']?)${SECRET_VALUE}`, 'gi'),
+    replace: (m, prefix, value) => (looksLikeSecretValue(value) ? `${prefix}${SECRET_MARKER}` : m),
+  },
+  // CLI flags: `--token=…` and the documented `--token …` form, e.g. a pasted
+  // `pncli skills marketplace add <url> --token <pat>` command. An ADO or Jira PAT has no prefix rule.
+  {
+    re: new RegExp(`((?<![A-Za-z0-9_-])--?(?:[A-Za-z0-9]+-)*(?:password|passwd|passcode|secret|token|api-?key|pat)(?:=|\\s+)["']?)${SECRET_VALUE}`, 'gi'),
     replace: (m, prefix, value) => (looksLikeSecretValue(value) ? `${prefix}${SECRET_MARKER}` : m),
   },
   // camelCase config keys — `"apiToken"`, `clientSecret`, `refreshToken`, `adminApiKey`, `serviceKey`
   // (the names in pncli's own config.json). Case-sensitive: the suffix must start a new word.
   {
-    re: new RegExp(`((?<![A-Za-z0-9_-])["']?(?:[a-z][A-Za-z0-9]*(?:Token|Secret|Password|Passcode|ApiKey|ServiceKey|Pat)|serviceKey)["']?\\s*[:=]\\s*["']?)${SECRET_VALUE}`, 'g'),
+    re: new RegExp(`((?<![A-Za-z0-9_-])["']?(?:[a-z][A-Za-z0-9]*(?:Token|Secret|Password|Passcode|ApiKey|ServiceKey|SecretKey|AccessKey|Pat)|serviceKey|secretKey|accessKey)["']?\\s*[:=]\\s*["']?)${SECRET_VALUE}`, 'g'),
     replace: (m, prefix, value) => (looksLikeSecretValue(value) ? `${prefix}${SECRET_MARKER}` : m),
   },
 ];
@@ -271,8 +279,9 @@ function applyPrivateIps(text, counts) {
     const octets = rest.slice(0, 4);
     const offset = rest[4];
     const whole = rest[5];
-    // `v10.0.0.1`, `version 10.0.0.0`, `pkg@10.0.0.1` are versions, not addresses.
-    if (/(?:\bv|\b(?:version|ver|release)\s*[:=]?\s*|@)$/i.test(whole.slice(Math.max(0, offset - 10), offset))) return match;
+    // `v10.0.0.1` and `version 10.0.0.0` are versions, not addresses. `user@10.0.0.4` is an
+    // address (an SSH login), so `@` is not an exemption.
+    if (/(?:\bv|\b(?:version|ver|release)\s*[:=]?\s*)$/i.test(whole.slice(Math.max(0, offset - 10), offset))) return match;
     const n = octets.map(Number);
     if (n.some((o) => o > 255)) return match;
     if (!isPrivateIpv4(n[0], n[1])) return match;

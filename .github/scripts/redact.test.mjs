@@ -431,7 +431,7 @@ describe('review follow-ups (#504)', () => {
   });
 
   it('does not treat version strings as private IPs', () => {
-    for (const text of ['upgraded to v10.0.0.1', 'version 10.0.0.0', 'Version: 10.0.0.0', 'npm i pkg@10.0.0.4'])
+    for (const text of ['upgraded to v10.0.0.1', 'version 10.0.0.0', 'Version: 10.0.0.0'])
       expect(r(text).text, text).toBe(text);
     expect(r('host at 10.0.0.12 was down').text).toBe('host at [redacted-ip] was down');
   });
@@ -456,5 +456,30 @@ describe('key/value false positives found in existing issues', () => {
     expect(r('PNCLI_SNOW_PASSWORD=hunter2hunter2').text).toBe('PNCLI_SNOW_PASSWORD=[redacted-secret]');
     expect(r('"clientSecret": "averylongsecretwithoutanydigits"').text).toBe('"clientSecret": "[redacted-secret]"');
     expect(r('Authorization: Token 0123456789abcdef').text).toBe('Authorization: Token [redacted-secret]');
+  });
+});
+
+describe('review follow-ups, round 2 (#504)', () => {
+  it('redacts tokens passed as CLI flags, in both forms', () => {
+    expect(r('pncli skills marketplace add https://git.imagile.dev/a.git --token=abc123def456ghi789').text)
+      .toBe('pncli skills marketplace add https://git.imagile.dev/a.git --token=[redacted-secret]');
+    expect(r('pncli skills marketplace add https://git.imagile.dev/a.git --token abc123def456ghi789 --all-agents').text)
+      .toBe('pncli skills marketplace add https://git.imagile.dev/a.git --token [redacted-secret] --all-agents');
+    expect(r('--api-key "k3y-0123456789"').text).toBe('--api-key "[redacted-secret]"');
+  });
+
+  it('leaves flag placeholders and non-secret flag values alone', () => {
+    for (const text of ['--token <token>', '--token $PNCLI_GITHUB_TOKEN', '--token-file tokens.txt', '--pat-name build-bot'])
+      expect(r(text).text, text).toBe(text);
+  });
+
+  it('redacts AWS-style secret keys', () => {
+    expect(r('AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY').text).toBe('AWS_SECRET_ACCESS_KEY=[redacted-secret]');
+    expect(r('{ "secretKey": "abc123def456ghi789", "accessKey": "AB12CD34EF56GH78" }').text)
+      .toBe('{ "secretKey": "[redacted-secret]", "accessKey": "[redacted-secret]" }');
+  });
+
+  it('redacts private IPs after an SSH login', () => {
+    expect(r('ssh admin@10.20.30.40 and root@192.168.1.5').text).toBe('ssh admin@[redacted-ip] and root@[redacted-ip]');
   });
 });
