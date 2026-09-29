@@ -164,6 +164,8 @@ export function envOverriddenSecretPaths(env: NodeJS.ProcessEnv = process.env): 
 
 export interface LoadConfigOptions {
   configPath?: string;
+  /** Resolve only these `keychain:` config paths (e.g. `github.token`); every other one stays unread. */
+  keychainPaths?: string[];
 }
 
 export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
@@ -171,7 +173,10 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
   // `keychain:<account>` values are swapped for the OS-keychain secret here, below every env var
   // in precedence — env vars are read directly from process.env further down and still win, and a
   // field an env var overrides is not looked up at all.
-  const globalConfig = resolveKeychainRefs(loadJsonFile<GlobalConfig>(globalConfigPath) ?? {}, undefined, { skipPaths: envOverriddenSecretPaths() });
+  const globalConfig = resolveKeychainRefs(loadJsonFile<GlobalConfig>(globalConfigPath) ?? {}, undefined, {
+    skipPaths: envOverriddenSecretPaths(),
+    ...(opts.keychainPaths ? { onlyPaths: new Set(opts.keychainPaths) } : {})
+  });
 
   const repoRoot = getRepoRoot();
   let repoConfig: RepoConfig = {};

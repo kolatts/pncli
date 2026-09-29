@@ -511,7 +511,7 @@ export function resetKeychainCache(): void {
  * service that needs it reports "not configured" instead of sending the literal `keychain:...`
  * string as a credential. A single stderr warning names the refs; doctor reports them in detail.
  */
-export function resolveKeychainRefs<T>(config: T, backend?: KeychainBackend, opts: { skipPaths?: Set<string> } = {}): T {
+export function resolveKeychainRefs<T>(config: T, backend?: KeychainBackend, opts: { skipPaths?: Set<string>; onlyPaths?: Set<string> } = {}): T {
   const all = findKeychainRefs(config);
   if (all.length === 0) return config;
 
@@ -519,7 +519,9 @@ export function resolveKeychainRefs<T>(config: T, backend?: KeychainBackend, opt
   // A field an env var overrides is never used, so never ask the OS store for it — no process spawn
   // on a CI runner that inherited a developer's config, and no warning about a value nobody reads.
   const refs = all.filter(r => {
-    if (!opts.skipPaths?.has(r.path.join('.'))) return true;
+    const key = r.path.join('.');
+    // onlyPaths: the caller reads just these fields, so no other reference is looked up.
+    if (!opts.skipPaths?.has(key) && (!opts.onlyPaths || opts.onlyPaths.has(key))) return true;
     setAtPath(copy, r.path, undefined);
     return false;
   });

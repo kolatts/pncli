@@ -1237,6 +1237,11 @@ async function initGlobalConfig(start: number): Promise<void> {
 
   writeGlobalConfig({
     jenkinsInstances: existingInstances,
+    // Not prompted for here, so carry them over: dropping gitAuth strands `git-auth disable`
+    // (it restores from the recorded backups), and marketplaces/skillsTargets hold tokens and paths.
+    ...(existingGlobal?.marketplaces ? { marketplaces: existingGlobal.marketplaces } : {}),
+    ...(existingGlobal?.skillsTargets ? { skillsTargets: existingGlobal.skillsTargets } : {}),
+    ...(existingGlobal?.gitAuth ? { gitAuth: existingGlobal.gitAuth } : {}),
     user: {
       email: userEmail || undefined,
       userId: userId || undefined

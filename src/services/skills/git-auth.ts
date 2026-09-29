@@ -445,12 +445,10 @@ export function disableHelper(scope: string, backup?: HelperBackup, git: GitRunn
  * token on the command line (readable by any process) or in `.git/config`. `-c credential.helper=`
  * resets every configured helper for this invocation; the inline helper then answers from env.
  */
-export function inlineCredentialArgs(username: string, token: string, opts: { afterUserHelpers?: boolean } = {}): { args: string[]; env: NodeJS.ProcessEnv } {
+export function inlineCredentialArgs(username: string, token: string): { args: string[]; env: NodeJS.ProcessEnv } {
   const helper = 'credential.helper=!f() { test "$1" = get || exit 0; printf \'%s\\n\' "username=$PNCLI_GIT_USERNAME" "password=$PNCLI_GIT_PASSWORD"; }; f';
   return {
-    // afterUserHelpers: no reset. A helper given with -c is consulted after every configured one,
-    // so the user's own credential still wins and this one only fills in when they have none.
-    args: opts.afterUserHelpers ? ['-c', helper] : ['-c', 'credential.helper=', '-c', helper],
+    args: ['-c', 'credential.helper=', '-c', helper],
     env: { PNCLI_GIT_USERNAME: username, PNCLI_GIT_PASSWORD: token },
   };
 }

@@ -421,12 +421,3 @@ describe('inline helper and lsRemote options', () => {
     expect(resolveMarketplaceAuth({ name: 'h', repoUrl: 'http://git.imagile.dev/ai/skills.git', token: 't' }, {}, identity)).toMatchObject({ password: 't', username: 'x-token-auth' });
   });
 });
-
-describe('inlineCredentialArgs after the user helpers', () => {
-  it('omits the reset so the user own credential keeps precedence', () => {
-    const { args } = inlineCredentialArgs('x-token-auth', 'bb-pat', { afterUserHelpers: true });
-    expect(args).toHaveLength(2);
-    expect(args[1]).toMatch(/^credential\.helper=!f\(\)/);
-    expect(args).not.toContain('credential.helper=');
-  });
-});

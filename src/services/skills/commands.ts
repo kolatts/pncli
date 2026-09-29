@@ -20,7 +20,7 @@ import {
 } from './instructions.js';
 import type { InstructionApplyResult } from './instructions.js';
 import { resolveSecretValue, getKeychainBackend, keychainRef, isKeychainRef, purgeEntries } from '../../lib/keychain.js';
-import { parseCredentialRequest, resolveCredential, formatCredentialAnswer, inlineCredentialArgs, httpHostOf, originHasCredentials, resolveMarketplaceAuth, detectProvider, providerFallbackToken, PROVIDERS, UnresolvedMarketplaceTokenError } from './git-auth.js';
+import { parseCredentialRequest, resolveCredential, formatCredentialAnswer, inlineCredentialArgs, credentialFill, httpHostOf, originHasCredentials, resolveMarketplaceAuth, detectProvider, providerFallbackToken, PROVIDERS, UnresolvedMarketplaceTokenError } from './git-auth.js';
 import type { MarketplaceAuth } from './git-auth.js';
 import { registerGitAuthCommands } from './git-auth-commands.js';
 
@@ -1107,12 +1107,16 @@ function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { bran
 function gitAuthFor(url: string | undefined, credential: MarketplaceAuth | null): { args: string[]; env: NodeJS.ProcessEnv } {
   if (!credential || !httpHostOf(url)) return { args: [], env: {} };
   // bitbucket.pat / ado.pat are new fallbacks. Before them, a Bitbucket or Azure DevOps marketplace
-  // with no --token was cloned with the user's own git credentials — keep those first so a setup
-  // that works today (e.g. a Bitbucket Data Center login in Git Credential Manager) cannot break;
-  // the fallback only fills in where git had nothing. An explicit --token and the github.token
-  // fallback keep their long-standing precedence over the user's helpers.
-  const afterUserHelpers = credential.source === 'bitbucket.pat' || credential.source === 'ado.pat';
-  return inlineCredentialArgs(credential.username, credential.password, { afterUserHelpers });
+  // with no --token was cloned with the user's own git credentials — so if git already has one for
+  // this repo, use it and add nothing: a helper answering alongside the user's would make git
+  // `store` pncli's PAT into GCM / osxkeychain / ~/.git-credentials once the operation succeeds.
+  // Only when git has nothing does the fallback apply, with helpers reset so there is nowhere to
+  // cache it. An explicit --token and github.token keep their precedence over the user's helpers.
+  if (credential.source === 'bitbucket.pat' || credential.source === 'ado.pat') {
+    const path = new URL(url!).pathname.replace(/^\//, '');
+    if (credentialFill(httpHostOf(url)!, path || undefined)) return { args: [], env: {} };
+  }
+  return inlineCredentialArgs(credential.username, credential.password);
 }
 
 /** Rewrites a clone's `origin` to `plainUrl`. Best-effort: a failure here must not fail the add. */
@@ -1954,7 +1958,10 @@ New to this? pncli skills guide      # how skills management fits together (or: 
         for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
         const request = parseCredentialRequest(Buffer.concat(chunks).toString('utf8'));
         const globalConfig = loadJsonFile<GlobalConfig>(getGlobalConfigPath()) ?? {};
-        const answer = resolveCredential(request, globalConfig, loadConfig(), undefined, cmdOpts.marketplace);
+        // git runs this on every fetch: resolve only the provider tokens it can answer with, not
+        // every keychain reference in the config (one OS-store lookup per unrelated secret).
+        const cfg = loadConfig({ keychainPaths: ['github.token', 'bitbucket.pat', 'ado.pat'] });
+        const answer = resolveCredential(request, globalConfig, cfg, undefined, cmdOpts.marketplace);
         if (answer) process.stdout.write(formatCredentialAnswer(answer));
       } catch {
         // Deliberately silent — see above.
