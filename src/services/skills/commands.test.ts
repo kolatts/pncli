@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin, DISABLED_SUBDIR, disablePluginSkills, enablePluginSkills, listPluginStates, getInstalledPluginsForMarketplace, AGENT_PATHS, DEFAULT_AGENT, AGENT_CHOICES, summarizeLocation, listKnownLocations, collectSkillStatus, readCustomTargets, rememberCustomTarget, forgetCustomTarget, resolveMarketplaceToken, describeGitFailure, resolveInstallTargets, installMarketplaceToTarget, isBareMarketplaceSync } from './commands.js';
+import { resolvePluginChoices, resolveSkillsSrc, copyPluginSkills, injectTokenIntoUrl, repoNameFromUrl, defaultMarketplacePath, getAllMarketplaces, getInstalledMetaPath, readInstalledMeta, recordInstalledSkills, upsertMarketplace, getSkillOriginPath, readSkillOrigin, DISABLED_SUBDIR, disablePluginSkills, enablePluginSkills, listPluginStates, getInstalledPluginsForMarketplace, AGENT_PATHS, DEFAULT_AGENT, AGENT_CHOICES, summarizeLocation, listKnownLocations, collectSkillStatus, readCustomTargets, rememberCustomTarget, forgetCustomTarget, resolveMarketplaceToken, describeGitFailure, resolveInstallTargets, installMarketplaceToTarget, isBareMarketplaceSync, gitAuthFor } from './commands.js';
 import type { InstalledMeta, InstalledSkillRecord } from './commands.js';
 import type { GlobalConfig } from '../../types/config.js';
 import { loadConfig } from '../../lib/config.js';
@@ -1392,5 +1392,47 @@ describe('describeGitFailure — not-found wording for provider fallbacks', () =
   });
   it('keeps the GitHub wording', () => {
     expect(describeGitFailure(notFound, 'ai', 'fallback').message).toMatch(/pncli's configured GitHub token has access to it/);
+  });
+});
+
+describe('gitAuthFor — Bitbucket / Azure DevOps fallbacks', () => {
+  const bb = { username: 'x-token-auth', password: 'bb-pat', source: 'bitbucket.pat', provider: 'bitbucket' as const };
+  const url = 'https://bitbucket.imagile.dev/scm/ai/skills.git';
+
+  it('defers to a credential git already has, adding nothing (so git cannot store pncli\'s PAT)', () => {
+    const seen: unknown[][] = [];
+    const r = gitAuthFor(url, bb, { fill: (...a) => { seen.push(a); return { username: 'jdoe', password: 'own' }; } });
+    expect(r).toEqual({ args: [], env: {}, deferredToUser: 'bitbucket.imagile.dev' });
+    expect(seen[0]!.slice(0, 2)).toEqual(['bitbucket.imagile.dev', 'scm/ai/skills.git']);
+  });
+
+  it('uses the fallback with helpers reset when git has nothing', () => {
+    const r = gitAuthFor(url, bb, { fill: () => null });
+    expect(r.deferredToUser).toBeNull();
+    expect(r.args.slice(0, 2)).toEqual(['-c', 'credential.helper=']);
+    expect(r.env).toMatchObject({ PNCLI_GIT_PASSWORD: 'bb-pat' });
+  });
+
+  it('checks inside the clone when a cwd is given', () => {
+    const calls: string[][] = [];
+    const recorder = (args: string[]) => { calls.push(args); return { status: 0, stdout: '', stderr: '' }; };
+    gitAuthFor(url, bb, { cwd: '/clones/skills', git: recorder, fill: (_h, _p, git) => { git!(['credential', 'fill']); return null; } });
+    expect(calls).toEqual([['-C', '/clones/skills', 'credential', 'fill']]);
+  });
+
+  it('never pre-checks an explicit token or github.token', () => {
+    const fill = () => { throw new Error('should not be called'); };
+    expect(gitAuthFor(url, { ...bb, source: 'marketplace:ai' }, { fill }).deferredToUser).toBeNull();
+    expect(gitAuthFor('https://github.com/o/r.git', { ...bb, source: 'github.token', provider: 'github' }, { fill }).deferredToUser).toBeNull();
+  });
+});
+
+describe('describeGitFailure — deferred to the user\'s own credential', () => {
+  it('blames the stored credential git actually sent, not the fallback PAT', () => {
+    const err = describeGitFailure("fatal: Authentication failed for 'https://bitbucket.imagile.dev/scm/ai/skills.git/'", 'ai', 'fallback', { provider: 'bitbucket', fallbackSource: 'bitbucket.pat', userCredentialHost: 'bitbucket.imagile.dev' });
+    expect(err.message).toMatch(/git used your own stored credential for bitbucket\.imagile\.dev/);
+    expect(err.message).toMatch(/pncli's bitbucket\.pat was not sent/);
+    expect(err.message).toMatch(/pncli git credentials forget --host bitbucket\.imagile\.dev/);
+    expect(err.message).not.toMatch(/Rotate that token/);
   });
 });

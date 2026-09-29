@@ -20,8 +20,8 @@ import {
 } from './instructions.js';
 import type { InstructionApplyResult } from './instructions.js';
 import { resolveSecretValue, getKeychainBackend, keychainRef, isKeychainRef, purgeEntries } from '../../lib/keychain.js';
-import { parseCredentialRequest, resolveCredential, formatCredentialAnswer, inlineCredentialArgs, credentialFill, httpHostOf, originHasCredentials, resolveMarketplaceAuth, detectProvider, providerFallbackToken, PROVIDERS, UnresolvedMarketplaceTokenError } from './git-auth.js';
-import type { MarketplaceAuth } from './git-auth.js';
+import { parseCredentialRequest, resolveCredential, formatCredentialAnswer, inlineCredentialArgs, credentialFill, defaultGitRunner, httpHostOf, originHasCredentials, resolveMarketplaceAuth, detectProvider, providerFallbackToken, PROVIDERS, UnresolvedMarketplaceTokenError } from './git-auth.js';
+import type { MarketplaceAuth, GitRunner } from './git-auth.js';
 import { registerGitAuthCommands } from './git-auth-commands.js';
 
 const BACK = '__back__';
@@ -157,6 +157,12 @@ export interface GitFailureContext {
   fallbackSource?: string;
   /** True when the marketplace has its own `username`. */
   customUsername?: boolean;
+  /**
+   * Set when pncli deferred to a credential git already had for this host (the user's own helper)
+   * instead of sending its fallback PAT. A failure then says so, rather than blaming a token that
+   * was never sent.
+   */
+  userCredentialHost?: string;
 }
 
 const FALLBACK_LABELS: Record<string, string> = {
@@ -177,6 +183,11 @@ function providerAuthAdvice(marketplaceName: string, ctx: GitFailureContext): st
 
 export function describeGitFailure(rawMessage: string, marketplaceName: string, tokenSource: GitTokenSource, ctx: GitFailureContext = {}): Error {
   const msg = scrubToken(rawMessage);
+  if (ctx.userCredentialHost && (GIT_AUTH_FAILURE_PATTERNS.some(p => p.test(msg)) || GIT_NOT_FOUND_PATTERNS.some(p => p.test(msg)))) {
+    const host = ctx.userCredentialHost;
+    const hint = `git used your own stored credential for ${host} for marketplace "${marketplaceName}" (pncli's ${ctx.fallbackSource ?? 'token'} was not sent), and it was refused. If that stored credential is stale, see which one git sends with: pncli git credentials inspect — and remove it with: pncli git credentials forget --host ${host}. The next sync then uses ${ctx.fallbackSource ?? "pncli's token"}.`;
+    return new Error(`${hint}\n\nGit reported: ${msg}`);
+  }
   if (GIT_AUTH_FAILURE_PATTERNS.some(p => p.test(msg))) {
     const fallbackLabel = ctx.fallbackSource ? FALLBACK_LABELS[ctx.fallbackSource] : undefined;
     const hint = tokenSource === 'fallback' && fallbackLabel
@@ -1094,7 +1105,7 @@ function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { bran
     } catch { /* repo not valid — fall through and re-throw original error */ }
     if (!cloneActuallySucceeded) {
       const msg = e instanceof Error ? e.message : String(e);
-      throw describeGitFailure(msg, marketplaceName, tokenSource, { provider: credential?.provider, fallbackSource: credential?.source, customUsername: !!opts.username });
+      throw describeGitFailure(msg, marketplaceName, tokenSource, { provider: credential?.provider, fallbackSource: credential?.source, customUsername: !!opts.username, userCredentialHost: auth.deferredToUser ?? undefined });
     }
   }
 }
@@ -1104,8 +1115,12 @@ function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { bran
  * environment, so the token never appears on git's command line (visible to every process) and
  * never lands in `.git/config` as part of `origin`. Non-HTTPS URLs (SSH) need no token.
  */
-function gitAuthFor(url: string | undefined, credential: MarketplaceAuth | null): { args: string[]; env: NodeJS.ProcessEnv } {
-  if (!credential || !httpHostOf(url)) return { args: [], env: {} };
+export function gitAuthFor(
+  url: string | undefined,
+  credential: MarketplaceAuth | null,
+  opts: { cwd?: string; fill?: typeof credentialFill; git?: GitRunner } = {}
+): { args: string[]; env: NodeJS.ProcessEnv; deferredToUser: string | null } {
+  if (!credential || !httpHostOf(url)) return { args: [], env: {}, deferredToUser: null };
   // bitbucket.pat / ado.pat are new fallbacks. Before them, a Bitbucket or Azure DevOps marketplace
   // with no --token was cloned with the user's own git credentials — so if git already has one for
   // this repo, use it and add nothing: a helper answering alongside the user's would make git
@@ -1113,10 +1128,15 @@ function gitAuthFor(url: string | undefined, credential: MarketplaceAuth | null)
   // Only when git has nothing does the fallback apply, with helpers reset so there is nowhere to
   // cache it. An explicit --token and github.token keep their precedence over the user's helpers.
   if (credential.source === 'bitbucket.pat' || credential.source === 'ado.pat') {
+    const host = httpHostOf(url)!;
     const path = new URL(url!).pathname.replace(/^\//, '');
-    if (credentialFill(httpHostOf(url)!, path || undefined)) return { args: [], env: {} };
+    // Run in the clone when there is one, so a helper set only in its local config counts too.
+    const base = opts.git ?? defaultGitRunner;
+    const git: GitRunner = opts.cwd ? (args, o) => base(['-C', opts.cwd!, ...args], o) : base;
+    const fill = opts.fill ?? credentialFill;
+    if (fill(host, path || undefined, git)) return { args: [], env: {}, deferredToUser: host };
   }
-  return inlineCredentialArgs(credential.username, credential.password);
+  return { ...inlineCredentialArgs(credential.username, credential.password), deferredToUser: null };
 }
 
 /** Rewrites a clone's `origin` to `plainUrl`. Best-effort: a failure here must not fail the add. */
@@ -1139,14 +1159,14 @@ function pullMarketplace(marketplacePath: string, m: MarketplaceConfig, marketpl
   // Clones made by older pncli versions carry a token in `origin`. git prefers URL credentials over
   // any helper, so a rotated token would keep losing to the stale embedded one (#456) — strip it.
   if (repoUrl && originHasCredentials(marketplacePath)) stripOriginCredentials(marketplacePath, repoUrl);
-  const auth = gitAuthFor(repoUrl, credential);
+  const auth = gitAuthFor(repoUrl, credential, { cwd: marketplacePath });
   const gitArgs = ['-C', marketplacePath, ...auth.args, 'pull'];
   let pullOutput: string;
   try {
     pullOutput = execFileSync('git', gitArgs, { encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'], env: { ...process.env, ...auth.env, LANG: 'C', LC_ALL: 'C' } });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    throw describeGitFailure(msg, marketplaceName, tokenSource, { provider: credential?.provider, fallbackSource: credential?.source, customUsername: !!m.username });
+    throw describeGitFailure(msg, marketplaceName, tokenSource, { provider: credential?.provider, fallbackSource: credential?.source, customUsername: !!m.username, userCredentialHost: auth.deferredToUser ?? undefined });
   }
   const updated = !pullOutput.includes('Already up to date');
   if (pullOutput.trim() && updated) warn(pullOutput.trim());
