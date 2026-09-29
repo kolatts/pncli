@@ -51,3 +51,7 @@ pncli ado work schema --example-only > wi.json
 pncli ado work create --type Bug --input-file wi.json
 pncli ado work update --id 123 --input-file wi.json --field Priority=1   # flag wins, and it's reported
 ```
+
+## Skills marketplaces on this host
+
+A skills marketplace repository on this host (see `marketplace.md`) with no `--token` of its own uses `ado.pat` (`PNCLI_ADO_PAT`) for clone and pull, and for `pncli skills git-auth`. The PAT needs the Code (Read) scope.

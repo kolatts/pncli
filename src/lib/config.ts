@@ -5,6 +5,7 @@ import { execSync } from 'child_process';
 import type { GlobalConfig, RepoConfig, ResolvedConfig, JiraDefaults, BitbucketDefaults, GitHubDefaults, SonarDefaults, SdeDefaults, AdoDefaults, JenkinsDefaults, JenkinsInstanceConfig } from '../types/config.js';
 import type { CustomFieldDefinition } from '../types/jira.js';
 import { assertValidCustomFields } from './validate-custom-fields.js';
+import { resolveKeychainRefs } from './keychain.js';
 
 const ENV_KEYS = {
   EMAIL: 'PNCLI_EMAIL',
@@ -132,13 +133,50 @@ function mergeDefaults(
   };
 }
 
+/** Secret fields and the env vars that override them (PNCLI_* first, then the CI fallback). */
+const SECRET_ENV_OVERRIDES: [string, string[]][] = [
+  ['jira.apiToken', [ENV_KEYS.JIRA_API_TOKEN]],
+  ['bitbucket.pat', [ENV_KEYS.BITBUCKET_PAT]],
+  ['github.token', [ENV_KEYS.GITHUB_TOKEN, ENV_KEYS.GITHUB_TOKEN_FALLBACK]],
+  ['confluence.apiToken', [ENV_KEYS.CONFLUENCE_API_TOKEN]],
+  ['artifactory.token', [ENV_KEYS.ARTIFACTORY_TOKEN]],
+  ['sonar.token', [ENV_KEYS.SONAR_TOKEN, ENV_KEYS.SONAR_TOKEN_FALLBACK]],
+  ['ado.pat', [ENV_KEYS.ADO_PAT, ENV_KEYS.ADO_PAT_FALLBACK]],
+  ['jenkins.apiToken', [ENV_KEYS.JENKINS_API_TOKEN]],
+  ['checkmarx.apiKey', [ENV_KEYS.CHECKMARX_API_KEY]],
+  ['checkmarx.clientSecret', [ENV_KEYS.CHECKMARX_CLIENT_SECRET]],
+  ['contrast.apiKey', [ENV_KEYS.CONTRAST_API_KEY]],
+  ['contrast.serviceKey', [ENV_KEYS.CONTRAST_SERVICE_KEY]],
+  ['sonatypeiq.passcode', [ENV_KEYS.SONATYPEIQ_PASSCODE]],
+  ['openshift.token', [ENV_KEYS.OPENSHIFT_TOKEN]],
+  ['dynatrace.apiToken', [ENV_KEYS.DYNATRACE_API_TOKEN]],
+  ['dynatrace.platformToken', [ENV_KEYS.DYNATRACE_PLATFORM_TOKEN]],
+  ['logscale.token', [ENV_KEYS.LOGSCALE_TOKEN]],
+  ['splitio.adminApiKey', [ENV_KEYS.SPLITIO_ADMIN_API_KEY]],
+  ['figma.token', [ENV_KEYS.FIGMA_TOKEN]],
+  ['alation.refreshToken', [ENV_KEYS.ALATION_REFRESH_TOKEN]],
+];
+
+/** Config paths whose value an environment variable is currently overriding. */
+export function envOverriddenSecretPaths(env: NodeJS.ProcessEnv = process.env): Set<string> {
+  return new Set(SECRET_ENV_OVERRIDES.filter(([, keys]) => keys.some(k => env[k] !== undefined)).map(([p]) => p));
+}
+
 export interface LoadConfigOptions {
   configPath?: string;
+  /** Resolve only these `keychain:` config paths (e.g. `github.token`); every other one stays unread. */
+  keychainPaths?: string[];
 }
 
 export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
   const globalConfigPath = getGlobalConfigPath(opts.configPath);
-  const globalConfig = loadJsonFile<GlobalConfig>(globalConfigPath) ?? {};
+  // `keychain:<account>` values are swapped for the OS-keychain secret here, below every env var
+  // in precedence — env vars are read directly from process.env further down and still win, and a
+  // field an env var overrides is not looked up at all.
+  const globalConfig = resolveKeychainRefs(loadJsonFile<GlobalConfig>(globalConfigPath) ?? {}, undefined, {
+    skipPaths: envOverriddenSecretPaths(),
+    ...(opts.keychainPaths ? { onlyPaths: new Set(opts.keychainPaths) } : {})
+  });
 
   const repoRoot = getRepoRoot();
   let repoConfig: RepoConfig = {};

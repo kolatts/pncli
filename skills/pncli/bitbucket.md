@@ -38,3 +38,7 @@ pncli bitbucket --project MYPROJ create-repo --name my-new-repo
 # With a description and explicit project flag
 pncli bitbucket create-repo --project MYPROJ --name my-new-repo --description "My project"
 ```
+
+## Skills marketplaces on this host
+
+A skills marketplace repository on this host (see `marketplace.md`) with no `--token` of its own uses `bitbucket.pat` (`PNCLI_BITBUCKET_PAT`) for clone and pull, and for `pncli skills git-auth`. Bitbucket Data Center personal access tokens are usually sent with your Bitbucket username: add the marketplace with `--username <you>`, or set it later with `pncli skills marketplace update <name> --username <you>`.

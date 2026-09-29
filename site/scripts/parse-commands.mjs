@@ -36,6 +36,7 @@ const SERVICES = [
   { name: 'SDElements',                   file: 'src/services/sde/commands.ts',            prefix: 'sde' },
   { name: 'Dependencies',                 file: 'src/services/deps/commands.ts',           prefix: 'deps' },
   { name: 'Config',                       file: 'src/services/config/commands.ts',         prefix: 'config' },
+  { name: 'Config — OS keychain',          file: 'src/services/config/keychain-commands.ts', prefix: 'config keychain' },
   { name: 'Doctor',                       file: 'src/services/doctor/commands.ts',         prefix: 'doctor' },
   { name: 'Azure DevOps — Work Items',    file: 'src/services/ado/commands/work.ts',       prefix: 'ado work' },
   { name: 'Azure DevOps — Repos & PRs',  file: 'src/services/ado/commands/repo.ts',       prefix: 'ado repo' },
@@ -54,6 +55,7 @@ const SERVICES = [
   { name: 'Figma',                       file: 'src/services/figma/commands.ts',          prefix: 'figma' },
   { name: 'Alation',                     file: 'src/services/alation/commands.ts',        prefix: 'alation' },
   { name: 'Skills',                      file: 'src/services/skills/commands.ts',         prefix: 'skills' },
+  { name: 'Skills — Git auth',           file: 'src/services/skills/git-auth-commands.ts', prefix: 'skills git-auth' },
   { name: 'JWT',                         file: 'src/services/jwt/commands.ts',            prefix: 'jwt' },
 ];
 

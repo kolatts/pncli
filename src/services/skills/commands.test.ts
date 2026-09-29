@@ -89,6 +89,28 @@ describe('resolveMarketplaceToken', () => {
 
 // ── describeGitFailure ────────────────────────────────────────────────────────
 
+describe('resolveMarketplaceToken — Bitbucket and Azure DevOps fallbacks', () => {
+  function mockConfig(cfg: Record<string, unknown>): void {
+    vi.mocked(loadConfig).mockReturnValue(cfg as unknown as ReturnType<typeof loadConfig>);
+  }
+
+  it('falls back to bitbucket.pat for a repo on the configured Bitbucket host', () => {
+    mockConfig({ github: {}, bitbucket: { baseUrl: 'https://bitbucket.imagile.dev', pat: 'bb-pat' } });
+    expect(resolveMarketplaceToken(undefined, 'https://bitbucket.imagile.dev/scm/proj/repo.git')).toBe('bb-pat');
+    expect(resolveMarketplaceToken(undefined, 'https://other.imagile.dev/scm/proj/repo.git')).toBeUndefined();
+  });
+
+  it('falls back to ado.pat for a repo on the configured Azure DevOps host', () => {
+    mockConfig({ github: {}, ado: { baseUrl: 'https://ado.imagile.dev', pat: 'ado-pat' } });
+    expect(resolveMarketplaceToken(undefined, 'https://ado.imagile.dev/DefaultCollection/P/_git/skills')).toBe('ado-pat');
+  });
+
+  it('still prefers the GitHub token on a GitHub host even when other providers are configured', () => {
+    mockConfig({ github: { token: 'gh' }, bitbucket: { baseUrl: 'https://bitbucket.imagile.dev', pat: 'bb' } });
+    expect(resolveMarketplaceToken(undefined, 'https://github.com/owner/repo.git')).toBe('gh');
+  });
+});
+
 describe('describeGitFailure', () => {
   it('rewrites a GitHub auth rejection into an actionable message naming the marketplace, when an explicit token was configured', () => {
     const err = describeGitFailure(
@@ -391,7 +413,44 @@ describe('getAllMarketplaces', () => {
 
 // ── upsertMarketplace ──────────────────────────────────────────────────────────
 
+describe('describeGitFailure — provider advice', () => {
+  const authFailure = "fatal: Authentication failed for 'https://bitbucket.imagile.dev/scm/ai/skills.git/'";
+
+  it('suggests --username for a Bitbucket marketplace using the default username', () => {
+    const err = describeGitFailure(authFailure, 'ai', 'explicit', { provider: 'bitbucket' });
+    expect(err.message).toMatch(/marketplace update ai --username/);
+    expect(describeGitFailure(authFailure, 'ai', 'explicit', { provider: 'bitbucket', customUsername: true }).message).not.toMatch(/--username/);
+  });
+
+  it('names the Bitbucket / Azure DevOps fallback token that was rejected', () => {
+    expect(describeGitFailure(authFailure, 'ai', 'fallback', { provider: 'bitbucket', fallbackSource: 'bitbucket.pat', customUsername: true }).message)
+      .toMatch(/Bitbucket token pncli is using \(PNCLI_BITBUCKET_PAT \/ bitbucket\.pat\)/);
+    expect(describeGitFailure(authFailure, 'ai', 'fallback', { provider: 'ado', fallbackSource: 'ado.pat' }).message)
+      .toMatch(/Azure DevOps token pncli is using.*Code \(Read\)/s);
+  });
+
+  it('leaves the GitHub wording untouched', () => {
+    const plain = describeGitFailure(authFailure, 'ai', 'fallback');
+    const withCtx = describeGitFailure(authFailure, 'ai', 'fallback', { provider: 'github', fallbackSource: 'github.token' });
+    expect(withCtx.message).toBe(plain.message);
+  });
+});
+
 describe('upsertMarketplace', () => {
+  it('keeps a stored username and provider when the marketplace is re-added without them', () => {
+    const all: ReturnType<typeof getAllMarketplaces> = [
+      { name: 'ai', repoUrl: 'https://bitbucket.imagile.dev/scm/ai/skills.git', localPath: '/p/ai', token: 'tok', username: 'jdoe', provider: 'bitbucket' },
+    ];
+    upsertMarketplace(all, { name: 'ai', repoUrl: 'https://bitbucket.imagile.dev/scm/ai/skills.git', localPath: '/p/ai' });
+    expect(all[0]).toMatchObject({ token: 'tok', username: 'jdoe', provider: 'bitbucket' });
+  });
+
+  it('adds no username or provider keys to an entry that never had them', () => {
+    const all: ReturnType<typeof getAllMarketplaces> = [{ name: 'gh', repoUrl: 'https://github.com/org/gh.git', localPath: '/p/gh', token: 't' }];
+    upsertMarketplace(all, { name: 'gh', repoUrl: 'https://github.com/org/gh.git', localPath: '/p/gh' });
+    expect(Object.keys(all[0]!).sort()).toEqual(['localPath', 'name', 'repoUrl', 'token']);
+  });
+
   it('adds a new entry when neither name nor repoUrl match an existing one', () => {
     const all: ReturnType<typeof getAllMarketplaces> = [];
     upsertMarketplace(all, { name: 'alpha', repoUrl: 'https://github.com/org/alpha.git', localPath: '/p/alpha' });
@@ -1322,5 +1381,16 @@ describe('installMarketplaceToTarget', () => {
     const t = target('codex');
     installMarketplaceToTarget(m, marketplacePath, choices, 'beta', t, changed);
     expect(getInstalledPluginsForMarketplace(t.target, 'org')).toEqual(['beta']);
+  });
+});
+
+describe('describeGitFailure — not-found wording for provider fallbacks', () => {
+  const notFound = 'remote: Repository not found.';
+  it('names the Bitbucket / Azure DevOps token instead of the GitHub one', () => {
+    expect(describeGitFailure(notFound, 'ai', 'fallback', { fallbackSource: 'bitbucket.pat' }).message).toMatch(/the Bitbucket token pncli is using .* has access to it/);
+    expect(describeGitFailure(notFound, 'ai', 'fallback', { fallbackSource: 'ado.pat' }).message).toMatch(/the Azure DevOps token pncli is using/);
+  });
+  it('keeps the GitHub wording', () => {
+    expect(describeGitFailure(notFound, 'ai', 'fallback').message).toMatch(/pncli's configured GitHub token has access to it/);
   });
 });

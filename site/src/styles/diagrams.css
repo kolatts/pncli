@@ -1,0 +1,23 @@
+/*
+ * Shared look for the hand-drawn SVG diagrams (Credentials page). Colours come
+ * from the site palette in global.css so every diagram reads as one family with
+ * SkillsFlowDiagram: ink text, gold accents, cream (charcoal) surface.
+ */
+.dg { font-family: inherit; }
+.dg-box { fill: color-mix(in srgb, var(--color-ink) 4%, transparent); stroke: color-mix(in srgb, var(--color-ink) 28%, transparent); stroke-width: 1.25; }
+.dg-accent { stroke: var(--color-gold); }
+.dg-strong { fill: color-mix(in srgb, var(--color-gold) 8%, transparent); stroke: var(--color-gold); stroke-width: 1.75; }
+.dg-faint { stroke-dasharray: 4 4; }
+.dg-panel { fill: none; stroke: color-mix(in srgb, var(--color-ink) 12%, transparent); stroke-width: 1; }
+.dg-heading { fill: var(--color-gold); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.dg-title { fill: var(--color-ink); font-size: 15px; font-weight: 800; }
+.dg-sub { fill: color-mix(in srgb, var(--color-ink) 70%, transparent); font-size: 12px; }
+.dg-note { fill: var(--color-gold); font-size: 12px; }
+.dg-warn { fill: #e8a27c; font-size: 12px; }
+.dg-label { fill: var(--color-ink); font-size: 12px; }
+.dg-mono { fill: #ece0a8; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.dg-line { stroke: color-mix(in srgb, var(--color-ink) 55%, transparent); stroke-width: 1.5; fill: none; }
+.dg-gold { stroke: var(--color-gold); }
+.dg-dashed { stroke-dasharray: 5 4; }
+.dg-arrowhead { fill: color-mix(in srgb, var(--color-ink) 70%, transparent); }
+.dg-arrowhead-gold { fill: var(--color-gold); }
