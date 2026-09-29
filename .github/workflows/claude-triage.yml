@@ -243,7 +243,7 @@ jobs:
             - NEVER reproduce organization names, internal hostnames, or employer-identifying
               details from the issue in comments, commit messages, branch names, PR titles or
               bodies, or code. Use `<service>.imagile.dev` placeholders per CLAUDE.md's
-              **Placeholder Hostnames**. `[org]`, `redacted.imagile.dev`, `[redacted-ip]` and
+              **Placeholder Hostnames**. `[org]`, `redacted.imagile.dev`, `[redacted-email]`, `[redacted-ip]` and
               `[redacted-secret]` markers in the input are intentional redactions — do not try
               to guess what they were.
 

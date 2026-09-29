@@ -95,8 +95,8 @@ describe('denylisted domains', () => {
     ['build01.acme-int.net', 'redacted.imagile.dev'],
     ['https://bitbucket.dc2.acme-int.net:7990/scm', 'https://bitbucket.imagile.dev:7990/scm'],
     ['git@bitbucket.acme-int.net:proj/repo.git', 'git@bitbucket.imagile.dev:proj/repo.git'],
-    ['someone@mail.acme-int.net', 'someone@redacted.imagile.dev'],
-    ['someone@acme-int.net', 'someone@redacted.imagile.dev'],
+    ['someone@mail.acme-int.net', '[redacted-email]'],
+    ['someone@acme-int.net', '[redacted-email]'],
     ['sonar.initech.io', 'sonar.imagile.dev'],
     ['(https://wiki.acme-int.net).', '(https://wiki.imagile.dev).'],
   ])('rewrites %j', (input, expected) => {
@@ -128,7 +128,7 @@ describe('internal hostnames', () => {
     ['sonar.dev.lan', 'sonar.imagile.dev'],
     ['portal.hr.intranet', 'redacted.imagile.dev'],
     ['host1.localdomain:22', 'redacted.imagile.dev:22'],
-    ['svc@mail.corp', 'svc@redacted.imagile.dev'],
+    ['svc@mail.corp', '[redacted-email]'],
   ])('rewrites %j', (input, expected) => {
     expect(r(input).text).toBe(expected);
     expect(r(input).counts.internalHost).toBe(1);
@@ -212,6 +212,55 @@ describe('secrets', () => {
   });
 });
 
+describe('emails', () => {
+  it('drops the whole address at a denylisted domain or subdomain, not just the domain', () => {
+    expect(r('ask jane.doe@acme-int.net or ops+alerts@mail.acme-int.net').text)
+      .toBe('ask [redacted-email] or [redacted-email]');
+    expect(r('write to it-help@corp-mail.hq.corp').text).toBe('write to [redacted-email]');
+  });
+
+  it('leaves ordinary and placeholder addresses alone', () => {
+    const text = 'reply to you@example.com or jane@gmail.com';
+    expect(r(text).text).toBe(text);
+  });
+});
+
+describe('more credential formats', () => {
+  it.each([
+    ['Atlassian', 'ATATT3xFfGF0abcdefghijklmnopqrstuvwxyz0123456789'],
+    ['Bitbucket DC', 'BBDC-MTIzNDU2Nzg5MDEyOmFiY2RlZmdoaWprbG1u'],
+    ['GitLab', 'glpat-abcdefghijklmnopqrst12'],
+    ['npm', 'npm_abcdefghijklmnopqrstuvwxyz0123456789'],
+    ['Anthropic', 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz'],
+    ['OpenAI', 'sk-proj-abcdefghijklmnopqrstuvwxyz'],
+  ])('redacts a %s token', (_name, token) => {
+    expect(r(`token here: ${token} end`).text).toBe('token here: [redacted-secret] end');
+  });
+
+  it('redacts a PEM private key block whole', () => {
+    const pem = '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAA\nAAAABG5vbmU=\n-----END OPENSSH PRIVATE KEY-----';
+    expect(r(`key:\n${pem}\ndone`).text).toBe('key:\n[redacted-secret]\ndone');
+  });
+
+  it('redacts secret values in key=value and JSON pairs, keeping the key', () => {
+    expect(r('PASSWORD=Sup3rS3cretValue').text).toBe('PASSWORD=[redacted-secret]');
+    expect(r('{ "token": "abc123def456ghi789" }').text).toBe('{ "token": "[redacted-secret]" }');
+    expect(r("api_key: 'a1b2c3d4e5f6'").text).toBe("api_key: '[redacted-secret]'");
+  });
+
+  it('keeps references that are not secrets', () => {
+    for (const text of [
+      '"token": "keychain:github.token"',
+      'token: ${{ secrets.GITHUB_TOKEN }}',
+      'password=<your-password>',
+      'token = process.env.GITHUB_TOKEN',
+      'pat: ***',
+      'tokenSource: fallback-value',
+      'the password is short',
+    ]) expect(r(text).text).toBe(text);
+  });
+});
+
 describe('no false positives', () => {
   it.each([
     'pncli',
@@ -240,6 +289,13 @@ describe('idempotency', () => {
     `Token ghp_${'x'.repeat(36)} and Authorization: Bearer abcdefghijklmnopqrstuvwxyz.`,
     'Email ops@mail.acme-int.net, AWS AKIAABCDEFGHIJKLMNOP, Bearer abcdefghijklmnopqrstuvwxyz0123',
   ].join('\n');
+
+  it('is a fixed point for emails and the new credential formats', () => {
+    const once = r('jane@acme-int.net PASSWORD=Sup3rS3cretValue glpat-abcdefghijklmnopqrst12').text;
+    const twice = redact(once, TERMS);
+    expect(twice.text).toBe(once);
+    expect(Object.values(twice.counts).every((c) => c === 0)).toBe(true);
+  });
 
   it('is a fixed point', () => {
     const once = r(sample);

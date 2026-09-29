@@ -23,6 +23,9 @@ export const INTERNAL_SUFFIXES = ['local', 'internal', 'corp', 'lan', 'intranet'
 const ORG_MARKER = '[org]';
 const SECRET_MARKER = '[redacted-secret]';
 const IP_MARKER = '[redacted-ip]';
+const EMAIL_MARKER = '[redacted-email]';
+// The local part of an email address, and where one may start.
+const EMAIL_LOCAL = '(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@';
 const PLACEHOLDER_DOMAIN = 'imagile.dev';
 
 // One DNS label. Used to build the host-shaped patterns below.
@@ -127,6 +130,21 @@ const SECRET_RULES = [
   { re: /\bAKIA[0-9A-Z]{16}\b/g, replace: () => SECRET_MARKER },
   // JWTs: three base64url segments, the header always starting `eyJ` (`{"`).
   { re: /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}/g, replace: () => SECRET_MARKER },
+  // Tokens the services pncli talks to issue, which users paste into bug reports.
+  { re: /\bATATT[A-Za-z0-9_=-]{20,}/g, replace: () => SECRET_MARKER }, // Atlassian API token
+  { re: /\bBBDC-[A-Za-z0-9+/_=-]{20,}/g, replace: () => SECRET_MARKER }, // Bitbucket Data Center
+  { re: /\bglpat-[A-Za-z0-9_-]{20,}/g, replace: () => SECRET_MARKER }, // GitLab
+  { re: /\bnpm_[A-Za-z0-9]{36,}\b/g, replace: () => SECRET_MARKER }, // npm
+  { re: /\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{20,}/g, replace: () => SECRET_MARKER }, // Anthropic / OpenAI
+  // PEM private-key blocks, whole.
+  { re: /-----BEGIN ([A-Z ]*)PRIVATE KEY-----[\s\S]*?-----END \1PRIVATE KEY-----/g, replace: () => SECRET_MARKER },
+  // `password=…`, `"token": "…"` and the like, as pasted from configs and env files. Keeps the key;
+  // skips values that are references rather than secrets (keychain:, ${{ … }}, $(…), <placeholder>,
+  // ***, process.env / env. lookups) and anything already redacted.
+  {
+    re: /(["']?\b(?:password|passwd|pwd|secret|client_secret|token|access_token|api[_-]?key|apikey|pat)\b["']?\s*[:=]\s*["']?)(?!\[redacted-secret\]|keychain:|<|\*|\$|%|process\.|env\.)([^\s"',;}]{8,})/gi,
+    replace: (_m, prefix) => `${prefix}${SECRET_MARKER}`,
+  },
 ];
 
 function applySecrets(text, counts) {
@@ -140,9 +158,21 @@ function applySecrets(text, counts) {
   return out;
 }
 
+/** `git@host:path` (and any `user@host:path`) is an SSH remote, not a person's address. */
+function isSshRemote(match, offset, whole) {
+  return /^git@/i.test(match) || whole[offset + match.length] === ':';
+}
+
 function applyDomains(text, domains, counts) {
   let out = text;
   for (const domain of domains) {
+    // An address at the domain names a person as well as the org — drop it whole.
+    const email = new RegExp(`${EMAIL_LOCAL}(?:${LABEL}\\.)*${escapeRegex(domain)}${HOST_END}`, 'gi');
+    out = out.replace(email, (m, offset, whole) => {
+      if (isSshRemote(m, offset, whole)) return m; // the host rule below still redacts the host
+      counts.domain++;
+      return EMAIL_MARKER;
+    });
     const re = new RegExp(
       `${HOST_START}((?:${LABEL}\\.)*)${escapeRegex(domain)}${HOST_END}`,
       'gi',
@@ -162,8 +192,18 @@ const INTERNAL_RE = new RegExp(
   'g',
 );
 
+const INTERNAL_EMAIL_RE = new RegExp(
+  `${EMAIL_LOCAL}(?:${LABEL}\\.)+(?:${INTERNAL_SUFFIXES.join('|')})${HOST_END}`,
+  'g',
+);
+
 function applyInternalHosts(text, counts) {
-  return text.replace(INTERNAL_RE, (match, prefix, _suffix, offset, whole) => {
+  const withoutEmails = text.replace(INTERNAL_EMAIL_RE, (m, offset, whole) => {
+    if (isSshRemote(m, offset, whole)) return m;
+    counts.internalHost++;
+    return EMAIL_MARKER;
+  });
+  return withoutEmails.replace(INTERNAL_RE, (match, prefix, _suffix, offset, whole) => {
     const labels = prefix.split('.').filter(Boolean).length;
     const before = whole.slice(Math.max(0, offset - 3), offset);
     const after = whole.slice(offset + match.length, offset + match.length + 2);
