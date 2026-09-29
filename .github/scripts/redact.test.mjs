@@ -483,3 +483,36 @@ describe('review follow-ups, round 2 (#504)', () => {
     expect(r('ssh admin@10.20.30.40 and root@192.168.1.5').text).toBe('ssh admin@[redacted-ip] and root@[redacted-ip]');
   });
 });
+
+describe('review follow-ups, round 3 (#504)', () => {
+  it('redacts the positional `config set <service>.<key> <value>` form', () => {
+    expect(r('pncli config set jira.apiToken NjE2MzQ1Njc4OTAxOkFiY2RlZmdo').text)
+      .toBe('pncli config set jira.apiToken [redacted-secret]');
+    expect(r('pncli config set bitbucket.pat MDAxNTMxNzk4MjQ0OhIcwvA9').text)
+      .toBe('pncli config set bitbucket.pat [redacted-secret]');
+    expect(r('pncli config set checkmarx.apiKey "eyJhbGciOiJIUzI1NiJ9.xxxxxxxxxx.yyyyyyyyyy"').text)
+      .toBe('pncli config set checkmarx.apiKey "[redacted-secret]"');
+    expect(r('pncli config set contrast.serviceKey A1B2C3D4E5F6').text)
+      .toBe('pncli config set contrast.serviceKey [redacted-secret]');
+    expect(r('pncli config set jira.apiToken abc123def456\npncli config set jira.baseUrl https://jira.imagile.dev').text)
+      .toBe('pncli config set jira.apiToken [redacted-secret]\npncli config set jira.baseUrl https://jira.imagile.dev');
+  });
+
+  it('leaves config set placeholders and non-secret keys alone', () => {
+    for (const text of [
+      'pncli config set confluence.apiToken <token>',
+      'pncli config set checkmarx.apiKey <api-key>',
+      'pncli config set jira.apiToken $PNCLI_JIRA_API_TOKEN',
+      'pncli config set jira.apiToken keychain:jira-token',
+      'pncli config set jira.baseUrl https://jira.imagile.dev',
+      'pncli config set checkmarx.tenantName imagile',
+      'pncli config set contrast.username you@example.com',
+    ])
+      expect(r(text).text, text).toBe(text);
+  });
+
+  it('is idempotent on the positional form', () => {
+    const once = r('pncli config set jira.apiToken NjE2MzQ1Njc4OTAxOkFiY2RlZmdo').text;
+    expect(r(once).text).toBe(once);
+  });
+});

@@ -183,6 +183,13 @@ const SECRET_RULES = [
     re: new RegExp(`((?<![A-Za-z0-9_-])--?(?:[A-Za-z0-9]+-)*(?:password|passwd|passcode|secret|token|api-?key|pat)(?:=|\\s+)["']?)${SECRET_VALUE}`, 'gi'),
     replace: (m, prefix, value) => (looksLikeSecretValue(value) ? `${prefix}${SECRET_MARKER}` : m),
   },
+  // The positional `pncli config set <service>.<key> <value>` form every service doc documents. The
+  // key has no `=`/`:` after it and no leading `-`, so neither rule above sees it. Jira/Confluence
+  // DC PATs, Checkmarx API keys and Contrast keys have no prefix rule to fall back on.
+  {
+    re: new RegExp(`(\\bconfig\\s+set\\s+\\S*?(?:token|pat|secret|password|passwd|passcode|api-?key|servicekey|secretkey|accesskey)\\s+["']?)${SECRET_VALUE}`, 'gi'),
+    replace: (m, prefix, value) => (looksLikeSecretValue(value) ? `${prefix}${SECRET_MARKER}` : m),
+  },
   // camelCase config keys — `"apiToken"`, `clientSecret`, `refreshToken`, `adminApiKey`, `serviceKey`
   // (the names in pncli's own config.json). Case-sensitive: the suffix must start a new word.
   {
