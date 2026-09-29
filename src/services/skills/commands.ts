@@ -1105,7 +1105,14 @@ function cloneOrReuseMarketplace(url: string, resolvedPath: string, opts: { bran
  * never lands in `.git/config` as part of `origin`. Non-HTTPS URLs (SSH) need no token.
  */
 function gitAuthFor(url: string | undefined, credential: MarketplaceAuth | null): { args: string[]; env: NodeJS.ProcessEnv } {
-  return credential && httpHostOf(url) ? inlineCredentialArgs(credential.username, credential.password) : { args: [], env: {} };
+  if (!credential || !httpHostOf(url)) return { args: [], env: {} };
+  // bitbucket.pat / ado.pat are new fallbacks. Before them, a Bitbucket or Azure DevOps marketplace
+  // with no --token was cloned with the user's own git credentials — keep those first so a setup
+  // that works today (e.g. a Bitbucket Data Center login in Git Credential Manager) cannot break;
+  // the fallback only fills in where git had nothing. An explicit --token and the github.token
+  // fallback keep their long-standing precedence over the user's helpers.
+  const afterUserHelpers = credential.source === 'bitbucket.pat' || credential.source === 'ado.pat';
+  return inlineCredentialArgs(credential.username, credential.password, { afterUserHelpers });
 }
 
 /** Rewrites a clone's `origin` to `plainUrl`. Best-effort: a failure here must not fail the add. */
