@@ -14,7 +14,9 @@ import {
   setAtPath,
   resetKeychainCache,
   purgeEntries,
+  storeVerified,
   KeychainError,
+  KeychainBatchError,
 } from '../../lib/keychain.js';
 import type { KeychainBackend } from '../../lib/keychain.js';
 import type { GlobalConfig } from '../../types/config.js';
@@ -145,9 +147,7 @@ export function migrateSecrets(config: Record<string, unknown>, backend: Keychai
     const entry = { path: secret.path.join('.'), account };
     if (dryRun) { migrated.push(entry); continue; }
     try {
-      backend.set(account, secret.value);
-      const readBack = backend.getMany([account])[account];
-      if (readBack !== secret.value) throw new KeychainError('read-back did not match what was stored');
+      storeVerified(backend, account, secret.value);
       setAtPath(config, secret.path, keychainRef(account));
       migrated.push(entry);
     } catch (err) {
@@ -198,6 +198,8 @@ Set PNCLI_KEYCHAIN_BACKEND=none to ignore references entirely (e.g. on a CI runn
           try {
             lookups = backend.getMany([...new Set(refs.map(r => accountFromRef(r.value)))]);
           } catch (err) {
+            // A partial failure still reports every readable reference correctly.
+            if (err instanceof KeychainBatchError) lookups = err.partial;
             lookupError = err instanceof Error ? err.message : String(err);
           }
         }
@@ -208,7 +210,7 @@ Set PNCLI_KEYCHAIN_BACKEND=none to ignore references entirely (e.g. on a CI runn
           available,
           references: refs.map(r => {
             const account = r.value.slice('keychain:'.length);
-            return { path: r.path.join('.'), account, resolves: available && !lookupError ? lookups[account] != null : false };
+            return { path: r.path.join('.'), account, resolves: available ? lookups[account] != null : false };
           }),
           lookupError,
           plaintextSecrets: plaintext,
@@ -238,7 +240,7 @@ Set PNCLI_KEYCHAIN_BACKEND=none to ignore references entirely (e.g. on a CI runn
         const account = cmdOpts.account ?? accountForPath(raw, segments);
         const secret = await readSecret(key, cmdOpts);
         const backend = getKeychainBackend();
-        backend.set(account, secret);
+        storeVerified(backend, account, secret);
         setAtPath(raw, segments, keychainRef(account));
         writeGlobalConfig(raw as GlobalConfig, opts.config);
         resetKeychainCache();

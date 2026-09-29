@@ -16,6 +16,8 @@ import {
   resetKeychainCache,
   WINDOWS_CREDMAN_SCRIPT,
   KeychainError,
+  KeychainBatchError,
+  storeVerified,
 } from './keychain.js';
 import type { Runner, RunResult, KeychainBackend } from './keychain.js';
 
@@ -235,5 +237,47 @@ describe('resolveSecretValue', () => {
     expect(resolveSecretValue('plain', backend)).toBe('plain');
     expect(resolveSecretValue(undefined, backend)).toBeUndefined();
     expect(resolveSecretValue('keychain:marketplaces.x.token', backend)).toBe('tok');
+  });
+});
+
+describe('review follow-ups', () => {
+  it('macOS: one locked entry does not hide the entries that were readable', () => {
+    const { run } = recordingRunner((_c, args) => args.includes('splitio.adminApiKey')
+      ? { status: 51, stdout: '', stderr: 'User interaction is not allowed.' }
+      : ok('gh-secret\n'));
+    let caught: unknown;
+    try { macosBackend(run).getMany(['github.token', 'splitio.adminApiKey']); } catch (err) { caught = err; }
+    expect(caught).toBeInstanceOf(KeychainBatchError);
+    expect((caught as KeychainBatchError).partial).toEqual({ 'github.token': 'gh-secret' });
+    expect(Object.keys((caught as KeychainBatchError).errors)).toEqual(['splitio.adminApiKey']);
+  });
+
+  it('resolveKeychainRefs keeps readable secrets when only some accounts fail', () => {
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const partialBackend: KeychainBackend = {
+      ...memoryBackend({}),
+      getMany: () => { throw new KeychainBatchError({ 'github.token': 'gh-secret' }, { 'splitio.key': 'access denied' }); },
+    };
+    const out = resolveKeychainRefs({ github: { token: 'keychain:github.token' }, splitio: { adminApiKey: 'keychain:splitio.key' } }, partialBackend);
+    expect(out.github.token).toBe('gh-secret');
+    expect(out.splitio.adminApiKey).toBeUndefined();
+    expect(getUnresolvedKeychainRefs()).toEqual([{ path: 'splitio.adminApiKey', account: 'splitio.key', reason: 'access denied' }]);
+    stderr.mockRestore();
+  });
+
+  it('never looks up a reference an env var overrides', () => {
+    const backend = memoryBackend({ 'github.token': 'x' });
+    const out = resolveKeychainRefs({ github: { token: 'keychain:github.token' } }, backend, { skipPaths: new Set(['github.token']) });
+    expect(backend.getManyCalls).toEqual([]);
+    expect(out.github.token).toBeUndefined();
+    expect(getUnresolvedKeychainRefs()).toEqual([]);
+  });
+
+  it('storeVerified refuses when the read-back does not match', () => {
+    const store: Record<string, string> = {};
+    const lossy: KeychainBackend = { ...memoryBackend(store), set: () => {} };
+    expect(() => storeVerified(lossy, 'github.token', 'secret')).toThrow(/did not return the same secret/);
+    storeVerified(memoryBackend(store), 'github.token', 'secret');
+    expect(store['github.token']).toBe('secret');
   });
 });

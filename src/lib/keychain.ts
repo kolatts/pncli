@@ -54,6 +54,31 @@ export interface KeychainBackend {
 
 export class KeychainError extends Error {}
 
+/**
+ * Some accounts in a batch lookup failed (locked item, access denied) while others were read. The
+ * readable ones are in `partial`, so one bad entry never takes every other reference down with it.
+ */
+export class KeychainBatchError extends KeychainError {
+  constructor(public partial: Record<string, string | null>, public errors: Record<string, string>) {
+    super(Object.entries(errors).map(([a, e]) => `${a}: ${e}`).join('; '));
+  }
+}
+
+/** Runs a per-account lookup, collecting failures instead of stopping at the first one. */
+function lookupEach(accounts: string[], lookup: (account: string) => string | null): Record<string, string | null> {
+  const out: Record<string, string | null> = {};
+  const errors: Record<string, string> = {};
+  for (const account of accounts) {
+    try {
+      out[account] = lookup(account);
+    } catch (err) {
+      errors[account] = err instanceof Error ? err.message : String(err);
+    }
+  }
+  if (Object.keys(errors).length > 0) throw new KeychainBatchError(out, errors);
+  return out;
+}
+
 export function isKeychainRef(value: unknown): value is string {
   return typeof value === 'string' && value.startsWith(KEYCHAIN_PREFIX);
 }
@@ -96,16 +121,14 @@ export function macosBackend(run: Runner = defaultRunner): KeychainBackend {
       return !r.error;
     },
     getMany(accounts) {
-      const out: Record<string, string | null> = {};
-      for (const account of accounts) {
+      return lookupEach(accounts, account => {
         assertValidAccount(account);
         const r = run('security', ['find-generic-password', '-s', KEYCHAIN_SERVICE, '-a', account, '-w']);
         // 44 = errSecItemNotFound
-        if (r.status === 44) { out[account] = null; continue; }
+        if (r.status === 44) return null;
         if (r.status !== 0) throw failure('macOS Keychain', `read "${account}"`, r);
-        out[account] = r.stdout.replace(/\r?\n$/, '');
-      }
-      return out;
+        return r.stdout.replace(/\r?\n$/, '');
+      });
     },
     set(account, secret) {
       assertValidAccount(account);
@@ -319,16 +342,14 @@ export function linuxBackend(run: Runner = defaultRunner): KeychainBackend {
       return !r.error;
     },
     getMany(accounts) {
-      const out: Record<string, string | null> = {};
-      for (const account of accounts) {
+      return lookupEach(accounts, account => {
         assertValidAccount(account);
         const r = run('secret-tool', ['lookup', 'service', KEYCHAIN_SERVICE, 'account', account]);
         if (r.error) throw failure('Secret Service', `read "${account}"`, r);
         // secret-tool exits 1 with empty output when nothing matches.
-        if (r.status !== 0) { out[account] = null; continue; }
-        out[account] = r.stdout.replace(/\r?\n$/, '');
-      }
-      return out;
+        if (r.status !== 0) return null;
+        return r.stdout.replace(/\r?\n$/, '');
+      });
     },
     set(account, secret) {
       assertValidAccount(account);
@@ -490,11 +511,19 @@ export function resetKeychainCache(): void {
  * service that needs it reports "not configured" instead of sending the literal `keychain:...`
  * string as a credential. A single stderr warning names the refs; doctor reports them in detail.
  */
-export function resolveKeychainRefs<T>(config: T, backend?: KeychainBackend): T {
-  const refs = findKeychainRefs(config);
-  if (refs.length === 0) return config;
+export function resolveKeychainRefs<T>(config: T, backend?: KeychainBackend, opts: { skipPaths?: Set<string> } = {}): T {
+  const all = findKeychainRefs(config);
+  if (all.length === 0) return config;
 
   const copy = JSON.parse(JSON.stringify(config)) as Record<string, unknown>;
+  // A field an env var overrides is never used, so never ask the OS store for it — no process spawn
+  // on a CI runner that inherited a developer's config, and no warning about a value nobody reads.
+  const refs = all.filter(r => {
+    if (!opts.skipPaths?.has(r.path.join('.'))) return true;
+    setAtPath(copy, r.path, undefined);
+    return false;
+  });
+  if (refs.length === 0) return copy as T;
   const unresolved: UnresolvedRef[] = [];
   const accounts = new Map<string, (string | number)[][]>();
   for (const ref of refs) {
@@ -523,14 +552,22 @@ export function resolveKeychainRefs<T>(config: T, backend?: KeychainBackend): T 
 
   const missing = [...accounts.keys()].filter(a => !resolvedCache.has(a));
   if (missing.length > 0) {
+    let failed: Record<string, string> = {};
     try {
       const found = activeBackend.getMany(missing);
       for (const a of missing) resolvedCache.set(a, found[a] ?? null);
     } catch (err) {
-      for (const [account, paths] of accounts) {
-        if (resolvedCache.has(account)) continue;
-        for (const p of paths) unresolved.push({ path: p.join('.'), account, reason: (err as Error).message });
+      if (err instanceof KeychainBatchError) {
+        // Keep what was readable; only the accounts that actually failed are unresolved.
+        for (const a of missing) if (!(a in err.errors)) resolvedCache.set(a, err.partial[a] ?? null);
+        failed = err.errors;
+      } else {
+        failed = Object.fromEntries(missing.map(a => [a, (err as Error).message]));
       }
+    }
+    for (const [account, paths] of accounts) {
+      if (resolvedCache.has(account) || !(account in failed)) continue;
+      for (const p of paths) unresolved.push({ path: p.join('.'), account, reason: failed[account]! });
     }
   }
 
@@ -552,6 +589,21 @@ export function resolveKeychainRefs<T>(config: T, backend?: KeychainBackend): T 
     process.stderr.write(`Warning: ${unresolved.length} keychain reference(s) could not be resolved (${unresolved.map(u => u.path).join(', ')}). Run: pncli doctor\n`);
   }
   return copy as T;
+}
+
+/**
+ * Stores a secret and reads it back before returning — the caller only then points config at it,
+ * so a backend that silently drops writes can never leave a reference that resolves to nothing.
+ */
+export function storeVerified(backend: KeychainBackend, account: string, secret: string): void {
+  backend.set(account, secret);
+  let readBack: string | null | undefined;
+  try {
+    readBack = backend.getMany([account])[account];
+  } catch (err) {
+    throw new KeychainError(`Stored "${account}" but could not read it back to verify: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  if (readBack !== secret) throw new KeychainError(`Stored "${account}" but reading it back did not return the same secret — config was not changed.`);
 }
 
 /** Resolves a single value that may be a keychain reference (e.g. a marketplace token read from raw config). */

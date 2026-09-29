@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { maskConfig, loadConfig, setConfigValue, setRepoConfigValue } from './config.js';
+import { maskConfig, loadConfig, setConfigValue, setRepoConfigValue, envOverriddenSecretPaths } from './config.js';
 import type { ResolvedConfig } from '../types/config.js';
 import { PncliError } from './errors.js';
 import { resetKeychainCache } from './keychain.js';
@@ -727,5 +727,32 @@ describe('loadConfig — keychain references', () => {
     process.env['PNCLI_GITHUB_TOKEN'] = 'from-env';
     fs.writeFileSync(globalConfigPath, JSON.stringify({ github: { token: 'keychain:github.token' } }));
     expect(loadConfig({ configPath: globalConfigPath }).github.token).toBe('from-env');
+  });
+});
+
+describe('envOverriddenSecretPaths', () => {
+  it('lists secret fields an env var (PNCLI_* or CI fallback) is overriding', () => {
+    expect([...envOverriddenSecretPaths({ PNCLI_JIRA_API_TOKEN: 'x', GITHUB_TOKEN: 'y', SYSTEM_ACCESSTOKEN: 'z' })].sort())
+      .toEqual(['ado.pat', 'github.token', 'jira.apiToken']);
+    expect(envOverriddenSecretPaths({}).size).toBe(0);
+  });
+
+  it('loadConfig does not touch the keychain for a field an env var overrides', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-kc-skip-'));
+    const { execSync } = await import('child_process');
+    vi.mocked(execSync).mockReturnValue(dir as unknown as ReturnType<typeof execSync>);
+    resetKeychainCache();
+    // An unknown backend throws the moment the keychain is consulted — so a clean load proves it was not.
+    process.env['PNCLI_KEYCHAIN_BACKEND'] = 'not-a-backend';
+    process.env['PNCLI_GITHUB_TOKEN'] = 'from-env';
+    try {
+      const configPath = path.join(dir, 'config.json');
+      fs.writeFileSync(configPath, JSON.stringify({ github: { token: 'keychain:github.token' } }));
+      expect(loadConfig({ configPath }).github.token).toBe('from-env');
+    } finally {
+      delete process.env['PNCLI_KEYCHAIN_BACKEND'];
+      delete process.env['PNCLI_GITHUB_TOKEN'];
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
