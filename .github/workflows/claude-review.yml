@@ -61,6 +61,15 @@ jobs:
       # The reviewer can run the same gate CI runs (#508). Without this it reviewed
       # regexes by reading them, asked the author to "confirm CI is green", and
       # each guess cost a round.
+      #
+      # Trade-off, accepted: `npm ci` here runs the PR head's lifecycle scripts
+      # (it already did in the feedback workflow), and `npm test` inside the
+      # Claude step runs PR test code with the OAuth token and github.token in
+      # the process env. The `head.repo.fork == false` guard above scopes that to
+      # same-repo heads — people with push access, triage's own branches, and the
+      # feedback agent — so it is the same trust we already extend to the feedback
+      # loop. A PR whose install fails gets no review until that is fixed; the
+      # failed job says so.
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:

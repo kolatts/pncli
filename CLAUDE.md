@@ -59,9 +59,21 @@ left for a person, which defeated the loop for exactly the code this repo's
 automation is made of. The prompt keeps the security-relevant surfaces fixed
 regardless of what a review asks for: `on:` triggers, the actor allowlists in job
 `if:` conditions, `allowed_bots`, `permissions:` blocks, `permission-*` inputs on
-token-minting steps, and anything touching a secret. The `lint workflows` CI job
-runs actionlint on each push, so a malformed edit fails the round rather than
-shipping. Triage keeps the old restriction: its input is anonymous website text.
+token-minting steps, anything touching a secret, `uses:` version pins, and the
+Claude steps' own `prompt:` and `claude_args` tool allowlists — the agent does not
+edit the rules that constrain it. That list matters because the review-event path
+runs the workflow from the PR's merge ref, so an agent edit to the workflow is live
+on that PR's next round before a human merges it. The boundary is the reviewer
+allowlist plus that prompt; the `lint workflows` CI job's actionlint only catches a
+malformed edit, not a widened rule. Triage keeps the old restriction: its input is
+anonymous website text.
+
+`claude-review.yml` installs dependencies and may run `npm test`, `npx vitest run`,
+`npm run typecheck` and `npm run lint`, so a finding about a regex or parser is
+backed by an input it actually ran rather than a guess that costs a round. That
+executes PR-head code inside the secret-bearing review step; it is accepted for
+same-repo heads (the job has a fork guard), and it means a PR whose `npm ci` fails
+gets no review until the install is fixed.
 
 Automated reviews come from `claude-review.yml`, which submits formal reviews as
 `github-actions[bot]` using the workflow's own `GITHUB_TOKEN`. Because default-token
