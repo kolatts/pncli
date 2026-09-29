@@ -88,6 +88,16 @@ export function parseTerms(text) {
       terms.words.push(line);
     }
   }
+  // A term that matches the redactor's own output would rewrite it on every run (`org` turns `[org]`
+  // into `[[org]]`), so it can never reach a fixed point. Such entries are rejected and counted.
+  const markers = [ORG_MARKER, SECRET_MARKER, IP_MARKER, EMAIL_MARKER, `redacted.${PLACEHOLDER_DOMAIN}`,
+    ...[...KNOWN_SERVICE_LABELS].map((l) => `${l}.${PLACEHOLDER_DOMAIN}`)].join(' ');
+  const collides = (w) => wordRegex(w, 'i').test(markers);
+  const keptWords = terms.words.filter((w) => !collides(w));
+  const keptDomains = terms.domains.filter((d) => !collides(d));
+  terms.invalid += terms.words.length - keptWords.length + terms.domains.length - keptDomains.length;
+  terms.words = keptWords;
+  terms.domains = keptDomains;
   // Longest first, so `acme-int.net` is not pre-empted by a shorter overlapping entry.
   terms.domains.sort((a, b) => b.length - a.length);
   terms.words.sort((a, b) => b.length - a.length);
@@ -104,6 +114,11 @@ function placeholderHost(fullHost, isApex) {
   if (!isApex && KNOWN_SERVICE_LABELS.has(first)) return `${first}.${PLACEHOLDER_DOMAIN}`;
   return `redacted.${PLACEHOLDER_DOMAIN}`;
 }
+
+// The value half of a key/value secret: 8+ characters, not a reference to a secret stored elsewhere
+// (keychain:, ${{ … }}, $(…) / $VAR, %VAR%, <placeholder>, ***, process.env / env. lookups), and not
+// something an earlier rule already redacted.
+const SECRET_VALUE = '(?!\\[redacted-secret\\]|keychain:|<|\\*|\\$|%|process\\.|env\\.)([^\\s"\',;}]{8,})';
 
 const SECRET_RULES = [
   // `https://user:password@host` -> keep scheme and host, drop the userinfo.
@@ -138,11 +153,20 @@ const SECRET_RULES = [
   { re: /\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{20,}/g, replace: () => SECRET_MARKER }, // Anthropic / OpenAI
   // PEM private-key blocks, whole.
   { re: /-----BEGIN ([A-Z ]*)PRIVATE KEY-----[\s\S]*?-----END \1PRIVATE KEY-----/g, replace: () => SECRET_MARKER },
-  // `password=…`, `"token": "…"` and the like, as pasted from configs and env files. Keeps the key;
-  // skips values that are references rather than secrets (keychain:, ${{ … }}, $(…), <placeholder>,
-  // ***, process.env / env. lookups) and anything already redacted.
+  // SonarQube user/project/global tokens and Dynatrace tokens — services pncli ships.
+  { re: /\bsq[upa]_[a-f0-9]{40}\b/g, replace: () => SECRET_MARKER },
+  { re: /\bdt0[a-z]\d{2}\.[A-Za-z0-9]{24}\.[A-Za-z0-9]{40,}/g, replace: () => SECRET_MARKER },
+  // `password=…`, `"token": "…"` and the like, as pasted from configs and env files — including
+  // prefixed env names (`PNCLI_JIRA_API_TOKEN=…`, `export PNCLI_BITBUCKET_PAT="…"`), matched by the
+  // key's *suffix*. Keeps the key; skips references rather than secrets (see SECRET_VALUE).
   {
-    re: /(["']?\b(?:password|passwd|pwd|secret|client_secret|token|access_token|api[_-]?key|apikey|pat)\b["']?\s*[:=]\s*["']?)(?!\[redacted-secret\]|keychain:|<|\*|\$|%|process\.|env\.)([^\s"',;}]{8,})/gi,
+    re: new RegExp(`((?<![A-Za-z0-9_-])["']?(?:[A-Za-z0-9]+[_-])*(?:password|passwd|pwd|passcode|secret|token|api[_-]?key|apikey|pat)["']?\\s*[:=]\\s*["']?)${SECRET_VALUE}`, 'gi'),
+    replace: (_m, prefix) => `${prefix}${SECRET_MARKER}`,
+  },
+  // camelCase config keys — `"apiToken"`, `clientSecret`, `refreshToken`, `adminApiKey`, `serviceKey`
+  // (the names in pncli's own config.json). Case-sensitive: the suffix must start a new word.
+  {
+    re: new RegExp(`((?<![A-Za-z0-9_-])["']?(?:[a-z][A-Za-z0-9]*(?:Token|Secret|Password|Passcode|ApiKey|ServiceKey|Pat)|serviceKey)["']?\\s*[:=]\\s*["']?)${SECRET_VALUE}`, 'g'),
     replace: (_m, prefix) => `${prefix}${SECRET_MARKER}`,
   },
 ];
@@ -158,9 +182,12 @@ function applySecrets(text, counts) {
   return out;
 }
 
-/** `git@host:path` (and any `user@host:path`) is an SSH remote, not a person's address. */
-function isSshRemote(match, offset, whole) {
-  return /^git@/i.test(match) || whole[offset + match.length] === ':';
+/**
+ * `git@host:path` is an SSH remote, not a person's address, so it keeps the user. Nothing else is
+ * exempt: `ssh://jdoe@host:7999` or `jdoe@host:path` carry a personal user ID.
+ */
+function isSshRemote(match) {
+  return /^git@/i.test(match);
 }
 
 function applyDomains(text, domains, counts) {
@@ -168,8 +195,8 @@ function applyDomains(text, domains, counts) {
   for (const domain of domains) {
     // An address at the domain names a person as well as the org — drop it whole.
     const email = new RegExp(`${EMAIL_LOCAL}(?:${LABEL}\\.)*${escapeRegex(domain)}${HOST_END}`, 'gi');
-    out = out.replace(email, (m, offset, whole) => {
-      if (isSshRemote(m, offset, whole)) return m; // the host rule below still redacts the host
+    out = out.replace(email, (m) => {
+      if (isSshRemote(m)) return m; // the host rule below still redacts the host
       counts.domain++;
       return EMAIL_MARKER;
     });
@@ -198,8 +225,8 @@ const INTERNAL_EMAIL_RE = new RegExp(
 );
 
 function applyInternalHosts(text, counts) {
-  const withoutEmails = text.replace(INTERNAL_EMAIL_RE, (m, offset, whole) => {
-    if (isSshRemote(m, offset, whole)) return m;
+  const withoutEmails = text.replace(INTERNAL_EMAIL_RE, (m) => {
+    if (isSshRemote(m)) return m;
     counts.internalHost++;
     return EMAIL_MARKER;
   });
@@ -227,8 +254,13 @@ function isPrivateIpv4(a, b) {
 }
 
 function applyPrivateIps(text, counts) {
-  return text.replace(PRIVATE_IP_RE, (match, ...octets) => {
-    const n = octets.slice(0, 4).map(Number);
+  return text.replace(PRIVATE_IP_RE, (match, ...rest) => {
+    const octets = rest.slice(0, 4);
+    const offset = rest[4];
+    const whole = rest[5];
+    // `v10.0.0.1`, `version 10.0.0.0`, `pkg@10.0.0.1` are versions, not addresses.
+    if (/(?:\bv|\b(?:version|ver|release)\s*[:=]?\s*|@)$/i.test(whole.slice(Math.max(0, offset - 10), offset))) return match;
+    const n = octets.map(Number);
     if (n.some((o) => o > 255)) return match;
     if (!isPrivateIpv4(n[0], n[1])) return match;
     counts.privateIp++;
@@ -236,15 +268,28 @@ function applyPrivateIps(text, counts) {
   });
 }
 
+const ANY_EMAIL_RE = new RegExp(`${EMAIL_LOCAL}((?:${LABEL}\\.)+${LABEL})`, 'g');
+
+function wordRegex(word, flags = 'gi') {
+  // Word boundaries on identifier characters, so a short term never matches inside a longer name
+  // (`acm` must not hit `acmcli` or `acme`), while `ACM's`, `acm-internal`, and `(acm)` all match.
+  const body = escapeRegex(word).replace(/\s+/g, '\\s+');
+  return new RegExp(`(?<![A-Za-z0-9_])${body}(?![A-Za-z0-9_])`, flags);
+}
+
 function applyWords(text, words, regexes, counts) {
-  let out = text;
+  // An address whose host names the org (`jane.doe@acmebank.com` with `acmebank` as a word) names a
+  // person too — drop it whole before the word pass would leave `jane.doe@[org].com`.
+  let out = text.replace(ANY_EMAIL_RE, (m, host) => {
+    if (isSshRemote(m)) return m;
+    const hit = words.some((w) => wordRegex(w, 'i').test(host))
+      || regexes.some((re) => { re.lastIndex = 0; const r = re.test(host); re.lastIndex = 0; return r; });
+    if (!hit) return m;
+    counts.org++;
+    return EMAIL_MARKER;
+  });
   for (const word of words) {
-    // Word boundaries on identifier characters, so a short term never matches
-    // inside a longer name (`acm` must not hit `acmcli` or `acme`), while
-    // `ACM's`, `acm-internal`, and `(acm)` all match.
-    const body = escapeRegex(word).replace(/\s+/g, '\\s+');
-    const re = new RegExp(`(?<![A-Za-z0-9_])${body}(?![A-Za-z0-9_])`, 'gi');
-    out = out.replace(re, () => {
+    out = out.replace(wordRegex(word), () => {
       counts.org++;
       return ORG_MARKER;
     });

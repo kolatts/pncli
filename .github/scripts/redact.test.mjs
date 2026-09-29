@@ -382,3 +382,57 @@ describe('CLI', () => {
     expect(stderr).not.toContain('acmebank');
   });
 });
+
+describe('review follow-ups (#504)', () => {
+  it('redacts pncli env vars and other prefixed keys by their suffix', () => {
+    expect(r('PNCLI_JIRA_API_TOKEN=NjE2ODg4MDk1MzQ3OmRldmVsb3Blcg').text).toBe('PNCLI_JIRA_API_TOKEN=[redacted-secret]');
+    expect(r('export PNCLI_BITBUCKET_PAT="BBZdmVsb3Blcjo5ODc2NTQzMjE"').text).toBe('export PNCLI_BITBUCKET_PAT="[redacted-secret]"');
+    expect(r('JIRA_TOKEN=abcdef1234567890').text).toBe('JIRA_TOKEN=[redacted-secret]');
+    expect(r('PNCLI_SONATYPEIQ_PASSCODE=qwertyuiop123').text).toBe('PNCLI_SONATYPEIQ_PASSCODE=[redacted-secret]');
+  });
+
+  it('redacts camelCase keys from pncli config.json', () => {
+    for (const key of ['apiToken', 'clientSecret', 'refreshToken', 'platformToken', 'adminApiKey', 'serviceKey']) {
+      expect(r(`{ "${key}": "NjE2ODg4MDk1MzQ3" }`).text, key).toBe(`{ "${key}": "[redacted-secret]" }`);
+    }
+  });
+
+  it('leaves non-secret keys that merely contain a secret word alone', () => {
+    for (const text of ['"tokenSource": "fallback-value"', 'JIRA_TOKEN_URL=https://jira.imagile.dev/x', '"primaryKey": "user_id_abcdefgh"', 'patch=abcdefghijk'])
+      expect(r(text).text, text).toBe(text);
+  });
+
+  it('redacts SonarQube and Dynatrace tokens by prefix', () => {
+    expect(r('squ_0123456789abcdef0123456789abcdef01234567 ok').text).toBe('[redacted-secret] ok');
+    expect(r('dt0c01.ABCDEFGHIJKLMNOPQRSTUVWX.' + 'A'.repeat(64)).text).toBe('[redacted-secret]');
+  });
+
+  it('drops an address whose host contains a word-only term', () => {
+    const words = parseTerms('acmebank');
+    expect(redact('mail jane.doe@acmebank.com or ops@it.acmebank.co.uk', words).text).toBe('mail [redacted-email] or [redacted-email]');
+    expect(redact('git@acmebank.com:team/repo.git', words).text).toBe('git@[org].com:team/repo.git');
+    const re = parseTerms('re:/acme[- ]?corp/i');
+    expect(redact('bob@acme-corp.io', re).text).toBe('[redacted-email]');
+  });
+
+  it('only exempts git@ as an SSH user; other user IDs are dropped', () => {
+    expect(r('ssh://jdoe@bitbucket.acme-int.net:7999/proj/repo.git').text).toBe('ssh://[redacted-email]:7999/proj/repo.git');
+    expect(r('Contact: jane.doe@acme-int.net: thanks').text).toBe('Contact: [redacted-email]: thanks');
+    expect(r('ssh://git@bitbucket.acme-int.net:7999/proj/repo.git').text).toBe('ssh://git@bitbucket.imagile.dev:7999/proj/repo.git');
+  });
+
+  it('rejects terms that collide with the redactor\'s own markers, keeping reruns stable', () => {
+    const t = parseTerms('org\ndev\nsecret\njira\nimagile.dev\nacmebank');
+    expect(t.words).toEqual(['acmebank']);
+    expect(t.domains).toEqual([]);
+    expect(t.invalid).toBe(5);
+    const once = redact('acmebank [org] jira.imagile.dev', t).text;
+    expect(redact(once, t).text).toBe(once);
+  });
+
+  it('does not treat version strings as private IPs', () => {
+    for (const text of ['upgraded to v10.0.0.1', 'version 10.0.0.0', 'Version: 10.0.0.0', 'npm i pkg@10.0.0.4'])
+      expect(r(text).text, text).toBe(text);
+    expect(r('host at 10.0.0.12 was down').text).toBe('host at [redacted-ip] was down');
+  });
+});
