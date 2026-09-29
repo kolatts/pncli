@@ -63,7 +63,9 @@ token-minting steps, anything touching a secret, `uses:` version pins, and the
 Claude steps' own `prompt:` and `claude_args` tool allowlists — the agent does not
 edit the rules that constrain it. That list matters because the review-event path
 runs the workflow from the PR's merge ref, so an agent edit to the workflow is live
-on that PR's next round before a human merges it. The boundary is the reviewer
+on that PR's next round before a human merges it. The agent's own push also fires
+`synchronize`, so `claude-review.yml` (with `CLAUDE_CODE_OAUTH_TOKEN`) and `ci.yml`
+run from the merge ref immediately, without waiting for another review. The boundary is the reviewer
 allowlist plus that prompt; the `lint workflows` CI job's actionlint only catches a
 malformed edit, not a widened rule. Triage keeps the old restriction: its input is
 anonymous website text.
