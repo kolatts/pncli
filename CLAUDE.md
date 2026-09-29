@@ -52,6 +52,39 @@ on any open same-repo PR by implementing the requested changes and **pushing
 directly to the PR's source branch**. This applies to human-authored branches, not
 just automation-authored ones.
 
+`.github/` is in scope for that agent on maintainer PRs, workflows included: the
+token it holds is minted with `workflows: write` (#508). Before that, every review
+round on code under `.github/` (the redactor in #504 took five) was declined as
+"maintainer-only" and left for a person, which defeated the loop for exactly the
+code this repo's automation is made of. The grant is gated on the head branch, not
+blanket: on triage PRs (`claude/issue-*`, written by an agent from anonymous
+website text) the workflows-scoped mint is skipped, the agent falls back to the
+plain token, and `.github/` stays off limits as before. That gate is a branch-prefix
+check rather than a prompt rule because the agent has Edit/Write plus `npm test`,
+and checkout persists its token into `.git/config`, so a prompt cannot bound what
+the code it writes and runs can do with the credential. The prompt keeps the
+security-relevant surfaces fixed regardless of what a review asks for: `on:`
+triggers, the actor allowlists in job `if:` conditions, `allowed_bots`,
+`permissions:` blocks, `permission-*` inputs on token-minting steps, anything
+touching a secret, `uses:` version pins, the Claude steps' own `prompt:` and
+`claude_args` tool allowlists, and any new `run:` step in a `claude-*.yml` workflow
+— the agent does not edit the rules that constrain it. That list matters because
+the window is wider than one review round: the agent's push fires `synchronize`, so
+every `pull_request`-triggered workflow (`claude-review.yml`, which holds
+`CLAUDE_CODE_OAUTH_TOKEN` and an `actions: write` token, and `ci.yml`) runs from
+the PR's merge ref immediately, and the `pull_request_review` path runs the
+feedback workflow itself from the merge ref on the next round, all before a human
+merges anything. The boundary is the reviewer allowlist plus that prompt; the `lint
+workflows` CI job's actionlint only catches a malformed edit, not a widened rule.
+Triage's own token keeps the old restriction for the same reason.
+
+`claude-review.yml` installs dependencies and may run `npm test`, `npx vitest run`,
+`npm run typecheck` and `npm run lint`, so a finding about a regex or parser is
+backed by an input it actually ran rather than a guess that costs a round. That
+executes PR-head code inside the secret-bearing review step; it is accepted for
+same-repo heads (the job has a fork guard), and it means a PR whose `npm ci` fails
+gets no review until the install is fixed.
+
 Automated reviews come from `claude-review.yml`, which submits formal reviews as
 `github-actions[bot]` using the workflow's own `GITHUB_TOKEN`. Because default-token
 events never trigger other workflows, that workflow explicitly dispatches
