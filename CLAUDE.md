@@ -52,6 +52,17 @@ on any open same-repo PR by implementing the requested changes and **pushing
 directly to the PR's source branch**. This applies to human-authored branches, not
 just automation-authored ones.
 
+`.github/` is in scope for that agent, workflows included: its App token is minted
+with `workflows: write` (#508). Before that, every review round on code under
+`.github/` (the redactor in #504 took five) was declined as "maintainer-only" and
+left for a person, which defeated the loop for exactly the code this repo's
+automation is made of. The prompt keeps the security-relevant surfaces fixed
+regardless of what a review asks for: `on:` triggers, the actor allowlists in job
+`if:` conditions, `allowed_bots`, `permissions:` blocks, `permission-*` inputs on
+token-minting steps, and anything touching a secret. The `lint workflows` CI job
+runs actionlint on each push, so a malformed edit fails the round rather than
+shipping. Triage keeps the old restriction: its input is anonymous website text.
+
 Automated reviews come from `claude-review.yml`, which submits formal reviews as
 `github-actions[bot]` using the workflow's own `GITHUB_TOKEN`. Because default-token
 events never trigger other workflows, that workflow explicitly dispatches

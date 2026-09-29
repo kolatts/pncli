@@ -58,6 +58,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      # The reviewer can run the same gate CI runs (#508). Without this it reviewed
+      # regexes by reading them, asked the author to "confirm CI is green", and
+      # each guess cost a round.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Claude Code Review
         uses: anthropics/claude-code-action@v1.0.236
         with:
@@ -113,6 +124,14 @@ jobs:
             Leave inline comments on specific lines and a top-level summary.
             Skip nitpicks; prioritize substantive feedback.
 
+            **Run, don't guess.** Dependencies are installed. Before claiming that an
+            input slips past a regex, a parser, or a config resolver, run it: `npm test`,
+            or `npx vitest run <file>` for one suite, and `npm run typecheck` / `npm run
+            lint` when the change could affect them. A finding backed by a failing input
+            you actually ran is worth a round; one that starts "I couldn't run vitest"
+            usually costs one. Do not ask the author to confirm CI is green — the CI
+            checks on the PR already say so.
+
             **When you are done, submit a formal GitHub review.** Prefer the MCP tool
             `mcp__github__create_and_submit_pull_request_review` (owner/repo/pullNumber from
             the header above) with event `APPROVE` if no substantive issues were found, or
@@ -147,7 +166,7 @@ jobs:
           # headless mode that exits the process, kills the subagents, and the
           # formal review is never submitted — the job still reads green (#500).
           claude_args: |
-            --model claude-opus-5-5 --disallowedTools "Agent,Task" --allowedTools "Bash(git diff:*),Bash(git log:*),Bash(git show:*),mcp__github__get_issue_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_diff,mcp__github__create_and_submit_pull_request_review,mcp__github__create_pending_pull_request_review,mcp__github__add_comment_to_pending_review,mcp__github__submit_pending_pull_request_review,mcp__github__add_issue_comment,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh api graphql *),Bash(gh api repos/*/issues/*/comments *),Bash(gh api repos/*/issues/comments/* *),Bash(gh api repos/*/pulls/*/reviews *),Bash(gh api repos/*/pulls/*/reviews/*/dismissals *),Bash(gh api repos/*/pulls/*/comments *)"
+            --model claude-opus-5-5 --disallowedTools "Agent,Task" --allowedTools "Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(npm test:*),Bash(npx vitest run:*),mcp__github__get_issue_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_diff,mcp__github__create_and_submit_pull_request_review,mcp__github__create_pending_pull_request_review,mcp__github__add_comment_to_pending_review,mcp__github__submit_pending_pull_request_review,mcp__github__add_issue_comment,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh api graphql *),Bash(gh api repos/*/issues/*/comments *),Bash(gh api repos/*/issues/comments/* *),Bash(gh api repos/*/pulls/*/reviews *),Bash(gh api repos/*/pulls/*/reviews/*/dismissals *),Bash(gh api repos/*/pulls/*/comments *)"
 
       # The agent can end "successfully" without ever submitting a review (see
       # #500). Check for one on this run's head commit and fail loudly instead of
