@@ -1,5 +1,17 @@
 # Changelog
 
+## [6.0.0](https://github.com/kolatts/pncli/compare/v5.4.0...v6.0.0) (2026-09-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* TLS certificate verification is now always on. Behind an SSL-inspecting proxy whose root CA is in the OS certificate store, nothing changes. If your server or proxy uses a CA that is not in the OS store (for example a self-signed internal server), install its root certificate in the OS store, or export the certificate (e.g. from your browser) and set NODE_EXTRA_CA_CERTS=/path/to/cert.pem. PNCLI_VERIFY_TLS is no longer read.
+
+### Features
+
+* **saucelabs:** add Sauce Labs integration (jobs, builds, real devices, device sessions, tunnels) ([#517](https://github.com/kolatts/pncli/issues/517)) ([e976488](https://github.com/kolatts/pncli/commit/e9764880f2997a0953cd3ce66d3196a3f38c4d7c)), closes [#512](https://github.com/kolatts/pncli/issues/512)
+* verify TLS certificates by default and trust the OS certificate store ([#511](https://github.com/kolatts/pncli/issues/511)) ([bc5e49d](https://github.com/kolatts/pncli/commit/bc5e49da1fb63f12b85b3c533029a50d9ffd1ae8))
+
 ## [5.4.0](https://github.com/kolatts/pncli/compare/v5.3.0...v5.4.0) (2026-09-30)
 
 
