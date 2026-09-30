@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { HttpClient } from './http.js';
+import { PncliError } from './errors.js';
 import { setGlobalOptions } from './output.js';
 import type { ResolvedConfig } from '../types/config.js';
 
@@ -994,6 +995,40 @@ describe('HttpClient — fetch error cause surfacing', () => {
     await expect(client.jira('/rest/api/2/issue/TEST-1')).rejects.toMatchObject({
       message: 'Request failed: fetch failed: connect ECONNREFUSED 127.0.0.1:8080'
     });
+  });
+
+  it('adds a fix hint when the cause is a certificate verification error', async () => {
+    const cause = Object.assign(new Error('self-signed certificate in certificate chain'), {
+      code: 'SELF_SIGNED_CERT_IN_CHAIN'
+    });
+    vi.stubGlobal('fetch', async () => { throw Object.assign(new Error('fetch failed'), { cause }); });
+
+    const client = new HttpClient(baseConfig());
+    const err = (await client.jira('/rest/api/2/issue/TEST-1').catch(e => e)) as Error;
+    expect(err.message).toContain('self-signed certificate in certificate chain');
+    expect(err.message).toContain('NODE_EXTRA_CA_CERTS');
+  });
+
+  it('adds the hint on the buffer and text helpers, not just the JSON path', async () => {
+    const cause = Object.assign(new Error('unable to get local issuer certificate'), {
+      code: 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'
+    });
+    vi.stubGlobal('fetch', async () => { throw Object.assign(new Error('fetch failed'), { cause }); });
+
+    const client = new HttpClient(baseConfig());
+    const err = await client.jiraBuffer('https://jira.imagile.dev/secure/attachment/1/a.png').catch(e => e);
+    expect(err).toBeInstanceOf(PncliError);
+    expect(err.message).toContain('unable to get local issuer certificate');
+    expect(err.message).toContain('NODE_EXTRA_CA_CERTS');
+  });
+
+  it('adds no TLS hint for non-certificate causes', async () => {
+    const cause = Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:8080'), { code: 'ECONNREFUSED' });
+    vi.stubGlobal('fetch', async () => { throw Object.assign(new Error('fetch failed'), { cause }); });
+
+    const client = new HttpClient(baseConfig());
+    const err = (await client.jira('/rest/api/2/issue/TEST-1').catch(e => e)) as Error;
+    expect(err.message).not.toContain('NODE_EXTRA_CA_CERTS');
   });
 
   it('uses only err.message when there is no cause', async () => {

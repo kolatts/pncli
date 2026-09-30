@@ -1,4 +1,5 @@
 import type { Package, OsvVulnerability, VulnerablePackage } from '../types.js';
+import { describeFetchError } from '../../../lib/tls.js';
 
 const SONATYPE_URL = 'https://ossindex.sonatype.org';
 const BATCH_SIZE = 128; // OSS Index limit per request
@@ -145,7 +146,7 @@ export async function checkSonatypeConnectivity(): Promise<{ reachable: boolean;
   } catch (err) {
     return {
       reachable: false,
-      error: err instanceof Error ? err.message : String(err)
+      error: describeFetchError(err)
     };
   }
 }

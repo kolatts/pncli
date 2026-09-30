@@ -6,6 +6,7 @@ import { log, debug, isDebugEnabled } from './output.js';
 import { buildAdoFetcher } from './adoFetch.js';
 import { buildCheckmarxFetcher } from './checkmarxFetch.js';
 import { buildAlationFetcher } from './alationFetch.js';
+import { describeFetchError } from './tls.js';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
@@ -94,6 +95,13 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetcher(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    // Every caller — JSON, buffer and text helpers alike — gets the real cause
+    // (ECONNREFUSED, DNS, TLS) and a fix hint for certificate errors instead of
+    // Node's bare "fetch failed". A PncliError from a token-exchanging fetcher
+    // (Checkmarx, Alation) already carries its own status and message.
+    if (err instanceof PncliError) throw err;
+    throw new PncliError(`Request failed: ${describeFetchError(err)}`, 0, url);
   } finally {
     clearTimeout(timer);
   }
@@ -120,15 +128,8 @@ async function requestRaw<T>(
     try {
       response = await fetchWithTimeout(url, init, timeoutMs, fetcher);
     } catch (err) {
-      const topMsg = err instanceof Error ? err.message : String(err);
-      // Node's built-in fetch wraps network errors: err.message is "fetch failed"
-      // and the real cause (ECONNREFUSED, TLS error, DNS failure, etc.) is in
-      // err.cause. Surface it so users can distinguish a proxy-routing problem
-      // from bad credentials without having to reproduce the request externally.
-      const causeMsg = err instanceof Error && err.cause instanceof Error ? err.cause.message : undefined;
-      const fullMsg = causeMsg ? `${topMsg}: ${causeMsg}` : topMsg;
-      debug(`  Error: ${fullMsg}`);
-      throw new PncliError(`Request failed: ${fullMsg}`, 0, url);
+      debug(`  Error: ${err instanceof Error ? err.message : String(err)}`);
+      throw err;
     }
 
     debug(`← ${response.status} ${response.statusText} (${Date.now() - reqStart}ms)`);

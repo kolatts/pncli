@@ -1,5 +1,6 @@
 import type { ResolvedConfig } from '../types/config.js';
 import { PncliError } from './errors.js';
+import { describeFetchError } from './tls.js';
 
 /** Response of POST /integration/v1/createAPIAccessToken/ (and validateAPIAccessToken). */
 export interface AlationAccessTokenResponse {
@@ -74,7 +75,7 @@ export async function createAlationAccessToken(config: ResolvedConfig): Promise<
     });
   } catch (err) {
     throw new PncliError(
-      `Alation token exchange failed: ${err instanceof Error ? err.message : String(err)}`,
+      `Alation token exchange failed: ${describeFetchError(err)}`,
       0,
       tokenUrl
     );
@@ -115,7 +116,7 @@ export async function validateAlationAccessToken(config: ResolvedConfig): Promis
     });
   } catch (err) {
     throw new PncliError(
-      `Alation token validation failed: ${err instanceof Error ? err.message : String(err)}`,
+      `Alation token validation failed: ${describeFetchError(err)}`,
       0,
       validateUrl
     );

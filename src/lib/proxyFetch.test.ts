@@ -163,8 +163,8 @@ describe('configureProxy', () => {
   });
 
   it('still honours NODE_TLS_REJECT_UNAUTHORIZED=0 for HTTPS requests tunnelled through the proxy', async () => {
-    // cli.ts sets NODE_TLS_REJECT_UNAUTHORIZED=0 by default specifically for self-hosted
-    // installs behind SSL-inspecting proxies. `new EnvHttpProxyAgent()` is constructed
+    // pncli never sets NODE_TLS_REJECT_UNAUTHORIZED itself, but a user who does must still
+    // get what they asked for. `new EnvHttpProxyAgent()` is constructed
     // with no options; a regression here would mean it forces `rejectUnauthorized: true`
     // on every connection app-wide the moment any proxy variable is set, breaking exactly
     // the audience this exists for.

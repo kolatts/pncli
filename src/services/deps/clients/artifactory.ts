@@ -2,6 +2,7 @@ import type { Ecosystem, LicensedPackage, OutdatedPackage } from '../types.js';
 import type { ArtifactoryConfig } from '../../../types/config.js';
 import { PncliError } from '../../../lib/errors.js';
 import { isNewer, updateType } from '../semver.js';
+import { describeFetchError } from '../../../lib/tls.js';
 
 const TIMEOUT_MS = 15_000;
 
@@ -65,7 +66,7 @@ export async function checkArtifactoryConnectivity(config: ArtifactoryConfig): P
       reachable: false,
       authenticated: false,
       configured: true,
-      error: err instanceof Error ? err.message : String(err)
+      error: describeFetchError(err)
     };
   }
 }

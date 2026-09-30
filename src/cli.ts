@@ -1,12 +1,11 @@
-// TLS verification is disabled by default — most self-hosted enterprise installs
-// sit behind corporate SSL inspection proxies that break standard certificate chains.
-// To opt back in: set PNCLI_VERIFY_TLS=1
-if (!process.env.PNCLI_VERIFY_TLS) {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-}
-
 import { Command } from 'commander';
+import { configureTls } from './lib/tls.js';
 import { configureProxy } from './lib/proxyFetch.js';
+
+// TLS certificate verification is always on, and the OS certificate store is
+// trusted alongside Node's bundled CAs so corporate SSL-inspection proxies work
+// without setup.
+configureTls();
 
 // Configure proxy before any fetch calls. Node's built-in fetch does not
 // honour HTTP_PROXY / HTTPS_PROXY / NO_PROXY; this installs an
