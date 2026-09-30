@@ -74,9 +74,12 @@ network stay direct while SaaS ones route out through the proxy. If a proxy
 variable is set but the proxy cannot be configured, pncli warns on stderr rather
 than silently bypassing it.
 
-TLS verification is **off** by default, because most self-hosted enterprise
-installs sit behind SSL-inspecting proxies that break the certificate chain.
-Set `PNCLI_VERIFY_TLS=1` to turn it back on.
+TLS certificate verification is **on** by default. Behind an SSL-inspecting
+proxy, make Node trust the proxy's root CA: set `NODE_EXTRA_CA_CERTS=/path/to/ca.pem`,
+or `NODE_USE_SYSTEM_CA=1` (Node.js 22+) to use the OS certificate store. As a last
+resort, `PNCLI_INSECURE_TLS=1` disables verification for that run and prints a
+warning on stderr. (Earlier versions disabled verification by default and used
+`PNCLI_VERIFY_TLS=1` to opt back in; that variable is no longer read.)
 
 ## Large text fields (descriptions, acceptance criteria)
 

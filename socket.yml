@@ -1,9 +1,8 @@
 version: 2
 settings:
   issueRules:
-    # TLS certificate verification is opt-in for enterprise environments where
-    # corporate SSL inspection proxies break standard certificate chains.
-    # Users opt back in with PNCLI_VERIFY_TLS=1 (see src/cli.ts).
+    # TLS verification is on by default; PNCLI_INSECURE_TLS=1 is an explicit,
+    # warned opt-out for SSL-inspection proxies (see src/cli.ts).
     envSet:
       action: ignore
     # pncli embeds base URLs only for public API endpoints listed below.

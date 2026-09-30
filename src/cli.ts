@@ -1,8 +1,10 @@
-// TLS verification is disabled by default — most self-hosted enterprise installs
-// sit behind corporate SSL inspection proxies that break standard certificate chains.
-// To opt back in: set PNCLI_VERIFY_TLS=1
-if (!process.env.PNCLI_VERIFY_TLS) {
+// TLS certificate verification is on by default. Environments behind a corporate
+// SSL-inspection proxy should trust the proxy's root CA (NODE_EXTRA_CA_CERTS, or
+// NODE_USE_SYSTEM_CA=1 on Node 22+). As a last resort, PNCLI_INSECURE_TLS=1 turns
+// verification off for this process; it warns on stderr so it is never silent.
+if (['1', 'true'].includes((process.env.PNCLI_INSECURE_TLS ?? '').toLowerCase())) {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+  process.stderr.write('warning: PNCLI_INSECURE_TLS is set; TLS certificate verification is disabled.\n');
 }
 
 import { Command } from 'commander';
