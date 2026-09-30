@@ -188,6 +188,7 @@ jobs:
         run: npm ci
 
       - name: Claude Issue Triage
+        id: triage
         uses: anthropics/claude-code-action@v1.0.236
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -261,6 +262,19 @@ jobs:
             ${{ steps.issue.outputs.body }}
             === END UNTRUSTED USER INPUT ===
 
+            === RUNNING COMMANDS ===
+            Your Bash allowlist matches one command at a time, by prefix. Anything else is
+            denied without a prompt, and a denied `gh` call means the label, comment or close
+            it was meant to do silently never happens. So:
+            - Run exactly ONE command per Bash call. Never chain with `&&`, `||`, `;` or `|`,
+              and never use `$(...)`, backticks, heredocs, or `>` / `<` redirection. Where the
+              steps below say "then", that means a second, separate Bash call.
+            - For any comment longer than one line, or containing backticks or quotes, write
+              the text with the Write tool to a file under /tmp first, then pass it with
+              `gh issue comment <number> --body-file /tmp/<file>.md`.
+            - If a command is denied anyway, do not retry variations of it. Say in your summary
+              exactly which command was denied so a maintainer can finish that step.
+
             === YOUR TASK ===
             1. Read CLAUDE.md and understand the project's purpose and rules before anything else.
                pncli is a structured JSON CLI giving AI agents and humans unified access to the
@@ -280,6 +294,22 @@ jobs:
                  Comment identifying the duplicate, referencing the original issue number. Add the
                  `duplicate` label, close with "not planned", and skip to step 5.
                Only continue to step 3 if no duplicates are found.
+
+               A duplicate closure must be earned — a matching title or the same product name is
+               NOT enough. Before closing anything as a duplicate:
+               - Fetch the candidate's body and comments with `gh issue view <number> --comments`
+                 and compare it with this issue's body. Never decide from `gh issue list` titles.
+               - Close only when both issues ask for substantively the same thing AND are worded
+                 similarly: the same capability, the same shape of work, the same constraints.
+               - If the two share a product but are worded differently, they are NOT duplicates —
+                 do not close. Typical cases: a broad or out-of-scope request ("log in to real
+                 devices and check how emails render") next to a narrow API-shaped one ("call the
+                 Sauce Labs API with my access token"); or a later issue that clarifies, narrows or
+                 reframes an earlier one. The later wording is often the reporter telling you what
+                 they actually need. Triage this issue on its own merits from step 3, and mention
+                 the related issue in your comment ("Related to #N") instead.
+               - If you could not read the candidate's body, you have not established a
+                 duplicate. Continue to step 3.
 
                Two exceptions to the previously-denied shortcut:
                - Never treat issue #${{ steps.issue.outputs.number }} itself as its own duplicate.
@@ -385,10 +415,11 @@ jobs:
             5. Add the `triaged` label using `gh label create triaged --color 0e8a16 --force` then
                `gh issue edit ${{ steps.issue.outputs.number }} --add-label triaged`.
                Remove the `claude-triage` label if the issue carries it, using
-               `gh issue edit ${{ steps.issue.outputs.number }} --remove-label "claude-triage" || true`.
-               Keep the `|| true`: on a manual re-triage the label may be absent, and if it
-               has never been created in the repo at all `gh` exits non-zero rather than
-               no-opping. That is expected — do not treat it as a triage failure.
+               `gh issue edit ${{ steps.issue.outputs.number }} --remove-label claude-triage`.
+               On a manual re-triage the label may be absent, and if it has never been created
+               in the repo at all `gh` exits non-zero rather than no-opping. That is expected —
+               do not treat it as a triage failure, and do not append `|| true` (a chained
+               command is denied outright; see RUNNING COMMANDS).
                Do not remove `from-website`; it is a persistent provenance label used by
                downstream notification and reporting workflows.
 
@@ -403,7 +434,7 @@ jobs:
             unless the issue specifically requests it. Make the narrowest change that
             addresses the issue.
           claude_args: |
-            --model sonnet --max-turns 300 --allowedTools "Read,Glob,Grep,Edit,Write,Bash(gh issue list:*),Bash(gh issue comment:*),Bash(gh issue close:*),Bash(gh issue edit:*),Bash(gh label create:*),Bash(gh pr view:*),Bash(npm run build:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(npm test:*),Bash(git checkout -b:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
+            --model sonnet --max-turns 300 --allowedTools "Read,Glob,Grep,Edit,Write,Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue reopen:*),Bash(gh issue comment:*),Bash(gh issue close:*),Bash(gh issue edit:*),Bash(gh label create:*),Bash(gh pr view:*),Bash(npm run build:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(npm test:*),Bash(git checkout -b:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
 
       # The issue number guard is load-bearing, not defensive dressing: without it an
       # empty number turns the branch glob below into `origin/claude/issue-*`, which
@@ -494,7 +525,20 @@ jobs:
           ISSUE_TITLE: ${{ steps.issue.outputs.title }}
           ISSUE_URL: ${{ steps.issue.outputs.url }}
           TRIGGER: ${{ github.event.label.name || 'manual re-triage (workflow_dispatch)' }}
+          EXECUTION_FILE: ${{ steps.triage.outputs.execution_file }}
         run: |
+          # The action hides the agent's transcript, so a denied tool call used to
+          # show up only as `permission_denials_count` in the log — #512's labels
+          # and close silently never happened and nobody could see which command
+          # was refused. List the denied calls so the fix is obvious from the run.
+          DENIALS=""
+          if [ -n "$EXECUTION_FILE" ] && [ -f "$EXECUTION_FILE" ]; then
+            DENIALS=$(jq -r '
+              [.[]? | select(.type == "result") | .permission_denials[]?]
+              | .[]
+              | "- `\(.tool_name)`: `\((.tool_input.command // .tool_input.file_path // "" | tostring | gsub("[\n`]"; " "))[0:200])`"
+            ' "$EXECUTION_FILE" 2>/dev/null || true)
+          fi
           # Grouped into one redirect rather than a series of `>>` appends
           # (shellcheck SC2129).
           {
@@ -508,7 +552,18 @@ jobs:
             else
               echo "_No summary file written by Claude._"
             fi
+            if [ -n "$DENIALS" ]; then
+              echo ""
+              echo "### Denied tool calls"
+              echo ""
+              echo "These were refused by the agent's allowlist, so whatever they were meant to do did not happen:"
+              echo ""
+              echo "$DENIALS"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$DENIALS" ]; then
+            echo "::warning::The triage agent had tool calls denied; see the job summary."
+          fi
 
       # Also runs on manual re-triage: a run stranded by a transient failure can
       # leave `claude-triage` behind, and the whole point of the dispatch path is
