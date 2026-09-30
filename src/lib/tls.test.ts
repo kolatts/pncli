@@ -30,18 +30,8 @@ describe('configureTls', () => {
     }
   });
 
-  it('disables verification with a warning when PNCLI_INSECURE_TLS is set', () => {
-    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    for (const value of ['1', 'true', 'TRUE']) {
-      const env: NodeJS.ProcessEnv = { PNCLI_INSECURE_TLS: value };
-      configureTls(env, stubTls() as never);
-      expect(env.NODE_TLS_REJECT_UNAUTHORIZED).toBe('0');
-    }
-    expect(stderr).toHaveBeenCalledWith(expect.stringContaining('verification is disabled'));
-  });
-
-  it('keeps verification on when PNCLI_INSECURE_TLS is anything else', () => {
-    const env: NodeJS.ProcessEnv = { PNCLI_INSECURE_TLS: '0' };
+  it('never disables verification, even when the removed opt-out variable is set', () => {
+    const env: NodeJS.ProcessEnv = { PNCLI_INSECURE_TLS: '1' };
     const api = stubTls();
     configureTls(env, api as never);
     expect(env.NODE_TLS_REJECT_UNAUTHORIZED).toBeUndefined();
@@ -66,7 +56,8 @@ describe('describeFetchError', () => {
     expect(msg).toContain('fetch failed: self-signed certificate in certificate chain.');
     expect(msg).toContain('OS store');
     expect(msg).toContain('NODE_EXTRA_CA_CERTS');
-    expect(msg).toContain('PNCLI_INSECURE_TLS=1');
+    expect(msg).toContain('self-signed server');
+    expect(msg).not.toMatch(/INSECURE|REJECT_UNAUTHORIZED/);
   });
 
   it("drops Node's own --use-system-ca advice, since pncli already trusts the system store", () => {
@@ -78,11 +69,10 @@ describe('describeFetchError', () => {
     expect(msg).not.toContain('--use-system-ca');
   });
 
-  it('tells a hostname mismatch to fix baseUrl, not to trust a CA or disable verification', () => {
+  it('tells a hostname mismatch to fix baseUrl, not to trust a CA', () => {
     const msg = describeFetchError(fetchFailed('ERR_TLS_CERT_ALTNAME_INVALID'));
     expect(msg).toContain('baseUrl');
     expect(msg).not.toContain('NODE_EXTRA_CA_CERTS');
-    expect(msg).not.toContain('PNCLI_INSECURE_TLS');
   });
 
   it('tells an expired certificate to check the clock', () => {

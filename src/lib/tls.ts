@@ -1,7 +1,7 @@
 /**
  * TLS trust setup, run once at startup before any request is made.
  *
- * Certificate verification is always on unless PNCLI_INSECURE_TLS opts out.
+ * Certificate verification is always on; pncli has no switch to turn it off.
  * To keep that working behind corporate SSL-inspection proxies, pncli trusts
  * the OS certificate store in addition to Node's bundled Mozilla CAs — the
  * same thing `NODE_USE_SYSTEM_CA=1` does. Corporate root CAs are pushed to the
@@ -18,17 +18,7 @@ import tls from 'node:tls';
 
 type TlsApi = Pick<typeof tls, 'getCACertificates' | 'setDefaultCACertificates'>;
 
-function isTruthy(value: string | undefined): boolean {
-  return ['1', 'true'].includes((value ?? '').trim().toLowerCase());
-}
-
 export function configureTls(env: NodeJS.ProcessEnv = process.env, api: TlsApi = tls): void {
-  if (isTruthy(env.PNCLI_INSECURE_TLS)) {
-    env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-    process.stderr.write('warning: PNCLI_INSECURE_TLS is set; TLS certificate verification is disabled.\n');
-    return;
-  }
-
   // Any explicit value is the user's decision: `1` means Node already loaded
   // the system store at startup, and anything else (`0`) opts out of it.
   if (env.NODE_USE_SYSTEM_CA !== undefined) return;
@@ -53,7 +43,8 @@ export function configureTls(env: NodeJS.ProcessEnv = process.env, api: TlsApi =
 const UNTRUSTED_HINT =
   'The certificate is not trusted by Node\'s bundled CAs or the OS certificate store. ' +
   'If your network uses an SSL-inspecting proxy or an internal CA, install its root certificate in the OS store ' +
-  'or set NODE_EXTRA_CA_CERTS=/path/to/ca.pem; as a last resort set PNCLI_INSECURE_TLS=1 to skip verification.';
+  'or set NODE_EXTRA_CA_CERTS=/path/to/ca.pem. For a self-signed server, export its certificate from the browser ' +
+  'and point NODE_EXTRA_CA_CERTS at that file.';
 
 const TLS_ERROR_HINTS: Record<string, string> = {
   SELF_SIGNED_CERT_IN_CHAIN: UNTRUSTED_HINT,

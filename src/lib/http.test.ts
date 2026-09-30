@@ -1007,7 +1007,6 @@ describe('HttpClient — fetch error cause surfacing', () => {
     const err = (await client.jira('/rest/api/2/issue/TEST-1').catch(e => e)) as Error;
     expect(err.message).toContain('self-signed certificate in certificate chain');
     expect(err.message).toContain('NODE_EXTRA_CA_CERTS');
-    expect(err.message).toContain('PNCLI_INSECURE_TLS=1');
   });
 
   it('adds the hint on the buffer and text helpers, not just the JSON path', async () => {
@@ -1029,7 +1028,7 @@ describe('HttpClient — fetch error cause surfacing', () => {
 
     const client = new HttpClient(baseConfig());
     const err = (await client.jira('/rest/api/2/issue/TEST-1').catch(e => e)) as Error;
-    expect(err.message).not.toContain('PNCLI_INSECURE_TLS');
+    expect(err.message).not.toContain('NODE_EXTRA_CA_CERTS');
   });
 
   it('uses only err.message when there is no cause', async () => {

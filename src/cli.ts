@@ -2,9 +2,9 @@ import { Command } from 'commander';
 import { configureTls } from './lib/tls.js';
 import { configureProxy } from './lib/proxyFetch.js';
 
-// TLS certificate verification is on by default, and the OS certificate store is
+// TLS certificate verification is always on, and the OS certificate store is
 // trusted alongside Node's bundled CAs so corporate SSL-inspection proxies work
-// without setup. PNCLI_INSECURE_TLS=1 turns verification off, with a warning.
+// without setup.
 configureTls();
 
 // Configure proxy before any fetch calls. Node's built-in fetch does not
