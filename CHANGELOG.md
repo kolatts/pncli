@@ -1,5 +1,20 @@
 # Changelog
 
+## [5.4.0](https://github.com/kolatts/pncli/compare/v5.3.0...v5.4.0) (2026-09-30)
+
+
+### Features
+
+* **jira:** add log-work command for worklog entries ([#497](https://github.com/kolatts/pncli/issues/497)) ([c77ecb8](https://github.com/kolatts/pncli/commit/c77ecb856819775df25cac7d4bd2e40cf9ed75c7)), closes [#496](https://github.com/kolatts/pncli/issues/496)
+* OS keychain credential storage, marketplace providers, git-auth, git credentials inspection, skills guide ([#493](https://github.com/kolatts/pncli/issues/493)) ([5d89e56](https://github.com/kolatts/pncli/commit/5d89e56b3fd11d9304ec169f6bf661cbd1bfe332))
+
+
+### Bug Fixes
+
+* **jira:** resolve unregistered raw field ids on --field and --fields-file ([#495](https://github.com/kolatts/pncli/issues/495)) ([718f57d](https://github.com/kolatts/pncli/commit/718f57d27b5148df861c7489313a8608279bec37)), closes [#494](https://github.com/kolatts/pncli/issues/494)
+* **skills:** honor the global --config override in git-auth ([#507](https://github.com/kolatts/pncli/issues/507)) ([a2321d4](https://github.com/kolatts/pncli/commit/a2321d495f7cac15e0cbbc1071829e1468ce2c6d))
+* **skills:** name the user's own credential when a deferred Bitbucket/ADO sync fails ([#503](https://github.com/kolatts/pncli/issues/503)) ([bc65d85](https://github.com/kolatts/pncli/commit/bc65d85daed6ecda6c16611b1ea66fc5ec1b9c82))
+
 ## [5.3.0](https://github.com/kolatts/pncli/compare/v5.2.0...v5.3.0) (2026-09-23)
 
 
