@@ -322,6 +322,32 @@ Do not use `example.com`, `company.com`, `mycompany.com`, `your-company.com`, or
 
 **Constraint — never add wildcard DNS to `imagile.dev`.** These placeholders are safe because `*.imagile.dev` does not resolve, so a copy-pasted config fails at DNS before pncli sends any auth header. A wildcard A/CNAME record would silently turn every published example into a credential-collection endpoint. If a wildcard ever becomes necessary, migrate these docs to a reserved RFC 2606 domain first.
 
+## Issue Redaction
+
+`.github/workflows/claude-triage.yml` redacts every issue it triages — website submissions (`from-website`), `claude-triage`-labelled issues, and manual re-triages — stripping whatever identifies a reporter's employer. The rules live in `.github/scripts/redact.mjs` (tested by `redact.test.mjs` under `npm test`) and run in a fixed order: credential-shaped strings (GitHub, Atlassian, Bitbucket Data Center, GitLab, npm, Anthropic/OpenAI tokens, JWTs, PEM private keys, bearer/basic headers, URL userinfo, and `password=` / `"token": …` pairs) → `[redacted-secret]`; email addresses whose host is a denylisted domain, contains a denylisted word, or is internal → `[redacted-email]` (only a `git@` SSH user is kept; `ssh://jdoe@…` loses the user ID). Key/value secrets are matched by the key's suffix, so `PNCLI_JIRA_API_TOKEN=…` and camelCase keys such as `"apiToken"` / `clientSecret` are caught, as are the `--token <pat>` flag form and the positional `pncli config set <service>.apiToken <value>` form the service docs show; SDElements' `token@hostname` connection string loses the token and keeps the host; denylisted domains and hosts under `.local` / `.internal` / `.corp` / `.lan` / `.intranet` / `.localdomain` → `<service>.imagile.dev` when the first label is a known service name, otherwise `redacted.imagile.dev`; private IPv4 → `[redacted-ip]`; denylisted words → `[org]`. Redaction is idempotent, so reruns are no-ops. It runs on the title and body before the prompt is built, and the issue is rewritten in that same step, so the agent never sees the unredacted text.
+
+Scope is deliberately just triage. Issues filed directly without a triage label, comments, and PR titles and bodies are **not** redacted. To scrub one of those, run the redactor by hand and patch it:
+
+```bash
+gh issue view 123 --repo kolatts/pncli --json title,body | REDACT_TERMS="$(cat terms.txt)" node .github/scripts/redact.mjs | jq '{title, body}' | gh api -X PATCH repos/kolatts/pncli/issues/123 --input -
+```
+
+The organization denylist lives **only** in the `REDACT_TERMS` repository secret — never in the repo, a test, a log line, or a commit message, since publishing it would publish the very names it hides. Tests use fictional names (`acmebank`, `initech`, `acme-int.net`). Format, one entry per line:
+
+```text
+# Comment lines and blank lines are ignored; comments must be on their own line.
+# A word: case-insensitive, whole-word (does not match inside acmebankcli).
+acmebank
+# Contains a dot: a domain, matching itself and every subdomain.
+acme-int.net
+# An explicit regex, replaced with [org].
+re:/acme[- ]?corp/i
+```
+
+With the secret empty, the built-in rules (secrets, internal hosts, private IPs) still run. An entry that would match the redactor's own output (`org`, `dev`, `secret`, `imagile.dev`, a service label such as `jira`) is rejected and counted as invalid, because it would rewrite the markers on every run.
+
+**Known limit:** GitHub keeps edit history and has no API to delete a revision, so text scrubbed after creation stays visible under "edited" until a maintainer deletes that revision in the UI. The durable fix for website submissions is to redact in the feedback function before the issue is created (tracked as a follow-up).
+
 ## Commit Conventions
 
 Use Conventional Commits: `fix:` (patch), `feat:` (minor), `feat!:` (breaking/major).
