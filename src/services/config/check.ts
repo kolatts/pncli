@@ -1,6 +1,7 @@
 import { createHttpClient } from '../../lib/http.js';
 import type { ResolvedConfig } from '../../types/config.js';
 import { validateAlationAccessToken } from '../../lib/alationFetch.js';
+import { verifySauceLabsCredentials } from '../saucelabs/commands.js';
 import { checkArtifactoryConnectivity } from '../deps/clients/artifactory.js';
 
 export type CheckStatus = 'blank' | 'valid' | 'invalid' | 'error';
@@ -389,6 +390,22 @@ export async function runCredentialChecks(cfg: ResolvedConfig, http: HttpClient)
       results.alation = { status: 'valid', message: 'ok' };
     } catch (err) {
       results.alation = categorize(err);
+    }
+  }
+
+  // Sauce Labs — HTTP Basic with username + access key
+  if (!cfg.saucelabs.accessKey) {
+    results.saucelabs = { status: 'blank', message: 'not configured' };
+  } else if (!cfg.saucelabs.baseUrl) {
+    results.saucelabs = { status: 'error', message: 'baseUrl not configured' };
+  } else if (!cfg.saucelabs.username) {
+    results.saucelabs = { status: 'error', message: 'username not configured' };
+  } else {
+    try {
+      await verifySauceLabsCredentials(http, 10_000);
+      results.saucelabs = { status: 'valid', message: 'ok' };
+    } catch (err) {
+      results.saucelabs = categorize(err);
     }
   }
 

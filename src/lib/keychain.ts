@@ -399,7 +399,7 @@ export function getKeychainBackend(run: Runner = defaultRunner, platform: NodeJS
 /** Leaf field names in the config that hold secrets. Used by `config keychain migrate` and doctor. */
 export const SECRET_FIELD_NAMES = new Set([
   'token', 'apiToken', 'pat', 'apiKey', 'clientSecret', 'serviceKey', 'passcode',
-  'refreshToken', 'adminApiKey', 'platformToken', 'password', 'connection',
+  'refreshToken', 'adminApiKey', 'platformToken', 'password', 'connection', 'accessKey',
 ]);
 
 export interface ConfigSecretLocation {

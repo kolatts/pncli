@@ -193,6 +193,14 @@ export interface AlationConfig {
   userId?: string | number;
 }
 
+export interface SauceLabsConfig {
+  /** Data-center REST endpoint, for example https://api.us-west-1.saucelabs.com */
+  baseUrl?: string;
+  username?: string;
+  /** Access key from Sauce Labs → Account → User Settings */
+  accessKey?: string;
+}
+
 /** Kind of git host a marketplace lives on; detected from the URL and configured hosts unless set. */
 export type MarketplaceProvider = 'github' | 'bitbucket' | 'ado' | 'git';
 
@@ -266,6 +274,7 @@ export interface GlobalConfig {
   splitio?: SplitioConfig;
   figma?: FigmaConfig;
   alation?: AlationConfig;
+  saucelabs?: SauceLabsConfig;
   marketplace?: MarketplaceConfig;
   marketplaces?: MarketplaceConfig[];
   /**
@@ -381,6 +390,11 @@ export interface ResolvedConfig {
     refreshToken: string | undefined;
     /** Kept as-written; validated to a positive integer when Alation is actually used. */
     userId: string | number | undefined;
+  };
+  saucelabs: {
+    baseUrl: string | undefined;
+    username: string | undefined;
+    accessKey: string | undefined;
   };
   defaults: {
     jira: JiraDefaults;

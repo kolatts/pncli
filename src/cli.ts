@@ -39,6 +39,7 @@ import { registerDynatraceCommands } from './services/dynatrace/commands.js';
 import { registerLogscaleCommands } from './services/logscale/commands.js';
 import { registerSplitioCommands } from './services/splitio/commands.js';
 import { registerFigmaCommands } from './services/figma/commands.js';
+import { registerSauceLabsCommands } from './services/saucelabs/commands.js';
 import { registerAlationCommands } from './services/alation/commands.js';
 
 const TAGLINE = 'Connectivity without MCP.';
@@ -97,6 +98,7 @@ registerLogscaleCommands(program);
 registerSplitioCommands(program);
 registerFigmaCommands(program);
 registerAlationCommands(program);
+registerSauceLabsCommands(program);
 
 program.addHelpText('after', `
 Services:
@@ -120,6 +122,7 @@ Services:
   splitio      Split.IO (feature flags, Change Requests)
   figma        Figma (files, comments, version history)
   alation      Alation (data sources, schemas, tables, columns, search, Document Hubs)
+  saucelabs    Sauce Labs (jobs, builds, real devices and device sessions, tunnels, platforms)
   config       Manage pncli configuration (and OS keychain storage for credentials)
   doctor       Diagnose pncli setup (config, credentials, keychain, git auth, agent skills, marketplaces)
   skills       Install and manage agent skills (Codex, GitHub Copilot, Claude Code)

@@ -46,6 +46,7 @@ export const integrations: Integration[] = [
   { slug: 'figma',       name: 'Figma',          description: 'Design files, comments, history', active: true, testing: 'untested' },
   { slug: 'splitio',     name: 'Split.IO',       description: 'Feature flags, change requests', active: true, testing: 'untested' },
   { slug: 'alation',     name: 'Alation',        description: 'Catalog metadata, search, documents', active: true, testing: 'untested' },
+  { slug: 'saucelabs',   name: 'Sauce Labs',     description: 'Test jobs, builds, real devices', active: true, testing: 'untested' },
   { slug: 'deps',        name: 'Dependencies',   description: 'CVE detection, license audit',   active: true, testing: 'basic'    },
 ];
 

@@ -21,6 +21,7 @@ import { discoverFields, discoverTypes, buildDefaultAliases } from '../ado/disco
 import { runCredentialChecks } from './check.js';
 import { registerKeychainCommands } from './keychain-commands.js';
 import { validateAlationAccessToken } from '../../lib/alationFetch.js';
+import { verifySauceLabsCredentials } from '../saucelabs/commands.js';
 import { success, fail, warn } from '../../lib/output.js';
 import { hasInstalledPncliSkill } from '../skills/commands.js';
 import { ExitCode } from '../../lib/exitCodes.js';
@@ -391,6 +392,21 @@ export function registerConfigCommands(program: Command): void {
           results.alation = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.saucelabs.accessKey && !cfg.saucelabs.baseUrl) {
+          results.saucelabs = { ok: false, message: 'baseUrl not configured' };
+        } else if (cfg.saucelabs.accessKey && !cfg.saucelabs.username) {
+          results.saucelabs = { ok: false, message: 'username not configured' };
+        } else if (cfg.saucelabs.accessKey) {
+          try {
+            await verifySauceLabsCredentials(http);
+            results.saucelabs = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.saucelabs = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.saucelabs = { ok: null, message: 'not configured' };
+        }
+
         success(results, 'config', 'test', start);
       } catch (err) {
         fail(err, 'config', 'test', start);
@@ -427,7 +443,7 @@ export function registerConfigCommands(program: Command): void {
         const allServices = [
           'jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins',
           'artifactory', 'checkmarx', 'contrast', 'sonatypeiq', 'openshift',
-          ...clusterKeys, 'dynatrace', 'dynatrace_platform', ...dynamicEnvKeys, 'logscale', 'splitio', 'figma', 'alation'
+          ...clusterKeys, 'dynatrace', 'dynatrace_platform', ...dynamicEnvKeys, 'logscale', 'splitio', 'figma', 'alation', 'saucelabs'
         ];
 
         if (cmdOpts.output === 'table') {
@@ -1194,6 +1210,55 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── Sauce Labs ────────────────────────────────────\n');
+  const useSaucelabs = await confirm({
+    message: 'Configure Sauce Labs for jobs, builds, and real-device access?',
+    default: false
+  });
+
+  let saucelabsBaseUrl = '';
+  let saucelabsUsername = '';
+  let saucelabsAccessKey = '';
+
+  if (useSaucelabs) {
+    process.stderr.write('  Find your username and access key in Sauce Labs under Account → User Settings.\n');
+    process.stderr.write('  The API host depends on your data center: https://api.us-west-1.saucelabs.com,\n');
+    process.stderr.write('  https://api.eu-central-1.saucelabs.com, or https://api.us-east-4.saucelabs.com.\n');
+
+    saucelabsBaseUrl = await input({
+      message: 'Sauce Labs API base URL:',
+      validate: (v) => v.trim().length > 0 || 'Required'
+    });
+
+    saucelabsUsername = await input({
+      message: 'Sauce Labs username:',
+      validate: (v) => v.trim().length > 0 || 'Required'
+    });
+
+    saucelabsAccessKey = await password({
+      message: 'Sauce Labs access key:'
+    });
+
+    if (saucelabsBaseUrl && saucelabsUsername && saucelabsAccessKey) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          saucelabs: {
+            baseUrl: normalizeBaseUrl(saucelabsBaseUrl),
+            username: saucelabsUsername.trim(),
+            accessKey: saucelabsAccessKey
+          }
+        };
+        await verifySauceLabsCredentials(createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]));
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to Sauce Labs: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your data center URL, username, and access key and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Defaults ──────────────────────────────────────\n');
   const jiraProject = await input({
     message: 'Default Jira project key (optional):',
@@ -1375,6 +1440,13 @@ async function initGlobalConfig(start: number): Promise<void> {
         baseUrl: normalizeBaseUrl(alationBaseUrl),
         refreshToken: alationRefreshToken || undefined,
         userId: alationUserId.trim() || undefined
+      }
+    } : {}),
+    ...(useSaucelabs && saucelabsBaseUrl ? {
+      saucelabs: {
+        baseUrl: normalizeBaseUrl(saucelabsBaseUrl),
+        username: saucelabsUsername.trim() || undefined,
+        accessKey: saucelabsAccessKey || undefined
       }
     } : {}),
     defaults: {

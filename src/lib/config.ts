@@ -66,6 +66,12 @@ const ENV_KEYS = {
   ALATION_BASE_URL: 'PNCLI_ALATION_BASE_URL',
   ALATION_REFRESH_TOKEN: 'PNCLI_ALATION_REFRESH_TOKEN',
   ALATION_USER_ID: 'PNCLI_ALATION_USER_ID',
+  SAUCELABS_BASE_URL: 'PNCLI_SAUCELABS_BASE_URL',
+  SAUCELABS_USERNAME: 'PNCLI_SAUCELABS_USERNAME',
+  SAUCELABS_ACCESS_KEY: 'PNCLI_SAUCELABS_ACCESS_KEY',
+  // The names saucectl, Sauce Connect and Sauce's own CI docs read — see the comment above GITHUB_TOKEN_FALLBACK.
+  SAUCELABS_USERNAME_FALLBACK: 'SAUCE_USERNAME',
+  SAUCELABS_ACCESS_KEY_FALLBACK: 'SAUCE_ACCESS_KEY',
   CONFIG_PATH: 'PNCLI_CONFIG_PATH'
 } as const;
 
@@ -155,6 +161,7 @@ const SECRET_ENV_OVERRIDES: [string, string[]][] = [
   ['splitio.adminApiKey', [ENV_KEYS.SPLITIO_ADMIN_API_KEY]],
   ['figma.token', [ENV_KEYS.FIGMA_TOKEN]],
   ['alation.refreshToken', [ENV_KEYS.ALATION_REFRESH_TOKEN]],
+  ['saucelabs.accessKey', [ENV_KEYS.SAUCELABS_ACCESS_KEY, ENV_KEYS.SAUCELABS_ACCESS_KEY_FALLBACK]],
 ];
 
 /** Config paths whose value an environment variable is currently overriding. */
@@ -295,6 +302,15 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       baseUrl: process.env[ENV_KEYS.ALATION_BASE_URL] ?? globalConfig.alation?.baseUrl,
       refreshToken: process.env[ENV_KEYS.ALATION_REFRESH_TOKEN] ?? globalConfig.alation?.refreshToken,
       userId: process.env[ENV_KEYS.ALATION_USER_ID] ?? globalConfig.alation?.userId,
+    },
+    saucelabs: {
+      baseUrl: process.env[ENV_KEYS.SAUCELABS_BASE_URL] ?? globalConfig.saucelabs?.baseUrl,
+      username: process.env[ENV_KEYS.SAUCELABS_USERNAME]
+        ?? process.env[ENV_KEYS.SAUCELABS_USERNAME_FALLBACK]
+        ?? globalConfig.saucelabs?.username,
+      accessKey: process.env[ENV_KEYS.SAUCELABS_ACCESS_KEY]
+        ?? process.env[ENV_KEYS.SAUCELABS_ACCESS_KEY_FALLBACK]
+        ?? globalConfig.saucelabs?.accessKey,
     },
     defaults: mergedDefaults
   };
@@ -478,6 +494,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     alation: {
       ...config.alation,
       refreshToken: config.alation.refreshToken ? '***' : undefined
+    },
+    saucelabs: {
+      ...config.saucelabs,
+      accessKey: config.saucelabs.accessKey ? '***' : undefined
     }
   };
 }
