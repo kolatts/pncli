@@ -170,6 +170,11 @@ describe('config walking', () => {
     expect(findPlaintextSecrets(config).map(r => r.path.join('.'))).toEqual(['github.token', 'marketplaces.0.token']);
   });
 
+  it('treats a Sauce Labs access key as a secret but not its username', () => {
+    const sauce = { saucelabs: { baseUrl: 'https://api.us-west-1.saucelabs.com', username: 'imagile', accessKey: 'abc12345' } };
+    expect(findPlaintextSecrets(sauce).map(r => r.path.join('.'))).toEqual(['saucelabs.accessKey']);
+  });
+
   it('never treats base URLs or defaults as secrets', () => {
     expect(findPlaintextSecrets(config).some(s => s.path.includes('baseUrl') || s.path.includes('owner'))).toBe(false);
   });

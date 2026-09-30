@@ -182,6 +182,10 @@ async function requestRaw<T>(
         if (parts.length === 0 && parsed.message) {
           parts.push(String(parsed.message));
         }
+        // FastAPI-style { detail: "..." } (Sauce Labs' v2 and rdc APIs)
+        if (parts.length === 0 && typeof parsed.detail === 'string') {
+          parts.push(parsed.detail);
+        }
         if (parts.length > 0) message = parts.join('; ');
       } catch {
         // ignore parse errors
@@ -1476,6 +1480,57 @@ export class HttpClient {
       const safeHeaders = { ...headers, 'X-Figma-Token': '[REDACTED]' };
       const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
         + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
+  private saucelabsHeaders(): Record<string, string> {
+    const { username, accessKey } = this.config.saucelabs;
+    if (!username || !accessKey) {
+      throw new PncliError('Sauce Labs credentials not configured. Run: pncli config set saucelabs.username <username> && pncli config set saucelabs.accessKey <access-key>');
+    }
+    const creds = Buffer.from(`${username}:${accessKey}`).toString('base64');
+    return {
+      'Authorization': `Basic ${creds}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+  }
+
+  /** The configured Sauce Labs username; most v1 paths are scoped to it. */
+  saucelabsUsername(): string {
+    const { username } = this.config.saucelabs;
+    if (!username) throw new PncliError('Sauce Labs username not configured. Run: pncli config set saucelabs.username <username>');
+    return username;
+  }
+
+  async saucelabs<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.saucelabs.baseUrl;
+    if (!baseUrl) throw new PncliError('Sauce Labs baseUrl not configured. Run: pncli config set saucelabs.baseUrl https://api.us-west-1.saucelabs.com');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = { ...this.saucelabsHeaders(), ...opts.headers };
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}
+Headers: ${JSON.stringify(safeHeaders, null, 2)}
+`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}
+` : '');
       fs.writeSync(process.stderr.fd, msg);
       process.exitCode = ExitCode.SUCCESS;
       throw new PncliError('dry-run', 0);

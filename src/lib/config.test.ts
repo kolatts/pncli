@@ -31,6 +31,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     splitio: { baseUrl: undefined, adminApiKey: undefined },
     figma: { baseUrl: undefined, token: undefined },
     alation: { baseUrl: undefined, refreshToken: undefined, userId: undefined },
+    saucelabs: { baseUrl: undefined, username: undefined, accessKey: undefined },
     defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, jenkins: {} },
     ...overrides
   };
@@ -492,6 +493,85 @@ describe('loadConfig — PNCLI_FIGMA_* env vars', () => {
     fs.writeFileSync(globalConfigPath, JSON.stringify({ figma: { token: 'stored-token' } }));
     const config = loadConfig({ configPath: globalConfigPath });
     expect(config.figma.token).toBe('stored-token');
+  });
+});
+
+describe('loadConfig — Sauce Labs env vars and SAUCE_* CI fallbacks', () => {
+  let tmpDir: string;
+  let globalConfigPath: string;
+  const ENV = ['PNCLI_SAUCELABS_BASE_URL', 'PNCLI_SAUCELABS_USERNAME', 'PNCLI_SAUCELABS_ACCESS_KEY', 'SAUCE_USERNAME', 'SAUCE_ACCESS_KEY'];
+
+  beforeEach(async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-test-'));
+    globalConfigPath = path.join(tmpDir, 'config.json');
+    fs.writeFileSync(globalConfigPath, JSON.stringify({}));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
+    const { execSync } = await import('child_process');
+    vi.mocked(execSync).mockReturnValue(tmpDir as unknown as ReturnType<typeof execSync>);
+    for (const k of ENV) delete process.env[k];
+  });
+
+  afterEach(() => {
+    for (const k of ENV) delete process.env[k];
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.clearAllMocks();
+  });
+
+  it('resolves every field from PNCLI_SAUCELABS_*', () => {
+    process.env['PNCLI_SAUCELABS_BASE_URL'] = 'https://api.eu-central-1.saucelabs.com';
+    process.env['PNCLI_SAUCELABS_USERNAME'] = 'imagile';
+    process.env['PNCLI_SAUCELABS_ACCESS_KEY'] = 'abc12345-0000-0000-0000-000000000000';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.saucelabs).toEqual({
+      baseUrl: 'https://api.eu-central-1.saucelabs.com',
+      username: 'imagile',
+      accessKey: 'abc12345-0000-0000-0000-000000000000'
+    });
+  });
+
+  it('uses SAUCE_USERNAME / SAUCE_ACCESS_KEY when PNCLI_SAUCELABS_* are unset', () => {
+    process.env['SAUCE_USERNAME'] = 'ci-user';
+    process.env['SAUCE_ACCESS_KEY'] = 'ci-key';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.saucelabs.username).toBe('ci-user');
+    expect(config.saucelabs.accessKey).toBe('ci-key');
+  });
+
+  it('PNCLI_SAUCELABS_* wins when both it and the SAUCE_* fallback are set', () => {
+    process.env['SAUCE_USERNAME'] = 'ci-user';
+    process.env['SAUCE_ACCESS_KEY'] = 'ci-key';
+    process.env['PNCLI_SAUCELABS_USERNAME'] = 'pncli-user';
+    process.env['PNCLI_SAUCELABS_ACCESS_KEY'] = 'pncli-key';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.saucelabs.username).toBe('pncli-user');
+    expect(config.saucelabs.accessKey).toBe('pncli-key');
+  });
+
+  it('the SAUCE_* fallback wins over stored config', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ saucelabs: { username: 'stored-user', accessKey: 'stored-key' } }));
+    process.env['SAUCE_USERNAME'] = 'ci-user';
+    process.env['SAUCE_ACCESS_KEY'] = 'ci-key';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.saucelabs.username).toBe('ci-user');
+    expect(config.saucelabs.accessKey).toBe('ci-key');
+  });
+
+  it('falls back to stored config when no env var is set', () => {
+    fs.writeFileSync(globalConfigPath, JSON.stringify({
+      saucelabs: { baseUrl: 'https://api.us-west-1.saucelabs.com', username: 'stored-user', accessKey: 'stored-key' }
+    }));
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.saucelabs).toEqual({
+      baseUrl: 'https://api.us-west-1.saucelabs.com', username: 'stored-user', accessKey: 'stored-key'
+    });
+  });
+
+  it('masks the access key but not the username', () => {
+    process.env['PNCLI_SAUCELABS_USERNAME'] = 'imagile';
+    process.env['PNCLI_SAUCELABS_ACCESS_KEY'] = 'secret';
+    const masked = maskConfig(loadConfig({ configPath: globalConfigPath })) as ResolvedConfig;
+    expect(masked.saucelabs.accessKey).toBe('***');
+    expect(masked.saucelabs.username).toBe('imagile');
   });
 });
 

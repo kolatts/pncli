@@ -26,6 +26,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     splitio: { baseUrl: undefined, adminApiKey: undefined },
     figma: { baseUrl: undefined, token: undefined },
     alation: { baseUrl: undefined, refreshToken: undefined, userId: undefined },
+    saucelabs: { baseUrl: undefined, username: undefined, accessKey: undefined },
     defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, jenkins: {} },
     ...overrides
   };
@@ -853,6 +854,43 @@ describe('HttpClient — Figma', () => {
     const config = baseConfig({ figma: { baseUrl: 'https://api.figma.com', token: 'tok' } });
     const client = new HttpClient(config, true);
     await expect(client.figma('/v1/me')).rejects.toMatchObject({ status: 0, message: 'dry-run' });
+  });
+});
+
+describe('HttpClient — Sauce Labs', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const saucelabs = { baseUrl: 'https://api.us-west-1.saucelabs.com', username: 'imagile', accessKey: 'key-123' };
+
+  it('throws on missing baseUrl', async () => {
+    const client = new HttpClient(baseConfig({ saucelabs: { ...saucelabs, baseUrl: undefined } }));
+    await expect(client.saucelabs('/rest/v1/info/status')).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('throws on missing access key', async () => {
+    const client = new HttpClient(baseConfig({ saucelabs: { ...saucelabs, accessKey: undefined } }));
+    await expect(client.saucelabs('/rest/v1/info/status')).rejects.toMatchObject({ name: 'PncliError' });
+  });
+
+  it('sends HTTP Basic auth built from username and access key', async () => {
+    const captured: { url: string; headers: Record<string, string> }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      captured.push({ url: String(url), headers: Object.fromEntries(new Headers(init.headers as Record<string, string>).entries()) });
+      return new Response('{"status_message":"ok"}', { status: 200 });
+    });
+    await new HttpClient(baseConfig({ saucelabs })).saucelabs('/rest/v1/info/status');
+    expect(captured[0]?.url).toBe('https://api.us-west-1.saucelabs.com/rest/v1/info/status');
+    expect(captured[0]?.headers['authorization']).toBe(`Basic ${Buffer.from('imagile:key-123').toString('base64')}`);
+  });
+
+  it('surfaces a { detail } error body as the message', async () => {
+    vi.stubGlobal('fetch', async () => new Response('{"detail":"Device not found"}', { status: 404, statusText: 'Not Found' }));
+    await expect(new HttpClient(baseConfig({ saucelabs })).saucelabs('/rdc/v2/devices/nope'))
+      .rejects.toMatchObject({ status: 404, message: 'Device not found' });
+  });
+
+  it('throws PncliError with status 0 on dry-run', async () => {
+    const client = new HttpClient(baseConfig({ saucelabs }), true);
+    await expect(client.saucelabs('/rest/v1/info/status')).rejects.toMatchObject({ status: 0, message: 'dry-run' });
   });
 });
 

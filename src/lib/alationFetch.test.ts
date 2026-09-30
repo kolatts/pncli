@@ -29,6 +29,7 @@ function makeConfig(overrides: Partial<ResolvedConfig['alation']> = {}): Resolve
       userId: '102',
       ...overrides
     },
+    saucelabs: { baseUrl: undefined, username: undefined, accessKey: undefined },
     defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, jenkins: {} }
   };
 }

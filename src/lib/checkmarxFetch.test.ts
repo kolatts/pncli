@@ -31,6 +31,7 @@ function makeConfig(overrides: Partial<ResolvedConfig['checkmarx']> = {}): Resol
     splitio: { baseUrl: undefined, adminApiKey: undefined },
     figma: { baseUrl: undefined, token: undefined },
     alation: { baseUrl: undefined, refreshToken: undefined, userId: undefined },
+    saucelabs: { baseUrl: undefined, username: undefined, accessKey: undefined },
     defaults: { jira: {}, bitbucket: {}, github: {}, sonar: {}, sde: {}, ado: {}, jenkins: {} }
   };
 }
