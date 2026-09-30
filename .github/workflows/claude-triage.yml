@@ -419,8 +419,7 @@ jobs:
                On a manual re-triage the label may be absent, and if it has never been created
                in the repo at all `gh` exits non-zero rather than no-opping. That is expected —
                do not treat it as a triage failure, and do not append `|| true` (a chained
-               command is denied outright; see RUNNING COMMANDS). The workflow also removes
-               this label itself after you finish.
+               command is denied outright; see RUNNING COMMANDS).
                Do not remove `from-website`; it is a persistent provenance label used by
                downstream notification and reporting workflows.
 
