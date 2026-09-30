@@ -99,6 +99,23 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
   }
 }
 
+const TLS_CERT_ERROR_CODES = new Set([
+  'SELF_SIGNED_CERT_IN_CHAIN',
+  'DEPTH_ZERO_SELF_SIGNED_CERT',
+  'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  'UNABLE_TO_GET_ISSUER_CERT',
+  'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+  'CERT_HAS_EXPIRED',
+  'CERT_NOT_YET_VALID',
+  'CERT_UNTRUSTED',
+  'ERR_TLS_CERT_ALTNAME_INVALID',
+]);
+
+const TLS_CERT_HINT =
+  '. Certificate verification failed. If your network uses an SSL-inspecting proxy or an internal CA, ' +
+  'trust it with NODE_EXTRA_CA_CERTS=/path/to/ca.pem (or NODE_USE_SYSTEM_CA=1); ' +
+  'as a last resort set PNCLI_INSECURE_TLS=1 to skip verification.';
+
 async function requestRaw<T>(
   url: string,
   init: RequestInit,
@@ -128,7 +145,11 @@ async function requestRaw<T>(
       const causeMsg = err instanceof Error && err.cause instanceof Error ? err.cause.message : undefined;
       const fullMsg = causeMsg ? `${topMsg}: ${causeMsg}` : topMsg;
       debug(`  Error: ${fullMsg}`);
-      throw new PncliError(`Request failed: ${fullMsg}`, 0, url);
+      const causeCode = err instanceof Error && err.cause && typeof err.cause === 'object'
+        ? (err.cause as { code?: unknown }).code
+        : undefined;
+      const hint = typeof causeCode === 'string' && TLS_CERT_ERROR_CODES.has(causeCode) ? TLS_CERT_HINT : '';
+      throw new PncliError(`Request failed: ${fullMsg}${hint}`, 0, url);
     }
 
     debug(`← ${response.status} ${response.statusText} (${Date.now() - reqStart}ms)`);

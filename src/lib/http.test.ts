@@ -996,6 +996,29 @@ describe('HttpClient — fetch error cause surfacing', () => {
     });
   });
 
+  it('adds a fix hint when the cause is a certificate verification error', async () => {
+    const cause = Object.assign(new Error('self-signed certificate in certificate chain'), {
+      code: 'SELF_SIGNED_CERT_IN_CHAIN'
+    });
+    vi.stubGlobal('fetch', async () => { throw Object.assign(new Error('fetch failed'), { cause }); });
+
+    const client = new HttpClient(baseConfig());
+    const err = (await client.jira('/rest/api/2/issue/TEST-1').catch(e => e)) as Error;
+    expect(err.message).toContain('self-signed certificate in certificate chain');
+    expect(err.message).toContain('NODE_EXTRA_CA_CERTS');
+    expect(err.message).toContain('NODE_USE_SYSTEM_CA=1');
+    expect(err.message).toContain('PNCLI_INSECURE_TLS=1');
+  });
+
+  it('adds no TLS hint for non-certificate causes', async () => {
+    const cause = Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:8080'), { code: 'ECONNREFUSED' });
+    vi.stubGlobal('fetch', async () => { throw Object.assign(new Error('fetch failed'), { cause }); });
+
+    const client = new HttpClient(baseConfig());
+    const err = (await client.jira('/rest/api/2/issue/TEST-1').catch(e => e)) as Error;
+    expect(err.message).not.toContain('PNCLI_INSECURE_TLS');
+  });
+
   it('uses only err.message when there is no cause', async () => {
     vi.stubGlobal('fetch', async () => { throw new Error('fetch failed'); });
 
