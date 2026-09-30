@@ -163,7 +163,7 @@ describe('configureProxy', () => {
   });
 
   it('still honours NODE_TLS_REJECT_UNAUTHORIZED=0 for HTTPS requests tunnelled through the proxy', async () => {
-    // cli.ts sets NODE_TLS_REJECT_UNAUTHORIZED=0 when PNCLI_INSECURE_TLS=1, for self-hosted
+    // configureTls (src/lib/tls.ts) sets NODE_TLS_REJECT_UNAUTHORIZED=0 when PNCLI_INSECURE_TLS=1, for self-hosted
     // installs behind SSL-inspecting proxies. `new EnvHttpProxyAgent()` is constructed
     // with no options; a regression here would mean it forces `rejectUnauthorized: true`
     // on every connection app-wide the moment any proxy variable is set, breaking exactly

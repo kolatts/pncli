@@ -1,5 +1,6 @@
 import type { ResolvedConfig } from '../../../types/config.js';
 import type { Package, OsvVulnerability, VulnerablePackage } from '../types.js';
+import { describeFetchError } from '../../../lib/tls.js';
 
 const TIMEOUT_MS = 60_000;
 const MAX_POLL_ATTEMPTS = 10;
@@ -320,7 +321,7 @@ export async function checkSonatypeIqConnectivity(
     return {
       reachable: false,
       authenticated: false,
-      error: err instanceof Error ? err.message : String(err)
+      error: describeFetchError(err)
     };
   }
 }

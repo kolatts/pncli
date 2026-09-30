@@ -74,12 +74,22 @@ network stay direct while SaaS ones route out through the proxy. If a proxy
 variable is set but the proxy cannot be configured, pncli warns on stderr rather
 than silently bypassing it.
 
-TLS certificate verification is **on** by default. Behind an SSL-inspecting
-proxy, make Node trust the proxy's root CA: set `NODE_EXTRA_CA_CERTS=/path/to/ca.pem`,
-or `NODE_USE_SYSTEM_CA=1` (Node.js 22+) to use the OS certificate store. As a last
-resort, `PNCLI_INSECURE_TLS=1` disables verification for that run and prints a
-warning on stderr. (Earlier versions disabled verification by default and used
-`PNCLI_VERIFY_TLS=1` to opt back in; that variable is no longer read.)
+TLS certificate verification is **on** by default, and pncli trusts the OS
+certificate store alongside Node's bundled CAs. If your IT department has
+installed the SSL-inspecting proxy's root certificate on your machine (the usual
+case: it is what makes your browser work), pncli trusts it too, with nothing to
+set. If a certificate still fails, pncli's error says why and how to fix it:
+
+- **Untrusted certificate** — install the proxy's or internal CA's root in the
+  OS store, or point `NODE_EXTRA_CA_CERTS=/path/to/ca.pem` at it.
+- **Hostname mismatch** — use the host name the certificate was issued for in
+  `baseUrl`, usually the fully qualified name rather than a short alias or IP.
+- **Last resort** — `PNCLI_INSECURE_TLS=1` disables verification for that run
+  and prints a warning on stderr.
+
+Set `NODE_USE_SYSTEM_CA=0` to trust only Node's bundled CAs. (Earlier versions
+disabled verification by default and used `PNCLI_VERIFY_TLS=1` to opt back in;
+that variable is no longer read.)
 
 ## Large text fields (descriptions, acceptance criteria)
 

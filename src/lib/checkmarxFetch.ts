@@ -1,6 +1,7 @@
 import type { ResolvedConfig } from '../types/config.js';
 import type { CxOneTokenResponse } from '../types/checkmarx.js';
 import { PncliError } from './errors.js';
+import { describeFetchError } from './tls.js';
 
 interface TokenCache {
   value: string;
@@ -49,11 +50,16 @@ export function buildCheckmarxFetcher(config: ResolvedConfig): typeof fetch {
         client_secret: clientSecret!
       });
 
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString()
-    });
+    let response: Response;
+    try {
+      response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+      });
+    } catch (err) {
+      throw new PncliError(`Checkmarx token exchange failed: ${describeFetchError(err)}`, 0, tokenUrl);
+    }
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');

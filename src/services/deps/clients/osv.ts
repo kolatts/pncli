@@ -1,4 +1,5 @@
 import type { Package, OsvVulnerability, VulnerablePackage } from '../types.js';
+import { describeFetchError } from '../../../lib/tls.js';
 
 const OSV_URL = 'https://api.osv.dev';
 const BATCH_SIZE = 500;
@@ -65,7 +66,7 @@ export async function checkOsvConnectivity(): Promise<{ reachable: boolean; erro
   } catch (err) {
     return {
       reachable: false,
-      error: err instanceof Error ? err.message : String(err)
+      error: describeFetchError(err)
     };
   }
 }

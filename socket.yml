@@ -1,8 +1,8 @@
 version: 2
 settings:
   issueRules:
-    # TLS verification is on by default; PNCLI_INSECURE_TLS=1 is an explicit,
-    # warned opt-out for SSL-inspection proxies (see src/cli.ts).
+    # TLS verification is on by default and trusts the OS certificate store;
+    # PNCLI_INSECURE_TLS=1 is an explicit, warned opt-out (see src/lib/tls.ts).
     envSet:
       action: ignore
     # pncli embeds base URLs only for public API endpoints listed below.
