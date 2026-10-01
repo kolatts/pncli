@@ -21,6 +21,7 @@ function makeConfig(overrides: Partial<ResolvedConfig['alation']> = {}): Resolve
     openshift: { baseUrl: undefined, token: undefined, defaultEnvironment: undefined, defaultInstance: undefined, environments: {} },
     dynatrace: { baseUrl: undefined, apiToken: undefined, platformUrl: undefined, platformToken: undefined, defaultEnvironment: undefined, environments: {} },
     logscale: { baseUrl: undefined, token: undefined },
+    elasticsearch: { baseUrl: undefined, apiKey: undefined },
     splitio: { baseUrl: undefined, adminApiKey: undefined },
     figma: { baseUrl: undefined, token: undefined },
     alation: {

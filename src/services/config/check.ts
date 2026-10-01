@@ -349,6 +349,20 @@ export async function runCredentialChecks(cfg: ResolvedConfig, http: HttpClient)
     }
   }
 
+  // Elasticsearch
+  if (!cfg.elasticsearch.apiKey) {
+    results.elasticsearch = { status: 'blank', message: 'not configured' };
+  } else if (!cfg.elasticsearch.baseUrl) {
+    results.elasticsearch = { status: 'error', message: 'baseUrl not configured' };
+  } else {
+    try {
+      await http.elasticsearch<unknown>('/_cluster/health', { timeoutMs: 10_000 });
+      results.elasticsearch = { status: 'valid', message: 'ok' };
+    } catch (err) {
+      results.elasticsearch = categorize(err);
+    }
+  }
+
   // Split.IO
   if (!cfg.splitio.adminApiKey) {
     results.splitio = { status: 'blank', message: 'not configured' };
