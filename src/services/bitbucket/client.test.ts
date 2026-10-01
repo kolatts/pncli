@@ -368,3 +368,21 @@ describe('BitbucketClient — compareCommits', () => {
     expect(result).toBe(false);
   });
 });
+
+describe('BitbucketClient — listDefaultReviewers', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('GETs the default-reviewers conditions endpoint', async () => {
+    const urls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      urls.push(url);
+      return new Response(JSON.stringify([{ id: 1, reviewers: [{ name: 'jsmith' }], requiredApprovals: 1 }]), { status: 200 });
+    });
+
+    const client = new BitbucketClient(new HttpClient(makeConfig()));
+    const result = await client.listDefaultReviewers('PROJ', 'REPO');
+
+    expect(urls[0]).toMatch(/\/rest\/default-reviewers\/1\.0\/projects\/PROJ\/repos\/REPO\/conditions$/);
+    expect(result).toHaveLength(1);
+  });
+});

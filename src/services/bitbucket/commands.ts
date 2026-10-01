@@ -399,6 +399,17 @@ export function registerBitbucketCommands(program: Command): void {
       } catch (err) { fail(err, 'bitbucket', 'list-reviewers', start); }
     });
 
+  bb.command('list-default-reviewers')
+    .description('List the default-reviewer conditions configured for a repository')
+    .action(async () => {
+      const start = Date.now();
+      try {
+        const { client, project, repo } = getClient(bb);
+        const data = await client.listDefaultReviewers(project, repo);
+        success(data, 'bitbucket', 'list-default-reviewers', start);
+      } catch (err) { fail(err, 'bitbucket', 'list-default-reviewers', start); }
+    });
+
   bb.command('add-reviewer')
     .description('Add a reviewer to a pull request')
     .requiredOption('--pr <pr-id>', 'Pull request ID')

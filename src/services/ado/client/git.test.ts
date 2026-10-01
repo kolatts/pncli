@@ -82,3 +82,27 @@ describe('AdoGitClient — listPRs pagination', () => {
     expect(url.searchParams.get('searchCriteria.status')).toBe('completed');
   });
 });
+
+describe('AdoGitClient — listDefaultReviewers', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('returns only required-reviewer policies scoped to the repo or project-wide', async () => {
+    const reviewerType = { id: 'fd2167ab-b0be-447a-8ec8-39368250530e' };
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/_apis/policy/configurations')) {
+        return new Response(JSON.stringify({ value: [
+          { id: 1, type: reviewerType, settings: { scope: [{ repositoryId: 'repo-guid' }] } },
+          { id: 2, type: reviewerType, settings: { scope: [{ repositoryId: 'other-guid' }] } },
+          { id: 3, type: reviewerType, settings: { scope: [{ repositoryId: null }] } },
+          { id: 4, type: { id: 'other-type' }, settings: { scope: [{ repositoryId: 'repo-guid' }] } }
+        ] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ id: 'repo-guid', name: 'myrepo' }), { status: 200 });
+    });
+
+    const client = new AdoGitClient(new HttpClient(makeConfig()));
+    const result = await client.listDefaultReviewers('myorg', 'myproject', 'myrepo') as Array<{ id: number }>;
+
+    expect(result.map(r => r.id)).toEqual([1, 3]);
+  });
+});
