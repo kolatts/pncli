@@ -172,6 +172,13 @@ export interface LogscaleConfig {
   token?: string;
 }
 
+export interface ElasticsearchConfig {
+  /** Elasticsearch base URL, for example https://elasticsearch.imagile.dev:9200 */
+  baseUrl?: string;
+  /** Base64 "encoded" API key from Kibana (Stack Management → API keys), sent as `ApiKey <value>` */
+  apiKey?: string;
+}
+
 export interface SplitioConfig {
   /** Split Admin API base URL, for example https://api.split.io */
   baseUrl?: string;
@@ -271,6 +278,7 @@ export interface GlobalConfig {
   openshift?: OpenShiftConfig;
   dynatrace?: DynatraceConfig;
   logscale?: LogscaleConfig;
+  elasticsearch?: ElasticsearchConfig;
   splitio?: SplitioConfig;
   figma?: FigmaConfig;
   alation?: AlationConfig;
@@ -376,6 +384,10 @@ export interface ResolvedConfig {
   logscale: {
     baseUrl: string | undefined;
     token: string | undefined;
+  };
+  elasticsearch: {
+    baseUrl: string | undefined;
+    apiKey: string | undefined;
   };
   splitio: {
     baseUrl: string | undefined;

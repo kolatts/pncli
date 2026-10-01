@@ -59,6 +59,8 @@ const ENV_KEYS = {
   DYNATRACE_PLATFORM_TOKEN: 'PNCLI_DYNATRACE_PLATFORM_TOKEN',
   LOGSCALE_BASE_URL: 'PNCLI_LOGSCALE_BASE_URL',
   LOGSCALE_TOKEN: 'PNCLI_LOGSCALE_TOKEN',
+  ELASTICSEARCH_BASE_URL: 'PNCLI_ELASTICSEARCH_BASE_URL',
+  ELASTICSEARCH_API_KEY: 'PNCLI_ELASTICSEARCH_API_KEY',
   SPLITIO_BASE_URL: 'PNCLI_SPLITIO_BASE_URL',
   SPLITIO_ADMIN_API_KEY: 'PNCLI_SPLITIO_ADMIN_API_KEY',
   FIGMA_BASE_URL: 'PNCLI_FIGMA_BASE_URL',
@@ -158,6 +160,7 @@ const SECRET_ENV_OVERRIDES: [string, string[]][] = [
   ['dynatrace.apiToken', [ENV_KEYS.DYNATRACE_API_TOKEN]],
   ['dynatrace.platformToken', [ENV_KEYS.DYNATRACE_PLATFORM_TOKEN]],
   ['logscale.token', [ENV_KEYS.LOGSCALE_TOKEN]],
+  ['elasticsearch.apiKey', [ENV_KEYS.ELASTICSEARCH_API_KEY]],
   ['splitio.adminApiKey', [ENV_KEYS.SPLITIO_ADMIN_API_KEY]],
   ['figma.token', [ENV_KEYS.FIGMA_TOKEN]],
   ['alation.refreshToken', [ENV_KEYS.ALATION_REFRESH_TOKEN]],
@@ -289,6 +292,10 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
     logscale: {
       baseUrl: process.env[ENV_KEYS.LOGSCALE_BASE_URL] ?? globalConfig.logscale?.baseUrl,
       token: process.env[ENV_KEYS.LOGSCALE_TOKEN] ?? globalConfig.logscale?.token,
+    },
+    elasticsearch: {
+      baseUrl: process.env[ENV_KEYS.ELASTICSEARCH_BASE_URL] ?? globalConfig.elasticsearch?.baseUrl,
+      apiKey: process.env[ENV_KEYS.ELASTICSEARCH_API_KEY] ?? globalConfig.elasticsearch?.apiKey,
     },
     splitio: {
       baseUrl: process.env[ENV_KEYS.SPLITIO_BASE_URL] ?? globalConfig.splitio?.baseUrl,
@@ -482,6 +489,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     logscale: {
       ...config.logscale,
       token: config.logscale.token ? '***' : undefined
+    },
+    elasticsearch: {
+      ...config.elasticsearch,
+      apiKey: config.elasticsearch.apiKey ? '***' : undefined
     },
     splitio: {
       ...config.splitio,

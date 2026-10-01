@@ -140,6 +140,7 @@ This project uses Conventional Commits for automatic versioning:
 | Sonatype IQ | ⚪ Untested | Dependency policy enforcement |
 | OpenShift | ⚪ Untested | Pods, events, logs, metrics |
 | LogScale | ⚪ Untested | Log queries, repositories |
+| Elasticsearch | ⚪ Untested | Search, count, indices, cluster health |
 | Figma | ⚪ Untested | Design files, comments, history |
 | Split.IO | ⚪ Untested | Feature flags, change requests |
 | Alation | ⚪ Untested | Catalog metadata, search, documents |

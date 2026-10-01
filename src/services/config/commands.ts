@@ -359,6 +359,17 @@ export function registerConfigCommands(program: Command): void {
           results.logscale = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.elasticsearch.baseUrl && cfg.elasticsearch.apiKey) {
+          try {
+            await http.elasticsearch<unknown>('/_cluster/health');
+            results.elasticsearch = { ok: true, message: 'connected' };
+          } catch (err) {
+            results.elasticsearch = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else {
+          results.elasticsearch = { ok: null, message: 'not configured' };
+        }
+
         if (cfg.splitio.baseUrl && cfg.splitio.adminApiKey) {
           try {
             await http.splitio<unknown>('/internal/api/v2/workspaces');
@@ -443,7 +454,7 @@ export function registerConfigCommands(program: Command): void {
         const allServices = [
           'jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins',
           'artifactory', 'checkmarx', 'contrast', 'sonatypeiq', 'openshift',
-          ...clusterKeys, 'dynatrace', 'dynatrace_platform', ...dynamicEnvKeys, 'logscale', 'splitio', 'figma', 'alation', 'saucelabs'
+          ...clusterKeys, 'dynatrace', 'dynatrace_platform', ...dynamicEnvKeys, 'logscale', 'elasticsearch', 'splitio', 'figma', 'alation', 'saucelabs'
         ];
 
         if (cmdOpts.output === 'table') {
@@ -1088,6 +1099,45 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── Elasticsearch ─────────────────────────────────\n');
+  const useElasticsearch = await confirm({
+    message: 'Configure Elasticsearch for log and document searches?',
+    default: false
+  });
+
+  let elasticsearchBaseUrl = '';
+  let elasticsearchApiKey = '';
+
+  if (useElasticsearch) {
+    elasticsearchBaseUrl = await input({
+      message: 'Elasticsearch base URL (e.g. https://elasticsearch.imagile.dev:9200):',
+      default: ''
+    });
+
+    elasticsearchApiKey = await password({
+      message: 'Elasticsearch API key (the base64 "encoded" value from Kibana → Stack Management → API keys):'
+    });
+
+    if (elasticsearchBaseUrl && elasticsearchApiKey) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          elasticsearch: {
+            baseUrl: normalizeBaseUrl(elasticsearchBaseUrl),
+            apiKey: elasticsearchApiKey
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.elasticsearch<unknown>('/_cluster/health');
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to Elasticsearch: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your URL and API key and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Split.IO ──────────────────────────────────────\n');
   const useSplitio = await confirm({
     message: 'Configure Split.IO for feature flag administration?',
@@ -1421,6 +1471,12 @@ async function initGlobalConfig(start: number): Promise<void> {
       logscale: {
         baseUrl: normalizeBaseUrl(logscaleBaseUrl),
         token: logscaleToken || undefined
+      }
+    } : {}),
+    ...(useElasticsearch && elasticsearchBaseUrl ? {
+      elasticsearch: {
+        baseUrl: normalizeBaseUrl(elasticsearchBaseUrl),
+        apiKey: elasticsearchApiKey || undefined
       }
     } : {}),
     ...(useSplitio && splitioBaseUrl ? {

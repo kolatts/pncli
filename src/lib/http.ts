@@ -1348,6 +1348,44 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
+  private elasticsearchHeaders(): Record<string, string> {
+    const { apiKey } = this.config.elasticsearch;
+    if (!apiKey) throw new PncliError('Elasticsearch credentials not configured. Run: pncli config init');
+    return {
+      'Authorization': `ApiKey ${apiKey}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Connection': 'close'
+    };
+  }
+
+  async elasticsearch<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const baseUrl = this.config.elasticsearch.baseUrl;
+    if (!baseUrl) throw new PncliError('Elasticsearch baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.elasticsearchHeaders();
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
   private splitioHeaders(): Record<string, string> {
     const { adminApiKey } = this.config.splitio;
     if (!adminApiKey) throw new PncliError('Split.IO credentials not configured. Run: pncli config init');
