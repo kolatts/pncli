@@ -335,6 +335,14 @@ export class BitbucketClient {
     return pr.reviewers;
   }
 
+  async listDefaultReviewers(project: string, repo: string): Promise<unknown[]> {
+    // Default-reviewer conditions live in a bundled plugin REST API, not /rest/api/1.0.
+    const result = await this.http.bitbucket<unknown[]>(
+      `/rest/default-reviewers/1.0/projects/${encodeURIComponent(project)}/repos/${encodeURIComponent(repo)}/conditions`
+    );
+    return Array.isArray(result) ? result : [];
+  }
+
   async addReviewer(project: string, repo: string, prId: number, username: string): Promise<unknown> {
     return this.http.bitbucket<unknown>(
       `${API}/projects/${project}/repos/${repo}/pull-requests/${prId}/participants`,

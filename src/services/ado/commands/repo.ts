@@ -369,6 +369,18 @@ export function registerAdoRepoCommands(ado: Command): void {
       } catch (err) { fail(err, 'ado', 'repo-list-reviewers', start); }
     });
 
+  repo
+    .command('list-default-reviewers')
+    .description('List required-reviewer branch policies (default reviewers) that apply to the repository')
+    .action(async () => {
+      const start = Date.now();
+      try {
+        const { collection, project, repo, gitClient } = getAdoContext(ado, true);
+        const data = await gitClient.listDefaultReviewers(collection, project, repo);
+        success(data, 'ado', 'repo-list-default-reviewers', start);
+      } catch (err) { fail(err, 'ado', 'repo-list-default-reviewers', start); }
+    });
+
   const voteCmd = (
     name: string,
     description: string,

@@ -13,6 +13,9 @@ import type {
 
 const API = '7.1';
 
+// Well-known policy type ID for "Required reviewers"
+const REQUIRED_REVIEWERS_POLICY_TYPE = 'fd2167ab-b0be-447a-8ec8-39368250530e';
+
 export class AdoGitClient {
   constructor(private http: HttpClient) {}
 
@@ -161,6 +164,25 @@ export class AdoGitClient {
   async listReviewers(collection: string, project: string, repo: string, prId: number): Promise<unknown[]> {
     const pr = await this.getPR(collection, project, repo, prId);
     return pr.reviewers;
+  }
+
+  /**
+   * Default reviewers in Azure DevOps are "Required reviewers" branch policies.
+   * Returns the policy configurations of that type whose scope covers the repo
+   * (a scope entry with a null repositoryId applies project-wide).
+   */
+  async listDefaultReviewers(collection: string, project: string, repo: string): Promise<unknown[]> {
+    const repoInfo = await this.getRepo(collection, project, repo);
+    const result = await this.http.ado<AdoPageResponse<{
+      type?: { id?: string };
+      settings?: { scope?: Array<{ repositoryId?: string | null }> };
+    }>>(
+      `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/policy/configurations?api-version=${API}`
+    );
+    return (result.value ?? []).filter(c =>
+      c.type?.id === REQUIRED_REVIEWERS_POLICY_TYPE &&
+      (c.settings?.scope ?? []).some(s => !s.repositoryId || s.repositoryId === repoInfo.id)
+    );
   }
 
   // ── Threads / Comments ────────────────────────────────────────────
