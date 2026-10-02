@@ -38,6 +38,17 @@ describe('configureTls', () => {
     expect(api.setDefaultCACertificates).toHaveBeenCalled();
   });
 
+  it('warns on stderr when NODE_TLS_REJECT_UNAUTHORIZED=0, and stays quiet otherwise', () => {
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    configureTls({ NODE_TLS_REJECT_UNAUTHORIZED: '0' }, stubTls() as never);
+    expect(stderr).toHaveBeenCalledWith(expect.stringContaining('NOT verify server certificates'));
+    expect(stderr).toHaveBeenCalledWith(expect.stringContaining('NODE_EXTRA_CA_CERTS'));
+    stderr.mockClear();
+    configureTls({ NODE_TLS_REJECT_UNAUTHORIZED: '1' }, stubTls() as never);
+    configureTls({}, stubTls() as never);
+    expect(stderr).not.toHaveBeenCalled();
+  });
+
   it('warns and continues with the bundled CAs when the OS store cannot be read', () => {
     const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const api = stubTls([], true);
