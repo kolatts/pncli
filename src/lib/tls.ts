@@ -18,7 +18,17 @@ import tls from 'node:tls';
 
 type TlsApi = Pick<typeof tls, 'getCACertificates' | 'setDefaultCACertificates'>;
 
+export const INSECURE_TLS_WARNING =
+  'warning: NODE_TLS_REJECT_UNAUTHORIZED=0 is set, so pncli will NOT verify server certificates. ' +
+  'Anyone on the network path can read or alter requests and responses, including your credentials and any writes. ' +
+  'Unset it and trust the proxy or internal CA instead: install its root certificate in the OS store ' +
+  'or set NODE_EXTRA_CA_CERTS=/path/to/ca.pem.\n';
+
 export function configureTls(env: NodeJS.ProcessEnv = process.env, api: TlsApi = tls): void {
+  // pncli never sets this, but a shell profile or CI image may. Node's own
+  // one-line warning does not say what is at risk or what to do instead.
+  if (env.NODE_TLS_REJECT_UNAUTHORIZED === '0') process.stderr.write(INSECURE_TLS_WARNING);
+
   // Any explicit value is the user's decision: `1` means Node already loaded
   // the system store at startup, and anything else (`0`) opts out of it.
   if (env.NODE_USE_SYSTEM_CA !== undefined) return;
