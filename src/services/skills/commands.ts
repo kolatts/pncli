@@ -1170,7 +1170,7 @@ function pullMarketplace(marketplacePath: string, m: MarketplaceConfig, marketpl
   }
   const updated = !pullOutput.includes('Already up to date');
   if (pullOutput.trim() && updated) warn(pullOutput.trim());
-  warn(updated ? `"${marketplaceName}" updated.` : `"${marketplaceName}" already up to date — no changes to sync.`);
+  warn(updated ? `"${marketplaceName}" updated.` : `"${marketplaceName}" already up to date — refreshing installed plugins from the local clone.`);
   return { updated };
 }
 
@@ -1234,10 +1234,9 @@ export interface TargetInstallResult {
  *
  * - `pluginFilter` is "all" or a plugin name; with `installedOnly`, "all" means only the
  *   plugins already installed here from this marketplace.
- * - A target that already has every requested plugin is skipped when upstream is unchanged
- *   (unless `force`). A target missing any of them gets the missing ones installed even
- *   with no upstream change — so a second agent host, or a plugin added to the request,
- *   never needs `--force`.
+ * - Requested plugins are always refreshed from the local marketplace clone, whether or not
+ *   this pull brought in new commits (the clone may have been pulled by hand beforehand).
+ *   `opts.updated` and `opts.force` are kept for caller compatibility; neither gates the install.
  */
 export function installMarketplaceToTarget(
   m: MarketplaceConfig,
@@ -1265,14 +1264,6 @@ export function installMarketplaceToTarget(
     }
   } else {
     requested = [pluginFilter];
-  }
-
-  const missing = requested.filter(name => !installedHere.includes(name));
-  if (!opts.updated && !opts.force) {
-    if (missing.length === 0) {
-      return { ...base, plugins: {}, total: 0, skipped: true, message: 'No changes detected — skipping install. Use --force to reinstall anyway.' };
-    }
-    requested = missing;
   }
 
   const { results, totalInstalled } = installPluginsForMarketplace(marketplacePath, marketplaceName, m.repoUrl, requested, target.target);
