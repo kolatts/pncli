@@ -107,6 +107,20 @@ pncli openshift --env non-prod --instance us-east pods --namespace my-namespace
 Returns a pre-processed summary with phase counts (running/pending/failed), restart counts,
 CrashLoopBackOff/OOMKilled/ImagePullBackOff indicators, and per-pod container status.
 
+### List deployments (read-only)
+
+```bash
+pncli openshift deployments --namespace my-namespace
+pncli openshift deployments --namespace my-namespace --label-selector app=my-app
+pncli openshift deployments --namespace my-namespace --raw                 # full objects
+pncli openshift deployments --namespace my-namespace --deployment-configs  # OpenShift DeploymentConfigs
+```
+
+Returns per-deployment replica counts (desired/ready/updated/available/unavailable), container
+images, strategy, and any failing conditions, with the least-healthy deployments first. `--raw`
+returns the unmodified Kubernetes objects (pod template, env vars, etc.). `--deployment-configs`
+reads `apps.openshift.io/v1` DeploymentConfigs instead of `apps/v1` Deployments.
+
 ### List Warning events
 
 ```bash
@@ -176,6 +190,9 @@ The service account needs read access to pods, events, logs, and metrics in the 
 rules:
   - apiGroups: [""]
     resources: ["pods", "pods/log", "events"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps", "apps.openshift.io"]
+    resources: ["deployments", "deploymentconfigs"]
     verbs: ["get", "list"]
   - apiGroups: ["metrics.k8s.io"]
     resources: ["pods"]

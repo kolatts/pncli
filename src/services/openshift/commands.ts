@@ -93,6 +93,40 @@ interface K8sPodMetricsList {
   items: K8sPodMetrics[];
 }
 
+interface K8sWorkloadCondition {
+  type: string;
+  status: string;
+  reason?: string;
+  message?: string;
+  lastUpdateTime?: string;
+}
+
+/** Shared subset of apps/v1 Deployment and apps.openshift.io/v1 DeploymentConfig. */
+interface K8sDeployment {
+  metadata: { name: string; namespace: string; creationTimestamp?: string; generation?: number; labels?: Record<string, string>; [key: string]: unknown };
+  spec: {
+    replicas?: number;
+    strategy?: { type?: string };
+    template?: { spec?: { containers?: Array<K8sContainer> } };
+    [key: string]: unknown;
+  };
+  status?: {
+    replicas?: number;
+    readyReplicas?: number;
+    updatedReplicas?: number;
+    availableReplicas?: number;
+    unavailableReplicas?: number;
+    observedGeneration?: number;
+    latestVersion?: number;
+    conditions?: K8sWorkloadCondition[];
+    [key: string]: unknown;
+  };
+}
+
+interface K8sDeploymentList {
+  items: K8sDeployment[];
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function containerState(s?: K8sContainerState): string {
@@ -381,6 +415,70 @@ export function registerOpenShiftCommands(program: Command): void {
 
         success({ namespace: opts.namespace, summary: summaryCounters, pods }, 'openshift', 'pods', start);
       } catch (err) { fail(err, 'openshift', 'pods', start); }
+    });
+
+  oc
+    .command('deployments')
+    .description('List Deployments (or OpenShift DeploymentConfigs with --deployment-configs) for a namespace, read-only. Use --raw to return the full unmodified objects.')
+    .requiredOption('--namespace <ns>', 'Kubernetes namespace')
+    .option('--label-selector <selector>', 'Label selector (e.g. app=my-app)')
+    .option('--deployment-configs', 'Read OpenShift DeploymentConfigs (apps.openshift.io/v1) instead of Deployments (apps/v1)', false)
+    .option('--raw', 'Return full objects without summarization (includes pod template, env vars, strategy, etc.)', false)
+    .action(async (opts: { namespace: string; labelSelector?: string; deploymentConfigs?: boolean; raw?: boolean }) => {
+      const start = Date.now();
+      try {
+        const http = getHttp(oc);
+        const params: Record<string, string> = {};
+        if (opts.labelSelector) params['labelSelector'] = opts.labelSelector;
+
+        const kind = opts.deploymentConfigs ? 'DeploymentConfig' : 'Deployment';
+        const path = opts.deploymentConfigs
+          ? `/apis/apps.openshift.io/v1/namespaces/${encodeURIComponent(opts.namespace)}/deploymentconfigs`
+          : `/apis/apps/v1/namespaces/${encodeURIComponent(opts.namespace)}/deployments`;
+
+        const list = await http.openshift<K8sDeploymentList>(path, { params });
+
+        if (opts.raw) {
+          success(
+            { namespace: opts.namespace, kind, count: list.items.length, deployments: list.items },
+            'openshift', 'deployments', start
+          );
+          return;
+        }
+
+        const deployments = list.items.map(d => {
+          const desired = d.spec.replicas ?? 0;
+          const status = d.status ?? {};
+          const entry: Record<string, unknown> = {
+            name: d.metadata.name,
+            ready: `${status.readyReplicas ?? 0}/${desired}`,
+            desiredReplicas: desired,
+            readyReplicas: status.readyReplicas ?? 0,
+            updatedReplicas: status.updatedReplicas ?? 0,
+            availableReplicas: status.availableReplicas ?? 0,
+            unavailableReplicas: status.unavailableReplicas ?? 0,
+            age: podAge(d.metadata.creationTimestamp),
+            images: (d.spec.template?.spec?.containers ?? []).map(c => ({ name: c.name, image: c.image })),
+          };
+          if (d.spec.strategy?.type) entry['strategy'] = d.spec.strategy.type;
+          if (status.latestVersion !== undefined) entry['latestVersion'] = status.latestVersion;
+          const problems = (status.conditions ?? []).filter(c =>
+            (c.type === 'Available' && c.status === 'False') ||
+            (c.type === 'Progressing' && c.status === 'False') ||
+            c.type === 'ReplicaFailure'
+          );
+          if (problems.length > 0) {
+            entry['conditions'] = problems.map(c => ({ type: c.type, status: c.status, reason: c.reason, message: c.message }));
+          }
+          if (d.metadata.labels && Object.keys(d.metadata.labels).length > 0) entry['labels'] = d.metadata.labels;
+          return entry;
+        });
+
+        // Sort: deployments with missing replicas first
+        deployments.sort((a, b) => ((b['unavailableReplicas'] as number) ?? 0) - ((a['unavailableReplicas'] as number) ?? 0));
+
+        success({ namespace: opts.namespace, kind, count: deployments.length, deployments }, 'openshift', 'deployments', start);
+      } catch (err) { fail(err, 'openshift', 'deployments', start); }
     });
 
   oc

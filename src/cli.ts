@@ -118,7 +118,7 @@ Services:
   checkmarx    Checkmarx One (projects, scans, scan statistics)
   contrast     Contrast IAST (applications, vulnerability findings, libraries)
   sonatypeiq   Sonatype IQ Server (applications, organizations, policies)
-  openshift    OpenShift / Kubernetes (pods, events, logs, metrics)
+  openshift    OpenShift / Kubernetes (pods, deployments, events, logs, metrics)
   dynatrace    Dynatrace (services, entities, problems, traces, Kubernetes workloads)
   logscale     LogScale (log query, repositories)
   elasticsearch  Elasticsearch (search, count, indices, cluster health)
