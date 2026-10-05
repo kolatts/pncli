@@ -2168,7 +2168,7 @@ Plugin skills always install at user scope. --agent picks the host (default: ${D
     .option('--agent <agent>', `Target agent host: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`)
     .option('--claude', 'Shorthand for --agent claude-code')
     .option('--all-agents', 'Install to every supported agent host in one run')
-    .option('--force', 'Reinstall even if a marketplace has no new changes (applies to single-plugin and "all" installs alike)')
+    .option('--force', 'Opt into the interactive picker instead of the installed-only shorthand (plugins are always refreshed from the local clone, with or without new upstream changes)')
     .option('--installed-only', 'Only sync plugins that are already installed — skip plugins newly added to the marketplace')
     .option('--no-instructions', 'Do not apply the shipped AGENTS.md / CLAUDE.md to user-level instructions files')
     .action(async (plugin: string | undefined, opts: { marketplace?: string; agent?: string; claude?: boolean; allAgents?: boolean; force?: boolean; installedOnly?: boolean; instructions?: boolean }) => {
@@ -2808,7 +2808,10 @@ export function copyPluginSkills(skillsSrc: string, targetDir: string, meta?: In
   );
 
   const installed: string[] = [];
+  const active: string[] = [];
   const failed: string[] = [];
+  // Skills the user disabled stay disabled: refresh the stashed copy, not the active dir.
+  const disabledHere = meta ? (readInstalledMeta(targetDir).disabled ?? {}) : {};
 
   for (const skillName of skillNames) {
     const dest = path.resolve(targetDir, skillName);
@@ -2816,13 +2819,23 @@ export function copyPluginSkills(skillsSrc: string, targetDir: string, meta?: In
       failed.push(skillName);
       continue;
     }
+    const stashed = disabledHere[skillName];
+    if (meta && stashed && stashed.plugin === meta.plugin) {
+      const stashDest = path.join(targetDir, DISABLED_SUBDIR, skillName);
+      fs.mkdirSync(path.dirname(stashDest), { recursive: true });
+      fs.rmSync(stashDest, { recursive: true, force: true });
+      fs.cpSync(path.join(skillsSrc, skillName), stashDest, { recursive: true });
+      installed.push(skillName);
+      continue;
+    }
     fs.rmSync(dest, { recursive: true, force: true });
     fs.cpSync(path.join(skillsSrc, skillName), dest, { recursive: true });
     installed.push(skillName);
+    active.push(skillName);
   }
 
   if (meta) {
-    recordInstalledSkills(targetDir, installed, {
+    recordInstalledSkills(targetDir, active, {
       source: 'marketplace',
       marketplace: meta.marketplace,
       plugin: meta.plugin,

@@ -1344,6 +1344,19 @@ describe('installMarketplaceToTarget', () => {
     expect(fs.existsSync(path.join(tmp, 'codex', 'b-one'))).toBe(false);
   });
 
+  it('keeps a disabled plugin disabled on an installed-only sync, refreshing its stash', () => {
+    const t = target('codex');
+    installMarketplaceToTarget(m, marketplacePath, choices, 'alpha', t, changed);
+    disablePluginSkills(t.target, 'alpha');
+    fs.writeFileSync(path.join(marketplacePath, 'plugins', 'alpha', 'skills', 'a-one', 'SKILL.md'), 'updated', 'utf8');
+    installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, { ...unchanged, installedOnly: true });
+    expect(fs.existsSync(path.join(t.target, 'a-one'))).toBe(false);
+    expect(fs.readFileSync(path.join(t.target, DISABLED_SUBDIR, 'a-one', 'SKILL.md'), 'utf8')).toBe('updated');
+    const meta = readInstalledMeta(t.target);
+    expect(Object.keys(meta.skills)).toEqual([]);
+    expect(Object.keys(meta.disabled ?? {}).sort()).toEqual(['a-one', 'a-two']);
+  });
+
   it('reinstalls everything with --force even when unchanged and fully installed', () => {
     const t = target('codex');
     installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, changed);

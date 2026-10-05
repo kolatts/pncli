@@ -135,7 +135,7 @@ Install every plugin from every registered marketplace, including new ones, in o
 pncli skills marketplace sync --marketplace all
 ```
 
-`sync` skips reinstalling into a target that already has everything you asked for when the marketplace has no new upstream changes. A target that is *missing* something — a second agent host you just added with `--all-agents`, or a plugin that is not installed there yet — gets the missing plugins installed regardless, so you never need `--force` just to reach a new location. Pass `--force` to reinstall everything anyway (and, with no plugin or `--marketplace` given, to get the interactive picker instead of the installed-only shorthand). With several targets the JSON output nests per-host results under `targets`; a single target keeps the flat `plugins` / `target` shape.
+`sync` always re-copies the requested plugins from the local marketplace clone, whether or not this pull brought in new commits, so a clone you pulled by hand is picked up too. A target that is *missing* something — a second agent host you just added with `--all-agents`, or a plugin that is not installed there yet — gets the missing plugins installed, so you never need `--force` just to reach a new location. `--force` does not change what is copied; with no plugin or `--marketplace` given, it opts into the interactive picker instead of the installed-only shorthand. With several targets the JSON output nests per-host results under `targets`; a single target keeps the flat `plugins` / `target` shape.
 
 Routine progress is one line per target on stderr; add the global `--verbose` flag to see every skill's source and destination path.
 
