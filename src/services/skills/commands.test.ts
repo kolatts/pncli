@@ -1326,22 +1326,35 @@ describe('installMarketplaceToTarget', () => {
     expect(fs.existsSync(path.join(tmp, 'codex', 'a-one', 'SKILL.md'))).toBe(true);
   });
 
-  it('skips a target that already has everything requested when upstream is unchanged', () => {
+  it('refreshes installed plugins and picks up new skills even when upstream is unchanged', () => {
     const t = target('codex');
     installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, changed);
-    const again = installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, unchanged);
-    expect(again.skipped).toBe(true);
-    expect(again.message).toMatch(/--force/);
-    expect(again.total).toBe(0);
+    makePlugin('alpha', ['a-three']);
+    const again = installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, { ...unchanged, installedOnly: true });
+    expect(again.skipped).toBeUndefined();
+    expect(again.plugins.alpha.installed).toContain('a-three');
+    expect(fs.existsSync(path.join(tmp, 'codex', 'a-three', 'SKILL.md'))).toBe(true);
   });
 
-  it('installs only the missing plugin when upstream is unchanged but the request grew', () => {
+  it('does not install an unenabled plugin on an installed-only sync with unchanged upstream', () => {
     const t = target('codex');
     installMarketplaceToTarget(m, marketplacePath, choices, 'alpha', t, changed);
-    const result = installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, unchanged);
-    expect(result.skipped).toBeUndefined();
-    expect(Object.keys(result.plugins)).toEqual(['beta']);
-    expect(result.total).toBe(1);
+    const result = installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, { ...unchanged, installedOnly: true });
+    expect(Object.keys(result.plugins)).toEqual(['alpha']);
+    expect(fs.existsSync(path.join(tmp, 'codex', 'b-one'))).toBe(false);
+  });
+
+  it('keeps a disabled plugin disabled on an installed-only sync, refreshing its stash', () => {
+    const t = target('codex');
+    installMarketplaceToTarget(m, marketplacePath, choices, 'alpha', t, changed);
+    disablePluginSkills(t.target, 'alpha');
+    fs.writeFileSync(path.join(marketplacePath, 'plugins', 'alpha', 'skills', 'a-one', 'SKILL.md'), 'updated', 'utf8');
+    installMarketplaceToTarget(m, marketplacePath, choices, 'all', t, { ...unchanged, installedOnly: true });
+    expect(fs.existsSync(path.join(t.target, 'a-one'))).toBe(false);
+    expect(fs.readFileSync(path.join(t.target, DISABLED_SUBDIR, 'a-one', 'SKILL.md'), 'utf8')).toBe('updated');
+    const meta = readInstalledMeta(t.target);
+    expect(Object.keys(meta.skills)).toEqual([]);
+    expect(Object.keys(meta.disabled ?? {}).sort()).toEqual(['a-one', 'a-two']);
   });
 
   it('reinstalls everything with --force even when unchanged and fully installed', () => {
@@ -1373,7 +1386,7 @@ describe('installMarketplaceToTarget', () => {
     const first = target('codex');
     const second = target('claude-code');
     installMarketplaceToTarget(m, marketplacePath, choices, 'all', first, changed);
-    expect(installMarketplaceToTarget(m, marketplacePath, choices, 'all', first, unchanged).skipped).toBe(true);
+    expect(installMarketplaceToTarget(m, marketplacePath, choices, 'all', first, unchanged).total).toBe(3);
     expect(installMarketplaceToTarget(m, marketplacePath, choices, 'all', second, unchanged).total).toBe(3);
   });
 
