@@ -199,7 +199,7 @@ or nothing is delivered.
 | Alert | Fires when | Sev |
 |---|---|---|
 | `pncli-prod-submissions-not-converted` | A submission is still not a GitHub issue after `STALE_SUBMISSION_MINUTES` | 1 |
-| `pncli-prod-processsubmissions-exceptions` | Any exception in `ProcessSubmissions` over 15 min | 1 |
+| `pncli-prod-processsubmissions-exceptions` | Any application exception in `ProcessSubmissions` over 15 min | 1 |
 | `pncli-prod-processsubmissions-heartbeat` | No invocation in 15 min (timer stopped firing) | 2 |
 
 The first is the one that matters. The other two infer that something is wrong; it
@@ -226,6 +226,17 @@ sampled-away row is a missed alert — determinism is worth more than the ingest
 saved on a function producing a few hundred rows a day. If volume ever grows enough
 for that to matter, move `StuckCount` to a pre-aggregated custom metric (never
 sampled) rather than re-enabling sampling underneath these rules.
+
+The exception rule ignores one row shape: the host's own wrapper, `outerMessage`
+"Exception while executing function: …" with `innermostMessage` `n/a`. That row is
+what the host logs when the dotnet-isolated worker segfaults mid-invocation
+(`FunctionsNetHost exited with code 139`, a platform bug tracked upstream in
+Azure/azure-functions-dotnet-worker#3335). It happens every few days on Linux
+Consumption, the worker restarts in under half a second, the next tick succeeds,
+and nothing is lost — it fired this rule seven times in September–October 2026
+without a single stuck submission (#530). An exception the code actually throws or
+logs reaches `exceptions` as an `RpcException` carrying the real message, so a
+per-submission failure still fires on its first tick, as it would have in #418.
 
 The heartbeat rule queries `requests` (logged unconditionally by the Functions
 runtime for every invocation), not `traces` on a message the code logs — the
