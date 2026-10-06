@@ -149,13 +149,24 @@ ACTIONGROUP_ID="$(az monitor action-group show \
 # within five minutes on 2026-09-01. `count` aggregates the ROWS the query
 # returns, so the query must not pre-aggregate — a `summarize` here would
 # emit one row unconditionally and the rule would fire forever.
+#
+# The dotnet-isolated worker segfaults every few days on Linux Consumption
+# (`FunctionsNetHost exited with code 139`, upstream
+# Azure/azure-functions-dotnet-worker#3335). When that lands on the timer
+# tick the host logs a wrapper row — outerMessage "Exception while executing
+# function: …", innermostMessage "n/a" — with no application exception
+# behind it; the worker restarts in <500 ms and the next tick succeeds. That
+# row is excluded (#530). Rows that carry an application exception keep
+# matching: the per-submission `LogError(ex, …)` in ProcessQueueFunction.cs
+# surfaces as an RpcException whose outerMessage is "Result: Failed to
+# process submission …", which is the shape that fired 7,000+ times in #418.
 echo "→ Alert: ProcessSubmissions exceptions" >&2
 az monitor scheduled-query create \
   -n "${PREFIX}-${ENV}-processsubmissions-exceptions" -g "$RG" \
   --scopes "$APPINSIGHTS_ID" \
-  --description "ProcessSubmissions threw at least one exception in the last 15 minutes. Website feedback submissions are likely not reaching GitHub." \
+  --description "ProcessSubmissions threw at least one application exception in the last 15 minutes. Website feedback submissions are likely not reaching GitHub." \
   --condition "count 'Exceptions' > 0" \
-  --condition-query Exceptions="exceptions | where operation_Name == 'ProcessSubmissions'" \
+  --condition-query Exceptions="exceptions | where operation_Name == 'ProcessSubmissions' | where not(outerMessage startswith 'Exception while executing function' and innermostMessage == 'n/a')" \
   --evaluation-frequency 5m --window-size 15m \
   --severity 1 \
   --action-groups "$ACTIONGROUP_ID" \
