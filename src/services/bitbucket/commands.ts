@@ -293,7 +293,7 @@ export function registerBitbucketCommands(program: Command): void {
     });
 
   bb.command('resolve-comment')
-    .description('Resolve a comment on a pull request')
+    .description('Resolve a comment thread on a pull request (use the root comment ID, not a reply)')
     .requiredOption('--pr <pr-id>', 'Pull request ID')
     .requiredOption('--comment-id <id>', 'Comment ID')
     .option('--comment-version <n>', 'Comment version, as reported by list-comments', '0')

@@ -57,9 +57,10 @@ describe('bitbucket resolve-comment / delete-comment — comment-version option'
 
     expect(captured).toHaveLength(1);
     const url = new URL(captured[0].url);
-    expect(url.pathname).toContain('/comments/2/resolve');
-    expect(url.searchParams.get('version')).toBe('5');
+    expect(url.pathname.endsWith('/comments/2')).toBe(true);
+    expect(url.searchParams.has('version')).toBe(false);
     expect(captured[0].init.method).toBe('PUT');
+    expect(JSON.parse(String(captured[0].init.body))).toEqual({ version: 5, threadResolved: true });
   });
 
   it('defaults --comment-version to 0 when omitted', async () => {
@@ -68,8 +69,7 @@ describe('bitbucket resolve-comment / delete-comment — comment-version option'
       '{}'
     );
 
-    const url = new URL(captured[0].url);
-    expect(url.searchParams.get('version')).toBe('0');
+    expect(JSON.parse(String(captured[0].init.body))).toEqual({ version: 0, threadResolved: true });
   });
 
   it('passes --comment-version through for delete-comment too', async () => {
