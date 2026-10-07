@@ -232,8 +232,8 @@ export class BitbucketClient {
 
   async resolveComment(project: string, repo: string, prId: number, commentId: number, version: number): Promise<void> {
     await this.http.bitbucket<void>(
-      `${API}/projects/${project}/repos/${repo}/pull-requests/${prId}/comments/${commentId}/resolve`,
-      { method: 'PUT', params: { version } }
+      `${API}/projects/${project}/repos/${repo}/pull-requests/${prId}/comments/${commentId}`,
+      { method: 'PUT', body: { version, threadResolved: true } }
     );
   }
 
