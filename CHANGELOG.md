@@ -1,5 +1,22 @@
 # Changelog
 
+## [6.1.0](https://github.com/kolatts/pncli/compare/v6.0.0...v6.1.0) (2026-10-07)
+
+
+### Features
+
+* **bitbucket,ado:** add list-default-reviewers commands ([#522](https://github.com/kolatts/pncli/issues/522)) ([d92917d](https://github.com/kolatts/pncli/commit/d92917d8bfb0a1a42a9151e77b7834ffea95d3b8)), closes [#521](https://github.com/kolatts/pncli/issues/521)
+* **elasticsearch:** add Elasticsearch integration (search, count, indices, cluster health) ([#519](https://github.com/kolatts/pncli/issues/519)) ([2a4435d](https://github.com/kolatts/pncli/commit/2a4435d6416654e9553ea0f6b6a0419c645529b6)), closes [#518](https://github.com/kolatts/pncli/issues/518)
+* **openshift:** add read-only deployments command ([#527](https://github.com/kolatts/pncli/issues/527)) ([f5acfb2](https://github.com/kolatts/pncli/commit/f5acfb2e530bb04366276ec80ece41c27cee2199))
+
+
+### Bug Fixes
+
+* **bitbucket:** resolve comment threads via PUT comments/{id} with threadResolved ([#533](https://github.com/kolatts/pncli/issues/533)) ([c4fb404](https://github.com/kolatts/pncli/commit/c4fb4043f39acf3f9a41ace8b9337751d9af891c))
+* **infra:** exclude isolated-worker segfault wrapper from the exceptions alert ([#531](https://github.com/kolatts/pncli/issues/531)) ([9f8e7ee](https://github.com/kolatts/pncli/commit/9f8e7ee0b1750e1b864f3b3eed5293bd70ea550d)), closes [#530](https://github.com/kolatts/pncli/issues/530)
+* **skills:** always refresh installed marketplace plugins on sync ([#529](https://github.com/kolatts/pncli/issues/529)) ([9f16746](https://github.com/kolatts/pncli/commit/9f16746b969a605d40b72d487e20a570ee00f918))
+* **tls:** warn clearly when NODE_TLS_REJECT_UNAUTHORIZED=0 disables verification ([#524](https://github.com/kolatts/pncli/issues/524)) ([de6868d](https://github.com/kolatts/pncli/commit/de6868d9c139976bab85f377c62f822ac7098502))
+
 ## [6.0.0](https://github.com/kolatts/pncli/compare/v5.4.0...v6.0.0) (2026-09-30)
 
 
