@@ -332,14 +332,16 @@ export function registerJiraCommands(program: Command): void {
     .option('--jql <query>', 'JQL query string')
     .option('--jql-file <path>', "Path to a file containing the JQL query ('-' = stdin)")
     .option('--max-results <n>', 'Maximum number of results')
-    .action(async (opts: { jql?: string; jqlFile?: string; maxResults?: string }) => {
+    .option('--start-at <n>', 'Index of the first result to return (for resuming or paging)')
+    .action(async (opts: { jql?: string; jqlFile?: string; maxResults?: string; startAt?: string }) => {
       const start = Date.now();
       try {
         const { client, fieldMap, customFields } = getClientAndFields(program);
         const jql = resolveJqlInput(opts.jql, opts.jqlFile);
         const maxResults = opts.maxResults ? parseInt(opts.maxResults, 10) : undefined;
+        const startAt = opts.startAt ? parseInt(opts.startAt, 10) : undefined;
         const translatedJql = translateJql(jql, fieldMap);
-        const data = await client.search(translatedJql, maxResults, customFields);
+        const data = await client.search(translatedJql, maxResults, customFields, startAt);
         const translatedIssues = data.issues.map(issue => ({
           ...issue,
           fields: translateFieldsInOutput(issue.fields as Record<string, unknown>, fieldMap)

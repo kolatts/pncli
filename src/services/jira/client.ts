@@ -139,7 +139,7 @@ export class JiraClient {
     });
   }
 
-  async search(jql: string, maxResults?: number, customFields?: CustomFieldDefinition[]): Promise<JiraSearchResult> {
+  async search(jql: string, maxResults?: number, customFields?: CustomFieldDefinition[], startAt?: number): Promise<JiraSearchResult> {
     const standardFields = ['summary', 'status', 'priority', 'assignee', 'issuetype', 'project', 'created', 'updated', 'labels', 'reporter'];
     const fields = customFields?.length
       ? [...standardFields, ...customFields.map(f => f.id)]
@@ -148,20 +148,28 @@ export class JiraClient {
     if (maxResults !== undefined) {
       return this.http.jira<JiraSearchResult>(`${API}/search`, {
         method: 'POST',
-        body: { jql, maxResults, fields }
+        body: { jql, ...(startAt !== undefined ? { startAt } : {}), maxResults, fields }
       });
     }
 
-    // Paginate all results
-    const allIssues = await this.http.jiraPaginate<JiraIssue>(async (startAt, max) => {
-      const result = await this.http.jira<JiraSearchResult>(`${API}/search`, {
+    // Paginate everything from startAt onward, keeping the server's total so
+    // callers can tell whether the result set was truncated.
+    const first = startAt ?? 0;
+    const issues: JiraIssue[] = [];
+    let total = 0;
+    let next = first;
+    while (true) {
+      const page = await this.http.jira<JiraSearchResult>(`${API}/search`, {
         method: 'POST',
-        body: { jql, startAt, maxResults: max, fields }
+        body: { jql, startAt: next, maxResults: 100, fields }
       });
-      return { ...result, values: result.issues };
-    });
+      issues.push(...page.issues);
+      total = page.total;
+      next += page.issues.length;
+      if (next >= total || page.issues.length === 0) break;
+    }
 
-    return { issues: allIssues, total: allIssues.length, startAt: 0, maxResults: allIssues.length };
+    return { issues, total, startAt: first, maxResults: issues.length };
   }
 
   async fetchFields(): Promise<JiraFieldInfo[]> {
