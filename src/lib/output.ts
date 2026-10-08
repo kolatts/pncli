@@ -63,6 +63,14 @@ export function fail(
   action: string,
   startTime: number
 ): never {
+  // The dry-run sentinel ({message:'dry-run', status:0}) is thrown by every service's
+  // dry-run branch AFTER printing the redacted request and setting exitCode=SUCCESS.
+  // Passing it to fail() must not overwrite that 0 with NETWORK_ERROR (69).
+  // Just re-throw; the exit code is already correct and the caller will exit.
+  if (err instanceof PncliError && err.status === 0 && err.message === 'dry-run') {
+    throw err;
+  }
+
   const errorDetail: ErrorDetail = {
     status: err instanceof PncliError ? err.status : 1,
     message: err instanceof Error ? err.message : String(err),

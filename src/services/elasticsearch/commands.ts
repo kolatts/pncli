@@ -3,6 +3,7 @@ import { loadConfig } from '../../lib/config.js';
 import { createHttpClient, type HttpClient } from '../../lib/http.js';
 import { success, fail } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
+import { ExitCode } from '../../lib/exitCodes.js';
 
 interface SearchResponse {
   took?: number;
@@ -158,6 +159,15 @@ export function registerElasticsearchCommands(program: Command): void {
           { method: 'POST', body: { query: buildQuery(opts) } }
         );
         success({ index: opts.index, count: data.count }, 'elasticsearch', 'count', start);
-      } catch (err) { fail(err, 'elasticsearch', 'count', start); }
+      } catch (err) {
+        // The dry-run sentinel ({message:'dry-run', status:0}) is thrown after the HTTP
+        // client prints the redacted request and sets exitCode=SUCCESS. Do not pass it
+        // to fail(), which would overwrite the exit code to NETWORK_ERROR (69).
+        if (err instanceof PncliError && err.status === 0 && err.message === 'dry-run') {
+          success({ index: opts.index, count: null }, 'elasticsearch', 'count', start);
+          process.exit(ExitCode.SUCCESS); // already sets exitCode=SUCCESS above, but be explicit
+        }
+        fail(err, 'elasticsearch', 'count', start);
+      }
     });
 }
