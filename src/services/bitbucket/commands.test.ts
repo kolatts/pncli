@@ -92,3 +92,44 @@ describe('bitbucket resolve-comment / delete-comment — comment-version option'
     expect(exitCode).toMatchObject({ code: 'commander.version' });
   });
 });
+
+describe('bitbucket update-pr — preserves existing fields', () => {
+  async function runUpdate(argv: string[]): Promise<{ url: string; init: RequestInit }[]> {
+    const captured: { url: string; init: RequestInit }[] = [];
+    const pr = {
+      id: 1,
+      version: 3,
+      title: 'Old title',
+      description: 'Old description',
+      reviewers: [{ user: { name: 'alice' } }, { user: { name: 'bob' } }]
+    };
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      captured.push({ url: String(url), init });
+      return new Response(JSON.stringify(pr), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    await buildProgram().parseAsync(['node', 'pncli', '--config', configPath, 'bitbucket', '--project', 'PRJ', '--repo', 'repo', 'update-pr', '--id', '1', ...argv]);
+    return captured;
+  }
+
+  it('resends existing reviewers and description when only --title is passed', async () => {
+    const captured = await runUpdate(['--title', 'New title']);
+    const put = captured.find(c => c.init.method === 'PUT');
+    expect(JSON.parse(String(put?.init.body))).toEqual({
+      version: 3,
+      title: 'New title',
+      description: 'Old description',
+      reviewers: [{ user: { name: 'alice' } }, { user: { name: 'bob' } }]
+    });
+  });
+
+  it('keeps title and description when only --reviewers is passed', async () => {
+    const captured = await runUpdate(['--reviewers', 'carol']);
+    const put = captured.find(c => c.init.method === 'PUT');
+    expect(JSON.parse(String(put?.init.body))).toEqual({
+      version: 3,
+      title: 'Old title',
+      description: 'Old description',
+      reviewers: [{ user: { name: 'carol' } }]
+    });
+  });
+});
