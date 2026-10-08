@@ -274,6 +274,23 @@ describe('JiraClient — search', () => {
     expect(result.total).toBe(500);
   });
 
+  it('pages in chunks of 100 until maxResults is reached', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string);
+      bodies.push(body);
+      const issues = Array.from({ length: body.maxResults as number }, (_, i) => issue(String((body.startAt as number) + i)));
+      return new Response(JSON.stringify({ issues, total: 10000, startAt: body.startAt, maxResults: body.maxResults }), { status: 200 });
+    });
+
+    const client = new JiraClient(new HttpClient(makeConfig()));
+    const result = await client.search('project = PROJ', 250);
+
+    expect(bodies.map(b => [b.startAt, b.maxResults])).toEqual([[0, 100], [100, 100], [200, 50]]);
+    expect(result.issues).toHaveLength(250);
+    expect(result.total).toBe(10000);
+  });
+
   it('paginates from startAt and keeps the server total', async () => {
     const bodies: Record<string, unknown>[] = [];
     vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {

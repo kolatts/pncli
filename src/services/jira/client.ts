@@ -145,29 +145,26 @@ export class JiraClient {
       ? [...standardFields, ...customFields.map(f => f.id)]
       : standardFields;
 
-    if (maxResults !== undefined) {
-      return this.http.jira<JiraSearchResult>(`${API}/search`, {
-        method: 'POST',
-        body: { jql, ...(startAt !== undefined ? { startAt } : {}), maxResults, fields }
-      });
-    }
-
-    // Paginate everything from startAt onward, keeping the server's total so
-    // callers can tell whether the result set was truncated.
+    // Paginate from startAt onward in pages of up to 100, stopping at
+    // maxResults when given (one huge request times out), and keep the
+    // server's total so callers can tell whether the result set was truncated.
     const first = startAt ?? 0;
     const issues: JiraIssue[] = [];
     let total = 0;
     let next = first;
     while (true) {
+      const pageSize = maxResults === undefined ? 100 : Math.min(100, maxResults - issues.length);
+      if (pageSize <= 0 && issues.length > 0) break;
       const page = await this.http.jira<JiraSearchResult>(`${API}/search`, {
         method: 'POST',
-        body: { jql, startAt: next, maxResults: 100, fields }
+        body: { jql, startAt: next, maxResults: pageSize, fields }
       });
       const items = page.issues ?? [];
       issues.push(...items);
       total = page.total;
       next += items.length;
       if (next >= total || items.length === 0) break;
+      if (maxResults !== undefined && issues.length >= maxResults) break;
     }
 
     return { issues, total, startAt: first, maxResults: issues.length };
