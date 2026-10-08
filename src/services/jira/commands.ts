@@ -105,6 +105,18 @@ export function resolveJqlInput(jql: string | undefined, jqlFile: string | undef
   return trimmed;
 }
 
+/**
+ * Parses `jira search --start-at`. Digits only: parseInt would accept "10x" and
+ * turn "abc" into NaN, which never satisfies the paginate-all loop's exit test.
+ */
+export function parseStartAt(raw: string | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  if (!/^\d+$/.test(raw)) {
+    throw new PncliError(`--start-at must be a non-negative integer, got "${raw}"`, 1);
+  }
+  return parseInt(raw, 10);
+}
+
 export function registerJiraCommands(program: Command): void {
   const jira = program.command('jira').description('Jira Data Cloud operations');
 
@@ -332,14 +344,16 @@ export function registerJiraCommands(program: Command): void {
     .option('--jql <query>', 'JQL query string')
     .option('--jql-file <path>', "Path to a file containing the JQL query ('-' = stdin)")
     .option('--max-results <n>', 'Maximum number of results')
-    .action(async (opts: { jql?: string; jqlFile?: string; maxResults?: string }) => {
+    .option('--start-at <n>', 'Index of the first result to return (for resuming or paging)')
+    .action(async (opts: { jql?: string; jqlFile?: string; maxResults?: string; startAt?: string }) => {
       const start = Date.now();
       try {
         const { client, fieldMap, customFields } = getClientAndFields(program);
         const jql = resolveJqlInput(opts.jql, opts.jqlFile);
         const maxResults = opts.maxResults ? parseInt(opts.maxResults, 10) : undefined;
+        const startAt = parseStartAt(opts.startAt);
         const translatedJql = translateJql(jql, fieldMap);
-        const data = await client.search(translatedJql, maxResults, customFields);
+        const data = await client.search(translatedJql, maxResults, customFields, startAt);
         const translatedIssues = data.issues.map(issue => ({
           ...issue,
           fields: translateFieldsInOutput(issue.fields as Record<string, unknown>, fieldMap)

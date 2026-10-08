@@ -252,6 +252,47 @@ describe('JiraClient — listAttachments', () => {
   });
 });
 
+describe('JiraClient — search', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  const issue = (id: string) => ({ id, key: `PROJ-${id}`, fields: {} });
+
+  it('passes startAt in the body and returns the server total with maxResults', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(init.body as string));
+      return new Response(
+        JSON.stringify({ issues: [issue('51')], total: 500, startAt: 50, maxResults: 1 }),
+        { status: 200 }
+      );
+    });
+
+    const client = new JiraClient(new HttpClient(makeConfig()));
+    const result = await client.search('project = PROJ', 1, undefined, 50);
+
+    expect(bodies[0]).toMatchObject({ startAt: 50, maxResults: 1 });
+    expect(result.total).toBe(500);
+  });
+
+  it('paginates from startAt and keeps the server total', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string);
+      bodies.push(body);
+      const issues = body.startAt === 2 ? [issue('3'), issue('4')] : [issue('5')];
+      return new Response(JSON.stringify({ issues, total: 5, startAt: body.startAt, maxResults: 100 }), { status: 200 });
+    });
+
+    const client = new JiraClient(new HttpClient(makeConfig()));
+    const result = await client.search('project = PROJ', undefined, undefined, 2);
+
+    expect(bodies.map(b => b.startAt)).toEqual([2, 4]);
+    expect(result.issues).toHaveLength(3);
+    expect(result.total).toBe(5);
+    expect(result.startAt).toBe(2);
+  });
+});
+
 describe('JiraClient — listBoards', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
-import { parseFieldArgs, parseFieldsFile, splitFieldsDictionary, resolveJqlInput } from './commands.js';
+import { parseFieldArgs, parseFieldsFile, splitFieldsDictionary, resolveJqlInput, parseStartAt } from './commands.js';
 import { buildFieldMap } from './custom-fields.js';
 
 vi.mock('fs', () => ({
@@ -197,6 +197,18 @@ describe('splitFieldsDictionary — --input-file `fields` dictionary', () => {
     );
     expect(builtin.description).toBe('<p>Long description</p>');
     expect(custom.customfield_10016).toBe('<p>Long description</p>');
+  });
+});
+
+describe('parseStartAt — --start-at', () => {
+  it('returns undefined when unset and parses non-negative integers', () => {
+    expect(parseStartAt(undefined)).toBeUndefined();
+    expect(parseStartAt('0')).toBe(0);
+    expect(parseStartAt('50')).toBe(50);
+  });
+
+  it.each(['abc', '-1', '1.5', '', '10x'])('rejects %j with a PncliError', raw => {
+    expect(() => parseStartAt(raw)).toThrow(/--start-at must be a non-negative integer/);
   });
 });
 
