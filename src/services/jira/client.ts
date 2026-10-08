@@ -358,6 +358,12 @@ export class JiraClient {
 function schemaToPncliType(schema?: { type: string; custom?: string }): CustomFieldType | undefined {
   if (!schema) return undefined;
   const custom = schema.custom ?? '';
+  // Greenhopper (Jira Software) and Portfolio (Advanced Roadmaps) fields. Checked first:
+  // their schema types ('any', 'array') would otherwise fall through to undefined.
+  if (custom.endsWith(':gh-epic-link')) return 'string'; // epic issue key, e.g. PROJ-12
+  if (custom.endsWith(':gh-sprint')) return 'number'; // sprint ID
+  if (custom.endsWith(':gh-lexo-rank')) return 'string'; // LexoRank string
+  if (custom.endsWith(':jpo-custom-field-parent')) return 'string'; // Parent Link
   if (custom.includes('cascadingselect')) return 'cascading-select';
   if (custom.includes('multicheckboxes') || custom.includes('multiselect')) return 'multi-select';
   if (custom.includes('select') || custom.includes('radiobuttons')) return 'select';
