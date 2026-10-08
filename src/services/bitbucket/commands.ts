@@ -185,7 +185,11 @@ export function registerBitbucketCommands(program: Command): void {
         const { client, project, repo } = getClient(bb);
         const prId = parseInt(opts.id, 10);
         const pr = await client.getPR(project, repo, prId);
-        const reviewers = opts.reviewers ? opts.reviewers.split(',').map(s => s.trim()) : undefined;
+        // Bitbucket Server treats a PUT without reviewers as an empty list, which
+        // wipes reviewers and approvals. Resend the current ones unless overridden.
+        const reviewers = opts.reviewers
+          ? opts.reviewers.split(',').map(s => s.trim())
+          : (pr.reviewers ?? []).map(r => r.user.name);
         const data = await client.updatePR({ project, repo, id: prId, title: opts.title, description: opts.description, reviewers, version: pr.version });
         success(data, 'bitbucket', 'update-pr', start);
       } catch (err) { fail(err, 'bitbucket', 'update-pr', start); }
