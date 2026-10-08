@@ -163,10 +163,11 @@ export class JiraClient {
         method: 'POST',
         body: { jql, startAt: next, maxResults: 100, fields }
       });
-      issues.push(...page.issues);
+      const items = page.issues ?? [];
+      issues.push(...items);
       total = page.total;
-      next += page.issues.length;
-      if (next >= total || page.issues.length === 0) break;
+      next += items.length;
+      if (next >= total || items.length === 0) break;
     }
 
     return { issues, total, startAt: first, maxResults: issues.length };
