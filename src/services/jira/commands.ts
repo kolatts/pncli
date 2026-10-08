@@ -345,15 +345,25 @@ export function registerJiraCommands(program: Command): void {
     .option('--jql-file <path>', "Path to a file containing the JQL query ('-' = stdin)")
     .option('--max-results <n>', 'Maximum number of results')
     .option('--start-at <n>', 'Index of the first result to return (for resuming or paging)')
-    .action(async (opts: { jql?: string; jqlFile?: string; maxResults?: string; startAt?: string }) => {
+    .option('--fields <list>', 'Comma-separated fields to return instead of the default set (names or ids, e.g. summary,status,"Story Points")')
+    .action(async (opts: { jql?: string; jqlFile?: string; maxResults?: string; startAt?: string; fields?: string }) => {
       const start = Date.now();
       try {
         const { client, fieldMap, customFields } = getClientAndFields(program);
         const jql = resolveJqlInput(opts.jql, opts.jqlFile);
+        let fieldsOverride: string[] | undefined;
+        if (opts.fields !== undefined) {
+          fieldsOverride = opts.fields.split(',').map(s => s.trim()).filter(Boolean).map(name => {
+            const id = resolveFieldKey(name, fieldMap);
+            if (id === undefined) throw new PncliError(`Unknown field in --fields: "${name}". Use a field id or a registered custom field name.`, 1);
+            return id;
+          });
+          if (fieldsOverride.length === 0) throw new PncliError('--fields must list at least one field', 1);
+        }
         const maxResults = opts.maxResults ? parseInt(opts.maxResults, 10) : undefined;
         const startAt = parseStartAt(opts.startAt);
         const translatedJql = translateJql(jql, fieldMap);
-        const data = await client.search(translatedJql, maxResults, customFields, startAt);
+        const data = await client.search(translatedJql, maxResults, customFields, startAt, fieldsOverride);
         const translatedIssues = data.issues.map(issue => ({
           ...issue,
           fields: translateFieldsInOutput(issue.fields as Record<string, unknown>, fieldMap)

@@ -274,6 +274,19 @@ describe('JiraClient — search', () => {
     expect(result.total).toBe(500);
   });
 
+  it('sends only the fields override when given', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(init.body as string));
+      return new Response(JSON.stringify({ issues: [issue('1')], total: 1, startAt: 0, maxResults: 1 }), { status: 200 });
+    });
+
+    const client = new JiraClient(new HttpClient(makeConfig()));
+    await client.search('project = PROJ', undefined, [{ id: 'customfield_10001', name: 'Epic Link', type: 'string' }], undefined, ['summary', 'customfield_10001']);
+
+    expect(bodies[0].fields).toEqual(['summary', 'customfield_10001']);
+  });
+
   it('pages in chunks of 100 until maxResults is reached', async () => {
     const bodies: Record<string, unknown>[] = [];
     vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
