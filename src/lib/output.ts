@@ -63,6 +63,10 @@ export function fail(
   action: string,
   startTime: number
 ): never {
+  // The dry-run sentinel is a successful outcome: http.ts already printed the request
+  // and set exitCode to SUCCESS. Don't render it as an error envelope or remap status 0.
+  if (err instanceof PncliError && err.status === 0 && err.message === 'dry-run') throw err;
+
   const errorDetail: ErrorDetail = {
     status: err instanceof PncliError ? err.status : 1,
     message: err instanceof Error ? err.message : String(err),
