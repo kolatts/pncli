@@ -139,11 +139,13 @@ export class JiraClient {
     });
   }
 
-  async search(jql: string, maxResults?: number, customFields?: CustomFieldDefinition[], startAt?: number): Promise<JiraSearchResult> {
+  async search(jql: string, maxResults?: number, customFields?: CustomFieldDefinition[], startAt?: number, fieldsOverride?: string[]): Promise<JiraSearchResult> {
     const standardFields = ['summary', 'status', 'priority', 'assignee', 'issuetype', 'project', 'created', 'updated', 'labels', 'reporter'];
-    const fields = customFields?.length
-      ? [...standardFields, ...customFields.map(f => f.id)]
-      : standardFields;
+    const fields = fieldsOverride?.length
+      ? fieldsOverride
+      : customFields?.length
+        ? [...standardFields, ...customFields.map(f => f.id)]
+        : standardFields;
 
     // Paginate from startAt onward in pages of up to 100, stopping at
     // maxResults when given (one huge request times out), and keep the
