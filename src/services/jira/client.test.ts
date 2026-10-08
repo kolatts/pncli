@@ -447,3 +447,24 @@ describe('JiraClient — downloadAttachment', () => {
     expect(buffer[0]).toBe(255);
   });
 });
+
+describe('JiraClient — fetchFields pncliType', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('maps greenhopper and portfolio custom types', async () => {
+    const schema = (type: string, custom: string) => ({ type, custom });
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify([
+        { id: 'customfield_10100', name: 'Epic Link', schema: schema('any', 'com.pyxis.greenhopper.jira:gh-epic-link') },
+        { id: 'customfield_10101', name: 'Sprint', schema: schema('array', 'com.pyxis.greenhopper.jira:gh-sprint') },
+        { id: 'customfield_10102', name: 'Rank', schema: schema('any', 'com.pyxis.greenhopper.jira:gh-lexo-rank') },
+        { id: 'customfield_10103', name: 'Parent Link', schema: schema('any', 'com.atlassian.jpo:jpo-custom-field-parent') }
+      ]), { status: 200 })
+    );
+
+    const client = new JiraClient(new HttpClient(makeConfig()));
+    const fields = await client.fetchFields();
+
+    expect(fields.map(f => f.pncliType)).toEqual(['string', 'number', 'string', 'string']);
+  });
+});
