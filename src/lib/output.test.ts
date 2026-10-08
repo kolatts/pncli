@@ -28,4 +28,24 @@ describe('rate limit error output', () => {
     });
     expect(process.exitCode).toBe(exitCodeFromStatus(429));
   });
+
+  it('passes the dry-run sentinel through without an error envelope or exit code change', () => {
+    setGlobalOptions({ pretty: false, verbose: false });
+    const write = vi.spyOn(fs, 'writeSync').mockReturnValue(0);
+    process.exitCode = 0;
+
+    expect(() => fail(new PncliError('dry-run', 0), 'elasticsearch', 'count', Date.now())).toThrow('dry-run');
+
+    expect(write).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(0);
+  });
+
+  it('still maps other status-0 errors to a network error', () => {
+    setGlobalOptions({ pretty: false, verbose: false });
+    vi.spyOn(fs, 'writeSync').mockReturnValue(0);
+
+    expect(() => fail(new PncliError('fetch failed', 0), 'elasticsearch', 'count', Date.now())).toThrow('fetch failed');
+
+    expect(process.exitCode).toBe(exitCodeFromStatus(0));
+  });
 });
