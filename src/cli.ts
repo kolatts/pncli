@@ -38,6 +38,7 @@ import { registerOpenShiftCommands } from './services/openshift/commands.js';
 import { registerDynatraceCommands } from './services/dynatrace/commands.js';
 import { registerLogscaleCommands } from './services/logscale/commands.js';
 import { registerElasticsearchCommands } from './services/elasticsearch/commands.js';
+import { registerKibanaCommands } from './services/kibana/commands.js';
 import { registerSplitioCommands } from './services/splitio/commands.js';
 import { registerFigmaCommands } from './services/figma/commands.js';
 import { registerSauceLabsCommands } from './services/saucelabs/commands.js';
@@ -97,6 +98,7 @@ registerOpenShiftCommands(program);
 registerDynatraceCommands(program);
 registerLogscaleCommands(program);
 registerElasticsearchCommands(program);
+registerKibanaCommands(program);
 registerSplitioCommands(program);
 registerFigmaCommands(program);
 registerAlationCommands(program);
@@ -122,6 +124,7 @@ Services:
   dynatrace    Dynatrace (services, entities, problems, traces, Kubernetes workloads)
   logscale     LogScale (log query, repositories)
   elasticsearch  Elasticsearch (search, count, indices, cluster health)
+  kibana       Kibana (dashboards, data views, alerting rules, spaces)
   splitio      Split.IO (feature flags, Change Requests)
   figma        Figma (files, comments, version history)
   alation      Alation (data sources, schemas, tables, columns, search, Document Hubs)

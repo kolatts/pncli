@@ -52,6 +52,7 @@ const SERVICES = [
   { name: 'Dynatrace',                   file: 'src/services/dynatrace/commands.ts',      prefix: 'dynatrace' },
   { name: 'LogScale',                    file: 'src/services/logscale/commands.ts',       prefix: 'logscale' },
   { name: 'Elasticsearch',               file: 'src/services/elasticsearch/commands.ts',  prefix: 'elasticsearch' },
+  { name: 'Kibana',                      file: 'src/services/kibana/commands.ts',         prefix: 'kibana' },
   { name: 'Split.IO',                   file: 'src/services/splitio/commands.ts',        prefix: 'splitio' },
   { name: 'Figma',                       file: 'src/services/figma/commands.ts',          prefix: 'figma' },
   { name: 'Alation',                     file: 'src/services/alation/commands.ts',        prefix: 'alation' },

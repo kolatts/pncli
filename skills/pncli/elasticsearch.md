@@ -22,6 +22,9 @@ pncli config test
 
 Environment variables take precedence over stored config. There is no CI-provided fallback variable.
 
+The same API key also authenticates `pncli kibana` commands. Set `kibana.baseUrl` and Kibana uses
+this key unless `kibana.apiKey` is set (see `kibana.md`).
+
 ## Commands
 
 ```bash

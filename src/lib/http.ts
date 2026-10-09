@@ -1386,6 +1386,73 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
+  private kibanaHeaders(accept: string): Record<string, string> {
+    const { apiKey } = this.config.kibana;
+    if (!apiKey) {
+      throw new PncliError('Kibana credentials not configured. Set kibana.apiKey, or elasticsearch.apiKey to share the Elasticsearch key. Run: pncli config init');
+    }
+    return {
+      'Authorization': `ApiKey ${apiKey}`,
+      // Kibana rejects every non-GET request without this header (CSRF protection); harmless on GET.
+      'kbn-xsrf': 'true',
+      'Content-Type': 'application/json',
+      'Accept': accept,
+      'Connection': 'close'
+    };
+  }
+
+  private kibanaRequest(path: string, opts: HttpRequestOptions, accept: string): { url: string; init: RequestInit } {
+    const baseUrl = this.config.kibana.baseUrl;
+    if (!baseUrl) throw new PncliError('Kibana baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.kibanaHeaders(accept);
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return { url, init };
+  }
+
+  async kibana<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const { url, init } = this.kibanaRequest(path, opts, 'application/json');
+    return request<T>(url, init, opts.timeoutMs ?? 30000);
+  }
+
+  /** For Kibana endpoints that answer in NDJSON (saved objects export): one parsed object per line. */
+  async kibanaNdjson(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<unknown[]> {
+    const { url, init } = this.kibanaRequest(path, opts, 'application/x-ndjson, application/json');
+    const response = await fetchWithTimeout(url, init, opts.timeoutMs ?? 30000);
+    const text = await response.text();
+    if (!response.ok) {
+      let message = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed.message) message = String(parsed.message);
+      } catch { /* ignore */ }
+      throw new PncliError(message, response.status, url);
+    }
+
+    return text.split('\n').filter(line => line.trim()).map(line => JSON.parse(line) as unknown);
+  }
+
   private splitioHeaders(): Record<string, string> {
     const { adminApiKey } = this.config.splitio;
     if (!adminApiKey) throw new PncliError('Split.IO credentials not configured. Run: pncli config init');
