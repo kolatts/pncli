@@ -58,10 +58,11 @@ export class AdoWorkClient {
   }
 
   async listComments(collection: string, project: string, workItemId: number): Promise<AdoWorkItemComment[]> {
-    const result = await this.http.ado<AdoPageResponse<AdoWorkItemComment>>(
+    // The comments endpoint wraps results in `comments`, not the usual `value`.
+    const result = await this.http.ado<Partial<AdoPageResponse<AdoWorkItemComment>> & { comments?: AdoWorkItemComment[] }>(
       `/${encodeURIComponent(collection)}/${encodeURIComponent(project)}/_apis/wit/workItems/${workItemId}/comments?api-version=${API_PREVIEW}`
     );
-    return result.value ?? [];
+    return result.comments ?? result.value ?? [];
   }
 
   async addComment(collection: string, project: string, workItemId: number, text: string): Promise<AdoWorkItemComment> {
