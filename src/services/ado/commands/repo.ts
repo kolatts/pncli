@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { getAdoContext, PR_VOTE } from '../helpers.js';
 import { success, fail } from '../../../lib/output.js';
+import { parseDateOption } from '../../../lib/dates.js';
 import type { AdoPRThread, AdoPRComment } from '../../../types/ado.js';
 
 /** Flatten all comments across all threads into a sorted list with threadContext attached */
@@ -74,14 +75,20 @@ export function registerAdoRepoCommands(ado: Command): void {
     .option('--state <state>', 'PR state: active|abandoned|completed|all', 'active')
     .option('--creator <alias>', 'Filter by creator')
     .option('--reviewer <alias>', 'Filter by reviewer')
-    .action(async (opts: { state?: string; creator?: string; reviewer?: string }) => {
+    .option('--created-after <date>', 'Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)')
+    .option('--created-before <date>', 'Only PRs created before this ISO 8601 date')
+    .action(async (opts: { state?: string; creator?: string; reviewer?: string; createdAfter?: string; createdBefore?: string }) => {
       const start = Date.now();
       try {
+        const createdAfter = opts.createdAfter ? parseDateOption('--created-after', opts.createdAfter) : undefined;
+        const createdBefore = opts.createdBefore ? parseDateOption('--created-before', opts.createdBefore) : undefined;
         const { collection, project, repo, gitClient } = getAdoContext(ado, true);
         const data = await gitClient.listPRs(collection, project, repo, {
           status: opts.state,
           creatorAlias: opts.creator,
-          reviewerAlias: opts.reviewer
+          reviewerAlias: opts.reviewer,
+          createdAfter,
+          createdBefore
         });
         success(data, 'ado', 'repo-list-prs', start);
       } catch (err) { fail(err, 'ado', 'repo-list-prs', start); }

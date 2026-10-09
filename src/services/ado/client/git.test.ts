@@ -81,6 +81,25 @@ describe('AdoGitClient — listPRs pagination', () => {
     const url = new URL(capturedUrls[0]);
     expect(url.searchParams.get('searchCriteria.status')).toBe('completed');
   });
+
+  it('sends the created time range as minTime/maxTime with queryTimeRangeType', async () => {
+    const capturedUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrls.push(url);
+      return new Response(JSON.stringify({ value: [] }), { status: 200 });
+    });
+
+    const client = new AdoGitClient(new HttpClient(makeConfig()));
+    await client.listPRs('myorg', 'myproject', 'myrepo', {
+      createdAfter: new Date('2025-01-10T00:00:00Z'),
+      createdBefore: new Date('2025-01-20T00:00:00Z')
+    });
+
+    const url = new URL(capturedUrls[0]);
+    expect(url.searchParams.get('searchCriteria.queryTimeRangeType')).toBe('created');
+    expect(url.searchParams.get('searchCriteria.minTime')).toBe('2025-01-10T00:00:00.000Z');
+    expect(url.searchParams.get('searchCriteria.maxTime')).toBe('2025-01-20T00:00:00.000Z');
+  });
 });
 
 describe('AdoGitClient — listDefaultReviewers', () => {

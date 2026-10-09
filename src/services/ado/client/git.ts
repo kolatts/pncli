@@ -47,7 +47,7 @@ export class AdoGitClient {
     collection: string,
     project: string,
     repo: string,
-    opts: { status?: string; creatorAlias?: string; reviewerAlias?: string } = {}
+    opts: { status?: string; creatorAlias?: string; reviewerAlias?: string; createdAfter?: Date; createdBefore?: Date } = {}
   ): Promise<AdoPullRequest[]> {
     // The "Get Pull Requests" endpoint has no continuation-token support (unlike
     // Builds/Definitions) — it paginates via $top/$skip instead, and silently caps
@@ -63,6 +63,10 @@ export class AdoGitClient {
         'searchCriteria.status': opts.status ?? 'active',
         ...(opts.creatorAlias ? { 'searchCriteria.creatorId': opts.creatorAlias } : {}),
         ...(opts.reviewerAlias ? { 'searchCriteria.reviewerId': opts.reviewerAlias } : {}),
+        // minTime/maxTime only take effect alongside queryTimeRangeType.
+        ...(opts.createdAfter || opts.createdBefore ? { 'searchCriteria.queryTimeRangeType': 'created' } : {}),
+        ...(opts.createdAfter ? { 'searchCriteria.minTime': opts.createdAfter.toISOString() } : {}),
+        ...(opts.createdBefore ? { 'searchCriteria.maxTime': opts.createdBefore.toISOString() } : {}),
         '$top': pageSize,
         '$skip': skip
       };

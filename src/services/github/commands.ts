@@ -6,6 +6,7 @@ import { loadConfig } from '../../lib/config.js';
 import { getGitContext } from '../../lib/git-context.js';
 import { success, fail } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
+import { parseDateOption } from '../../lib/dates.js';
 import { resolveTextInput } from '../../lib/input.js';
 
 function getClient(
@@ -109,16 +110,24 @@ export function registerGitHubCommands(program: Command): void {
     .addOption(new Option('--state <state>', 'PR state').choices(['open', 'closed', 'all']).default('open'))
     .option('--head <branch>', 'Filter by head branch (user:branch)')
     .option('--base <branch>', 'Filter by base branch')
-    .action(async (opts: { state?: string; head?: string; base?: string }) => {
+    .option('--author <login>', 'Filter by author login')
+    .option('--created-after <date>', 'Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)')
+    .option('--created-before <date>', 'Only PRs created before this ISO 8601 date')
+    .action(async (opts: { state?: string; head?: string; base?: string; author?: string; createdAfter?: string; createdBefore?: string }) => {
       const start = Date.now();
       try {
+        const createdAfter = opts.createdAfter ? parseDateOption('--created-after', opts.createdAfter) : undefined;
+        const createdBefore = opts.createdBefore ? parseDateOption('--created-before', opts.createdBefore) : undefined;
         const { client, owner, repo } = getClient(gh);
         const data = await client.listPRs({
           owner,
           repo,
           state: opts.state as 'open' | 'closed' | 'all',
           head: opts.head,
-          base: opts.base
+          base: opts.base,
+          author: opts.author,
+          createdAfter,
+          createdBefore
         });
         success(data, 'github', 'list-prs', start);
       } catch (err) { fail(err, 'github', 'list-prs', start); }

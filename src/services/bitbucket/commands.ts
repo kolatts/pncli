@@ -5,6 +5,7 @@ import { loadConfig } from '../../lib/config.js';
 import { getGitContext } from '../../lib/git-context.js';
 import { success, fail } from '../../lib/output.js';
 import { PncliError } from '../../lib/errors.js';
+import { parseDateOption } from '../../lib/dates.js';
 import type { BitbucketPR } from '../../types/bitbucket.js';
 
 function getClient(
@@ -68,11 +69,15 @@ export function registerBitbucketCommands(program: Command): void {
     .option('--state <state>', 'PR state: OPEN|MERGED|DECLINED|ALL', 'OPEN')
     .option('--author <username>', 'Filter by author username')
     .option('--reviewer <username>', 'Filter by reviewer username')
-    .action(async (opts: { state?: string; author?: string; reviewer?: string }) => {
+    .option('--created-after <date>', 'Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)')
+    .option('--created-before <date>', 'Only PRs created before this ISO 8601 date')
+    .action(async (opts: { state?: string; author?: string; reviewer?: string; createdAfter?: string; createdBefore?: string }) => {
       const start = Date.now();
       try {
+        const createdAfter = opts.createdAfter ? parseDateOption('--created-after', opts.createdAfter) : undefined;
+        const createdBefore = opts.createdBefore ? parseDateOption('--created-before', opts.createdBefore) : undefined;
         const { client, project, repo } = getClient(bb);
-        const data = await client.listPRs({ project, repo, state: opts.state, author: opts.author, reviewer: opts.reviewer });
+        const data = await client.listPRs({ project, repo, state: opts.state, author: opts.author, reviewer: opts.reviewer, createdAfter, createdBefore });
         success(data, 'bitbucket', 'list-prs', start);
       } catch (err) { fail(err, 'bitbucket', 'list-prs', start); }
     });

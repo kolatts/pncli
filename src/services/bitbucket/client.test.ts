@@ -31,6 +31,38 @@ function makeConfig(): ResolvedConfig {
   };
 }
 
+describe('BitbucketClient — listPRs filters', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('sends author/reviewer as username.N/role.N and filters by created date', async () => {
+    const capturedUrls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      capturedUrls.push(url);
+      return new Response(JSON.stringify({
+        values: [
+          { id: 1, createdDate: Date.parse('2025-01-05') },
+          { id: 2, createdDate: Date.parse('2025-01-15') },
+          { id: 3, createdDate: Date.parse('2025-02-01') }
+        ],
+        isLastPage: true
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+
+    const client = new BitbucketClient(new HttpClient(makeConfig()));
+    const prs = await client.listPRs({
+      project: 'P', repo: 'r', author: 'alice', reviewer: 'bob',
+      createdAfter: new Date('2025-01-10'), createdBefore: new Date('2025-01-31')
+    });
+
+    const url = new URL(capturedUrls[0]);
+    expect(url.searchParams.get('username.1')).toBe('alice');
+    expect(url.searchParams.get('role.1')).toBe('AUTHOR');
+    expect(url.searchParams.get('username.2')).toBe('bob');
+    expect(url.searchParams.get('role.2')).toBe('REVIEWER');
+    expect(prs.map(p => p.id)).toEqual([2]);
+  });
+});
+
 describe('BitbucketClient — getDiff', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
