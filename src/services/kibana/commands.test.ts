@@ -17,16 +17,19 @@ async function run(
   argv: string[],
   response: string,
   env: Record<string, string> = {},
-  contentType = 'application/json'
+  contentType = 'application/json',
+  status = 200
 ): Promise<{ captured: Captured[]; output: Record<string, unknown> }> {
   // An empty config file isolates the run from the developer's own ~/.pncli/config.json.
   vi.stubEnv('PNCLI_KIBANA_BASE_URL', 'https://kibana.imagile.dev:5601');
-  vi.stubEnv('PNCLI_KIBANA_SPACE', '');
+  vi.stubEnv('PNCLI_KIBANA_SPACE', undefined);
+  vi.stubEnv('PNCLI_KIBANA_API_KEY', undefined);
+  vi.stubEnv('PNCLI_ELASTICSEARCH_API_KEY', undefined);
   for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
   const captured: Captured[] = [];
   vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
     captured.push({ url: String(url), init });
-    return new Response(response, { status: 200, headers: { 'content-type': contentType } });
+    return new Response(response, { status, headers: { 'content-type': contentType } });
   });
   let stdout = '';
   vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array) => {
@@ -71,7 +74,34 @@ describe('kibana auth', () => {
   });
 });
 
+describe('kibana errors', () => {
+  it('says the shared Elasticsearch key was sent when Kibana answers 403', async () => {
+    await expect(run(['kibana', 'spaces', 'list'], '{"statusCode":403,"error":"Forbidden","message":"Unauthorized"}', ES_KEY, 'application/json', 403))
+      .rejects.toThrow('sent the shared Elasticsearch API key');
+  });
+
+  it('does not add the hint when Kibana has its own key', async () => {
+    await expect(run(['kibana', 'spaces', 'list'], '{"message":"Unauthorized"}', { PNCLI_KIBANA_API_KEY: 'kb' }, 'application/json', 403))
+      .rejects.toThrow(/^Unauthorized$/);
+  });
+
+  it('surfaces a non-OK export as a PncliError with the Kibana message', async () => {
+    await expect(run(['kibana', 'dashboards', 'export', '--id', 'x'], '{"statusCode":400,"message":"Bad Request: unknown id"}', ES_KEY, 'application/json', 400))
+      .rejects.toThrow('Bad Request: unknown id');
+  });
+
+  it('rejects a non-NDJSON export body (e.g. a proxy login page) with a clear error', async () => {
+    await expect(run(['kibana', 'dashboards', 'export', '--id', 'x'], '<html>login</html>', ES_KEY, 'text/html'))
+      .rejects.toThrow('Kibana returned a non-JSON response');
+  });
+});
+
 describe('kibana status', () => {
+  it('reports an unhealthy Kibana from its 503 body instead of failing', async () => {
+    const { output } = await run(['kibana', 'status'], '{"version":{"number":"8.15.0"},"status":{"overall":{"level":"unavailable","summary":"Elasticsearch is unavailable"}}}', ES_KEY, 'application/json', 503);
+    expect(output.data).toMatchObject({ status: 'unavailable', summary: 'Elasticsearch is unavailable' });
+  });
+
   it('maps 8.x level/summary', async () => {
     const { output } = await run(['kibana', 'status'], '{"name":"kb","uuid":"abc12345","version":{"number":"8.15.0","build_flavor":"default"},"status":{"overall":{"level":"available","summary":"ok"}}}', ES_KEY);
     expect(output.data).toEqual({ name: 'kb', uuid: 'abc12345', version: '8.15.0', buildFlavor: 'default', status: 'available', summary: 'ok' });

@@ -42,8 +42,10 @@ wins. There is no CI-provided fallback variable. `pncli config test` reports
 **Privileges.** Create the key in Kibana under **Stack Management → Security → API keys**. A key
 created without restricting its privileges inherits yours, and works for both Elasticsearch and
 Kibana. A key restricted to index privileges only has no Kibana feature privileges, so Kibana answers
-`403`. In that case create a second key that has read access to Dashboards, Discover and
-Stack Rules, and set `kibana.apiKey`.
+`403`, and the error says the shared Elasticsearch key was sent. In that case create a second key
+that has read access to Dashboards, Discover and Stack Rules, and set `kibana.apiKey`. If
+`PNCLI_ELASTICSEARCH_API_KEY` is exported in your shell or CI, it outranks a stored `kibana.apiKey`,
+so set `PNCLI_KIBANA_API_KEY` there instead.
 
 ## Commands
 
@@ -75,7 +77,8 @@ pncli kibana rules get --id <rule-id>
 Output shapes:
 
 - `status` returns `{ name, uuid, version, buildFlavor, status, summary }`. `status` is
-  `available` / `degraded` / `unavailable`, or `green` / `yellow` / `red` on 7.x.
+  `available` / `degraded` / `unavailable` / `critical`, or `green` / `yellow` / `red` on 7.x. An
+  unhealthy Kibana answers this endpoint with HTTP 503; `status` still reports its body.
 - `dashboards list` returns `{ space, total, page, perPage, count, dashboards: [{ id, title, description, updatedAt }] }`.
   `--per-page` defaults to 100.
 - `dashboards export` returns `{ space, count, exportDetails, objects }`. `objects` are raw saved
@@ -86,5 +89,5 @@ Output shapes:
   `pattern` as the `--index` value for `pncli elasticsearch search`.
 - `rules list` returns `{ space, total, page, perPage, count, rules: [...] }`. Each rule has
   `{ id, name, ruleTypeId, consumer, enabled, muted, tags, interval, executionStatus, lastExecutionDate, lastRunOutcome, error, nextRun, updatedAt }`.
-  `executionStatus` is `ok`, `active`, `error`, `pending` or `unknown`.
+  `executionStatus` is `ok`, `active`, `error`, `warning`, `pending` or `unknown`.
 - `rules get` returns the same fields for one rule, plus the rule's `params` and `actions`.

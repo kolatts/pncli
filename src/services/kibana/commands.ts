@@ -107,7 +107,7 @@ export function registerKibanaCommands(program: Command): void {
       const start = Date.now();
       try {
         const { http } = getContext(program);
-        const data = await http.kibana<StatusResponse>('/api/status');
+        const data = await http.kibanaStatus<StatusResponse>();
         const overall = data.status?.overall;
         success(
           {

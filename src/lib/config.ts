@@ -333,7 +333,8 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
  * Kibana shares its credential with Elasticsearch: one API key authenticates against both, so
  * `kibana.apiKey` is optional. Env vars stay above stored config for the key as for every field —
  * PNCLI_KIBANA_API_KEY, then PNCLI_ELASTICSEARCH_API_KEY, then stored kibana.apiKey, then stored
- * elasticsearch.apiKey. Within each tier the Kibana-specific value wins.
+ * elasticsearch.apiKey. Within each tier the Kibana-specific value wins. A set-but-empty env var
+ * counts as set, as it does for every sibling service's `??` chain and for envOverriddenSecretPaths.
  */
 function resolveKibana(globalConfig: GlobalConfig): ResolvedConfig['kibana'] {
   const candidates: [string | undefined, 'kibana' | 'elasticsearch'][] = [
@@ -342,7 +343,7 @@ function resolveKibana(globalConfig: GlobalConfig): ResolvedConfig['kibana'] {
     [globalConfig.kibana?.apiKey, 'kibana'],
     [globalConfig.elasticsearch?.apiKey, 'elasticsearch']
   ];
-  const [apiKey, apiKeySource] = candidates.find(([value]) => value) ?? [undefined, undefined];
+  const [apiKey, apiKeySource] = candidates.find(([value]) => value !== undefined) ?? [undefined, undefined];
   return {
     baseUrl: process.env[ENV_KEYS.KIBANA_BASE_URL] ?? globalConfig.kibana?.baseUrl,
     apiKey,

@@ -1173,6 +1173,9 @@ async function initGlobalConfig(start: number): Promise<void> {
     const shareKey = useElasticsearch && elasticsearchApiKey
       ? await confirm({ message: 'Use the Elasticsearch API key for Kibana too?', default: true })
       : false;
+    // The elasticsearch block is only written with a baseUrl. Without one the shared key would be
+    // dropped on save, so store it as Kibana's own key instead.
+    if (shareKey && !elasticsearchBaseUrl) kibanaApiKey = elasticsearchApiKey;
     if (!shareKey) {
       kibanaApiKey = await password({
         message: 'Kibana API key (the base64 "encoded" value from Stack Management → API keys):'

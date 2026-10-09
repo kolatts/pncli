@@ -557,6 +557,13 @@ describe('loadConfig — Kibana shares the Elasticsearch API key', () => {
     expect(config.kibana).toMatchObject({ baseUrl: 'https://kibana.imagile.dev', space: 'ops' });
   });
 
+  it('treats a set-but-empty PNCLI_KIBANA_API_KEY as set, like every sibling service', () => {
+    write({ kibana: { apiKey: 'kb-key' }, elasticsearch: { apiKey: 'es-key' } });
+    process.env['PNCLI_KIBANA_API_KEY'] = '';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.kibana).toMatchObject({ apiKey: '', apiKeySource: 'kibana' });
+  });
+
   it('leaves the key undefined when neither service has one', () => {
     write({ kibana: { baseUrl: 'https://kibana.imagile.dev' } });
     const config = loadConfig({ configPath: globalConfigPath });
