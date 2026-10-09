@@ -208,6 +208,31 @@ describe('AdoWorkClient — removeTags', () => {
   });
 });
 
+describe('AdoWorkClient — listComments', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('reads comments from the `comments` envelope', async () => {
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify({ totalCount: 1, count: 1, comments: [{ id: 7, text: 'hi' }] }), { status: 200 })
+    );
+    const client = new AdoWorkClient(new HttpClient(makeConfig()));
+    const comments = await client.listComments('myorg', 'proj', 42);
+    expect(comments).toHaveLength(1);
+    expect(comments[0].id).toBe(7);
+  });
+
+  it('falls back to `value` and then an empty list', async () => {
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify({ count: 1, value: [{ id: 8, text: 'v' }] }), { status: 200 })
+    );
+    const client = new AdoWorkClient(new HttpClient(makeConfig()));
+    expect(await client.listComments('myorg', 'proj', 42)).toHaveLength(1);
+
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({}), { status: 200 }));
+    expect(await client.listComments('myorg', 'proj', 42)).toEqual([]);
+  });
+});
+
 describe('AdoWorkClient — listAttachments', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
