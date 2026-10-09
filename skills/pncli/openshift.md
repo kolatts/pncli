@@ -27,11 +27,11 @@ Example:
 
 ```bash
 pncli config set openshift.environments.non-prod.instances.us-east.baseUrl https://api.np-us-east.imagile.dev:6443
-pncli config set openshift.environments.non-prod.instances.us-east.token eyJhbGciOiJSUzI1NiI...
+pncli config set openshift.environments.non-prod.instances.us-east.token <token>
 pncli config set openshift.environments.non-prod.instances.eu-west.baseUrl https://api.np-eu-west.imagile.dev:6443
-pncli config set openshift.environments.non-prod.instances.eu-west.token eyJhbGciOiJSUzI1NiI...
+pncli config set openshift.environments.non-prod.instances.eu-west.token <token>
 pncli config set openshift.environments.prod-us.instances.primary.baseUrl https://api.prod-us.imagile.dev:6443
-pncli config set openshift.environments.prod-us.instances.primary.token eyJhbGciOiJSUzI1NiI...
+pncli config set openshift.environments.prod-us.instances.primary.token <token>
 
 # Set defaults so --env / --instance can be omitted
 pncli config set openshift.defaultEnvironment non-prod
@@ -70,14 +70,14 @@ curl -H "Authorization: Bearer $EXISTING_TOKEN" \
 
 ```bash
 export PNCLI_OPENSHIFT_BASE_URL=https://api.cluster.imagile.dev:6443
-export PNCLI_OPENSHIFT_TOKEN=eyJhbGciOiJSUzI1NiI...
+export PNCLI_OPENSHIFT_TOKEN=<token>
 ```
 
 ## Set via config file (persistent)
 
 ```bash
 pncli config set openshift.baseUrl https://api.cluster.imagile.dev:6443
-pncli config set openshift.token eyJhbGciOiJSUzI1NiI...
+pncli config set openshift.token <token>
 ```
 
 Or run the interactive wizard:
