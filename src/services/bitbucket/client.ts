@@ -1,5 +1,6 @@
 import type { HttpClient } from '../../lib/http.js';
 import { PncliError } from '../../lib/errors.js';
+import { inDateRange } from '../../lib/dates.js';
 import type {
   BitbucketPR,
   BitbucketUser,
@@ -17,6 +18,10 @@ export interface ListPRsOpts {
   state?: string;
   author?: string;
   reviewer?: string;
+  /** Keep PRs created at or after this instant (filtered client-side; Bitbucket DC has no date filter). */
+  createdAfter?: Date;
+  /** Keep PRs created before this instant. */
+  createdBefore?: Date;
 }
 
 export interface CreatePROpts {
@@ -68,19 +73,27 @@ export class BitbucketClient {
   constructor(private http: HttpClient) {}
 
   async listPRs(opts: ListPRsOpts): Promise<BitbucketPR[]> {
-    return this.http.paginate<BitbucketPR>((start, limit) =>
+    // Bitbucket DC filters by user through indexed username.N / role.N pairs.
+    const userFilters: Record<string, string> = {};
+    let n = 1;
+    if (opts.author) { userFilters[`username.${n}`] = opts.author; userFilters[`role.${n}`] = 'AUTHOR'; n++; }
+    if (opts.reviewer) { userFilters[`username.${n}`] = opts.reviewer; userFilters[`role.${n}`] = 'REVIEWER'; }
+
+    const prs = await this.http.paginate<BitbucketPR>((start, limit) =>
       this.http.bitbucket<BitbucketPageResponse<BitbucketPR>>(
         `${API}/projects/${opts.project}/repos/${opts.repo}/pull-requests`,
         {
           params: {
             state: opts.state ?? 'OPEN',
-            ...(opts.author ? { 'author.username': opts.author } : {}),
+            ...userFilters,
             start,
             limit
           }
         }
       )
     );
+    if (!opts.createdAfter && !opts.createdBefore) return prs;
+    return prs.filter(pr => inDateRange(pr.createdDate, opts.createdAfter, opts.createdBefore));
   }
 
   async getPR(project: string, repo: string, id: number): Promise<BitbucketPR> {

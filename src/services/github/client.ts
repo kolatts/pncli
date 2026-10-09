@@ -1,4 +1,5 @@
 import type { HttpClient } from '../../lib/http.js';
+import { inDateRange } from '../../lib/dates.js';
 import type {
   GitHubPR,
   GitHubComment,
@@ -22,6 +23,12 @@ export interface ListPRsOpts {
   state?: 'open' | 'closed' | 'all';
   head?: string;
   base?: string;
+  /** Author login. The pulls endpoint has no author filter, so this is applied client-side. */
+  author?: string;
+  /** Keep PRs created at or after this instant (client-side). */
+  createdAfter?: Date;
+  /** Keep PRs created before this instant (client-side). */
+  createdBefore?: Date;
 }
 
 export interface CreatePROpts {
@@ -127,7 +134,7 @@ export class GitHubClient {
   constructor(private http: HttpClient) {}
 
   async listPRs(opts: ListPRsOpts): Promise<GitHubPR[]> {
-    return this.http.githubPaginate((page, perPage) =>
+    const prs = await this.http.githubPaginate((page, perPage) =>
       this.http.github<GitHubPR[]>(
         `/repos/${opts.owner}/${opts.repo}/pulls`,
         {
@@ -140,6 +147,11 @@ export class GitHubClient {
           }
         }
       )
+    );
+    const author = opts.author?.toLowerCase();
+    return prs.filter(pr =>
+      (!author || pr.user?.login?.toLowerCase() === author) &&
+      inDateRange(Date.parse(pr.created_at), opts.createdAfter, opts.createdBefore)
     );
   }
 

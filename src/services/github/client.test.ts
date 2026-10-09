@@ -85,6 +85,23 @@ describe('GitHubClient — listPRs', () => {
 
     expect(capturedUrls[0]).toContain('state=closed');
   });
+
+  it('filters by author and created date client-side', async () => {
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify([
+      { number: 1, user: { login: 'Alice' }, created_at: '2025-01-05T00:00:00Z' },
+      { number: 2, user: { login: 'alice' }, created_at: '2025-01-15T00:00:00Z' },
+      { number: 3, user: { login: 'bob' }, created_at: '2025-01-16T00:00:00Z' },
+      { number: 4, user: { login: 'alice' }, created_at: '2025-02-01T00:00:00Z' }
+    ]), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    const client = new GitHubClient(new HttpClient(makeConfig()));
+    const prs = await client.listPRs({
+      owner: 'o', repo: 'r', author: 'alice',
+      createdAfter: new Date('2025-01-10'), createdBefore: new Date('2025-01-31')
+    });
+
+    expect(prs.map(p => p.number)).toEqual([2]);
+  });
 });
 
 describe('GitHubClient — getDiff', () => {
