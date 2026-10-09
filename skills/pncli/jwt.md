@@ -12,7 +12,7 @@ The JWT decode command is self-contained and does not require any configuration 
 pncli jwt decode <token>
 ```
 
-Returns structured JSON with the decoded header, payload, and raw signature:
+Returns structured JSON with the decoded header, payload, and raw signature (shown here as `<signature>` so secret scanners don't flag the docs; the real command returns the token's base64url signature segment):
 
 ```json
 {
@@ -29,7 +29,7 @@ Returns structured JSON with the decoded header, payload, and raw signature:
       "name": "John Doe",
       "iat": 1516239022
     },
-    "signature": "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+    "signature": "<signature>"
   }
 }
 ```
