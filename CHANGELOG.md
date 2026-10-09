@@ -1,5 +1,23 @@
 # Changelog
 
+## [6.2.0](https://github.com/kolatts/pncli/compare/v6.1.0...v6.2.0) (2026-10-09)
+
+
+### Features
+
+* **jira:** add --fields to jira search to choose returned fields ([#549](https://github.com/kolatts/pncli/issues/549)) ([9d8ea11](https://github.com/kolatts/pncli/commit/9d8ea11016bff940b878b815c053df6c74231796))
+* **jira:** add --start-at to search and keep the server total ([#543](https://github.com/kolatts/pncli/issues/543)) ([bba5214](https://github.com/kolatts/pncli/commit/bba5214f4f96865869f8f0f662f1d3339cc1d957))
+* **prs:** add author and created-date filters to list-prs ([#551](https://github.com/kolatts/pncli/issues/551)) ([227affe](https://github.com/kolatts/pncli/commit/227affe4143812a930d0335a49bdd9224a95472f)), closes [#550](https://github.com/kolatts/pncli/issues/550)
+
+
+### Bug Fixes
+
+* **ado:** read work item comments from the comments envelope ([#553](https://github.com/kolatts/pncli/issues/553)) ([c6fcb33](https://github.com/kolatts/pncli/commit/c6fcb3372d589d48a4a6ec3b5c9e00dce9b071e6))
+* **bitbucket:** keep existing reviewers when update-pr omits --reviewers ([#547](https://github.com/kolatts/pncli/issues/547)) ([8bbdc2f](https://github.com/kolatts/pncli/commit/8bbdc2fa5409bd89c2b1be7f3395e1a0fad1a55b))
+* **jira:** map greenhopper and portfolio field types in fields --discover ([#542](https://github.com/kolatts/pncli/issues/542)) ([1f200a2](https://github.com/kolatts/pncli/commit/1f200a2da6836ab13814ba6444c7bd982ece4529))
+* **jira:** page jira search in chunks of 100 when --max-results is set ([#545](https://github.com/kolatts/pncli/issues/545)) ([a82244c](https://github.com/kolatts/pncli/commit/a82244cdf897c38a99b1786f8823e973734fe6ac))
+* **output:** let the dry-run sentinel pass through fail() with exit 0 ([#535](https://github.com/kolatts/pncli/issues/535)) ([138ee5c](https://github.com/kolatts/pncli/commit/138ee5ca9e947771d1448fb09939e598d7ed7802))
+
 ## [6.1.0](https://github.com/kolatts/pncli/compare/v6.0.0...v6.1.0) (2026-10-07)
 
 
