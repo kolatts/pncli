@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.2.1](https://github.com/kolatts/pncli/compare/v6.2.0...v6.2.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **jwt:** use a placeholder signature in jwt.md so secret scanners stop flagging it ([#555](https://github.com/kolatts/pncli/issues/555)) ([98139fa](https://github.com/kolatts/pncli/commit/98139faa4e236ecfae4ed364783d65f0f7832025))
+
 ## [6.2.0](https://github.com/kolatts/pncli/compare/v6.1.0...v6.2.0) (2026-10-09)
 
 
