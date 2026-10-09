@@ -1454,21 +1454,21 @@ export class HttpClient {
   }
 
   /**
-   * Raw Kibana call for responses `request()` cannot take: NDJSON bodies, and statuses in
-   * `allowStatuses` whose body is still the answer (`/api/status` returns 503 while unhealthy).
+   * Raw Kibana call for responses `request()` cannot take: NDJSON bodies, and non-OK responses
+   * whose body is still the answer, as `isAnswer` decides (`/api/status` returns 503 while unhealthy).
    */
   private async kibanaText(
     path: string,
     opts: HttpRequestOptions,
     accept: string,
-    allowStatuses: number[] = []
+    isAnswer: (status: number, text: string) => boolean = () => false
   ): Promise<{ text: string; url: string }> {
     const { url, init } = this.kibanaRequest(path, opts, accept);
     debug(`→ ${init.method} ${url}`);
     const response = await fetchWithTimeout(url, init, opts.timeoutMs ?? 30000);
     debug(`← ${response.status} ${response.statusText}`);
     const text = await response.text();
-    if (!response.ok && !allowStatuses.includes(response.status)) {
+    if (!response.ok && !isAnswer(response.status, text)) {
       let message = `HTTP ${response.status} ${response.statusText}`;
       try {
         const parsed = JSON.parse(text);
@@ -1496,9 +1496,21 @@ export class HttpClient {
     return text.split('\n').filter(line => line.trim()).map(line => HttpClient.parseKibanaJson(line, url));
   }
 
-  /** `/api/status`, read on 503 too: an unhealthy Kibana reports its status with that code. */
+  /**
+   * `/api/status`, read on 503 too: an unhealthy Kibana reports its status with that code. Only a
+   * 503 carrying Kibana's own `status.overall` counts; a proxy's or load balancer's 503 stays an error.
+   */
   async kibanaStatus<T>(): Promise<T> {
-    const { text, url } = await this.kibanaText('/api/status', {}, 'application/json', [503]);
+    const isKibanaStatus = (status: number, text: string): boolean => {
+      if (status !== 503) return false;
+      try {
+        const overall = (JSON.parse(text) as { status?: { overall?: unknown } }).status?.overall;
+        return typeof overall === 'object' && overall !== null;
+      } catch {
+        return false;
+      }
+    };
+    const { text, url } = await this.kibanaText('/api/status', {}, 'application/json', isKibanaStatus);
     return HttpClient.parseKibanaJson(text, url) as T;
   }
 

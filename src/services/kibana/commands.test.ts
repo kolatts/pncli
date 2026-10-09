@@ -102,6 +102,16 @@ describe('kibana status', () => {
     expect(output.data).toMatchObject({ status: 'unavailable', summary: 'Elasticsearch is unavailable' });
   });
 
+  it('keeps a 503 without Kibana status (e.g. from a proxy) as an error', async () => {
+    await expect(run(['kibana', 'status'], '{"message":"Service unavailable"}', ES_KEY, 'application/json', 503))
+      .rejects.toThrow('Service unavailable');
+  });
+
+  it('keeps a non-JSON 503 as an HTTP error', async () => {
+    await expect(run(['kibana', 'status'], '<html>upstream down</html>', ES_KEY, 'text/html', 503))
+      .rejects.toThrow('HTTP 503');
+  });
+
   it('maps 8.x level/summary', async () => {
     const { output } = await run(['kibana', 'status'], '{"name":"kb","uuid":"abc12345","version":{"number":"8.15.0","build_flavor":"default"},"status":{"overall":{"level":"available","summary":"ok"}}}', ES_KEY);
     expect(output.data).toEqual({ name: 'kb', uuid: 'abc12345', version: '8.15.0', buildFlavor: 'default', status: 'available', summary: 'ok' });
