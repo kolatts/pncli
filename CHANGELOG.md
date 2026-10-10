@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.3.0](https://github.com/kolatts/pncli/compare/v6.2.1...v6.3.0) (2026-10-10)
+
+
+### Features
+
+* **kibana:** add Kibana integration sharing the Elasticsearch API key ([#558](https://github.com/kolatts/pncli/issues/558)) ([9997b1a](https://github.com/kolatts/pncli/commit/9997b1ad8e9d7b99521e9fa3b0a262811d6a4449))
+
 ## [6.2.1](https://github.com/kolatts/pncli/compare/v6.2.0...v6.2.1) (2026-10-09)
 
 
