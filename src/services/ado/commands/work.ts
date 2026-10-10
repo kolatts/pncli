@@ -144,8 +144,11 @@ export function registerAdoWorkCommands(ado: Command): void {
         if (tagsOp) {
           tagsOp.value = withPncliTag(tagsOp.value);
         } else {
-          const current = await workClient.getWorkItem(collection, id);
-          const existing = (current.fields as Record<string, unknown>)['System.Tags'];
+          // Under --dry-run every HttpClient request throws, GETs included; skip the read so the
+          // PATCH preview is still printed (existing tags are unknown, so it shows only via-pncli).
+          const existing = globalOpts.dryRun
+            ? undefined
+            : ((await workClient.getWorkItem(collection, id)).fields as Record<string, unknown>)['System.Tags'];
           patch.push({ op: 'add' as const, path: '/fields/System.Tags', value: withPncliTag(existing) });
         }
         const data = await workClient.updateWorkItem(collection, id, patch);
