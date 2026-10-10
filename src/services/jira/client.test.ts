@@ -540,27 +540,3 @@ describe('JiraClient — fetchFields pncliType', () => {
     expect(fields.map(f => f.pncliType)).toEqual(['string', 'number', 'string', 'string']);
   });
 });
-
-describe('JiraClient — via-pncli label', () => {
-  afterEach(() => { vi.unstubAllGlobals(); });
-
-  it('adds update.labels add on update when no labels given', async () => {
-    const bodies: unknown[] = [];
-    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
-      bodies.push(JSON.parse(init.body as string));
-      return new Response(null, { status: 204 });
-    });
-    await new JiraClient(new HttpClient(makeConfig())).updateIssue('PROJ-1', { summary: 'x' });
-    expect(bodies[0]).toEqual({ fields: { summary: 'x' }, update: { labels: [{ add: 'via-pncli' }] } });
-  });
-
-  it('merges the label into fields.labels when labels are given on update', async () => {
-    const bodies: unknown[] = [];
-    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
-      bodies.push(JSON.parse(init.body as string));
-      return new Response(null, { status: 204 });
-    });
-    await new JiraClient(new HttpClient(makeConfig())).updateIssue('PROJ-1', { labels: ['a'] });
-    expect(bodies[0]).toEqual({ fields: { labels: ['a', 'via-pncli'] } });
-  });
-});

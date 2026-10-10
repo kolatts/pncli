@@ -21,11 +21,6 @@ const AGILE_API = '/rest/agile/1.0';
 
 export const PNCLI_LABEL = 'via-pncli';
 
-/** Adds the pncli provenance label to a label list (deduped). */
-export function withPncliLabel(labels: string[] = []): string[] {
-  return labels.includes(PNCLI_LABEL) ? labels : [...labels, PNCLI_LABEL];
-}
-
 export interface CreateIssueOpts {
   project: string;
   issueType: string;
@@ -75,7 +70,7 @@ export class JiraClient {
         ...(opts.description ? { description: opts.description } : {}),
         ...(opts.priority ? { priority: { name: opts.priority } } : {}),
         ...(opts.assignee ? { assignee: { name: opts.assignee } } : {}),
-        labels: withPncliLabel(opts.labels),
+        ...(opts.labels?.length ? { labels: opts.labels } : {}),
         ...(opts.parent ? { parent: { key: opts.parent } } : {}),
         ...(opts.customFieldValues ?? {})
       }
@@ -95,15 +90,12 @@ export class JiraClient {
     if (opts.description) fields.description = opts.description;
     if (opts.priority) fields.priority = { name: opts.priority };
     if (opts.assignee) fields.assignee = { name: opts.assignee };
+    if (opts.labels?.length) fields.labels = opts.labels;
     Object.assign(fields, opts.customFieldValues ?? {});
-    // `fields.labels` replaces; `update.labels` adds. Jira rejects both for one field in a request.
-    const labelChange = opts.labels?.length
-      ? { fields: { ...fields, labels: withPncliLabel(opts.labels) } }
-      : { fields, update: { labels: [{ add: PNCLI_LABEL }] } };
 
     await this.http.jira<void>(`${API}/issue/${key}`, {
       method: 'PUT',
-      body: labelChange
+      body: { fields }
     });
   }
 

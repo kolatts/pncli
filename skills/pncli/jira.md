@@ -119,8 +119,9 @@ pncli jira create-issue --input-file issue.json --priority Low   # --priority wi
   Atlassian's own MCP server for Cloud.
 - `--assignee` on `create-issue`, `update-issue`, and `assign` takes a **username**, as does
   any `user`-typed custom field passed via `--field`
-- `create-issue` and `update-issue` always add the `via-pncli` label (existing labels are kept;
-  `--labels` on update still replaces the set, plus `via-pncli`)
+- `create-issue` and `update-issue` add the `via-pncli` label in a follow-up call after the
+  main request succeeds (existing labels are kept). If that call fails — e.g. the project's
+  screen has no Labels field — pncli warns and the command still succeeds.
 - Custom fields discovered with `pncli jira fields --discover`
 - `create-issue` does not check for duplicates before submitting. If a request times out or
   the response is otherwise ambiguous, run `pncli jira search` for the exact summary before
