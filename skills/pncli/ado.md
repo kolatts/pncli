@@ -27,6 +27,12 @@ export PNCLI_ADO_PAT=<token>
 
 `SYSTEM_ACCESSTOKEN` (the conventional name Azure Pipelines jobs map `$(System.AccessToken)` to) is used as a fallback when `PNCLI_ADO_PAT` isn't set. `PNCLI_ADO_PAT` always takes precedence when set.
 
+## Provenance tag
+
+`work create` and `work update` always add the `via-pncli` tag (existing tags are kept; a
+`System.Tags` value you pass is preserved with `via-pncli` appended). `work update` reads the
+item first to merge tags, so it makes one extra GET.
+
 ## Repo defaults
 
 ```

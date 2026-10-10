@@ -1,7 +1,7 @@
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
 import path from 'path';
 import { Command } from 'commander';
-import { JiraClient } from './client.js';
+import { JiraClient, PNCLI_LABEL } from './client.js';
 import { buildFieldMap, translateJql, translateFieldsInOutput, formatFieldValue, resolveFieldKey } from './custom-fields.js';
 import { JIRA_INPUT_FILE_SCHEMA, JIRA_INPUT_FILE_EXAMPLE } from './input-schema.js';
 import { createHttpClient } from '../../lib/http.js';
@@ -52,6 +52,18 @@ export function splitFieldsDictionary(
     custom[fieldId] = value;
   }
   return { builtin, custom };
+}
+
+/**
+ * Best-effort provenance label, applied after the main request succeeds. A separate call so a
+ * project whose screen lacks Labels can't fail the create/update; failure only warns.
+ */
+async function tagViaPncli(client: JiraClient, key: string): Promise<void> {
+  try {
+    await client.addLabels(key, [PNCLI_LABEL]);
+  } catch (err) {
+    warn(`Could not add the ${PNCLI_LABEL} label to ${key}: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 /** Normalizes a builtin `labels` value from either an --input-file array or a comma-separated flag string. */
@@ -196,6 +208,7 @@ export function registerJiraCommands(program: Command): void {
           parent: builtinFields.parent as string | undefined,
           customFieldValues
         });
+        await tagViaPncli(client, data.key);
         success(data, 'jira', 'create-issue', start, overrides);
       } catch (err) { fail(translateFieldErrors(err, fieldMap), 'jira', 'create-issue', start); }
     });
@@ -248,6 +261,7 @@ export function registerJiraCommands(program: Command): void {
           labels: normalizeLabels(builtinFields.labels),
           customFieldValues
         });
+        await tagViaPncli(client, opts.key);
         success({ updated: opts.key }, 'jira', 'update-issue', start, overrides);
       } catch (err) { fail(translateFieldErrors(err, fieldMap), 'jira', 'update-issue', start); }
     });

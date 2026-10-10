@@ -7,6 +7,7 @@ import { ADO_WORK_INPUT_FILE_SCHEMA, ADO_WORK_INPUT_FILE_EXAMPLE } from '../inpu
 import { success, fail, warn, writeRawOutput } from '../../../lib/output.js';
 import { loadConfig, getGlobalConfigPath } from '../../../lib/config.js';
 import { PncliError } from '../../../lib/errors.js';
+import { PNCLI_TAG, withPncliTag } from '../client/work.js';
 import { readJsonInputFile, mergeWithOverrides, resolveAtFileRef } from '../../../lib/input.js';
 
 /** Shape of the JSON accepted by --input-file on work create / update. */
@@ -93,6 +94,9 @@ export function registerAdoWorkCommands(ado: Command): void {
           ...Object.entries(builtIn).map(([k, v]) => ({ op: 'add' as const, path: `/fields/${k}`, value: v })),
           ...extra
         ];
+        const tagsOp = patch.find(p => p.path === '/fields/System.Tags');
+        if (tagsOp) tagsOp.value = withPncliTag(tagsOp.value);
+        else patch.push({ op: 'add' as const, path: '/fields/System.Tags', value: PNCLI_TAG });
         const data = await workClient.createWorkItem(collection, project, type, patch);
         success(data, 'ado', 'work-create', start, overrides);
         if (opts.parent) {
@@ -135,7 +139,19 @@ export function registerAdoWorkCommands(ado: Command): void {
         if (overrides.length) warn(`--input-file value(s) overridden by CLI flags: ${overrides.join(', ')}`);
 
         const patch = buildFieldPatch(merged, config.ado.fieldAliases);
-        const data = await workClient.updateWorkItem(collection, parseInt(opts.id, 10), patch);
+        const id = parseInt(opts.id, 10);
+        const tagsOp = patch.find(p => p.path === '/fields/System.Tags');
+        if (tagsOp) {
+          tagsOp.value = withPncliTag(tagsOp.value);
+        } else {
+          // Under --dry-run every HttpClient request throws, GETs included; skip the read so the
+          // PATCH preview is still printed (existing tags are unknown, so it shows only via-pncli).
+          const existing = globalOpts.dryRun
+            ? undefined
+            : ((await workClient.getWorkItem(collection, id)).fields as Record<string, unknown>)['System.Tags'];
+          patch.push({ op: 'add' as const, path: '/fields/System.Tags', value: withPncliTag(existing) });
+        }
+        const data = await workClient.updateWorkItem(collection, id, patch);
         success(data, 'ado', 'work-update', start, overrides);
       } catch (err) { fail(err, 'ado', 'work-update', start); }
     });

@@ -19,6 +19,8 @@ import type {
 const API = '/rest/api/2';
 const AGILE_API = '/rest/agile/1.0';
 
+export const PNCLI_LABEL = 'via-pncli';
+
 export interface CreateIssueOpts {
   project: string;
   issueType: string;
