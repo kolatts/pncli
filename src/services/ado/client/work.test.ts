@@ -2,9 +2,17 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { AdoWorkClient } from './work.js';
+import { AdoWorkClient, withPncliTag } from './work.js';
 import { HttpClient } from '../../../lib/http.js';
 import type { ResolvedConfig } from '../../../types/config.js';
+
+describe('withPncliTag', () => {
+  it('adds the tag to empty and existing tags without duplicating', () => {
+    expect(withPncliTag(undefined)).toBe('via-pncli');
+    expect(withPncliTag('a; b')).toBe('a; b; via-pncli');
+    expect(withPncliTag('a; Via-PNCLI')).toBe('a; Via-PNCLI');
+  });
+});
 
 function makeConfig(): ResolvedConfig {
   return {

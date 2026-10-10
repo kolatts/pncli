@@ -22,6 +22,15 @@ export interface JsonPatchOp {
   value?: unknown;
 }
 
+export const PNCLI_TAG = 'via-pncli';
+
+/** Appends the pncli provenance tag to a `;`-separated System.Tags value (case-insensitive dedupe). */
+export function withPncliTag(tags: unknown): string {
+  const current = (typeof tags === 'string' ? tags : '').split(';').map(t => t.trim()).filter(Boolean);
+  if (!current.some(t => t.toLowerCase() === PNCLI_TAG)) current.push(PNCLI_TAG);
+  return current.join('; ');
+}
+
 export class AdoWorkClient {
   constructor(private http: HttpClient) {}
 
