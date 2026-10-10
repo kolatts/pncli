@@ -9,7 +9,7 @@ metadata:
   services: config
 ---
 
-pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, GitHub, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, Checkmarx, Contrast Security IAST, Sonatype IQ Server, OpenShift / Kubernetes, Dynatrace, LogScale, Elasticsearch, Split.IO, Figma, Alation, and Sauce Labs.
+pncli gives AI agents and humans unified CLI access to enterprise tools: Jira, Bitbucket, GitHub, Confluence, SonarQube, SDElements, Azure DevOps, Jenkins, Artifactory, Checkmarx, Contrast Security IAST, Sonatype IQ Server, OpenShift / Kubernetes, Dynatrace, LogScale, Elasticsearch, Kibana, Split.IO, Figma, Alation, and Sauce Labs.
 
 Every service authenticates with a long-lived credential you generate once in that tool's own UI and put in an env var or the config file — for almost all of them a personal access token that goes straight into a header. Alation is the exception: you configure its refresh token, and pncli exchanges it for short-lived API tokens on every run without any interaction. If a tool you need is missing from the table below, it is not out of scope by default — pncli covers enterprise tooling broadly, and the only hard requirement is a credential you can generate once with no browser or interactive step at use time.
 
@@ -118,6 +118,7 @@ Each service has its own file in this skill with the config keys and example val
 | Dynatrace | `dynatrace.md` | Services, entities, problems, traces, Kubernetes workloads |
 | LogScale | `logscale.md` | Log queries, repository listing |
 | Elasticsearch | `elasticsearch.md` | Search (Query DSL or query string), document counts, index listing, cluster health |
+| Kibana | `kibana.md` | Dashboards (list, export with references), data views, alerting rules and their status, spaces |
 | Split.IO | `splitio.md` | Feature flag discovery, targeting updates, Change Requests |
 | Figma | `figma.md` | Design files, comments, version history |
 | Sauce Labs | `saucelabs.md` | Test jobs and builds, real-device inventory and availability, device sessions, Sauce Connect tunnels |

@@ -363,6 +363,21 @@ export async function runCredentialChecks(cfg: ResolvedConfig, http: HttpClient)
     }
   }
 
+  // Kibana — the API key is optional when the Elasticsearch one is shared, so baseUrl decides "configured"
+  if (!cfg.kibana.baseUrl) {
+    results.kibana = { status: 'blank', message: 'not configured' };
+  } else if (!cfg.kibana.apiKey) {
+    results.kibana = { status: 'error', message: 'no API key: set kibana.apiKey or elasticsearch.apiKey' };
+  } else {
+    try {
+      await http.kibana<unknown>('/api/status', { timeoutMs: 10_000 });
+      const shared = cfg.kibana.apiKeySource === 'elasticsearch' ? ' (using the Elasticsearch API key)' : '';
+      results.kibana = { status: 'valid', message: `ok${shared}` };
+    } catch (err) {
+      results.kibana = categorize(err);
+    }
+  }
+
   // Split.IO
   if (!cfg.splitio.adminApiKey) {
     results.splitio = { status: 'blank', message: 'not configured' };

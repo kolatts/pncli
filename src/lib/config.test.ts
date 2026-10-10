@@ -29,6 +29,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     dynatrace: { baseUrl: undefined, apiToken: undefined, platformUrl: undefined, platformToken: undefined, defaultEnvironment: undefined, environments: {} },
     logscale: { baseUrl: undefined, token: undefined },
     elasticsearch: { baseUrl: undefined, apiKey: undefined },
+    kibana: { baseUrl: undefined, apiKey: undefined, apiKeySource: undefined, space: undefined },
     splitio: { baseUrl: undefined, adminApiKey: undefined },
     figma: { baseUrl: undefined, token: undefined },
     alation: { baseUrl: undefined, refreshToken: undefined, userId: undefined },
@@ -494,6 +495,79 @@ describe('loadConfig — PNCLI_FIGMA_* env vars', () => {
     fs.writeFileSync(globalConfigPath, JSON.stringify({ figma: { token: 'stored-token' } }));
     const config = loadConfig({ configPath: globalConfigPath });
     expect(config.figma.token).toBe('stored-token');
+  });
+});
+
+describe('loadConfig — Kibana shares the Elasticsearch API key', () => {
+  let tmpDir: string;
+  let globalConfigPath: string;
+  const ENV = ['PNCLI_KIBANA_BASE_URL', 'PNCLI_KIBANA_API_KEY', 'PNCLI_KIBANA_SPACE', 'PNCLI_ELASTICSEARCH_API_KEY'];
+
+  beforeEach(async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pncli-test-'));
+    globalConfigPath = path.join(tmpDir, 'config.json');
+    fs.writeFileSync(globalConfigPath, JSON.stringify({}));
+    fs.writeFileSync(path.join(tmpDir, '.pncli.json'), JSON.stringify({}));
+    const { execSync } = await import('child_process');
+    vi.mocked(execSync).mockReturnValue(tmpDir as unknown as ReturnType<typeof execSync>);
+  });
+
+  afterEach(() => {
+    for (const k of ENV) delete process.env[k];
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.clearAllMocks();
+  });
+
+  function write(cfg: unknown): void {
+    fs.writeFileSync(globalConfigPath, JSON.stringify(cfg));
+  }
+
+  it('uses the stored Elasticsearch key when kibana.apiKey is unset', () => {
+    write({ kibana: { baseUrl: 'https://kibana.imagile.dev' }, elasticsearch: { apiKey: 'es-key' } });
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.kibana).toMatchObject({ baseUrl: 'https://kibana.imagile.dev', apiKey: 'es-key', apiKeySource: 'elasticsearch' });
+  });
+
+  it('prefers a stored kibana.apiKey over the stored Elasticsearch key', () => {
+    write({ kibana: { apiKey: 'kb-key' }, elasticsearch: { apiKey: 'es-key' } });
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.kibana).toMatchObject({ apiKey: 'kb-key', apiKeySource: 'kibana' });
+  });
+
+  it('PNCLI_KIBANA_API_KEY wins over everything', () => {
+    write({ kibana: { apiKey: 'kb-key' }, elasticsearch: { apiKey: 'es-key' } });
+    process.env['PNCLI_KIBANA_API_KEY'] = 'env-kb';
+    process.env['PNCLI_ELASTICSEARCH_API_KEY'] = 'env-es';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.kibana).toMatchObject({ apiKey: 'env-kb', apiKeySource: 'kibana' });
+  });
+
+  it('PNCLI_ELASTICSEARCH_API_KEY wins over a stored kibana.apiKey, keeping env above stored config', () => {
+    write({ kibana: { apiKey: 'kb-key' } });
+    process.env['PNCLI_ELASTICSEARCH_API_KEY'] = 'env-es';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.kibana).toMatchObject({ apiKey: 'env-es', apiKeySource: 'elasticsearch' });
+  });
+
+  it('resolves baseUrl and space from env over stored config', () => {
+    write({ kibana: { baseUrl: 'https://stored.imagile.dev', space: 'stored' } });
+    process.env['PNCLI_KIBANA_BASE_URL'] = 'https://kibana.imagile.dev';
+    process.env['PNCLI_KIBANA_SPACE'] = 'ops';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.kibana).toMatchObject({ baseUrl: 'https://kibana.imagile.dev', space: 'ops' });
+  });
+
+  it('treats a set-but-empty PNCLI_KIBANA_API_KEY as set, like every sibling service', () => {
+    write({ kibana: { apiKey: 'kb-key' }, elasticsearch: { apiKey: 'es-key' } });
+    process.env['PNCLI_KIBANA_API_KEY'] = '';
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.kibana).toMatchObject({ apiKey: '', apiKeySource: 'kibana' });
+  });
+
+  it('leaves the key undefined when neither service has one', () => {
+    write({ kibana: { baseUrl: 'https://kibana.imagile.dev' } });
+    const config = loadConfig({ configPath: globalConfigPath });
+    expect(config.kibana).toMatchObject({ apiKey: undefined, apiKeySource: undefined });
   });
 });
 

@@ -24,6 +24,7 @@ function baseConfig(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
     dynatrace: { baseUrl: undefined, apiToken: undefined, platformUrl: undefined, platformToken: undefined, defaultEnvironment: undefined, environments: {} },
     logscale: { baseUrl: undefined, token: undefined },
     elasticsearch: { baseUrl: undefined, apiKey: undefined },
+    kibana: { baseUrl: undefined, apiKey: undefined, apiKeySource: undefined, space: undefined },
     splitio: { baseUrl: undefined, adminApiKey: undefined },
     figma: { baseUrl: undefined, token: undefined },
     alation: { baseUrl: undefined, refreshToken: undefined, userId: undefined },

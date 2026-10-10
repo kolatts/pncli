@@ -1386,6 +1386,134 @@ export class HttpClient {
     return request<T>(url, init, opts.timeoutMs ?? 30000);
   }
 
+  private kibanaHeaders(accept: string): Record<string, string> {
+    const { apiKey } = this.config.kibana;
+    if (!apiKey) {
+      throw new PncliError('Kibana credentials not configured. Set kibana.apiKey, or elasticsearch.apiKey to share the Elasticsearch key. Run: pncli config init');
+    }
+    return {
+      'Authorization': `ApiKey ${apiKey}`,
+      // Kibana rejects every non-GET request without this header (CSRF protection); harmless on GET.
+      'kbn-xsrf': 'true',
+      'Content-Type': 'application/json',
+      'Accept': accept,
+      'Connection': 'close'
+    };
+  }
+
+  private kibanaRequest(path: string, opts: HttpRequestOptions, accept: string): { url: string; init: RequestInit } {
+    const baseUrl = this.config.kibana.baseUrl;
+    if (!baseUrl) throw new PncliError('Kibana baseUrl not configured. Run: pncli config init');
+
+    const url = buildUrl(baseUrl, path, opts.params);
+    const headers = this.kibanaHeaders(accept);
+    const init: RequestInit = {
+      method: opts.method ?? 'GET',
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+    };
+
+    if (this.dryRun) {
+      const safeHeaders = { ...headers, Authorization: '[REDACTED]' };
+      const msg = `DRY RUN: ${init.method} ${url}\nHeaders: ${JSON.stringify(safeHeaders, null, 2)}\n`
+        + (opts.body ? `Body: ${JSON.stringify(opts.body, null, 2)}\n` : '');
+      fs.writeSync(process.stderr.fd, msg);
+      process.exitCode = ExitCode.SUCCESS;
+      throw new PncliError('dry-run', 0);
+    }
+
+    return { url, init };
+  }
+
+  /** A 401/403 on the borrowed Elasticsearch key usually means it has no Kibana privileges — say which key was sent. */
+  private kibanaAuthHint(err: unknown): unknown {
+    if (
+      err instanceof PncliError
+      && (err.status === 401 || err.status === 403)
+      && this.config.kibana.apiKeySource === 'elasticsearch'
+    ) {
+      return new PncliError(
+        `${err.message} (sent the shared Elasticsearch API key; if it lacks Kibana privileges, set PNCLI_KIBANA_API_KEY or kibana.apiKey)`,
+        err.status,
+        err.url
+      );
+    }
+    return err;
+  }
+
+  async kibana<T>(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<T> {
+    const { url, init } = this.kibanaRequest(path, opts, 'application/json');
+    try {
+      return await request<T>(url, init, opts.timeoutMs ?? 30000);
+    } catch (err) {
+      throw this.kibanaAuthHint(err);
+    }
+  }
+
+  /**
+   * Raw Kibana call for responses `request()` cannot take: NDJSON bodies, and non-OK responses
+   * whose body is still the answer, as `isAnswer` decides (`/api/status` returns 503 while unhealthy).
+   */
+  private async kibanaText(
+    path: string,
+    opts: HttpRequestOptions,
+    accept: string,
+    isAnswer: (status: number, text: string) => boolean = () => false
+  ): Promise<{ text: string; url: string }> {
+    const { url, init } = this.kibanaRequest(path, opts, accept);
+    debug(`→ ${init.method} ${url}`);
+    const response = await fetchWithTimeout(url, init, opts.timeoutMs ?? 30000);
+    debug(`← ${response.status} ${response.statusText}`);
+    const text = await response.text();
+    if (!response.ok && !isAnswer(response.status, text)) {
+      let message = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed.message) message = String(parsed.message);
+      } catch { /* ignore */ }
+      throw this.kibanaAuthHint(new PncliError(message, response.status, url));
+    }
+    return { text, url };
+  }
+
+  private static parseKibanaJson(text: string, url: string): unknown {
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      throw new PncliError(`Kibana returned a non-JSON response (is baseUrl pointing at Kibana?): ${text.slice(0, 120)}`, 1, url);
+    }
+  }
+
+  /** For Kibana endpoints that answer in NDJSON (saved objects export): one parsed object per line. */
+  async kibanaNdjson(
+    path: string,
+    opts: HttpRequestOptions = {}
+  ): Promise<unknown[]> {
+    const { text, url } = await this.kibanaText(path, opts, 'application/x-ndjson, application/json');
+    return text.split('\n').filter(line => line.trim()).map(line => HttpClient.parseKibanaJson(line, url));
+  }
+
+  /**
+   * `/api/status`, read on 503 too: an unhealthy Kibana reports its status with that code. Only a
+   * 503 carrying Kibana's own `status.overall` counts; a proxy's or load balancer's 503 stays an error.
+   */
+  async kibanaStatus<T>(): Promise<T> {
+    const isKibanaStatus = (status: number, text: string): boolean => {
+      if (status !== 503) return false;
+      try {
+        const overall = (JSON.parse(text) as { status?: { overall?: unknown } }).status?.overall;
+        return typeof overall === 'object' && overall !== null;
+      } catch {
+        return false;
+      }
+    };
+    const { text, url } = await this.kibanaText('/api/status', {}, 'application/json', isKibanaStatus);
+    return HttpClient.parseKibanaJson(text, url) as T;
+  }
+
   private splitioHeaders(): Record<string, string> {
     const { adminApiKey } = this.config.splitio;
     if (!adminApiKey) throw new PncliError('Split.IO credentials not configured. Run: pncli config init');

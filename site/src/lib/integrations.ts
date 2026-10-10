@@ -44,6 +44,7 @@ export const integrations: Integration[] = [
   { slug: 'dynatrace',   name: 'Dynatrace',      description: 'Problems, entities, traces',     active: true, testing: 'basic'    },
   { slug: 'logscale',    name: 'LogScale',       description: 'Log queries, repositories',      active: true, testing: 'untested' },
   { slug: 'elasticsearch', name: 'Elasticsearch', description: 'Search, count, indices, cluster health', active: true, testing: 'untested' },
+  { slug: 'kibana',      name: 'Kibana',         description: 'Dashboards, data views, alerting rules', active: true, testing: 'untested' },
   { slug: 'figma',      name: 'Figma',          description: 'Design files, comments, history', active: true, testing: 'untested' },
   { slug: 'splitio',     name: 'Split.IO',       description: 'Feature flags, change requests', active: true, testing: 'untested' },
   { slug: 'alation',     name: 'Alation',        description: 'Catalog metadata, search, documents', active: true, testing: 'untested' },

@@ -370,6 +370,20 @@ export function registerConfigCommands(program: Command): void {
           results.elasticsearch = { ok: null, message: 'not configured' };
         }
 
+        if (cfg.kibana.baseUrl && cfg.kibana.apiKey) {
+          try {
+            await http.kibana<unknown>('/api/status');
+            const shared = cfg.kibana.apiKeySource === 'elasticsearch' ? ' (using the Elasticsearch API key)' : '';
+            results.kibana = { ok: true, message: `connected${shared}` };
+          } catch (err) {
+            results.kibana = { ok: false, message: err instanceof Error ? err.message : String(err) };
+          }
+        } else if (cfg.kibana.baseUrl) {
+          results.kibana = { ok: false, message: 'no API key: set kibana.apiKey or elasticsearch.apiKey' };
+        } else {
+          results.kibana = { ok: null, message: 'not configured' };
+        }
+
         if (cfg.splitio.baseUrl && cfg.splitio.adminApiKey) {
           try {
             await http.splitio<unknown>('/internal/api/v2/workspaces');
@@ -454,7 +468,7 @@ export function registerConfigCommands(program: Command): void {
         const allServices = [
           'jira', 'bitbucket', 'github', 'confluence', 'sonar', 'sde', 'ado', 'jenkins',
           'artifactory', 'checkmarx', 'contrast', 'sonatypeiq', 'openshift',
-          ...clusterKeys, 'dynatrace', 'dynatrace_platform', ...dynamicEnvKeys, 'logscale', 'elasticsearch', 'splitio', 'figma', 'alation', 'saucelabs'
+          ...clusterKeys, 'dynatrace', 'dynatrace_platform', ...dynamicEnvKeys, 'logscale', 'elasticsearch', 'kibana', 'splitio', 'figma', 'alation', 'saucelabs'
         ];
 
         if (cmdOpts.output === 'table') {
@@ -1138,6 +1152,64 @@ async function initGlobalConfig(start: number): Promise<void> {
     }
   }
 
+  process.stderr.write('\n── Kibana ────────────────────────────────────────\n');
+  const useKibana = await confirm({
+    message: 'Configure Kibana for dashboards, data views and alerting rules?',
+    default: false
+  });
+
+  let kibanaBaseUrl = '';
+  let kibanaApiKey = '';
+  let kibanaSpace = '';
+
+  if (useKibana) {
+    kibanaBaseUrl = await input({
+      message: 'Kibana base URL (e.g. https://kibana.imagile.dev:5601):',
+      default: ''
+    });
+
+    // One Elasticsearch API key authenticates against Kibana too; only ask for a second key when
+    // there is no Elasticsearch one to share, or the user says theirs lacks Kibana privileges.
+    const shareKey = useElasticsearch && elasticsearchApiKey
+      ? await confirm({ message: 'Use the Elasticsearch API key for Kibana too?', default: true })
+      : false;
+    // The elasticsearch block is only written with a baseUrl. Without one the shared key would be
+    // dropped on save, so store it as Kibana's own key instead.
+    if (shareKey && !elasticsearchBaseUrl) kibanaApiKey = elasticsearchApiKey;
+    if (!shareKey) {
+      kibanaApiKey = await password({
+        message: 'Kibana API key (the base64 "encoded" value from Stack Management → API keys):'
+      });
+    }
+
+    kibanaSpace = await input({
+      message: 'Default Kibana space ID (leave blank for the default space):',
+      default: ''
+    });
+
+    const effectiveKey = kibanaApiKey || (shareKey ? elasticsearchApiKey : '');
+    if (kibanaBaseUrl && effectiveKey) {
+      process.stderr.write('\n  Verifying connection...\n');
+      try {
+        const tempConfig = {
+          ...loadConfig(),
+          kibana: {
+            baseUrl: normalizeBaseUrl(kibanaBaseUrl),
+            apiKey: effectiveKey,
+            apiKeySource: kibanaApiKey ? 'kibana' : 'elasticsearch',
+            space: kibanaSpace.trim() || undefined
+          }
+        };
+        const tempHttp = createHttpClient(tempConfig as Parameters<typeof createHttpClient>[0]);
+        await tempHttp.kibana<unknown>('/api/status');
+        process.stderr.write('  Connected.\n');
+      } catch (err) {
+        warn(`Could not connect to Kibana: ${err instanceof Error ? err.message : String(err)}`);
+        warn('Config will be saved anyway. Check your URL and API key and re-run pncli config init or pncli config test.');
+      }
+    }
+  }
+
   process.stderr.write('\n── Split.IO ──────────────────────────────────────\n');
   const useSplitio = await confirm({
     message: 'Configure Split.IO for feature flag administration?',
@@ -1477,6 +1549,13 @@ async function initGlobalConfig(start: number): Promise<void> {
       elasticsearch: {
         baseUrl: normalizeBaseUrl(elasticsearchBaseUrl),
         apiKey: elasticsearchApiKey || undefined
+      }
+    } : {}),
+    ...(useKibana && kibanaBaseUrl ? {
+      kibana: {
+        baseUrl: normalizeBaseUrl(kibanaBaseUrl),
+        apiKey: kibanaApiKey || undefined,
+        space: kibanaSpace.trim() || undefined
       }
     } : {}),
     ...(useSplitio && splitioBaseUrl ? {

@@ -61,6 +61,9 @@ const ENV_KEYS = {
   LOGSCALE_TOKEN: 'PNCLI_LOGSCALE_TOKEN',
   ELASTICSEARCH_BASE_URL: 'PNCLI_ELASTICSEARCH_BASE_URL',
   ELASTICSEARCH_API_KEY: 'PNCLI_ELASTICSEARCH_API_KEY',
+  KIBANA_BASE_URL: 'PNCLI_KIBANA_BASE_URL',
+  KIBANA_API_KEY: 'PNCLI_KIBANA_API_KEY',
+  KIBANA_SPACE: 'PNCLI_KIBANA_SPACE',
   SPLITIO_BASE_URL: 'PNCLI_SPLITIO_BASE_URL',
   SPLITIO_ADMIN_API_KEY: 'PNCLI_SPLITIO_ADMIN_API_KEY',
   FIGMA_BASE_URL: 'PNCLI_FIGMA_BASE_URL',
@@ -161,6 +164,8 @@ const SECRET_ENV_OVERRIDES: [string, string[]][] = [
   ['dynatrace.platformToken', [ENV_KEYS.DYNATRACE_PLATFORM_TOKEN]],
   ['logscale.token', [ENV_KEYS.LOGSCALE_TOKEN]],
   ['elasticsearch.apiKey', [ENV_KEYS.ELASTICSEARCH_API_KEY]],
+  // The shared Elasticsearch key outranks a stored kibana.apiKey (see resolveKibana), so either env var overrides it.
+  ['kibana.apiKey', [ENV_KEYS.KIBANA_API_KEY, ENV_KEYS.ELASTICSEARCH_API_KEY]],
   ['splitio.adminApiKey', [ENV_KEYS.SPLITIO_ADMIN_API_KEY]],
   ['figma.token', [ENV_KEYS.FIGMA_TOKEN]],
   ['alation.refreshToken', [ENV_KEYS.ALATION_REFRESH_TOKEN]],
@@ -297,6 +302,7 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
       baseUrl: process.env[ENV_KEYS.ELASTICSEARCH_BASE_URL] ?? globalConfig.elasticsearch?.baseUrl,
       apiKey: process.env[ENV_KEYS.ELASTICSEARCH_API_KEY] ?? globalConfig.elasticsearch?.apiKey,
     },
+    kibana: resolveKibana(globalConfig),
     splitio: {
       baseUrl: process.env[ENV_KEYS.SPLITIO_BASE_URL] ?? globalConfig.splitio?.baseUrl,
       adminApiKey: process.env[ENV_KEYS.SPLITIO_ADMIN_API_KEY] ?? globalConfig.splitio?.adminApiKey,
@@ -320,6 +326,29 @@ export function loadConfig(opts: LoadConfigOptions = {}): ResolvedConfig {
         ?? globalConfig.saucelabs?.accessKey,
     },
     defaults: mergedDefaults
+  };
+}
+
+/**
+ * Kibana shares its credential with Elasticsearch: one API key authenticates against both, so
+ * `kibana.apiKey` is optional. Env vars stay above stored config for the key as for every field —
+ * PNCLI_KIBANA_API_KEY, then PNCLI_ELASTICSEARCH_API_KEY, then stored kibana.apiKey, then stored
+ * elasticsearch.apiKey. Within each tier the Kibana-specific value wins. A set-but-empty env var
+ * counts as set, as it does for every sibling service's `??` chain and for envOverriddenSecretPaths.
+ */
+function resolveKibana(globalConfig: GlobalConfig): ResolvedConfig['kibana'] {
+  const candidates: [string | undefined, 'kibana' | 'elasticsearch'][] = [
+    [process.env[ENV_KEYS.KIBANA_API_KEY], 'kibana'],
+    [process.env[ENV_KEYS.ELASTICSEARCH_API_KEY], 'elasticsearch'],
+    [globalConfig.kibana?.apiKey, 'kibana'],
+    [globalConfig.elasticsearch?.apiKey, 'elasticsearch']
+  ];
+  const [apiKey, apiKeySource] = candidates.find(([value]) => value !== undefined) ?? [undefined, undefined];
+  return {
+    baseUrl: process.env[ENV_KEYS.KIBANA_BASE_URL] ?? globalConfig.kibana?.baseUrl,
+    apiKey,
+    apiKeySource,
+    space: process.env[ENV_KEYS.KIBANA_SPACE] ?? globalConfig.kibana?.space
   };
 }
 
@@ -493,6 +522,10 @@ export function maskConfig(config: ResolvedConfig): unknown {
     elasticsearch: {
       ...config.elasticsearch,
       apiKey: config.elasticsearch.apiKey ? '***' : undefined
+    },
+    kibana: {
+      ...config.kibana,
+      apiKey: config.kibana.apiKey ? '***' : undefined
     },
     splitio: {
       ...config.splitio,

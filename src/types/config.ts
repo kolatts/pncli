@@ -179,6 +179,18 @@ export interface ElasticsearchConfig {
   apiKey?: string;
 }
 
+export interface KibanaConfig {
+  /** Kibana base URL, for example https://kibana.imagile.dev:5601 — a different host from Elasticsearch */
+  baseUrl?: string;
+  /**
+   * Optional Kibana-specific API key. When unset, the Elasticsearch API key is used: Kibana
+   * authenticates the same `ApiKey <value>` header against the Elasticsearch security realm.
+   */
+  apiKey?: string;
+  /** Default Kibana space ID for space-scoped commands; omitted means the default space */
+  space?: string;
+}
+
 export interface SplitioConfig {
   /** Split Admin API base URL, for example https://api.split.io */
   baseUrl?: string;
@@ -279,6 +291,7 @@ export interface GlobalConfig {
   dynatrace?: DynatraceConfig;
   logscale?: LogscaleConfig;
   elasticsearch?: ElasticsearchConfig;
+  kibana?: KibanaConfig;
   splitio?: SplitioConfig;
   figma?: FigmaConfig;
   alation?: AlationConfig;
@@ -388,6 +401,13 @@ export interface ResolvedConfig {
   elasticsearch: {
     baseUrl: string | undefined;
     apiKey: string | undefined;
+  };
+  kibana: {
+    baseUrl: string | undefined;
+    apiKey: string | undefined;
+    /** Where `apiKey` came from: Kibana's own key, or the shared Elasticsearch one */
+    apiKeySource: 'kibana' | 'elasticsearch' | undefined;
+    space: string | undefined;
   };
   splitio: {
     baseUrl: string | undefined;
