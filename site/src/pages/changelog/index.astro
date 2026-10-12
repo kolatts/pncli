@@ -33,6 +33,13 @@ const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', t
       <p class="stamp text-gold mb-4">The paper trail</p>
       <h1 class="font-display headline-shadow text-5xl font-black text-ink tracking-tight mb-3">Changelog</h1>
       <p class="text-ink/50 text-lg">Every release, in one place.</p>
+      <a
+        href="/pncli/changelog/rss.xml"
+        class="inline-flex items-center gap-1.5 text-sm text-ink/40 hover:text-gold transition-colors mt-3"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+        RSS feed
+      </a>
     </div>
 
     {years.map(year => (
