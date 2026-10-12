@@ -9,8 +9,12 @@ import { sortChangelogEntries } from '../../lib/changelog';
 // commit subject can never inject markup into a reader.
 const md = new MarkdownIt({ html: false, linkify: false });
 
+// Readers re-fetch the whole feed on every poll, so carry only recent
+// releases; the full history stays on /changelog/.
+const FEED_LIMIT = 30;
+
 export async function GET(context: APIContext) {
-  const entries = sortChangelogEntries(await getCollection('changelog'));
+  const entries = sortChangelogEntries(await getCollection('changelog')).slice(0, FEED_LIMIT);
   const base = new URL(import.meta.env.BASE_URL, context.site);
 
   return rss({
