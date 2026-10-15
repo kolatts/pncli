@@ -85,8 +85,7 @@ export function renderServicesBlock(
   lines.push(
     'Status reflects validation against a **real instance**, not code maturity: ' +
       '**Live** — used routinely day-to-day · **Beta** — exercised across several commands and instances · ' +
-      '**Basic** — smoke-tested against one instance · **Untested** — shipped, not yet run against a live server. ' +
-      'The [homepage](https://kolatts.github.io/pncli/) shows the same grid.'
+      '**Basic** — smoke-tested against one instance · **Untested** — shipped, not yet run against a live server.'
   );
   if (removed.length > 0) {
     lines.push('');
