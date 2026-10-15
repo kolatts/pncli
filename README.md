@@ -147,7 +147,7 @@ This project uses Conventional Commits for automatic versioning:
 | Alation | ⚪ Untested | Catalog metadata, search, documents |
 | Sauce Labs | ⚪ Untested | Test jobs, builds, real devices |
 
-Status reflects validation against a **real instance**, not code maturity: **Live** — used routinely day-to-day · **Beta** — exercised across several commands and instances · **Basic** — smoke-tested against one instance · **Untested** — shipped, not yet run against a live server. The [homepage](https://kolatts.github.io/pncli/) shows the same grid.
+Status reflects validation against a **real instance**, not code maturity: **Live** — used routinely day-to-day · **Beta** — exercised across several commands and instances · **Basic** — smoke-tested against one instance · **Untested** — shipped, not yet run against a live server.
 
 Removed integrations: ServiceNow (v5.0.0), IBM UrbanCode Deploy (v2.0.0) — see the [changelog](https://kolatts.github.io/pncli/changelog/) for why.
 <!-- services-table:end -->

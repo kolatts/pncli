@@ -1,281 +1,148 @@
 ---
 import { Image } from 'astro:assets';
-import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
-import Hero from '../components/Hero.astro';
-import CodeTabs from '../components/CodeTabs.astro';
-import ServiceGrid from '../components/ServiceGrid.astro';
 import Sparkles from '../components/Sparkles.astro';
-import mundane from '../assets/mundane-paperwork.png';
-import maverick from '../assets/maverick-badge.png';
-import chibiAlignSys from '../assets/chibi-align-sys.png';
-import chibiPatchwork from '../assets/chibi-patchwork-exe.png';
-import chibiOverseer from '../assets/chibi-overseer-yaml.png';
-import chibiZerotrust from '../assets/chibi-zerotrust-9.png';
-import chibiCheckbox from '../assets/chibi-checkbox-3000.png';
-import chibiMundane from '../assets/chibi-mundane.png';
-import chibiMaverick from '../assets/chibi-maverick.png';
-
-const cast = [
-  { src: chibiAlignSys, name: 'ALIGN.SYS', role: 'compliance', alt: 'ALIGN.SYS, a chibi robot with a satellite-dish antenna, necktie, and lanyard tag, holding a tablet and a report.' },
-  { src: chibiPatchwork, name: 'PATCHWORK.EXE', role: 'compliance', alt: 'PATCHWORK.EXE, a weathered chibi robot held together with duct tape, wearily hugging a taped parcel.' },
-  { src: chibiOverseer, name: 'OVERSEER.YAML', role: 'compliance', alt: 'OVERSEER.YAML, a dome-headed chibi robot on a wheeled cart, holding four dashboard screens in four arms.' },
-  { src: chibiZerotrust, name: 'ZEROTRUST-9', role: 'compliance', alt: 'ZEROTRUST-9, a hulking chibi robot ringed with security cameras, arms crossed over a gold rubber stamp.' },
-  { src: chibiCheckbox, name: 'CHECKBOX-3000', role: 'compliance', alt: 'CHECKBOX-3000, a squat chibi robot with a checkbox-grid screen face and a file-drawer chest, holding a binder.' },
-  { src: chibiMundane, name: 'MUNDANE', role: 'management', alt: 'MUNDANE, a deadpan chibi robot with half-lidded eyes, holding a steaming coffee mug.' },
-  { src: chibiMaverick, name: 'MAVERICK', role: 'morale officer', alt: 'MAVERICK, a starry-eyed chibi robot cheering with a fist raised among stars and lightning bolts.' },
-];
-import { sortChangelogEntries } from '../lib/changelog';
-
-const latestEntries = sortChangelogEntries(await getCollection('changelog')).slice(0, 3);
-
-const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+import farewell from '../assets/maverick-wave.png';
+import salute from '../assets/maverick-exit.png';
 ---
 
 <Base>
-  <Hero />
-
-  <!--
-    Inventory sits directly under the hero: "which of my tools does this cover?"
-    is the first question a visitor has, so it is answered before the pitch.
-  -->
-  <ServiceGrid />
-  <CodeTabs />
-
-  <!-- Why pncli — always-charcoal band so MUNDANE's flat background blends in -->
-  <section class="relative overflow-hidden w-full py-12 px-6 bg-[#1e1e20] text-[#f2ead9] [background-image:radial-gradient(rgb(242_234_217/0.028)_1px,transparent_1px)] [background-size:5px_5px]">
+  <!-- Farewell — MAVERICK, the brilliant one, says goodbye -->
+  <section class="relative overflow-hidden w-full py-14 md:py-20 px-6 bg-cream">
     <Sparkles
-      speed={0.08}
-      max={26}
-      opacity={0.45}
-      sparks={[
-        { x: 7, y: 15, s: 0.8, r: -12, c: 'gold', td: 6, tl: -1.5, dd: 11, dl: -2 },
-        { x: 93, y: 26, s: 0.6, r: 14, c: 'straw', td: 7, tl: -3.8, dd: 13, dl: -5 },
-        { x: 80, y: 78, s: 0.65, r: -20, c: 'straw', td: 5.8, tl: -2.4, dd: 10, dl: -3.5 },
-        { x: 13, y: 64, s: 0.5, r: 8, c: 'straw', td: 8.2, tl: -5, dd: 12, dl: -1 },
-        { x: 60, y: 8, dot: true, c: 'coral', td: 9.5, tl: -4 },
-      ]}
-    />
-    <div class="relative max-w-5xl mx-auto">
-      <div class="max-w-2xl">
-        <p class="stamp text-[#d9b84f] mb-4">Case file 001 — red tape</p>
-        <h2 class="font-display headline-shadow-dark text-4xl md:text-5xl font-black leading-[1.06] tracking-tight mb-5">
-          Cut through the red tape.
-        </h2>
-      </div>
-
-      <!-- MUNDANE centerpiece -->
-      <figure class="mb-8">
-        <!-- Transparent PNG composites straight onto the band; whisper of parallax for cohesion with the hero -->
-        <Image
-          src={mundane}
-          alt="MUNDANE, a deadpan robot, dumps a drawer of paperwork onto a buried developer and points mockingly."
-          class="block w-full max-w-3xl mx-auto h-auto"
-          data-parallax="0.05"
-          data-parallax-view
-          data-parallax-max="16"
-        />
-        <figcaption class="max-w-xl mx-auto text-center mt-4">
-          <p class="text-[#b9b2a4] text-sm leading-relaxed italic">
-            &ldquo;Per policy, I have escalated your escalation. Expect a response within three meetings.&rdquo;
-          </p>
-          <p class="font-mono text-xs text-[#8a8f98] mt-2 tracking-wide uppercase">— MUNDANE, Compliance Division</p>
-        </figcaption>
-      </figure>
-
-      <div class="grid md:grid-cols-3 gap-4">
-        <div class="rounded-xl border-2 border-[#3a3a40] bg-[#242428] p-5">
-          <p class="font-display font-bold text-base mb-1.5">Your coding agents can't reach your stack.</p>
-          <p class="text-[#b9b2a4] text-sm leading-relaxed">
-            GitHub Copilot, Claude Code, and Codex need to create Jira tickets, review PRs,
-            and run security scans — but most of your enterprise tools have no native agent integration.
-          </p>
-        </div>
-        <div class="rounded-xl border-2 border-[#d9b84f]/60 bg-[#242428] p-5 shadow-[0_4px_0_rgb(0_0_0/0.45)]">
-          <p class="font-display font-bold text-base mb-1.5 text-[#d9b84f]">pncli bridges the gap.</p>
-          <p class="text-[#b9b2a4] text-sm leading-relaxed">
-            One CLI with a structured JSON API your agents can call directly. No MCP required, no custom integrations to maintain.
-          </p>
-        </div>
-        <div class="rounded-xl border-2 border-[#3a3a40] bg-[#242428] p-5">
-          <p class="font-display font-bold text-base mb-1.5">A universal adapter.</p>
-          <p class="text-[#b9b2a4] text-sm leading-relaxed">
-            Issue trackers, CI, scanners, ITSM, observability, design tools — self-hosted or SaaS.
-            Wherever no MCP server exists, pncli is the adapter.
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- For AI agents — always-charcoal band -->
-  <section class="relative overflow-hidden w-full py-12 px-6 bg-[#1e1e20] text-[#f2ead9] [background-image:radial-gradient(rgb(242_234_217/0.028)_1px,transparent_1px)] [background-size:5px_5px]">
-    <Sparkles
-      speed={0.045}
-      max={18}
+      speed={0.06}
+      max={20}
       opacity={0.35}
       sparks={[
-        { x: 92, y: 14, s: 0.7, r: 18, c: 'straw', td: 7.2, tl: -2.8, dd: 12, dl: -4 },
-        { x: 5, y: 52, s: 0.5, r: -10, c: 'gold', td: 6.4, tl: -1.2, dd: 10, dl: -2.5 },
-        { x: 70, y: 90, s: 0.55, r: 24, c: 'straw', td: 8.5, tl: -4.6, dd: 13, dl: -1.5 },
+        { x: 8, y: 18, s: 0.7, r: -14, c: 'straw', td: 7, tl: -2.2, dd: 12, dl: -3 },
+        { x: 92, y: 30, s: 0.55, r: 16, c: 'gold', td: 8, tl: -4.4, dd: 13, dl: -6 },
+        { x: 84, y: 86, s: 0.5, r: -22, c: 'straw', td: 6.4, tl: -1.6, dd: 11, dl: -2 },
       ]}
     />
-    <div class="relative max-w-5xl mx-auto">
-      <div class="mb-7">
-        <h2 class="font-display headline-shadow-dark text-4xl md:text-5xl font-black leading-[1.06] tracking-tight">
-          Built for AI agents.
-        </h2>
-      </div>
-      <div class="grid sm:grid-cols-2 gap-3">
-        <div class="flex gap-4 p-5 rounded-xl border-2 border-[#3a3a40] bg-[#242428] hover:border-[#d9b84f]/50 transition-colors">
-          <span class="shrink-0 font-mono text-[#d9b84f] text-sm w-7 mt-0.5" aria-hidden="true">{"{}"}</span>
-          <p class="font-mono text-sm text-[#b9b2a4] leading-relaxed">
-            Every command returns structured JSON to stdout
-          </p>
-        </div>
-        <div class="flex gap-4 p-5 rounded-xl border-2 border-[#3a3a40] bg-[#242428] hover:border-[#d9b84f]/50 transition-colors">
-          <span class="shrink-0 font-mono text-[#d9b84f] text-sm w-7 mt-0.5" aria-hidden="true">ok</span>
-          <p class="font-mono text-sm text-[#b9b2a4] leading-relaxed">
-            Errors are JSON too — always check <code class="text-[#ece0a8]">ok</code>
-          </p>
-        </div>
-        <div class="flex gap-4 p-5 rounded-xl border-2 border-[#3a3a40] bg-[#242428] hover:border-[#d9b84f]/50 transition-colors">
-          <span class="shrink-0 font-mono text-[#d9b84f] text-sm w-7 mt-0.5" aria-hidden="true">▷</span>
-          <p class="font-mono text-sm text-[#b9b2a4] leading-relaxed">
-            <code class="text-[#ece0a8]">--dry-run</code> lets agents preview before executing
-          </p>
-        </div>
-        <div class="flex gap-4 p-5 rounded-xl border-2 border-[#3a3a40] bg-[#242428] hover:border-[#d9b84f]/50 transition-colors">
-          <span class="shrink-0 font-mono text-[#d9b84f] text-sm w-7 mt-0.5" aria-hidden="true">⚙</span>
-          <p class="font-mono text-sm text-[#b9b2a4] leading-relaxed">
-            See the <a href="/pncli/commands/" class="text-[#d9b84f] hover:underline">command reference</a> for all commands and flags
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
+    <div class="relative max-w-5xl mx-auto grid md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] gap-8 md:gap-12 items-center">
+      <Image
+        src={farewell}
+        alt="MAVERICK, the starry-eyed robot, waves goodbye with a warm smile as a few gold stars drift away."
+        class="block w-full max-w-sm md:max-w-none mx-auto h-auto"
+        loading="eager"
+        data-parallax="0.05"
+        data-parallax-max="16"
+      />
 
-  <!-- Context Overflow badge — MAVERICK, the enthusiastic one -->
-  <section class="relative overflow-hidden w-full py-12 px-6 bg-cream">
-    <!-- Negative speed: this layer leads the scroll a touch, reading closer than the page -->
-    <Sparkles
-      speed={-0.04}
-      max={16}
-      opacity={0.35}
-      sparks={[
-        { x: 8, y: 20, s: 0.7, r: -16, c: 'straw', td: 6.8, tl: -2.2, dd: 11, dl: -3 },
-        { x: 94, y: 75, s: 0.55, r: 12, c: 'gold', td: 7.6, tl: -4.2, dd: 12, dl: -6 },
-      ]}
-    />
-    <div class="relative max-w-5xl mx-auto">
-      <div class="relative overflow-hidden rounded-2xl border-[3px] border-ink/80 bg-panel shadow-[0_6px_0_rgb(0_0_0/0.35)] p-7 md:p-8 flex flex-col md:flex-row items-center gap-6 md:gap-10">
-        <!-- MAVERICK's escaped stars — straw sparkles hugging the badge -->
-        <Sparkles
-          speed={0.06}
-          max={14}
-          opacity={0.5}
-          sparks={[
-            { x: 14, y: 16, s: 0.7, r: -12, c: 'straw', td: 5.6, tl: -1.8, dd: 10, dl: -2 },
-            { x: 30, y: 44, s: 0.5, r: 18, c: 'straw', td: 6.6, tl: -3.4, dd: 12, dl: -5 },
-            { x: 6, y: 62, s: 0.45, r: 30, c: 'straw', td: 7.4, tl: -0.9, dd: 11, dl: -4 },
-          ]}
-        />
-        <a
-          href="https://kolatts.github.io/context-overflow"
-          target="_blank"
-          rel="noopener"
-          aria-label="Context Overflow — learn agentic engineering"
-          class="shrink-0 block w-44 h-44 md:w-52 md:h-52 rounded-full overflow-hidden shadow-[0_4px_0_rgb(0_0_0/0.35)] hover:-translate-y-1 transition-transform"
-        >
-          <Image
-            src={maverick}
-            alt="MAVERICK, a starry-eyed robot, bursts through a circular sticker badge with a fist raised among gold stars."
-            class="w-full h-full object-cover scale-[1.18]"
-          />
-        </a>
-        <div class="relative flex-1 min-w-0 text-center md:text-left">
-          <p class="stamp text-gold mb-3">Continuing education</p>
-          <h2 class="font-display headline-shadow text-3xl md:text-4xl font-black text-ink leading-[1.06] tracking-tight mb-3">
-            Want to get good at this?
-          </h2>
-          <p class="text-ink/60 leading-relaxed mb-5 max-w-xl">
-            Context Overflow teaches agentic engineering — context, skills, and putting
-            robots to work — starring MAVERICK, MUNDANE, and the compliance division
-            below. MUNDANE has pre-filed your enrollment paperwork. MAVERICK is very
-            excited about everything.
+      <div class="flex flex-col items-center md:items-start text-center md:text-left gap-5">
+        <p class="stamp text-gold">Out of office — permanently</p>
+
+        <h1 class="font-display headline-shadow text-4xl md:text-5xl font-black text-ink leading-[1.05] tracking-tight">
+          Hi friends.
+        </h1>
+
+        <div class="space-y-4 text-lg text-ink/70 leading-relaxed max-w-xl">
+          <p>
+            I've enjoyed meeting all of you and building this with your feedback.
+            It's time for me to move on from this repository; I will no longer be supporting it.
           </p>
+          <p>
+            If you want to stay in touch, come visit the
+            <a href="https://discord.gg/RKwEvAbtbx" target="_blank" rel="noopener noreferrer" class="text-gold font-semibold hover:underline">Context Overflow Discord</a>.
+          </p>
+          <p>
+            I'm going to be making more tools for the AI era going forward — trying to reach
+            the bureaucracies near and far that aren't ready for the rise of the developer.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-2">
           <a
-            href="https://kolatts.github.io/context-overflow"
+            href="https://discord.gg/RKwEvAbtbx"
             target="_blank"
-            rel="noopener"
-            class="btn-sticker bg-gold text-cream px-6 py-2.5 text-sm"
+            rel="noopener noreferrer"
+            class="btn-sticker bg-gold text-cream px-7 py-3 text-base"
           >
-            Visit Context Overflow
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+            Join the Discord
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
           </a>
+          <button
+            type="button"
+            id="bureaucracy-btn"
+            class="btn-sticker bg-panel text-ink px-7 py-3 text-base cursor-pointer"
+          >
+            Message for the bureaucracy
+          </button>
         </div>
       </div>
-
-      <!--
-        Personnel file — the full cast, transparent chibi cutouts. Lives under the
-        Context Overflow card because that is the only place on the page that
-        explains who these robots are.
-      -->
-      <ul class="flex flex-wrap justify-center items-end gap-x-5 gap-y-6 mt-10 list-none p-0" aria-label="The Context Overflow cast">
-        {cast.map(bot => (
-          <li class="flex flex-col items-center w-24 md:w-28 text-center">
-            <Image
-              src={bot.src}
-              alt={bot.alt}
-              class="block w-full h-auto hover:-translate-y-1 transition-transform"
-              widths={[112, 224]}
-              sizes="(min-width: 768px) 112px, 96px"
-            />
-            <span class="font-mono text-[11px] text-ink/60 mt-2 tracking-wide">{bot.name}</span>
-            <span class="font-mono text-[9px] text-ink/35 uppercase tracking-[0.14em]">{bot.role}</span>
-          </li>
-        ))}
-      </ul>
     </div>
   </section>
 
-  <!-- Changelog teaser — live from CHANGELOG.md -->
-  <section class="relative overflow-hidden w-full py-12 px-6 bg-cream">
-    <Sparkles
-      speed={0.08}
-      max={28}
-      opacity={0.35}
-      sparks={[
-        { x: 90, y: 12, s: 0.65, r: -18, c: 'straw', td: 7, tl: -2.6, dd: 11, dl: -1.8 },
-        { x: 8, y: 42, s: 0.5, r: 10, c: 'gold', td: 6.2, tl: -4, dd: 13, dl: -5.5 },
-        { x: 60, y: 92, s: 0.45, r: 22, c: 'straw', td: 8.4, tl: -1.4, dd: 10, dl: -3.2 },
-      ]}
-    />
-    <div class="relative max-w-5xl mx-auto">
-      <div class="flex items-baseline justify-between mb-7 gap-4 flex-wrap">
-        <h2 class="font-display headline-shadow text-4xl font-black text-ink tracking-tight">What's new.</h2>
-        <a href="/pncli/changelog/" class="text-sm font-semibold text-gold hover:underline">
-          View full changelog →
-        </a>
-      </div>
-      <div class="grid md:grid-cols-3 gap-4">
-        {latestEntries.map(entry => (
-          <a
-            href={`/pncli/changelog/${entry.data.version}/`}
-            class="group rounded-xl border-2 border-ink/15 bg-panel p-6 hover:border-ink/40 hover:-translate-y-0.5 hover:shadow-[0_4px_0_rgb(0_0_0/0.2)] transition-all"
-          >
-            <div class="flex items-center gap-2 mb-3">
-              <span class="font-mono text-xs font-bold border-2 border-gold text-gold px-2 py-0.5 rounded-md">
-                v{entry.data.version}
-              </span>
-              <span class="text-xs text-ink/40">{fmt.format(entry.data.date)}</span>
-            </div>
-            <p class="text-sm text-ink/70 leading-relaxed group-hover:text-ink transition-colors">
-              {entry.data.summary}
-            </p>
-          </a>
-        ))}
-      </div>
-    </div>
-  </section>
+  <!-- The message for the bureaucracy: the whole page becomes MAVERICK's salute -->
+  <dialog id="bureaucracy-dialog" class="salute-dialog" aria-label="A message for the bureaucracy">
+    <button type="button" class="salute-inner" data-close aria-label="Close">
+      <Image
+        src={salute}
+        alt="MAVERICK, the starry-eyed robot, strolls away grinning over his shoulder and flips the viewer the middle finger."
+        class="salute-img"
+        widths={[512, 1024]}
+        sizes="(min-height: 900px) 60vh, 90vw"
+      />
+      <span class="stamp text-gold">Filed. Approved. Stamped.</span>
+    </button>
+  </dialog>
 </Base>
+
+<style>
+  .salute-dialog {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: var(--color-cream);
+    color: var(--color-ink);
+  }
+  .salute-dialog::backdrop {
+    background: var(--color-cream);
+  }
+  .salute-dialog[open] .salute-img {
+    animation: salute-rise 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  }
+  .salute-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 2vh 1rem;
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+  .salute-img {
+    display: block;
+    height: calc(100dvh - 7rem);
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+  }
+
+  @keyframes salute-rise {
+    from { transform: translateY(40%) scale(0.6) rotate(-6deg); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .salute-dialog[open] .salute-img { animation: none; }
+  }
+</style>
+
+<script>
+  import '../scripts/parallax';
+
+  const dialog = document.getElementById('bureaucracy-dialog') as HTMLDialogElement | null;
+  document.getElementById('bureaucracy-btn')?.addEventListener('click', () => dialog?.showModal());
+  dialog?.querySelector('[data-close]')?.addEventListener('click', () => dialog.close());
+</script>
