@@ -3,6 +3,16 @@
 [![npm](https://img.shields.io/npm/v/%40kolatts%2Fpncli?style=flat-square&color=cb3837&logo=npm)](https://www.npmjs.com/package/@kolatts/pncli)
 [![docs](https://img.shields.io/badge/docs-getting%20started-FF5C39?style=flat-square)](https://kolatts.github.io/pncli/getting-started/)
 
+> [!TIP]
+> **pncli has been succeeded by [toil](https://github.com/imagile-dev/toil).**
+> I'm no longer maintaining pncli. toil is the sequel nobody filed a request for but
+> everybody needed: the same one-install access to your enterprise tools, plus a
+> built-in **MCP server**, direct **database** access (PostgreSQL, MySQL, SQL Server,
+> SQLite, Oracle) with secure connection-string management, and code intelligence.
+> No executables, no install scripts, no browser logins: nothing for the bureaucracy
+> to deny. It's pre-release, so [star it](https://github.com/imagile-dev/toil) to
+> hear when it ships, or [learn more](https://imagile-dev.github.io/toil/).
+
 > Connectivity without MCP.
 
 pncli gives AI coding agents (and humans) structured CLI access to the enterprise tools your org actually runs — Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, Checkmarx, and more. No MCP servers required. No meetings to schedule. No forms to fill out.

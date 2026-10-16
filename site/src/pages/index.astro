@@ -73,6 +73,69 @@ import salute from '../assets/maverick-exit.png';
     </div>
   </section>
 
+  <!-- Succession notice — toil, the sequel -->
+  <section class="w-full pb-14 md:pb-20 px-6 bg-cream">
+    <div class="max-w-5xl mx-auto rounded-2xl border-[3px] border-ink/80 bg-panel shadow-[0_6px_0_rgb(0_0_0/0.35)] p-8 md:p-10">
+      <p class="stamp text-gold mb-4">Form T-01 · Notice of succession</p>
+
+      <h2 class="font-display headline-shadow text-3xl md:text-4xl font-black text-ink leading-[1.05] tracking-tight mb-5">
+        pncli had a kid. Its name is toil.
+      </h2>
+
+      <p class="text-lg text-ink/70 leading-relaxed max-w-3xl mb-6">
+        It's everything pncli was, minus the parts that made your security team sigh. Same idea of
+        one install for every enterprise tool you're forced to use, but this time it's built properly.
+      </p>
+
+      <ul class="space-y-4 text-ink/70 leading-relaxed max-w-3xl mb-6">
+        <li>
+          <strong class="text-ink">It's an MCP server out of the box.</strong>
+          Your org blocked MCP? toil stands in for the vendor server you were never allowed to install.
+          One config entry, scoped to only the areas you need, and write tools that don't exist until you turn them on.
+        </li>
+        <li>
+          <strong class="text-ink">It talks to your databases.</strong>
+          PostgreSQL, MySQL, SQL Server, SQLite and Oracle. Connection strings are stored securely instead of
+          in a sticky note named <code class="text-straw">final_v2_REAL.txt</code>. It's read-only by default,
+          with a row cap, so your agent can't <code class="text-straw">SELECT *</code> the data warehouse into oblivion.
+        </li>
+        <li>
+          <strong class="text-ink">It reads your code.</strong>
+          Symbol search, definitions, references and call hierarchy, and every answer says where it came from.
+        </li>
+        <li>
+          <strong class="text-ink">Zero executables. Zero install scripts. Zero browser logins. Zero telemetry.</strong>
+          That leaves nothing for application control to block and nothing for the review board to schedule a meeting about.
+        </li>
+      </ul>
+
+      <p class="text-ink/70 leading-relaxed max-w-3xl mb-6">
+        All 22 integrations you know from pncli are on its list. It's pre-release, so for now the paperwork
+        is still being processed. Star the repo and you'll hear when it lands on npm.
+      </p>
+
+      <div class="flex flex-wrap items-center gap-4">
+        <a
+          href="https://github.com/imagile-dev/toil"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-sticker bg-gold text-cream px-7 py-3 text-base"
+        >
+          Star toil on GitHub
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+        </a>
+        <a
+          href="https://imagile-dev.github.io/toil/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-sticker bg-panel text-ink px-7 py-3 text-base"
+        >
+          Learn more
+        </a>
+      </div>
+    </div>
+  </section>
+
   <!-- The message for the bureaucracy: the whole page becomes MAVERICK's salute -->
   <dialog id="bureaucracy-dialog" class="salute-dialog" aria-label="A message for the bureaucracy">
     <button type="button" class="salute-inner" data-close aria-label="Close">
