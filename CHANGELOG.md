@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.5.0](https://github.com/kolatts/pncli/compare/v6.4.0...v6.5.0) (2026-10-17)
+
+
+### Features
+
+* **site:** remove toil references ([#572](https://github.com/kolatts/pncli/issues/572)) ([bdb064b](https://github.com/kolatts/pncli/commit/bdb064bcdc9fd85d7312c116fc576d9c58d06a1d))
+
 ## [6.4.0](https://github.com/kolatts/pncli/compare/v6.3.0...v6.4.0) (2026-10-16)
 
 
