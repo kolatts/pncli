@@ -5,7 +5,7 @@
 
 ### Features
 
-* **site:** announce toil as pncli's successor ([#569](https://github.com/kolatts/pncli/issues/569)) ([e2f1dd4](https://github.com/kolatts/pncli/commit/e2f1dd41c043118fa6776fa65378c6297374cac9)), closes [#568](https://github.com/kolatts/pncli/issues/568)
+* **site:** add a succession notice to the homepage ([#569](https://github.com/kolatts/pncli/issues/569)) ([e2f1dd4](https://github.com/kolatts/pncli/commit/e2f1dd41c043118fa6776fa65378c6297374cac9)), closes [#568](https://github.com/kolatts/pncli/issues/568)
 
 ## [6.3.0](https://github.com/kolatts/pncli/compare/v6.2.1...v6.3.0) (2026-10-15)
 
