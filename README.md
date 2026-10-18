@@ -7,7 +7,7 @@
 
 pncli gives AI coding agents (and humans) structured CLI access to the enterprise tools your org actually runs — Jira, Bitbucket, Confluence, SonarQube, SDElements, Azure DevOps Server, Jenkins, JFrog Artifactory, Checkmarx, and more. No MCP servers required. No meetings to schedule. No forms to fill out.
 
-The service list grows. Any enterprise tool that authenticates with a long-lived credential you generate once (a personal access token, or a refresh token pncli can exchange over plain HTTP) is a candidate — issue trackers and CI/CD, but equally design, docs, observability, and collaboration tools your agents need context from. [Request one](https://kolatts.github.io/pncli/feedback/).
+The service list grows. Any enterprise tool that authenticates with a long-lived credential you generate once (a personal access token, or a refresh token pncli can exchange over plain HTTP) is a candidate — issue trackers and CI/CD, but equally design, docs, observability, and collaboration tools your agents need context from.
 
 ## Why?
 
