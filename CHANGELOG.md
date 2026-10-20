@@ -1,5 +1,18 @@
 # Changelog
 
+## [6.5.0](https://github.com/kolatts/pncli/compare/v6.4.0...v6.5.0) (2026-10-20)
+
+
+### Features
+
+* **site:** remove toil references ([#572](https://github.com/kolatts/pncli/issues/572)) ([bdb064b](https://github.com/kolatts/pncli/commit/bdb064bcdc9fd85d7312c116fc576d9c58d06a1d))
+
+
+### Bug Fixes
+
+* **site:** remove feedback links from the navigation and footer ([#574](https://github.com/kolatts/pncli/issues/574)) ([0112758](https://github.com/kolatts/pncli/commit/011275823994dbd5663a19c16a3aaa01c947a87a))
+* **site:** update Discord invite link ([#575](https://github.com/kolatts/pncli/issues/575)) ([a32516c](https://github.com/kolatts/pncli/commit/a32516c8f7c38f699e1a3129bf48c76f9c1f2c41))
+
 ## [6.4.0](https://github.com/kolatts/pncli/compare/v6.3.0...v6.4.0) (2026-10-16)
 
 
